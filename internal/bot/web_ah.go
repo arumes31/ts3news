@@ -551,13 +551,13 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 	// Buy Now cancels any reserved bid. Refund it before charging so the leading
 	// bidder can use their own reservation toward the fixed-price purchase.
 	if bidderUID.Valid && currentBid > 0 {
-		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", currentBid, bidderUID.String); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAHBuyAPI */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", currentBid, bidderUID.String); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "refund bid"})
 			return
 		}
 	}
 	// Deduct buyer gold.
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", price, uid)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAHBuyAPI */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", price, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -574,7 +574,7 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 		writeJSON(w, map[string]any{"ok": false, "error": "sold"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", sellerNet, sellerUID); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAHBuyAPI */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", sellerNet, sellerUID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "pay"})
 		return
 	}
@@ -611,7 +611,7 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET ultimate_skills_count=ultimate_skills_count+1 WHERE client_uid=$1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAHBuyAPI */ UPDATE users SET ultimate_skills_count=ultimate_skills_count+1 WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
 			return
 		}
@@ -621,7 +621,7 @@ func (s *WebServer) handleAHBuyAPI(w http.ResponseWriter, r *http.Request, uid s
 			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
 			return
 		}
-		if _, err := tx.Exec("UPDATE users SET unique_items_count=unique_items_count+1 WHERE client_uid=$1", uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAHBuyAPI */ UPDATE users SET unique_items_count=unique_items_count+1 WHERE client_uid=$1", uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "deliver"})
 			return
 		}

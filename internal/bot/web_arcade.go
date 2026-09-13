@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -20,24 +21,26 @@ var wheelSegments = []float64{0, 0, 0, 0, 1.5, 0, 0, 2, 0, 0, 3, 5}
 // arcadeOutcome is the result of one arcade round. The typed animation fields let
 // the front-end play a graphic that lands on the server-decided result.
 type arcadeOutcome struct {
-	OK      bool     `json:"ok"`
-	Error   string   `json:"error,omitempty"`
-	Game    string   `json:"game"`
-	Bet     int64    `json:"bet"`
-	Payout  int64    `json:"payout"` // gross returned (0 = lost the bet)
-	Net     int64    `json:"net"`    // payout - bet
-	Win     bool     `json:"win"`
-	Detail  string   `json:"detail"`
-	Gold    int64    `json:"gold"`
-	Symbols []string `json:"symbols,omitempty"`  // slots
-	Roll    int      `json:"roll,omitempty"`     // dice
-	Side    string   `json:"side,omitempty"`     // coinflip
-	Card    int      `json:"card,omitempty"`     // highlow
-	Segment int      `json:"segment"`            // wheel (index into wheelSegments)
-	Mult    float64  `json:"mult,omitempty"`     // wheel/payout multiplier
-	Chest   int      `json:"chest,omitempty"`    // vault treasure position (1–3)
-	Chance  int      `json:"chance,omitempty"`   // expedition success threshold (1–100)
-	GearWon string   `json:"gear_won,omitempty"` // gear looted on a win
+	OK         bool     `json:"ok"`
+	Error      string   `json:"error,omitempty"`
+	Game       string   `json:"game"`
+	Bet        int64    `json:"bet"`
+	Payout     int64    `json:"payout"` // gross returned (0 = lost the bet)
+	Net        int64    `json:"net"`    // all gold credited minus bet
+	BasePayout int64    `json:"base_payout"`
+	Rebate     int64    `json:"rebate"`
+	Win        bool     `json:"win"`
+	Detail     string   `json:"detail"`
+	Gold       int64    `json:"gold"`
+	Symbols    []string `json:"symbols,omitempty"`  // slots
+	Roll       int      `json:"roll,omitempty"`     // dice
+	Side       string   `json:"side,omitempty"`     // coinflip
+	Card       int      `json:"card,omitempty"`     // highlow
+	Segment    int      `json:"segment"`            // wheel (index into wheelSegments)
+	Mult       float64  `json:"mult,omitempty"`     // wheel/payout multiplier
+	Chest      int      `json:"chest,omitempty"`    // vault treasure position (1–3)
+	Chance     int      `json:"chance,omitempty"`   // expedition success threshold (1–100)
+	GearWon    string   `json:"gear_won,omitempty"` // gear looted on a win
 
 	JackpotWin    bool  `json:"jackpot_win,omitempty"`
 	JackpotAmount int64 `json:"jackpot_amount,omitempty"`
@@ -56,6 +59,7 @@ func (s *WebServer) handleArcadePage(w http.ResponseWriter, r *http.Request, uid
 		"WheelJSON":    jsonJS(wheelSegments),
 		"VIP":          vip,
 		"VIPPoints":    pts,
+		"RoundAccount": fmt.Sprintf("%x", sha256.Sum256([]byte(uid))),
 		"JackpotSlots": s.bot.getJackpot("global"),
 		"CanDaily":     s.bot.canSpinDaily(uid),
 	})
@@ -67,15 +71,16 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	var req struct {
-		Game   string `json:"game"`
-		Bet    int64  `json:"bet"`
-		Choice string `json:"choice"`
+		Game      string `json:"game"`
+		Bet       int64  `json:"bet"`
+		Choice    string `json:"choice"`
+		RequestID string `json:"request_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, arcadeOutcome{OK: false, Error: "bad request"})
 		return
 	}
-	if req.Bet <= 0 || req.Bet > maxArcadeBet {
+	if req.Bet < 100 || req.Bet > maxArcadeBet || req.Bet%100 != 0 {
 		writeJSON(w, arcadeOutcome{OK: false, Error: "invalid bet"})
 		return
 	}
@@ -85,103 +90,11 @@ func (s *WebServer) handleArcadeAPI(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 
-	// Atomically take the bet (fails if the user can't afford it).
-	res, err := s.bot.DB.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", req.Bet, uid)
+	out, err := s.bot.settleArcade(r.Context(), uid, req.Game, req.Choice, req.Bet, req.RequestID)
 	if err != nil {
-		writeJSON(w, arcadeOutcome{OK: false, Error: "db"})
+		writeJSON(w, arcadeOutcome{Error: err.Error()})
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		writeJSON(w, arcadeOutcome{OK: false, Error: "not enough gold"})
-		return
-	}
-
-	// Award VIP points: 1 per 10 gold wagered
-	s.bot.addVIPPoints(uid, int(req.Bet/10))
-
-	// #nosec G404 -- non-cryptographic arcade RNG
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	out := playArcade(rng, req.Game, req.Bet, req.Choice)
-	if !out.OK {
-		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", req.Bet, uid) // refund
-		writeJSON(w, out)
-		return
-	}
-
-	// Progressive Jackpot logic (Triggerable in every game)
-	isJackpot := false
-	switch req.Game {
-	case "slots":
-		isJackpot = out.Detail == "JACKPOT! 5 of a kind ×88"
-	case "dice":
-		isJackpot = out.Payout >= req.Bet*5 // High multiplier win
-	case "coin":
-		// Coin flip has small multipliers, maybe consecutive wins?
-		// For now, let's just make it a random chance on win
-		if out.Win && rng.IntN(100) < 2 { isJackpot = true }
-	default:
-		// Generic random chance for other games
-		if out.Win && rng.IntN(100) < 1 { isJackpot = true }
-	}
-
-	if isJackpot {
-		jackpot := s.bot.claimJackpot(uid, "global")
-		if jackpot > 0 {
-			out.JackpotWin = true
-			out.JackpotAmount = jackpot
-			out.Payout += jackpot
-			out.Detail = "🔥 GLOBAL JACKPOT WIN! " + out.Detail
-		}
-	} else if out.Payout < req.Bet {
-		// Increment jackpot by 1% of lost value (net loss)
-		lost := req.Bet - out.Payout
-		s.bot.incrementJackpot("global", lost)
-	}
-
-	out.NewJackpot = s.bot.getJackpot("global")
-
-	// Progressive Jackpot logic (Slots only for legacy compatibility, but uses global now)
-	if req.Game == "slots" {
-		out.NewJackpot = s.bot.getJackpot("global")
-	}
-
-	// Credit the payout and read the resulting balance atomically (via RETURNING)
-	// so no concurrent operation can change gold between the update and the read.
-	var gold int64
-	if out.Payout > 0 {
-		_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", out.Payout, uid).Scan(&gold)
-	} else {
-		// Apply VIP loss-back if applicable
-		vip, _ := s.bot.getVIP(uid)
-		if vip.Rebate > 0 {
-			rebate := req.Bet * int64(vip.Rebate) / 100
-			if rebate > 0 {
-				_ = s.bot.DB.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", rebate, uid).Scan(&gold)
-				out.Detail += fmt.Sprintf(" (VIP loss-back: +%d gold)", rebate)
-			} else {
-				_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-			}
-		} else {
-			_ = s.bot.DB.QueryRow("SELECT gold FROM users WHERE client_uid=$1", uid).Scan(&gold)
-		}
-	}
-	out.Net = out.Payout - out.Bet
-	// A push (e.g. dice rolling 4) returns the bet so Payout > 0 but Net == 0; only
-	// a positive Net is an actual win.
-	out.Win = out.Net > 0
-
-	// Winning rounds have a chance to also drop a gear piece.
-	if out.Win {
-		// #nosec G404 -- non-cryptographic drop roll
-		if rng.IntN(100) < 15 {
-			g := content.RandomArcadeGearDrop()
-			result := s.bot.awardGearDrop(uid, g)
-			out.GearWon = result.Prefix + result.ItemName
-		}
-	}
-
-	out.Gold = gold
-	s.bot.recordGameResult(uid, "arcade", out.Win, out.Net)
 	writeJSON(w, out)
 }
 
@@ -207,7 +120,7 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, u
 	case roll < 70:
 		gold = int64(100 + rng.IntN(400))
 		reward = fmt.Sprintf("Looted %d gold!", gold)
-		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleDailySpinAPI */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
 	case roll < 95:
 		g := content.RandomArcadeGearDrop()
 		result := s.bot.awardGearDrop(uid, g)
@@ -216,7 +129,7 @@ func (s *WebServer) handleDailySpinAPI(w http.ResponseWriter, r *http.Request, u
 	default:
 		gold = 2500
 		reward = "JACKPOT! Looted 2500 gold!"
-		_, _ = s.bot.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
+		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleDailySpinAPI */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", gold, uid)
 	}
 
 	var newGold int64
@@ -342,7 +255,7 @@ func playDice(rng *rand.Rand, bet int64) (int, int64, string) {
 	}
 }
 
-// playCoinflip is a near-even flip (1.95x) on the chosen side.
+// playCoinflip is a near-even flip (1.93x) on the chosen side.
 func playCoinflip(rng *rand.Rand, bet int64, choice string) (string, int64, string) {
 	if choice != "heads" && choice != "tails" {
 		choice = "heads"
@@ -352,7 +265,7 @@ func playCoinflip(rng *rand.Rand, bet int64, choice string) (string, int64, stri
 		flip = "tails"
 	}
 	if flip == choice {
-		return flip, bet * 195 / 100, flip + " — you win ×1.95"
+		return flip, bet * 193 / 100, flip + " — you win ×1.93"
 	}
 	return flip, 0, flip + " — you lose"
 }
@@ -376,7 +289,7 @@ func playHighLow(rng *rand.Rand, bet int64, choice string) (int, int64, string) 
 	card := rng.IntN(13) + 1
 	win := (choice == "high" && card > 7) || (choice == "low" && card < 7)
 	if win {
-		return card, bet * 2, "Drew " + itoa(card) + " — win ×2"
+		return card, bet * 208 / 100, "Drew " + itoa(card) + " — win ×2.08"
 	}
 	return card, 0, "Drew " + itoa(card) + " — loss"
 }

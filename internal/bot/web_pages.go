@@ -145,11 +145,7 @@ func gearAtlasView(g content.Gear) itemAtlasView {
 }
 
 func gearSpecialViews(g content.Gear) []itemSpecialView {
-	effects := make([]content.ItemEffect, 0, len(g.BonusEffects)+1)
-	if g.Special != content.EffectNone {
-		effects = append(effects, g.Special)
-	}
-	effects = append(effects, g.BonusEffects...)
+	effects := g.Effects()
 	seen := make(map[content.ItemEffect]bool, len(effects))
 	out := make([]itemSpecialView, 0, len(effects))
 	for _, effect := range effects {
@@ -349,13 +345,18 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		}
 		if len(g.BonusEffects) > 0 {
 			names := make([]string, 0, len(g.BonusEffects))
-			for _, e := range g.BonusEffects {
-				names = append(names, string(e))
+			for _, e := range g.Effects() {
+				if e != g.Special {
+					names = append(names, string(e))
+				}
 			}
 			if effDesc != "" {
 				effDesc += " | "
 			}
-			effDesc += "Bonus Effects: " + strings.Join(names, ", ")
+			effDesc += "Active Bonus Effects: " + strings.Join(names, ", ")
+			if len(g.BonusEffects) > content.BonusEffectBudget(g.Rarity) {
+				effDesc += fmt.Sprintf(" (legacy extras inactive; rarity budget %d)", content.BonusEffectBudget(g.Rarity))
+			}
 		}
 	}
 	atlas := gearAtlasView(g)
@@ -425,10 +426,10 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		v.Effect = string(g.Special)
 		v.EffectIcon = content.EffectIconName(g.Special)
 		v.EffectDesc = effDesc
-	} else if !g.Unidentified && len(g.BonusEffects) > 0 {
+	} else if !g.Unidentified && len(g.Effects()) > 0 {
 		// No base Special, but Mythic/Divine bonus affixes: show the first as the tag.
-		v.Effect = string(g.BonusEffects[0])
-		v.EffectIcon = content.EffectIconName(g.BonusEffects[0])
+		v.Effect = string(g.Effects()[0])
+		v.EffectIcon = content.EffectIconName(g.Effects()[0])
 		v.EffectDesc = effDesc
 	} else if g.Unidentified {
 		v.EffectDesc = effDesc
@@ -927,7 +928,7 @@ func (s *WebServer) handleSellAPI(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 	var gold int64
-	if err := tx.QueryRow("UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", value, uid).Scan(&gold); err != nil {
+	if err := tx.QueryRow("/* economy:bot.WebServer.handleSellAPI */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2 RETURNING gold", value, uid).Scan(&gold); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "gold"})
 		return
 	}

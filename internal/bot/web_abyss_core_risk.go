@@ -76,7 +76,7 @@ func (s *WebServer) handleAbyssRestCacheShrink(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "run changed; refresh and try again"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", tokens, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssRestCacheShrink */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", tokens, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

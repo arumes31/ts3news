@@ -37,7 +37,7 @@ func registerArcadePlaytest(mux *http.ServeMux, server *WebServer) {
 		defer mu.Unlock()
 		current := getWallet(w, r)
 		if err := server.tmpl.ExecuteTemplate(w, "arcade", map[string]any{
-			"Title": "Arcade", "Nav": "arcade", "EnableAbyss": true,
+			"Title": "Arcade", "Nav": "arcade", "EnableAbyss": true, "RoundAccount": "arcade-test-account",
 			"U":   &webUser{UID: "arcade-e2e", Nickname: "Arcade Tester", Gold: current.gold},
 			"VIP": map[string]any{"Name": "Bronze"}, "VIPPoints": 120,
 			"WheelJSON": jsonJS(wheelSegments), "JackpotSlots": int64(50000), "CanDaily": current.daily,

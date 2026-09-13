@@ -34,7 +34,7 @@ func abyssInsuranceCharmEligible(run abyssRun, pacts []string, hardcore, anchorA
 // restores the charge instead of losing it without settling the run.
 func consumeAbyssInsuranceCharm(tx *sql.Tx, uid string) (bool, error) {
 	result, err := tx.Exec(
-		`UPDATE user_consumables
+		`/* economy:bot.consumeAbyssInsuranceCharm */ UPDATE user_consumables
 		 SET remaining_fights = remaining_fights - 1
 		 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights > 0`,
 		uid, abyssInsuranceCharmID,
@@ -47,7 +47,7 @@ func consumeAbyssInsuranceCharm(tx *sql.Tx, uid string) (bool, error) {
 		return false, err
 	}
 	if _, err := tx.Exec(
-		"DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights <= 0",
+		"/* economy:bot.consumeAbyssInsuranceCharm */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights <= 0",
 		uid, abyssInsuranceCharmID,
 	); err != nil {
 		return false, err

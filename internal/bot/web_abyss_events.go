@@ -260,7 +260,7 @@ func (s *WebServer) handleAbyssExpandedEventAction(
 		}
 		defer func() { _ = tx.Rollback() }()
 		var newGold int64
-		err = tx.QueryRow("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1 RETURNING gold", price, uid).Scan(&newGold)
+		err = tx.QueryRow("/* economy:bot.WebServer.handleAbyssExpandedEventAction */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1 RETURNING gold", price, uid).Scan(&newGold)
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 			return true

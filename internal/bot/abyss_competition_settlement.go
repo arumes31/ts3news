@@ -38,7 +38,7 @@ func (b *Bot) settleAbyssCompetitionPeriod(kind, key string, start, end time.Tim
 	}
 	if _, err := tx.Exec(`WITH best AS (
 		SELECT DISTINCT ON (tier,client_uid) tier,client_uid,depth,gold_banked,build_key
-		FROM abyss_runs WHERE created_at >= $3 AND created_at < $4
+		FROM abyss_runs WHERE created_at >= $3 AND created_at < $4 AND created_at >= COALESCE((SELECT value::timestamptz FROM app_meta WHERE key='economy_started_at'), '-infinity'::timestamptz)
 		ORDER BY tier,client_uid,depth DESC,gold_banked DESC,duration_ms ASC,id ASC
 	), ranked AS (
 		SELECT b.*,RANK() OVER (PARTITION BY tier ORDER BY depth DESC,gold_banked DESC,client_uid) AS rank
@@ -56,7 +56,7 @@ func (b *Bot) settleAbyssCompetitionPeriod(kind, key string, start, end time.Tim
 	}
 	if _, err := tx.Exec(`WITH best AS (
 		SELECT DISTINCT ON (tier,client_uid) tier,client_uid,depth,gold_banked
-		FROM abyss_runs WHERE created_at >= $3 AND created_at < $4
+		FROM abyss_runs WHERE created_at >= $3 AND created_at < $4 AND created_at >= COALESCE((SELECT value::timestamptz FROM app_meta WHERE key='economy_started_at'), '-infinity'::timestamptz)
 		ORDER BY tier,client_uid,depth DESC,gold_banked DESC,duration_ms ASC,id ASC
 	), ranked AS (
 		SELECT b.*,RANK() OVER (PARTITION BY tier ORDER BY depth DESC,gold_banked DESC,client_uid) AS rank
@@ -75,7 +75,7 @@ func (b *Bot) settleAbyssCompetitionPeriod(kind, key string, start, end time.Tim
 	FROM ranked WHERE $1='season' OR rank<=10`, kind, key, start, end); err != nil {
 		return fmt.Errorf("record abyss competition rewards: %w", err)
 	}
-	if _, err := tx.Exec(`UPDATE users u SET abyss_tokens=u.abyss_tokens+r.tokens
+	if _, err := tx.Exec(`/* economy:bot.Bot.settleAbyssCompetitionPeriod */ UPDATE users u SET abyss_tokens=u.abyss_tokens+r.tokens
 		FROM (SELECT client_uid,SUM(tokens)::BIGINT AS tokens FROM abyss_competition_rewards
 		      WHERE period_kind=$1 AND period_key=$2 GROUP BY client_uid) r
 		WHERE u.client_uid=r.client_uid AND r.tokens>0`, kind, key); err != nil {
@@ -179,7 +179,7 @@ func (b *Bot) settleAbyssWagerWeek(key string, start, end time.Time) error {
 		if payout <= 0 {
 			continue
 		}
-		if _, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", payout, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.Bot.settleAbyssWagerWeek */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", payout, uid); err != nil {
 			return fmt.Errorf("credit abyss wager payout: %w", err)
 		}
 	}

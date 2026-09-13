@@ -14,12 +14,18 @@ import (
 )
 
 func (b *Bot) applyMilestones(c *clientquery.Client, clid int, nickname string, lr *levelResult) {
-	if lr == nil { return }
+	if lr == nil {
+		return
+	}
 	crossed := leveling.MilestonesCrossed(lr.OldLevel, lr.NewLevel, b.levelGroups)
-	if len(crossed) == 0 { return }
+	if len(crossed) == 0 {
+		return
+	}
 
 	cldbid, err := c.ClientDBID(clid)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 
 	for _, sgid := range crossed {
 		if err := c.AddServerGroup(sgid, cldbid); err != nil {
@@ -100,7 +106,7 @@ func (b *Bot) getUserGroupLevel(uid string) int {
 }
 
 func (b *Bot) setUserGroupLevel(uid string, level int) error {
-	_, err := b.DB.Exec("UPDATE users SET group_level = $2 WHERE client_uid = $1", uid, level)
+	_, err := b.DB.Exec("/* economy:bot.Bot.setUserGroupLevel */ UPDATE users SET group_level = $2 WHERE client_uid = $1", uid, level)
 	return err
 }
 
@@ -367,4 +373,3 @@ func (b *Bot) applyAbyssMilestones(c *clientquery.Client, clid int, _, nickname 
 		}
 	}
 }
-

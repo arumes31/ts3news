@@ -212,18 +212,18 @@ func (s *WebServer) handleAbyssBountyClaim(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	if bounty.RewardGd > 0 {
-		if _, err := tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid=$2", bounty.RewardGd, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBountyClaim */ UPDATE users SET gold = gold + $1 WHERE client_uid=$2", bounty.RewardGd, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 	}
 	if totalTokens > 0 {
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", totalTokens, uid); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBountyClaim */ UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", totalTokens, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_bounty_streak = $1 WHERE client_uid=$2", newStreak, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBountyClaim */ UPDATE users SET abyss_bounty_streak = $1 WHERE client_uid=$2", newStreak, uid); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

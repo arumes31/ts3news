@@ -3,9 +3,9 @@ const { test, expect } = require('@playwright/test');
 const outcomes = {
   slots: { symbols: ['🍒', '🍋', '🔔', '⭐', '💎'], detail: 'No match', payout: 0, net: -100, win: false },
   dice: { roll: 4, detail: 'Rolled 4 — push', payout: 100, net: 0, win: false },
-  coinflip: { side: 'tails', detail: 'tails — you win ×1.95', payout: 195, net: 95, win: true },
+  coinflip: { side: 'tails', detail: 'tails — you win ×1.93', payout: 193, net: 93, win: true },
   wheel: { segment: 11, mult: 5, detail: 'Won ×5', payout: 500, net: 400, win: true },
-  highlow: { card: 3, detail: 'Drew 3 — win ×2', payout: 200, net: 100, win: true },
+  highlow: { card: 3, detail: 'Drew 3 — win ×2.08', payout: 208, net: 108, win: true },
 };
 
 test.use({ reducedMotion: 'reduce' });
@@ -37,15 +37,16 @@ test('all five Abyss games show the server outcome and keep usable controls', as
   expect(errors).toEqual([]);
 });
 
-test('failed requests unlock games and stop auto-bet', async ({ page }) => {
+test('unconfirmed requests keep wagers locked and stop auto-bet', async ({ page }) => {
   await page.route('**/api/arcade/play', route => route.abort());
   await page.goto('/arcade');
   await page.locator('#autoBet').check();
   await page.getByRole('button', { name: 'Roll dice', exact: true }).click();
   await expect(page.locator('#arcadeMsg')).toContainText('Could not confirm');
   await expect(page.locator('#autoBet')).not.toBeChecked();
-  await expect(page.locator('#btn-dice')).toBeEnabled();
-  await expect(page.locator('#btn-coin-tails')).toBeEnabled();
+  await expect(page.locator('#btn-dice')).toBeDisabled();
+  await expect(page.locator('#btn-coin-tails')).toBeDisabled();
+  await expect(page.locator('#btn-memory')).toBeEnabled();
 });
 
 test('unchecking auto-bet cancels the queued wager', async ({ page }) => {

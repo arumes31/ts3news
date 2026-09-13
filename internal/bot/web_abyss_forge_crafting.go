@@ -157,7 +157,7 @@ func (s *WebServer) handleAbyssCraftRepairKit2(w http.ResponseWriter, r *http.Re
 	}
 	count, crit := forge4CraftOutput(rand.Float64()) // #nosec G404 -- non-cryptographic crafting roll
 	if _, err := tx.Exec(
-		`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+		`/* economy:bot.WebServer.handleAbyssCraftRepairKit2 */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		 VALUES ($1, 'repair_kit_ii', $2)
 		 ON CONFLICT (client_uid, cons_id)
 		 DO UPDATE SET remaining_fights = user_consumables.remaining_fights + EXCLUDED.remaining_fights`,

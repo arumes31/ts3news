@@ -291,7 +291,7 @@ func (b *Bot) processUserXP(uid, nickname string, cid, base int, hasGame bool, c
 			_ = b.awardGearDrop(uid, g)
 
 			c := content.RandomConsumable()
-			_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
+			_, _ = b.DB.Exec("/* economy:bot.Bot.processUserXP */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", uid, c.ID, c.Duration)
 
 			notes = append(notes, fmt.Sprintf("🎁 Level %d Milestone Reached! You found a %s and a %s!", (lr.NewLevel/lootBoxEveryLevels)*lootBoxEveryLevels, g.Name, c.Name))
 		}
@@ -348,6 +348,7 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 	}
 	defer func() { _ = rows.Close() }()
 	var out []*content.Mob
+	healthStates := map[*content.Mob]*abyssPetHealthState{}
 	for rows.Next() {
 		var m content.Mob
 		var mType string
@@ -363,17 +364,24 @@ func (b *Bot) getPets(uid string) []*content.Mob {
 			m.PetShiny = profile.Shiny
 			m.PetBoss = profile.BossVariant
 			m.PetBark = profile.BarkStyle
+			healthStates[&m] = profile.CombatHealth
 			out = append(out, &m)
 		}
 	}
-	if rows.Err() != nil || len(out) == 0 {
-		return out
+	if err := rows.Err(); err != nil {
+		log.Printf("combat: load pet state failed: %v", err)
+		return nil
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	_ = rows.Close()
 	petGearStats := abyssPetGearStats(b.getEquippedItems(uid))
 	for _, pet := range out {
+		baseHP, baseMaxHP := pet.Stats.HP, pet.MaxHP
 		applyAbyssPetGear(pet, petGearStats)
 		applyAbyssPetClass(pet)
+		restoreAbyssPetHealth(pet, baseHP, baseMaxHP, healthStates[pet])
 		_, _, moodPct := abyssPetMood(pet.Stats.HP, pet.MaxHP, pet.Loyalty)
 		combatPct := moodPct + abyssPetLoyaltyBonusPct(pet.Loyalty)
 		pet.Stats.STR = abyssPetMoodScale(pet.Stats.STR, combatPct)
@@ -425,7 +433,14 @@ func (b *Bot) updatePetState(uid string, pet *content.Mob) {
 		}
 		return
 	}
-	_, _ = b.DB.Exec("UPDATE user_pets SET hp=$1, loyalty=$2 WHERE client_uid=$3 AND name=$4", pet.Stats.HP, pet.Loyalty, uid, pet.Name)
+	health := min(pet.Stats.HP, max(1, pet.MaxHP))
+	_, err := b.DB.Exec(`UPDATE user_pets SET hp=LEAST(max_hp,$1), loyalty=$2,
+  autoskills=jsonb_set(COALESCE(autoskills,'{}'::jsonb),'{combat_health}',
+   jsonb_build_object('hp',$1::bigint,'base_hp',LEAST(max_hp,$1),'base_max_hp',max_hp),TRUE)
+  WHERE client_uid=$3 AND name=$4`, health, pet.Loyalty, uid, pet.Name)
+	if err != nil {
+		log.Printf("combat: persist pet state failed: %v", err)
+	}
 }
 
 func (b *Bot) checkUserRevive(u *UserInCombat, logs *[]string) bool {
@@ -483,9 +498,9 @@ func (b *Bot) consumeCombatConsumable(u *UserInCombat, id string, consumeAll boo
 		return
 	}
 	if !u.shadow {
-		query := "DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)"
+		query := "/* economy:bot.Bot.consumeCombatConsumable */ DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)"
 		if consumeAll {
-			query = "DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2"
+			query = "/* economy:bot.Bot.consumeCombatConsumable */ DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2"
 		}
 		_, _ = b.DB.Exec(
 			query,
@@ -1530,8 +1545,7 @@ func (b *Bot) applyEffects(activeUsers []activeUser, mobs []*content.Mob, zone c
 		// Pets Regen
 		for _, p := range u.Pets {
 			if p.Stats.HP > 0 {
-				heal := int(float64(p.Level*2) * healPenalty)
-				p.Stats.HP += heal
+				heal := healAbyssPet(p, int(float64(p.Level*2)*healPenalty))
 				id := live.presentationEntity(p, "pet:"+u.UID)
 				live.present(round, "status", id, "regeneration", "Regeneration", p.Element, abyssLivePresentationOutcome{TargetID: id, Healing: max(0, heal)})
 			}
@@ -1753,13 +1767,13 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			uSTR = int(float64(uSTR) * 1.1)
 		}
 
-		var lifesteal int
+		var lifesteal float64
 		var multiStrike int
 		var mindControlLevel int
 		var extraHits = 1
 
 		if u.shadow {
-			lifesteal = u.shadowLifesteal
+			lifesteal = float64(u.shadowLifesteal)
 			multiStrike = u.shadowMultiStrike
 			mindControlLevel = u.shadowMindControl
 		} else {
@@ -1767,7 +1781,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			_ = b.DB.QueryRow("SELECT title FROM users WHERE client_uid=$1", u.UID).Scan(&tName)
 			if tName.Valid {
 				if t, ok := content.GetTitleByName(tName.String); ok {
-					lifesteal = t.Lifesteal
+					lifesteal = float64(t.Lifesteal)
 					multiStrike = t.MultiStrike
 				}
 			}
@@ -1792,20 +1806,16 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			}
 		}
 
-		for _, eff := range au.effects {
-			if eff == content.EffectVampiric {
-				lifesteal += 5
-			}
-		}
+		lifesteal += 100 * content.PassiveEffectBonus(au.effects, content.EffectVampiric)
 
 		// AB-62 Focus synergy: the auto-selected loot focus adds a matching
-		// combat micro-bonus (gold focus → +2% crit, etc.).
+		// combat micro-bonus (gold focus → +2 critical rating, etc.).
 		focusCrit := 0
 		focusDmg := 1.0
 		if abyssCombatant(u) {
 			var focusLifesteal int
 			focusCrit, focusDmg, focusLifesteal = abyssFocusMicroBonus(u.LootFocus)
-			lifesteal += focusLifesteal
+			lifesteal += float64(focusLifesteal)
 		}
 
 		// Skill web: Souldrinker converts defensive stats into lifesteal —
@@ -1816,7 +1826,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if ls > 15 {
 				ls = 15
 			}
-			lifesteal += ls
+			lifesteal += float64(ls)
 		}
 
 		// #nosec G404
@@ -1882,14 +1892,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if au.stunbrokenRound == round {
 				dmgMult *= 0.5
 			}
-			for _, eff := range au.effects {
-				if eff == content.EffectBerserk && u.CurrentHP < u.Stats.HP/2 {
-					dmgMult += 0.2
-				}
-				if eff == content.EffectFragile {
-					dmgMult += 0.3
-				}
+			if u.CurrentHP < u.Stats.HP/2 {
+				dmgMult += content.PassiveEffectBonus(au.effects, content.EffectBerserk)
 			}
+			dmgMult += content.PassiveEffectBonus(au.effects, content.EffectFragile)
 
 			// Spell cost and cast check
 			st := abyssStats{}
@@ -2182,8 +2188,7 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			rolledCritical := false
 
 			// Abyss criticals (AB-62 focus crit bonus).
-			// The CRT stat is displayed as "Crit %" in the armory but was never
-			// rolled in combat — the Abyss path now rolls it (×2 damage, capped).
+			// CRT rating determines double-damage chance; focus adds rating.
 			if abyssCombatant(u) {
 				dmg, weaknessCritical = resolveAbyssWeaknessCritical(
 					abyssWeaknessCriticalContext{
@@ -2195,12 +2200,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					dmg,
 				)
 				if !weaknessCritical {
-					critPct := u.Stats.CRT + focusCrit
-					if critPct > 50 {
-						critPct = 50
-					}
+					critPct := content.CriticalChance(u.Stats.CRT + focusCrit)
 					// #nosec G404 -- non-cryptographic combat roll
-					if critPct > 0 && rand.IntN(100) < critPct {
+					if critPct > 0 && rand.Float64()*100 < critPct {
 						dmg *= 2
 						rolledCritical = true
 						*logs = append(*logs, fmt.Sprintf("💥 CRITICAL HIT! %s lands a devastating blow on %s!", u.Nickname, target.Name))
@@ -2227,8 +2229,9 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 			if target.MaxHP > 0 && target.Stats.HP*10 < target.MaxHP*3 {
 				for _, eff := range au.effects {
 					if eff == content.EffectExecutioner {
-						dmg = dmg * 5 / 4
-						secondaryBaseDamage = secondaryBaseDamage * 5 / 4
+						bonus := content.PassiveEffectBonus(au.effects, content.EffectExecutioner)
+						dmg = int(float64(dmg) * (1 + bonus))
+						secondaryBaseDamage = int(float64(secondaryBaseDamage) * (1 + bonus))
 						executioner = true
 						break
 					}
@@ -2570,12 +2573,9 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		}
 
 		// #nosec G404
-		// Dodge check - capped at 25%
-		dodgeChance := target.Stats.DGE
-		if dodgeChance > 25 {
-			dodgeChance = 25
-		}
-		if rand.IntN(100) < dodgeChance { // #nosec G404
+		// Dodge rating approaches the 25% ceiling with diminishing returns.
+		dodgeChance := content.DodgeChance(target.Stats.DGE)
+		if rand.Float64()*100 < dodgeChance { // #nosec G404
 			live.present(round, "attack", actorID, "basic_attack", "Basic Attack", m.Element, abyssLivePresentationOutcome{TargetID: targetID, Dodged: true})
 			continue
 		} // #nosec G404
@@ -2773,10 +2773,11 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 		}
 		for _, eff := range targetAU.effects {
 			if eff == content.EffectThorns && impactDamage > 0 {
-				reflect := impactDamage / 10
+				bonus := content.PassiveEffectBonus(targetAU.effects, content.EffectThorns)
 				if hasSpikes {
-					reflect = impactDamage * 3 / 10 // Thorns boosted to 30% with Spikes/shield!
+					bonus = min(.4, bonus*3)
 				}
+				reflect := int(float64(impactDamage) * bonus)
 				if reflect < 1 {
 					reflect = 1
 				}
@@ -2792,6 +2793,7 @@ func (b *Bot) mobTurn(activeUsers []activeUser, mobs []*content.Mob, zone conten
 						track.overkill = overkill
 					}
 				}
+				break // The aggregate is applied once, including duplicate affixes.
 			}
 		}
 	}
@@ -2832,7 +2834,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 		finalXP := 0
 		if victory {
 			if !u.IsClone {
-				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET consecutive_losses = 0 WHERE client_uid = $1", u.UID)
 				b.updateQuest(u.UID, "mobs_killed", len(initialMobs))
 			}
 
@@ -2850,7 +2852,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 
 		} else {
 			if !u.IsClone {
-				_, _ = b.DB.Exec("UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET consecutive_losses = consecutive_losses + 1 WHERE client_uid = $1", u.UID)
 				// Death Penalty: 25% of the XP required for the current level
 				var curXP, curLevel int
 				_ = b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid=$1", u.UID).Scan(&curXP, &curLevel)
@@ -2908,7 +2910,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 					goldDrop *= 5
 					finalXP *= 5
 					logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
-					_, _ = b.DB.Exec("UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
+					_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
 				}
 			}
 
@@ -2927,7 +2929,7 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 				_, _ = b.DB.Exec("UPDATE user_ultimate_skills SET current_cooldown = $3 WHERE client_uid = $1 AND ultimate_id = $2", u.UID, us.ID, us.CurrentCooldown)
 			}
 
-			_, _ = b.DB.Exec("UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
+			_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
 
 			// Skill web: Alchemist's Ritual — a lucky fight burns no
 			// consumable charges.
@@ -2940,8 +2942,8 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 			}
 			// #nosec G404 -- non-cryptographic charge-save roll
 			if savePct <= 0 || rand.Float64() >= savePct {
-				_, _ = b.DB.Exec("UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
-				_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1", u.UID)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ DELETE FROM user_consumables WHERE client_uid = $1 AND remaining_fights < 0", u.UID)
 			}
 		}
 
@@ -3166,7 +3168,7 @@ func (b *Bot) updateStreak(uid string, today time.Time) int {
 	} else {
 		streak = 1
 	}
-	_, _ = b.DB.Exec("UPDATE users SET streak_days=$2, last_poke_date=$3 WHERE client_uid=$1", uid, streak, today)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.updateStreak */ UPDATE users SET streak_days=$2, last_poke_date=$3 WHERE client_uid=$1", uid, streak, today)
 	return streak
 }
 
@@ -3179,7 +3181,7 @@ func (b *Bot) dailyLoginDue(uid string, today time.Time) bool {
 }
 
 func (b *Bot) setLastLogin(uid string, today time.Time) {
-	_, _ = b.DB.Exec("UPDATE users SET last_login_date=$2 WHERE client_uid=$1", uid, today)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.setLastLogin */ UPDATE users SET last_login_date=$2 WHERE client_uid=$1", uid, today)
 }
 
 func (b *Bot) ensureUserHasGear(uid string) {
@@ -3281,9 +3283,9 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 				// Apply repair to all damaged gear (spread evenly)
 				_, _ = b.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $2, "+gearMaxDurExpr+") WHERE client_uid = $1 AND durability < "+gearMaxDurExpr, uid, repairAmt/brokenCount)
 				// Also repair artifact
-				_, _ = b.DB.Exec("UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0 AND artifact_durability < 30", uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.applyDurabilityLoss */ UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0 AND artifact_durability < 30", uid)
 				// Consume one repair kit
-				_, _ = b.DB.Exec("DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", uid, cid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.applyDurabilityLoss */ DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)", uid, cid)
 			}
 		}
 	}
@@ -3378,7 +3380,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 	var artName sql.NullString
 	_ = b.DB.QueryRow("SELECT artifact_durability, artifact_name FROM users WHERE client_uid = $1", uid).Scan(&oldArtDura, &artName)
 
-	_, _ = b.DB.Exec("UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.applyDurabilityLoss */ UPDATE users SET artifact_durability = artifact_durability - $2 WHERE client_uid = $1 AND artifact_durability > 0", uid, baseLoss)
 
 	if oldArtDura > 0 && oldArtDura-baseLoss <= 0 && artName.Valid && artName.String != "" {
 		warnings = append(warnings, fmt.Sprintf("💥 Your %s shattered into pieces!", artName.String))
@@ -3386,7 +3388,7 @@ func (b *Bot) applyDurabilityLoss(uid string, defeat bool) []string {
 		warnings = append(warnings, fmt.Sprintf("⚠️ Your %s is badly damaged and will break soon!", artName.String))
 	}
 
-	_, _ = b.DB.Exec("UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
+	_, _ = b.DB.Exec("/* economy:bot.Bot.applyDurabilityLoss */ UPDATE users SET artifact_mult=1, artifact_name=NULL, artifact_durability=0 WHERE client_uid=$1 AND artifact_durability <= 0 AND artifact_name IS NOT NULL", uid)
 
 	return warnings
 }
@@ -3411,21 +3413,8 @@ func (b *Bot) calculateTotalStats(uid string, today time.Time) (content.Stats, f
 	mult, lootStats, gearScore, notes, effects := b.activeLootMult(uid, today)
 	totalStats := base.Add(lootStats)
 
-	// Apply effects to stats
-	for _, eff := range effects {
-		switch eff {
-		case content.EffectLucky:
-			totalStats.LCK = int(float64(totalStats.LCK) * 1.1)
-		case content.EffectQuick:
-			totalStats.SPD = int(float64(totalStats.SPD) * 1.1)
-		case content.EffectBulwark:
-			totalStats.DEF = int(float64(totalStats.DEF) * 1.1)
-		case content.EffectFocused:
-			totalStats.CRT = int(float64(totalStats.CRT) * 1.1)
-		case content.EffectRadiant:
-			mult *= 1.1
-		}
-	}
+	totalStats = content.ApplyPassiveStats(totalStats, effects)
+	mult *= 1 + content.PassiveEffectBonus(effects, content.EffectRadiant)
 
 	// Permanent Abyss progression is the canonical global character model. Keep
 	// run-scoped build flags out of this layer; live Abyss combat adds those after
@@ -3453,7 +3442,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				stats = stats.Add(t.Stats)
 			}
 		} else if title.Valid {
-			_, _ = b.DB.Exec("UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1", uid)
+			_, _ = b.DB.Exec("/* economy:bot.Bot.activeLootMult */ UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1", uid)
 		}
 	}
 	var aMult sql.NullFloat64
@@ -3515,15 +3504,7 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 						gearScore += bonus.Score()
 						notes = append(notes, fmt.Sprintf("💛 Broken in: %s (+1%% stats)", gear.Name))
 					}
-					if gear.Special != content.EffectNone {
-						effects = append(effects, gear.Special)
-					}
-					// High-tier gear (Mythic/Divine) can carry extra bonus affixes.
-					for _, be := range gear.BonusEffects {
-						if be != content.EffectNone {
-							effects = append(effects, be)
-						}
-					}
+					effects = append(effects, gear.Effects()...)
 
 					if enchID.Valid && enchID.String != "" {
 						if ench, ok := content.GetEnchantmentByID(enchID.String); ok {
@@ -3672,12 +3653,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 
 	// Effect check
 	_, _, _, _, effects := b.activeLootMult(uid, time.Now())
-	lootFindBonus := 0.0
-	for _, eff := range effects {
-		if eff == content.EffectTreasureHunter {
-			lootFindBonus += 0.05
-		}
-	}
+	lootFindBonus := content.PassiveEffectBonus(effects, content.EffectTreasureHunter)
 
 	// Loot Quality Multiplier: Higher difficulty = better chance for Rares
 	qualityMult := zoneDifficulty
@@ -3721,7 +3697,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				if vip.Bonus > 0 {
 					gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
 				}
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
 				results = append(results, fmt.Sprintf("💰 %d gold", gold))
 			} else {
 				// Standard gold reward for non-goblin mobs in gold-focus mode
@@ -3730,7 +3706,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				if vip.Bonus > 0 {
 					baseGold = int64(float64(baseGold) * (1.0 + float64(vip.Bonus)/100.0))
 				}
-				_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", baseGold, uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", baseGold, uid)
 				results = append(results, fmt.Sprintf("💰 %d gold", baseGold))
 			}
 			continue
@@ -3741,7 +3717,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			if vip.Bonus > 0 {
 				gold = int64(float64(gold) * (1.0 + float64(vip.Bonus)/100.0))
 			}
-			_, _ = b.DB.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
+			_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", gold, uid)
 			results = append(results, fmt.Sprintf("💰 %d gold", gold))
 			continue
 		}
@@ -3761,7 +3737,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_ultimate_skills WHERE client_uid=$1 AND ultimate_id=$2)", uid, us.ID).Scan(&exists)
 			if !exists {
 				_, _ = b.DB.Exec("INSERT INTO user_ultimate_skills (client_uid, ultimate_id) VALUES ($1, $2)", uid, us.ID)
-				_, _ = b.DB.Exec("UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET ultimate_skills_count = ultimate_skills_count + 1 WHERE client_uid=$1", uid)
 				if b.activateUltimateIfSlotFree(uid, us.ID) {
 					results = append(results, i18n.T("bot.loot.ultimate_equipped", us.Name))
 				} else {
@@ -3782,7 +3758,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			// Only credit the drop if it actually landed: the WHERE guard rejects the
 			// grant when an unexpired title is already equipped, so crediting it
 			// unconditionally would tell the player they got a title they never received.
-			if res, execErr := b.DB.Exec("UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier); execErr == nil {
+			if res, execErr := b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET title=$2, title_mult=$3, title_expires=NOW() + INTERVAL '7 days', title_source='xp' WHERE client_uid=$1 AND (title IS NULL OR title_expires < NOW())", uid, t.Name, t.XPMultiplier); execErr == nil {
 				// res is nil when Exec errors, so only read RowsAffected on success.
 				if n, _ := res.RowsAffected(); n > 0 {
 					results = append(results, i18n.T("bot.loot.title", t.Name, t.Name))
@@ -3796,7 +3772,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			_ = b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM user_unique_items WHERE client_uid=$1 AND item_name=$2)", uid, ui.Name).Scan(&exists)
 			if !exists {
 				_, _ = b.DB.Exec("INSERT INTO user_unique_items (client_uid, item_name, rarity, power) VALUES ($1, $2, $3, $4)", uid, ui.Name, ui.Rarity, ui.Power)
-				_, _ = b.DB.Exec("UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET unique_items_count = unique_items_count + 1 WHERE client_uid=$1", uid)
 				results = append(results, i18n.T("bot.loot.unique", ui.Name, ui.Name, ui.Rarity.String()))
 				if ui.Rarity >= content.RarityLegendary {
 					pokes = append(pokes, i18n.T("bot.loot.unique_drop", ui.Name))
@@ -3812,7 +3788,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 			a.Stats.HP = int(float64(a.Stats.HP) * zoneDifficulty)
 			a.Stats.STR = int(float64(a.Stats.STR) * zoneDifficulty)
 			a.Stats.DEF = int(float64(a.Stats.DEF) * zoneDifficulty)
-			_, _ = b.DB.Exec("UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
+			_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET artifact_mult=$2, artifact_name=$3, artifact_durability=$4 WHERE client_uid=$1", uid, a.Mult, a.Name, a.MaxDurability)
 			results = append(results, i18n.T("bot.loot.artifact", a.Name, a.Name))
 			pokes = append(pokes, i18n.T("bot.loot.artifact_found", a.Name))
 			lootFound = true
@@ -3884,7 +3860,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 				}
 			} else {
 				results = append(results, i18n.T("bot.loot.small_health_potion"))
-				_, _ = b.DB.Exec("INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'P1', 0) ON CONFLICT DO NOTHING", uid)
+				_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights) VALUES ($1, 'P1', 0) ON CONFLICT DO NOTHING", uid)
 			}
 		}
 	}
@@ -3902,7 +3878,7 @@ func (b *Bot) rollLootForUser(uid string, mob content.Mob, zoneDifficulty float6
 		} else {
 			artPity += count
 		}
-		_, _ = b.DB.Exec("UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
+		_, _ = b.DB.Exec("/* economy:bot.Bot.rollLootForUser */ UPDATE users SET ultimate_pity=$2, artifact_pity=$3 WHERE client_uid=$1", uid, ultPity, artPity)
 	}
 
 	resStr := ""
@@ -4179,9 +4155,9 @@ func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
 	newLevel := leveling.LevelForXP(total)
 
 	if nickname != "" {
-		_, err = b.DB.Exec(`INSERT INTO users (client_uid, nickname, xp, level, last_seen) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (client_uid) DO UPDATE SET xp = $3, level = $4, nickname = $2, last_seen = NOW()`, uid, nickname, total, newLevel)
+		_, err = b.DB.Exec(`/* economy:bot.Bot.awardXP */ INSERT INTO users (client_uid, nickname, xp, level, last_seen) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (client_uid) DO UPDATE SET xp = $3, level = $4, nickname = $2, last_seen = NOW()`, uid, nickname, total, newLevel)
 	} else {
-		_, err = b.DB.Exec(`UPDATE users SET xp = $2, level = $3, last_seen = NOW() WHERE client_uid = $1`, uid, total, newLevel)
+		_, err = b.DB.Exec(`/* economy:bot.Bot.awardXP */ UPDATE users SET xp = $2, level = $3, last_seen = NOW() WHERE client_uid = $1`, uid, total, newLevel)
 	}
 	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded}, err
 }
@@ -4210,7 +4186,7 @@ func (b *Bot) slothDecay(_ *clientquery.Client, today time.Time) {
 			newXP = 0
 		}
 		newLevel := leveling.LevelForXP(newXP)
-		_, _ = b.DB.Exec("UPDATE users SET xp=$2, level=$3 WHERE client_uid=$1", d.uid, newXP, newLevel)
+		_, _ = b.DB.Exec("/* economy:bot.Bot.slothDecay */ UPDATE users SET xp=$2, level=$3 WHERE client_uid=$1", d.uid, newXP, newLevel)
 	}
 }
 

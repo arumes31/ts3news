@@ -25,6 +25,16 @@ jobs:
     name: Build and Lint Go
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,6 +55,11 @@ jobs:
 
       - name: Run Tests
         run: go test -v -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Economy ledger and complete reset against PostgreSQL
+        env:
+          GOLD_RESET_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+        run: go test -tags=integration ./internal/db -run 'TestEconomy|TestFullEconomy' -count=1 -v
 
       - name: Render coverage reports
         run: |

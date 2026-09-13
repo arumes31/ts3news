@@ -29,31 +29,19 @@ test('shop keeps stats, specials and equipped tradeoffs inline and filters persi
   await expect(page.locator('#shopEmpty')).toContainText('reset the filters');
 });
 
-test('XP conversion reviews exact level loss and cancellation spends nothing', async ({ page }) => {
-  const commits = [];
+test('preserved character XP cannot be exchanged for new gold', async ({ page }) => {
+  const exchanges = [];
   page.on('request', request => {
-    if (request.url().endsWith('/api/shop/exchange') && !request.postDataJSON().preview) commits.push(request.postDataJSON());
+    if (request.url().endsWith('/api/shop/exchange')) exchanges.push(request.postDataJSON());
   });
   await page.goto('/shop');
-  await page.locator('#x2gAmount').fill('10000');
-  await expect(page.locator('#x2gPreview')).toContainText('Your level will drop');
-  await page.getByRole('button', { name: 'Review gold exchange' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toHaveAccessibleName('Confirm level loss');
-  await expect(dialog).toContainText('10,000 XP → 5,000 gold');
-  await expect(dialog).toContainText('25,000,000 → 25,005,000');
-  await expect(dialog.getByRole('button', { name: 'Keep my resources' })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Review gold exchange' })).toBeFocused();
-  expect(commits).toHaveLength(0);
-  await page.getByRole('button', { name: 'Review gold exchange' }).click();
-  await dialog.getByRole('button', { name: 'Spend XP and lower level' }).click();
-  await expect(page.locator('#exState')).toContainText('0 XP');
-  await expect(page.locator('#exState')).toContainText('Lvl 1');
-  expect(commits).toHaveLength(1);
-  expect(commits[0].confirm_level_loss).toBe(true);
-  expect(commits[0].expected.xp).toBe(10000);
+  await expect(page.locator('#x2gPreview')).toContainText('cannot be redeemed for gold');
+  await expect(page.locator('#x2gAmount')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Review gold exchange' })).toHaveCount(0);
+  await expect(page.locator('#g2xPreview')).toContainText('Next purchase');
+  expect(exchanges.every(exchange => exchange.direction === 'gold_to_xp' && exchange.preview)).toBe(true);
+  await expect(page.locator('#exState')).toHaveAttribute('data-gold', '25000000');
+  await expect(page.locator('#exState')).toHaveAttribute('data-xp', '10000');
 });
 
 test('gold conversion exposes the next rate and refreshes the next preview', async ({ page }) => {
@@ -92,23 +80,23 @@ test('unconfirmed conversion locks all wallet mutations but keeps verification r
   await expect(page.getByRole('button', { name: 'Refresh to verify the unconfirmed shop action' })).toBeEnabled();
 });
 
-test('older previews cannot overwrite newer input and decimal XP is not silently truncated', async ({ page }) => {
+test('older previews cannot overwrite newer input and decimal gold is not silently truncated', async ({ page }) => {
   let release;
   await page.route('**/api/shop/exchange', async route => {
     const body = route.request().postDataJSON();
-    if (body.preview && body.direction === 'xp_to_gold' && body.amount === 100) await new Promise(resolve => { release = resolve; });
+    if (body.preview && body.direction === 'gold_to_xp' && body.amount === 10000) await new Promise(resolve => { release = resolve; });
     await route.continue();
   });
   await page.goto('/shop');
   await expect.poll(() => Boolean(release)).toBe(true);
-  await page.locator('#x2gAmount').fill('200');
-  await expect(page.locator('#x2gPreview')).toContainText('200 XP → 100 gold');
-  const oldResponse = page.waitForResponse(response => response.url().endsWith('/api/shop/exchange') && response.request().postDataJSON().amount === 100);
+  await page.locator('#g2xAmount').fill('20000');
+  await expect(page.locator('#g2xPreview')).toContainText('20,000 gold → 2 XP');
+  const oldResponse = page.waitForResponse(response => response.url().endsWith('/api/shop/exchange') && response.request().postDataJSON().amount === 10000);
   release();
   await oldResponse;
-  await expect(page.locator('#x2gPreview')).toContainText('200 XP → 100 gold');
-  await page.locator('#x2gAmount').fill('2.5');
-  await expect(page.locator('#x2gPreview')).toContainText('positive whole amount');
+  await expect(page.locator('#g2xPreview')).toContainText('20,000 gold → 2 XP');
+  await page.locator('#g2xAmount').fill('2.5');
+  await expect(page.locator('#g2xPreview')).toContainText('positive whole amount');
 });
 
 test('shop search and rarity text remain readable on mobile', async ({ page }) => {
@@ -165,19 +153,19 @@ test('a rejected purchase clears pending state on offers detached while waiting'
   await expect(originalBuy).toBeFocused();
 });
 
-test('desktop exchange panel keeps both review actions reachable in a short viewport', async ({ page }) => {
+test('desktop exchange panel keeps its review action reachable in a short viewport', async ({ page }) => {
   await page.setViewportSize({ width:1440, height:800 });
   await page.goto('/shop');
-  await expect(page.locator('#x2gPreview')).toContainText('Your level will drop');
+  await expect(page.locator('#x2gPreview')).toContainText('cannot be redeemed for gold');
   const panel = page.locator('.shop-exchange');
   expect(await panel.evaluate(element => element.clientHeight)).toBeLessThanOrEqual(704);
-  const action = page.getByRole('button', { name:'Review gold exchange' });
+  const action = page.getByRole('button', { name:'Review XP exchange' });
   await action.scrollIntoViewIfNeeded();
   const bounds = await action.boundingBox();
   expect(bounds.y).toBeGreaterThanOrEqual(0);
   expect(bounds.y+bounds.height).toBeLessThanOrEqual(800);
   await action.click();
-  await expect(page.getByRole('dialog')).toHaveAccessibleName('Confirm level loss');
+  await expect(page.getByRole('dialog')).toHaveAccessibleName('Review exchange');
 });
 
 test('shop polish preserves heading structure and comfortable desktop controls', async ({ page }) => {

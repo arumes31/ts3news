@@ -65,8 +65,8 @@ type Stats struct {
 	LCK int
 	INT int // Intelligence (boosts XP slightly)
 	STA int // Stamina (reduces durability loss chance)
-	CRT int // Critical Chance %
-	DGE int // Dodge Chance %
+	CRT int // Critical rating; use CriticalChance for the effective percentage
+	DGE int // Dodge rating; use DodgeChance for the effective percentage
 	MNA int // Mana
 
 	// Useless / Flavour Stats
@@ -1714,6 +1714,8 @@ var combatEffectPool = []ItemEffect{
 // any the item already carries (as its Special or an existing bonus). intn supplies the
 // randomness so callers can pass a deterministic source (rand.IntN, or a *rand.Rand's).
 func AddBonusEffects(g *Gear, n int, intn func(int) int) {
+	g.BonusEffects = g.AddedEffects()
+	n = min(n, max(0, BonusEffectBudget(g.Rarity)-len(g.BonusEffects)))
 	have := map[ItemEffect]bool{g.Special: true}
 	for _, e := range g.BonusEffects {
 		have[e] = true

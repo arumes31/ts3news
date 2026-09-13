@@ -38,10 +38,12 @@ type abyssRunFloorRecord struct {
 }
 
 type abyssRunProvenance struct {
-	Version int                   `json:"version"`
-	Seed    [2]uint64             `json:"seed"`
-	Choices []abyssRunChoice      `json:"choices"`
-	Floors  []abyssRunFloorRecord `json:"floors"`
+	Cohort  *abyssMeasurementCohort `json:"cohort,omitempty"`
+	Timing  abyssCombatTiming       `json:"timing"`
+	Version int                     `json:"version"`
+	Seed    [2]uint64               `json:"seed"`
+	Choices []abyssRunChoice        `json:"choices"`
+	Floors  []abyssRunFloorRecord   `json:"floors"`
 }
 
 func abyssRunProvenanceKey(uid string) string {
@@ -54,6 +56,7 @@ func newAbyssRunProvenance() (abyssRunProvenance, error) {
 		return abyssRunProvenance{}, fmt.Errorf("generating run seed: %w", err)
 	}
 	return abyssRunProvenance{
+		Cohort:  &abyssMeasurementCohort{Schema: 1, BuildRevision: abyssBuildRevision()},
 		Version: abyssRunProvenanceVersion,
 		Seed: [2]uint64{
 			binary.BigEndian.Uint64(raw[:8]),
@@ -74,8 +77,12 @@ func saveAbyssRunProvenance(
 		return fmt.Errorf("encoding run provenance: %w", err)
 	}
 	if _, err := exec.Exec(
-		`INSERT INTO app_meta (key,value) VALUES ($1,$2)
-		 ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
+		`INSERT INTO app_meta (key,value) VALUES ($1,
+  CASE WHEN $2::jsonb ? 'cohort' THEN jsonb_set($2::jsonb,'{cohort}',jsonb_build_object('schema',1,
+   'economy_epoch',COALESCE((SELECT value FROM app_meta WHERE key='gold_economy_version'),'unknown'),
+   'build_revision',COALESCE((SELECT value FROM app_meta WHERE key='economy_deployed_revision'),'unknown'))
+   || COALESCE(NULLIF($2::jsonb->'cohort','null'::jsonb),'{}'::jsonb))::text ELSE ($2::jsonb)::text END)
+   ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
 		abyssRunProvenanceKey(uid),
 		string(encoded),
 	); err != nil {
@@ -107,6 +114,9 @@ func (b *Bot) loadAbyssRunProvenance(uid string) (abyssRunProvenance, error) {
 	}
 	if provenance.Version != abyssRunProvenanceVersion || provenance.Seed == [2]uint64{} {
 		return abyssRunProvenance{}, errors.New("run provenance is invalid")
+	}
+	if provenance.Timing.MeasuredFloors == 0 && provenance.Timing.UntimedFloors == 0 {
+		provenance.Timing.UntimedFloors = len(provenance.Floors)
 	}
 	if provenance.Choices == nil {
 		provenance.Choices = []abyssRunChoice{}
@@ -178,7 +188,7 @@ func (b *Bot) recordAbyssRunChoice(uid string, depth int, kind, value string) {
 	}
 }
 
-func (b *Bot) recordAbyssRunFloor(uid string, result abyssFloorResult) {
+func (b *Bot) recordAbyssRunFloor(uid string, result abyssFloorResult, measurements ...abyssCombatTiming) {
 	if result.RandomSeed == [2]uint64{} {
 		return
 	}
@@ -191,6 +201,15 @@ func (b *Bot) recordAbyssRunFloor(uid string, result abyssFloorResult) {
 	start := max(0, len(result.LogsHTML)-abyssRunProvenanceMaxLogs)
 	for _, line := range result.LogsHTML[start:] {
 		logs = append(logs, boundedAbyssReplayText(line, abyssReplayViewTextMaxRunes))
+	}
+	if len(measurements) > 0 {
+		timing := measurements[0]
+		provenance.Timing.ResolutionNS += timing.ResolutionNS
+		provenance.Timing.ActionWindowNS += timing.ActionWindowNS
+		provenance.Timing.MeasuredFloors += timing.MeasuredFloors
+		provenance.Timing.UntimedFloors += timing.UntimedFloors
+	} else {
+		provenance.Timing.UntimedFloors++
 	}
 	provenance.Floors = append(provenance.Floors, abyssRunFloorRecord{
 		Depth:         result.Depth,

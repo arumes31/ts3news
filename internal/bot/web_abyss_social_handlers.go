@@ -43,7 +43,7 @@ func (s *WebServer) handleAbyssPetTrain(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, map[string]any{"ok": false, "error": "daily pet training cap reached"})
 		return
 	}
-	result, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold>=$1", abyssPetTrainingCost, uid)
+	result, err := tx.Exec("/* economy:bot.WebServer.handleAbyssPetTrain */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold>=$1", abyssPetTrainingCost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -199,7 +199,7 @@ func (s *WebServer) handleAbyssRivalClaim(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", abyssRivalReward, uid); err != nil || tx.Commit() != nil {
+	if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssRivalClaim */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", abyssRivalReward, uid); err != nil || tx.Commit() != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
@@ -264,7 +264,7 @@ func (s *WebServer) handleAbyssWeeklyBossStrike(w http.ResponseWriter, r *http.R
 	}
 	defeatedNow := hp > 0 && newHP == 0
 	if defeatedNow {
-		if _, err := tx.Exec(`UPDATE users u SET abyss_tokens=abyss_tokens+25
+		if _, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssWeeklyBossStrike */ UPDATE users u SET abyss_tokens=abyss_tokens+25
 			FROM (SELECT DISTINCT client_uid FROM abyss_weekly_boss_contributions WHERE week_key=$1) c
 			WHERE u.client_uid=c.client_uid`, week); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})

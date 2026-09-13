@@ -14,20 +14,29 @@ const (
 	abyssPetMaxCap  = 5
 )
 
+// abyssPetHealthState preserves exact combat health above the base HP pool.
+// Base values make externally changed database health invalidate old snapshots.
+type abyssPetHealthState struct {
+	HP        int `json:"hp"`
+	BaseHP    int `json:"base_hp"`
+	BaseMaxHP int `json:"base_max_hp"`
+}
+
 type abyssPetProfile struct {
-	Heal            *bool    `json:"heal,omitempty"`
-	XP              int      `json:"xp,omitempty"`
-	Favorite        bool     `json:"favorite,omitempty"`
-	FusionRank      int      `json:"fusion_rank,omitempty"`
-	Shiny           bool     `json:"shiny,omitempty"`
-	BossVariant     bool     `json:"boss_variant,omitempty"`
-	Cosmetic        string   `json:"cosmetic,omitempty"`
-	OwnedCosmetics  []string `json:"owned_cosmetics,omitempty"`
-	BarkStyle       string   `json:"bark_style,omitempty"`
-	DaycareSince    string   `json:"daycare_since,omitempty"`
-	ExpeditionUntil string   `json:"expedition_until,omitempty"`
-	ExpeditionKind  string   `json:"expedition_kind,omitempty"`
-	GiftUntil       string   `json:"gift_until,omitempty"`
+	CombatHealth    *abyssPetHealthState `json:"combat_health,omitempty"`
+	Heal            *bool                `json:"heal,omitempty"`
+	XP              int                  `json:"xp,omitempty"`
+	Favorite        bool                 `json:"favorite,omitempty"`
+	FusionRank      int                  `json:"fusion_rank,omitempty"`
+	Shiny           bool                 `json:"shiny,omitempty"`
+	BossVariant     bool                 `json:"boss_variant,omitempty"`
+	Cosmetic        string               `json:"cosmetic,omitempty"`
+	OwnedCosmetics  []string             `json:"owned_cosmetics,omitempty"`
+	BarkStyle       string               `json:"bark_style,omitempty"`
+	DaycareSince    string               `json:"daycare_since,omitempty"`
+	ExpeditionUntil string               `json:"expedition_until,omitempty"`
+	ExpeditionKind  string               `json:"expedition_kind,omitempty"`
+	GiftUntil       string               `json:"gift_until,omitempty"`
 }
 
 func decodeAbyssPetProfile(raw string) abyssPetProfile {

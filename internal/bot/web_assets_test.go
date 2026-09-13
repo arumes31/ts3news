@@ -380,7 +380,7 @@ func TestExactCatalogManifestHasOneUniqueTransparentCellPerEntry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read exact icon manifest: %v", err)
 	}
-	manifestJSON := strings.TrimSuffix(strings.TrimPrefix(string(manifestAsset), "window.AB_EXACT_ICON_MANIFEST="), ";\n")
+	manifestJSON := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(string(manifestAsset)), "window.AB_EXACT_ICON_MANIFEST="), ";")
 	var manifest map[string]struct {
 		Family string `json:"family"`
 		Page   int    `json:"page"`

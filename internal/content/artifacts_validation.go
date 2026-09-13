@@ -6,15 +6,15 @@ import (
 )
 
 var itemEffectDescriptions = map[ItemEffect]string{
-	EffectThorns:         "Reflects 10% of damage taken",
-	EffectVampiric:       "Heals for 5% of damage dealt",
-	EffectBerserk:        "+20% STR while below 50% HP",
-	EffectLucky:          "+10% Luck",
-	EffectTreasureHunter: "+5% item find chance",
-	EffectQuick:          "+10% Speed",
-	EffectBulwark:        "+10% Defense",
-	EffectRadiant:        "+10% XP gained",
-	EffectFragile:        "+30% STR but double durability loss",
+	EffectThorns:         "Reflects 10% of damage taken; duplicate copies diminish, capped at 40% (including shield boosts)",
+	EffectVampiric:       "Heals for 5% of damage dealt; duplicate copies give 1/2, 1/3, … strength, capped at 30%",
+	EffectBerserk:        "+20% damage while below 50% HP; duplicates diminish, capped at +40%",
+	EffectLucky:          "+10% Luck; duplicate copies give 1/2, 1/3, … strength, capped at +40%",
+	EffectTreasureHunter: "+5% item find chance; duplicate copies diminish, capped at +40%",
+	EffectQuick:          "+10% Speed; duplicate copies give 1/2, 1/3, … strength, capped at +40%",
+	EffectBulwark:        "+10% Defense; duplicate copies give 1/2, 1/3, … strength, capped at +40%",
+	EffectRadiant:        "+10% XP gained; duplicate copies give 1/2, 1/3, … strength, capped at +40%",
+	EffectFragile:        "+30% damage but double durability loss; duplicates diminish, capped at +40%",
 	EffectSteady:         "-50% stun chance",
 	EffectMindControl:    "Chance to capture low-health mobs",
 	EffectRegenStack:     "Permanent regen stack on victory",
@@ -22,8 +22,8 @@ var itemEffectDescriptions = map[ItemEffect]string{
 	EffectStealth:        "Skip first-round mob damage",
 	EffectParry:          "10% chance to negate a hit and counter",
 	EffectCleanse:        "Removes a negative effect each turn",
-	EffectExecutioner:    "+25% damage to targets below 30% HP",
-	EffectFocused:        "+10% Crit Rate",
+	EffectExecutioner:    "+25% damage to targets below 30% HP; duplicate copies diminish, capped at +40%",
+	EffectFocused:        "+10% Critical rating; duplicate copies give 1/2, 1/3, … strength, capped at +40%",
 }
 
 var allItemEffects = []ItemEffect{

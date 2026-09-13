@@ -162,7 +162,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		if b.Cfg.EnableAbyss && curseFights > 0 {
 			// Guard against underflow and concurrent changes: only scale stats if the
 			// decrement actually consumed a curse fight (row still had > 0).
-			res, err := b.DB.Exec("UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1 AND abyss_curse_fights > 0", cl.UID)
+			res, err := b.DB.Exec("/* economy:bot.Bot.RunCycle */ UPDATE users SET abyss_curse_fights = abyss_curse_fights - 1 WHERE client_uid=$1 AND abyss_curse_fights > 0", cl.UID)
 			if err != nil {
 				log.Printf("Failed to decrement abyss curse for %s: %v", cl.UID, err)
 			} else if n, _ := res.RowsAffected(); n > 0 {
@@ -624,7 +624,7 @@ func (b *Bot) touchUser(uid, nickname string, sessionMS int64) error {
 	} else {
 		deltaSec = sessionMS / 1000
 	}
-	_, err = b.DB.Exec(`INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms) VALUES ($1, $2, NOW(), $3, $4) ON CONFLICT (client_uid) DO UPDATE SET last_seen = NOW(), nickname = $2, total_connection_seconds = users.total_connection_seconds + $3, last_session_connected_ms = $4`, uid, nickname, deltaSec, sessionMS)
+	_, err = b.DB.Exec(`/* economy:bot.Bot.touchUser */ INSERT INTO users (client_uid, nickname, last_seen, total_connection_seconds, last_session_connected_ms) VALUES ($1, $2, NOW(), $3, $4) ON CONFLICT (client_uid) DO UPDATE SET last_seen = NOW(), nickname = $2, total_connection_seconds = users.total_connection_seconds + $3, last_session_connected_ms = $4`, uid, nickname, deltaSec, sessionMS)
 	return err
 }
 
@@ -726,7 +726,7 @@ func (b *Bot) CleanupDeadUsers() (int, error) {
 		return 0, err
 	}
 	res, err := b.DB.Exec(
-		"DELETE FROM users WHERE last_seen < NOW() - ($1 * INTERVAL '1 day')",
+		"/* economy:bot.Bot.CleanupDeadUsers */ DELETE FROM users WHERE last_seen < NOW() - ($1 * INTERVAL '1 day')",
 		b.Cfg.DeadUserDays)
 	if err != nil {
 		return 0, err

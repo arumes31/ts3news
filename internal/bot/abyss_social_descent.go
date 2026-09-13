@@ -110,7 +110,7 @@ func (b *Bot) settleAbyssSocialFloor(uid string, depth int) {
 		if referralTx.QueryRow(`UPDATE abyss_referrals r SET rewarded_at=NOW() FROM users u
 			WHERE r.referred_uid=$1 AND r.referred_uid=u.client_uid AND r.rewarded_at IS NULL
 			AND GREATEST(u.abyss_best_depth,$2)>=5 RETURNING r.referrer_uid`, uid, depth).Scan(&referrer) == nil {
-			if _, err := referralTx.Exec(`UPDATE users SET abyss_tokens=abyss_tokens+$1
+			if _, err := referralTx.Exec(`/* economy:bot.Bot.settleAbyssSocialFloor */ UPDATE users SET abyss_tokens=abyss_tokens+$1
 				WHERE client_uid IN ($2,$3)`, abyssReferralRewardTokens, referrer, uid); err == nil {
 				if _, err = referralTx.Exec(`INSERT INTO abyss_social_notifications (client_uid,kind,message)
 					VALUES ($1,'referral_reward','Referral milestone reached: both delvers received 20 Abyss Tokens.')`, referrer); err == nil {
@@ -135,7 +135,7 @@ func (b *Bot) settleAbyssSocialFloor(uid string, depth int) {
 		return
 	}
 	reward := max(int64(1), lostCache/10)
-	if _, err := tx.Exec(`UPDATE users SET gold=gold+$1 WHERE client_uid IN ($2,$3)`, reward, uid, owner); err != nil {
+	if _, err := tx.Exec(`/* economy:bot.Bot.settleAbyssSocialFloor */ UPDATE users SET gold=gold+$1 WHERE client_uid IN ($2,$3)`, reward, uid, owner); err != nil {
 		return
 	}
 	if _, err := tx.Exec("UPDATE abyss_deaths SET rescued_at=NOW() WHERE id=$1", deathID); err != nil {

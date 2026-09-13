@@ -117,7 +117,7 @@ func (s *WebServer) handleAbyssBatchTemper(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1, temper_fail_stacks = $3 WHERE client_uid=$2 AND gold >= $1", spent, uid, failStacks)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssBatchTemper */ UPDATE users SET gold = gold - $1, temper_fail_stacks = $3 WHERE client_uid=$2 AND gold >= $1", spent, uid, failStacks)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -380,7 +380,7 @@ queueLoop:
 		}
 	}
 	if temperUsed {
-		if _, err := tx.Exec("UPDATE users SET temper_fail_stacks=$2 WHERE client_uid=$1", uid, failStacks); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssForgeQueue */ UPDATE users SET temper_fail_stacks=$2 WHERE client_uid=$1", uid, failStacks); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}

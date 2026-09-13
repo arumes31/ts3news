@@ -153,3 +153,38 @@ References: [GitHub artifact attestations](https://docs.github.com/en/actions/ho
   interface. `ancieque/ts3audiobot:latest` has no newer published image; its existing
   latest digest is now pinned. These older upstream components still need security
   review and are not guaranteed vulnerability-free by an upgrade or a signature.
+
+## Economy version 2 maintenance
+
+The `economy-reset` command applies version 2 explicitly; starting the bot does
+not automatically apply this reset. Stop both bot and Idely writers and disable
+automatic recreation. Save and restore-test a full PostgreSQL dump first. Keep
+both images pinned to the same reviewed and attested commit digest.
+
+Run `economy-reset --scope economy --writers-stopped-and-backup-restored` with
+DATABASE_URL pointing to the verified target. It clears currencies, materials,
+consumables, equipped/backpack gear, auctions and deferred economic claims while
+preserving accounts, XP, prestige, learned skills, talents, achievements and pets.
+The command takes a second transactional snapshot in `economy_backup_2`, writes
+an epoch marker and records all tracked currency/stock deltas. Repeating it is a
+no-op. Live reset scope must be explicitly agreed before executing maintenance.
+
+Preserved XP is no longer redeemable for gold. Free talent respec returns bound
+build credit, usable only for talent upgrades. Historical tax and competition
+records cannot fund post-reset claims. Pet HP is normalized; retain prior data
+only in backups and historical records.
+
+Before starting either writer, set `app_meta.economy_deployed_revision` to the
+verified full source commit using a parameterized maintenance query. Update it
+on every later deployment; the ledger and combat cohorts use this provenance.
+Check wallets and convertible reserves, retained progression counts, ledger
+sums, portal functionality, TeamSpeak connectivity and Idely stability.
+`ops/economy-report.sql` reports current epoch activity without treating a run's
+wall-clock lifetime as active play time. Collect at least one week before broad
+enemy or reward adjustments.
+
+Do not use an old binary after this reset without restoring the full pre-reset
+database while every writer is stopped. Restoring just wallets is insufficient.
+Migration 105 introduces the ledger and bound talent credit. Any parallel feature
+whose migration is still numbered 105 must be renumbered above this migration
+before it is merged; duplicate migration versions must never be deployed.

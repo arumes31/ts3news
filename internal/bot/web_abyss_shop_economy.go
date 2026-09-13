@@ -177,7 +177,7 @@ func (s *WebServer) buyAbyssShopCosmetic(w http.ResponseWriter, uid string, item
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		res, err = tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", charged, uid)
+		res, err = tx.Exec("/* economy:bot.WebServer.buyAbyssShopCosmetic */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", charged, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -190,7 +190,7 @@ func (s *WebServer) buyAbyssShopCosmetic(w http.ResponseWriter, uid string, item
 	title := map[string]string{
 		"insanity_void_aura": "Void-Touched", "insanity_glass_crown": "Glass Sovereign", "insanity_depth_trail": "Depthwalker",
 	}[item.Key]
-	if _, err := tx.Exec(`UPDATE users SET title=$2,title_mult=1,title_expires=NOW()+INTERVAL '30 days',title_source='abyss_shop'
+	if _, err := tx.Exec(`/* economy:bot.WebServer.buyAbyssShopCosmetic */ UPDATE users SET title=$2,title_mult=1,title_expires=NOW()+INTERVAL '30 days',title_source='abyss_shop'
 		WHERE client_uid=$1`, uid, title); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -226,14 +226,14 @@ func (b *Bot) maybeDeliverAbyssPotionSubscription(uid string, now time.Time) {
 	if delivered.Valid && !delivered.Time.Before(today) {
 		return
 	}
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", abyssPotionSubscriptionDailyGold, uid)
+	res, err := tx.Exec("/* economy:bot.Bot.maybeDeliverAbyssPotionSubscription */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", abyssPotionSubscriptionDailyGold, uid)
 	if err != nil {
 		return
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return
 	}
-	if _, err := tx.Exec(`INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
+	if _, err := tx.Exec(`/* economy:bot.Bot.maybeDeliverAbyssPotionSubscription */ INSERT INTO user_consumables (client_uid, cons_id, remaining_fights)
 		VALUES ($1,'great_health_potion',2)
 		ON CONFLICT (client_uid,cons_id) DO UPDATE SET remaining_fights=user_consumables.remaining_fights+2`, uid); err != nil {
 		return
@@ -280,7 +280,7 @@ func applyAbyssAutoInsurance(tx *sql.Tx, uid string, plan abyssAutoInsurancePlan
 	if availableGold < plan.Cost {
 		return 0, false, errAbyssAutoInsuranceFunds
 	}
-	if _, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2", plan.Cost, uid); err != nil {
+	if _, err := tx.Exec("/* economy:bot.applyAbyssAutoInsurance */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2", plan.Cost, uid); err != nil {
 		return 0, false, err
 	}
 	return plan.Cost, false, nil
@@ -360,7 +360,7 @@ func (s *WebServer) handleAbyssRepairSubscription(w http.ResponseWriter, r *http
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssRepairSubscription */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -421,7 +421,7 @@ func (s *WebServer) handleAbyssTokenBundle(w http.ResponseWriter, r *http.Reques
 	for i := 0; i < req.Count; i++ {
 		cost += abyssTokenBundleRate(bought + i)
 	}
-	res, err := tx.Exec("UPDATE users SET gold=gold-$1,abyss_tokens=abyss_tokens+$2 WHERE client_uid=$3 AND gold >= $1", cost, req.Count, uid)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssTokenBundle */ UPDATE users SET gold=gold-$1,abyss_tokens=abyss_tokens+$2 WHERE client_uid=$3 AND gold >= $1", cost, req.Count, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -470,7 +470,7 @@ func (s *WebServer) handleAbyssScratch(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	reward := abyssScratchReward(rand.Float64()) // #nosec G404 -- posted game odds, not a security token
-	res, err = tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1+$2 WHERE client_uid=$3 AND abyss_tokens >= $1", abyssScratchCost, reward, uid)
+	res, err = tx.Exec("/* economy:bot.WebServer.handleAbyssScratch */ UPDATE users SET abyss_tokens=abyss_tokens-$1+$2 WHERE client_uid=$3 AND abyss_tokens >= $1", abyssScratchCost, reward, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

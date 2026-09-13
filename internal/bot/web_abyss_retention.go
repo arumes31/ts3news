@@ -467,7 +467,7 @@ func (s *WebServer) claimAbyssLogin(
 		result.RewardGold = 0
 		result.RewardTokens = 0
 	}
-	if err := tx.QueryRowContext(ctx, `
+	if err := tx.QueryRowContext(ctx, `/* economy:bot.WebServer.claimAbyssLogin */
 		UPDATE users
 		SET gold=gold+$1, abyss_tokens=abyss_tokens+$2
 		WHERE client_uid=$3

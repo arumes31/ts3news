@@ -46,10 +46,10 @@ func TestTaxAbyssDayGoldUsesBoundedDatabaseAccumulators(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 	const wantTax int64 = 7_378_697_629_483_820_645
-	mock.ExpectExec(`UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
+	mock.ExpectExec(`/* economy:bot.Bot.taxAbyssDayGold */ UPDATE users SET abyss_day = CURRENT_DATE, abyss_day_gold = 0
  WHERE client_uid=$1 AND (abyss_day IS NULL OR abyss_day < CURRENT_DATE)`).WithArgs("delver").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("SELECT abyss_day_gold FROM users WHERE client_uid=$1 FOR UPDATE").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"abyss_day_gold"}).AddRow(int64(math.MaxInt64)))
-	mock.ExpectExec("UPDATE users SET abyss_day_gold = LEAST(9223372036854775807::numeric, abyss_day_gold::numeric + $1)::bigint WHERE client_uid=$2").WithArgs(int64(math.MaxInt64), "delver").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("/* economy:bot.Bot.taxAbyssDayGold */ UPDATE users SET abyss_day_gold = LEAST(9223372036854775807::numeric, abyss_day_gold::numeric + $1)::bigint WHERE client_uid=$2").WithArgs(int64(math.MaxInt64), "delver").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("UPDATE arcade_jackpots SET amount = LEAST(9223372036854775807::numeric, amount::numeric + $1)::bigint, updated_at = NOW() WHERE game_key='abyss'").WithArgs(wantTax).WillReturnResult(sqlmock.NewResult(0, 1))
 	bot := &Bot{DB: database}
 	after, tax, err := bot.taxAbyssDayGold(database, "delver", math.MaxInt64)

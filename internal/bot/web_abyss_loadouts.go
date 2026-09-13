@@ -269,7 +269,7 @@ func (s *WebServer) handleAbyssGemPreset(w http.ResponseWriter, r *http.Request,
 	}
 	cost := int64(changed * 150)
 	if cost > 0 {
-		res, err := tx.Exec("UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+		res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssGemPreset */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

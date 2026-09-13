@@ -81,7 +81,7 @@ func (s *WebServer) handleAbyssGiftCreate(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	res, err := tx.Exec(`UPDATE users SET abyss_tokens=abyss_tokens-$1,gold=gold-$2
+	res, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssGiftCreate */ UPDATE users SET abyss_tokens=abyss_tokens-$1,gold=gold-$2
 		WHERE client_uid=$3 AND abyss_tokens >= $1 AND gold >= $2`, charged, abyssShopGiftFeeGold, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -138,7 +138,7 @@ func (s *WebServer) handleAbyssGiftRedeem(w http.ResponseWriter, r *http.Request
 	}
 	consID := abyssGiftableShopItems[itemKey]
 	quantity := abyssGiftQuantity(itemKey)
-	if _, err := tx.Exec(`INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
+	if _, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssGiftRedeem */ INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
 		ON CONFLICT (client_uid,cons_id) DO UPDATE SET remaining_fights=user_consumables.remaining_fights+$3`, uid, consID, quantity); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

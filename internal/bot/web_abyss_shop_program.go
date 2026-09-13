@@ -108,7 +108,7 @@ func grantAbyssShopConsumable(db dbOrTx, uid, consID string, quantity int) error
 	if quantity <= 0 {
 		return nil
 	}
-	_, err := db.Exec(`INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
+	_, err := db.Exec(`/* economy:bot.grantAbyssShopConsumable */ INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
 		ON CONFLICT (client_uid,cons_id) DO UPDATE SET remaining_fights=user_consumables.remaining_fights+EXCLUDED.remaining_fights`, uid, consID, quantity)
 	return err
 }
@@ -173,7 +173,7 @@ func (s *WebServer) handleAbyssShopBundleBuy(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	res, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", charged, uid)
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssShopBundleBuy */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", charged, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -226,7 +226,7 @@ func (s *WebServer) handleAbyssSeasonExchange(w http.ResponseWriter, r *http.Req
 		writeJSON(w, map[string]any{"ok": false, "error": "previous-season legacy cosmetic already owned"})
 		return
 	}
-	result, err = tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", abyssSeasonExchangeCost, uid)
+	result, err = tx.Exec("/* economy:bot.WebServer.handleAbyssSeasonExchange */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens >= $1", abyssSeasonExchangeCost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return

@@ -74,7 +74,7 @@ func applyGoldEconomyVersion(ctx context.Context, database *sql.DB, version int)
 			WHERE LEFT(key,LENGTH('abyss_echo_seed_'))='abyss_echo_seed_'
 			   OR LEFT(key,LENGTH('abyss_run_flags_'))='abyss_run_flags_'
 			   OR LEFT(key,LENGTH('abyss_deferred_event_'))='abyss_deferred_event_'`, []any{prefix + "meta:"}},
-		{"resetting wallets", `UPDATE users SET gold=0 WHERE gold<>0`, nil},
+		{"resetting wallets", `/* economy:db.applyGoldEconomyVersion */ UPDATE users SET gold=0 WHERE gold<>0`, nil},
 		{"resetting active caches", `UPDATE abyss_active SET escrow=0,
 			event_state=CASE WHEN event_state->>'type'='echo_floor'
 			THEN event_state || '{"previous_reward":0,"echo_reward":0}'::jsonb

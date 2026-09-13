@@ -78,7 +78,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 			writeJSON(w, map[string]any{"ok": false, "error": "opponent not found"})
 			return
 		}
-		result, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", req.Wager, uid)
+		result, err := tx.Exec("/* economy:bot.WebServer.handleAbyssDuel */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", req.Wager, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -105,7 +105,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 			return
 		}
 		if action != "accept" || time.Since(createdAt) > 24*time.Hour {
-			if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", wager, challenger); err != nil {
+			if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssDuel */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", wager, challenger); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})
 				return
 			}
@@ -116,7 +116,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 			message = "Duel closed; the reserved wager was returned."
 			break
 		}
-		result, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", wager, uid)
+		result, err := tx.Exec("/* economy:bot.WebServer.handleAbyssDuel */ UPDATE users SET abyss_tokens=abyss_tokens-$1 WHERE client_uid=$2 AND abyss_tokens>=$1", wager, uid)
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
@@ -140,7 +140,7 @@ func (s *WebServer) handleAbyssDuel(w http.ResponseWriter, r *http.Request, uid 
 			winner = opponent
 		}
 		encoded, _ := json.Marshal(logs)
-		if _, err := tx.Exec("UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", wager*2, winner); err != nil {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssDuel */ UPDATE users SET abyss_tokens=abyss_tokens+$1 WHERE client_uid=$2", wager*2, winner); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -280,7 +280,7 @@ func (s *WebServer) handleAbyssRaidLobby(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		if newHP == 0 {
-			if _, err := tx.Exec(`UPDATE users u SET abyss_tokens=abyss_tokens+25 FROM
+			if _, err := tx.Exec(`/* economy:bot.WebServer.handleAbyssRaidLobby */ UPDATE users u SET abyss_tokens=abyss_tokens+25 FROM
 				(SELECT DISTINCT client_uid FROM abyss_weekly_boss_contributions WHERE week_key=$1) c
 				WHERE u.client_uid=c.client_uid`, week); err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": "db"})

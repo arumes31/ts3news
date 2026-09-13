@@ -144,7 +144,7 @@ func buyAbyssPlazaMonument(ctx context.Context, tx *sql.Tx, uid string, monument
 	if gold < monument.Cost {
 		return 0, errAbyssPlazaFunds
 	}
-	if _, err := tx.ExecContext(ctx, "UPDATE users SET gold=gold-$1 WHERE client_uid=$2", monument.Cost, uid); err != nil {
+	if _, err := tx.ExecContext(ctx, "/* economy:bot.buyAbyssPlazaMonument */ UPDATE users SET gold=gold-$1 WHERE client_uid=$2", monument.Cost, uid); err != nil {
 		return 0, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO abyss_plaza_monuments (client_uid,monument_key,gold_spent)

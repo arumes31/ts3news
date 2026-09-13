@@ -185,7 +185,7 @@ func (b *Bot) settleAbyssHouseAuctionListing(id string) error {
 	if housePrice < 1 {
 		housePrice = 1
 	}
-	result, err = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", housePrice, sellerUID)
+	result, err = tx.Exec("/* economy:bot.Bot.settleAbyssHouseAuctionListing */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", housePrice, sellerUID)
 	if err != nil {
 		return fmt.Errorf("pay house auction seller: %w", err)
 	}
@@ -282,7 +282,7 @@ func (b *Bot) recoverLegacyUnidentifiedAuctionListing(id string) error {
 	// hidden listing, but issue a refund only when the bidder still exists.
 	refundBid := currentBid > 0 && bidderUID.Valid && bidderUID.String != ""
 	if refundBid {
-		result, err := tx.Exec("UPDATE users SET gold=gold+$1 WHERE client_uid=$2", currentBid, bidderUID.String)
+		result, err := tx.Exec("/* economy:bot.Bot.recoverLegacyUnidentifiedAuctionListing */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", currentBid, bidderUID.String)
 		if err != nil {
 			return fmt.Errorf("refund reserved bid: %w", err)
 		}
@@ -429,7 +429,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					}
 
 					// 1. Deduct gold
-					res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
+					res, err := tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
 					if err != nil {
 						_ = tx.Rollback()
 						continue
@@ -453,7 +453,7 @@ func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
 					}
 
 					// 3. Give gold to seller
-					_, err = tx.Exec("UPDATE users SET gold = gold + $1 WHERE client_uid = $2", price, sellerUID)
+					_, err = tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", price, sellerUID)
 					if err != nil {
 						_ = tx.Rollback()
 						continue

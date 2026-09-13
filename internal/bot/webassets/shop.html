@@ -137,14 +137,8 @@
         <p class="shop-local-status" role="status" aria-live="polite" hidden></p>
       </div>
       <div class="ex-card">
-        <h3>XP to gold</h3>
-        <p class="muted small">{{.XPPerGold}} XP = 1 gold</p>
-        <p class="shop-level-warning">Spending XP can lower your character level. Review the exact change before confirming.</p>
-        <label for="x2gAmount">XP</label>
-        <input type="number" id="x2gAmount" value="100" min="{{.XPPerGold}}" step="{{.XPPerGold}}" max="9007199254740991" inputmode="numeric">
-        <div id="x2gPreview" class="exchange-preview" role="status" aria-live="polite"></div>
-        <button type="button" class="shop-exchange-action" onclick="exchange('xp_to_gold','x2gAmount',this)" aria-describedby="x2gPreview">Review gold exchange</button>
-        <p class="shop-local-status" role="status" aria-live="polite" hidden></p>
+        <h3>Character XP</h3>
+        <p id="x2gPreview" class="exchange-preview">XP stays with your character. It cannot be redeemed for gold.</p>
       </div>
     </div>
     <p class="muted small shop-balance-status" id="exState" role="status" aria-live="polite" aria-atomic="true" data-gold="{{.U.Gold}}" data-xp="{{.U.XP}}" data-level="{{.U.Level}}" data-level-name="{{.U.LevelName}}">Balance: 🪙 {{gold .U.Gold}} / ✨ {{comma .U.XP}} XP / {{.U.LevelName}} (Lvl {{.U.Level}})</p>
@@ -514,7 +508,6 @@ function updateShopExchangeRate(data){
     if(Number(input.value)<goldPerXP)input.value=String(goldPerXP);
   }
   updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');
-  updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');
 }
 
 async function exchange(direction, inputId, button){
@@ -703,9 +696,7 @@ document.getElementById('shopMore').addEventListener('click',function(){
   if(inspect)inspect.focus();
 });
 document.getElementById('g2xAmount').addEventListener('input',function(){updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');});
-document.getElementById('x2gAmount').addEventListener('input',function(){updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');});
 updateExchangePreview('gold_to_xp','g2xAmount','g2xPreview');
-updateExchangePreview('xp_to_gold','x2gAmount','x2gPreview');
 updateShopAffordability();
 filterShopStock();
 

@@ -18,10 +18,10 @@ func takeAbyssConsumableTx(tx *sql.Tx, uid, consID string, quantity int) error {
 		return fmt.Errorf("not enough %s", consID)
 	}
 	if owned == quantity {
-		_, err := tx.Exec("DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, consID)
+		_, err := tx.Exec("/* economy:bot.takeAbyssConsumableTx */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2", uid, consID)
 		return err
 	}
-	_, err := tx.Exec(`UPDATE user_consumables SET remaining_fights=remaining_fights-$1
+	_, err := tx.Exec(`/* economy:bot.takeAbyssConsumableTx */ UPDATE user_consumables SET remaining_fights=remaining_fights-$1
 		WHERE client_uid=$2 AND cons_id=$3`, quantity, uid, consID)
 	return err
 }
@@ -30,7 +30,7 @@ func giveAbyssConsumableTx(tx *sql.Tx, uid, consID string, quantity int) error {
 	if quantity <= 0 {
 		return fmt.Errorf("invalid consumable quantity")
 	}
-	_, err := tx.Exec(`INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
+	_, err := tx.Exec(`/* economy:bot.giveAbyssConsumableTx */ INSERT INTO user_consumables (client_uid,cons_id,remaining_fights) VALUES ($1,$2,$3)
 		ON CONFLICT (client_uid,cons_id) DO UPDATE
 		SET remaining_fights=user_consumables.remaining_fights+EXCLUDED.remaining_fights`, uid, consID, quantity)
 	return err

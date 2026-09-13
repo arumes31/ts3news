@@ -51,7 +51,7 @@ func (s *WebServer) handleAbyssSeasonPremiumUnlock(w http.ResponseWriter, r *htt
 	response := map[string]any{"ok": true, "unlocked": true, "already_unlocked": changed == 0}
 	if changed > 0 {
 		var tokens int64
-		err = tx.QueryRowContext(r.Context(), `UPDATE users SET abyss_tokens=abyss_tokens-$1
+		err = tx.QueryRowContext(r.Context(), `/* economy:bot.WebServer.handleAbyssSeasonPremiumUnlock */ UPDATE users SET abyss_tokens=abyss_tokens-$1
 			WHERE client_uid=$2 AND abyss_tokens >= $1 RETURNING abyss_tokens`, abyssSeasonPremiumUnlockCost, uid).Scan(&tokens)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {

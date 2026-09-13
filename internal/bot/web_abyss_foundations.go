@@ -35,7 +35,7 @@ func claimAbyssDailyFreeEntry(tx *sql.Tx, uid string, paidEntry bool) (bool, err
 	if !paidEntry {
 		return false, nil
 	}
-	result, err := tx.Exec(`UPDATE users SET abyss_free_entry_date = CURRENT_DATE
+	result, err := tx.Exec(`/* economy:bot.claimAbyssDailyFreeEntry */ UPDATE users SET abyss_free_entry_date = CURRENT_DATE
 		WHERE client_uid=$1 AND (abyss_free_entry_date IS NULL OR abyss_free_entry_date < CURRENT_DATE)`, uid)
 	if err != nil {
 		return false, err

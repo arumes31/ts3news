@@ -112,7 +112,7 @@ func (s *WebServer) handleAbyssBossContract(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var balance int64
-	err = tx.QueryRow(`UPDATE users SET abyss_boss_tokens=abyss_boss_tokens-$1
+	err = tx.QueryRow(`/* economy:bot.WebServer.handleAbyssBossContract */ UPDATE users SET abyss_boss_tokens=abyss_boss_tokens-$1
 		WHERE client_uid=$2 AND abyss_boss_tokens>=$1 RETURNING abyss_boss_tokens`, req.Wager, uid).Scan(&balance)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Boss Tokens"})

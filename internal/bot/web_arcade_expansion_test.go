@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -51,10 +52,14 @@ func TestArcadeHundredMillionWagerLimit(t *testing.T) {
 			}
 			defer func() { _ = database.Close() }()
 			server := &WebServer{bot: &Bot{DB: database}}
-			for _, wager := range []int64{100001, 100000000} {
+			for _, wager := range []int64{100100, 100000000} {
 				// Accepted wagers still need an affordable balance; stop before RNG and rewards.
-				mock.ExpectExec("UPDATE users SET gold = gold -").WithArgs(wager, "delver").WillReturnResult(sqlmock.NewResult(0, 0))
-				body := fmt.Sprintf(`{"game":%q,"choice":%q,"bet":%d}`, game.name, game.choice, wager)
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT gold, vip_points FROM users").WithArgs("delver").WillReturnRows(sqlmock.NewRows([]string{"gold", "vip_points"}).AddRow(0, 0))
+				mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+				mock.ExpectQuery("SELECT value FROM app_meta").WillReturnError(sql.ErrNoRows)
+				mock.ExpectRollback()
+				body := fmt.Sprintf(`{"game":%q,"choice":%q,"bet":%d,"request_id":"test-wager-request-id"}`, game.name, game.choice, wager)
 				response := httptest.NewRecorder()
 				server.handleArcadeAPI(response, httptest.NewRequest(http.MethodPost, "/api/arcade/play", strings.NewReader(body)), "delver")
 				if !strings.Contains(response.Body.String(), "not enough gold") {

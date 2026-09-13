@@ -37,7 +37,7 @@ func writeGearItemData(w http.ResponseWriter, tx *sql.Tx, uid string, invID int6
 // commits atomically with the item change and can never overdraw. It writes an
 // error response and returns false if the debit errored or the player can't afford it.
 func deductGold(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) bool {
-	res, err := tx.Exec("UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
+	res, err := tx.Exec("/* economy:bot.deductGold */ UPDATE users SET gold = gold - $1 WHERE client_uid=$2 AND gold >= $1", cost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return false
@@ -51,7 +51,7 @@ func deductGold(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) bool 
 
 // deductTokens debits Abyss tokens with the same balance guard as deductGold.
 func deductTokens(w http.ResponseWriter, tx *sql.Tx, uid string, cost int64) bool {
-	res, err := tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
+	res, err := tx.Exec("/* economy:bot.deductTokens */ UPDATE users SET abyss_tokens = abyss_tokens - $1 WHERE client_uid=$2 AND abyss_tokens >= $1", cost, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return false
@@ -598,19 +598,12 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 	g = forgeStatUpgradeResult(g, "upgrade_gear")
 	g.GearLevel++
 
-	// Ascending into the top tiers imbues extra bonus combat affixes: Mythic gains
-	// one, Divine two, Celestial two, Eternal three, so the very best gear is
-	// meaningfully more powerful.
+	g.BonusEffects = g.AddedEffects()
+	// Ascension fills the new tier's budget; repeated ascension never accumulates
+	// independent grants beyond Mythic 2, Divine/Celestial 3 and Eternal 4.
 	added := 0
-	switch target {
-	case content.RarityMythic:
-		added = 1
-	case content.RarityDivine:
-		added = 2
-	case content.RarityCelestial:
-		added = 2
-	case content.RarityEternal:
-		added = 3
+	if target >= content.RarityMythic {
+		added = max(0, content.BonusEffectBudget(target)-len(g.BonusEffects))
 	}
 	if added > 0 {
 		before := len(g.BonusEffects)
@@ -817,7 +810,7 @@ func (s *WebServer) handleAbyssConvertMana(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	_, err = s.bot.DB.Exec("UPDATE users SET abyss_upgrades=$1 WHERE client_uid=$2", string(upgradesBytes), uid)
+	_, err = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssConvertMana */ UPDATE users SET abyss_upgrades=$1 WHERE client_uid=$2", string(upgradesBytes), uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
 		return
@@ -826,7 +819,7 @@ func (s *WebServer) handleAbyssConvertMana(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, map[string]any{"ok": true, "msg": fmt.Sprintf("Converted %d mana into +%d Max HP!", req.Amount, hpGain)})
 }
 
-const abyssTalentRespecFee int64 = 10
+const abyssTalentRespecFee int64 = 0
 
 // handleAbyssResetTalents refunds one progression scope. The legacy request
 // without a body keeps its old "all" behavior; the tree UI sends an explicit
@@ -869,7 +862,7 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	                          abyss_up_interest, abyss_up_tribute, abyss_up_insight,
 	                          abyss_up_swiftness, abyss_up_scavenger, abyss_up_mercy,
 	                          abyss_up_cartographer, abyss_up_quartermaster
-	                     FROM users WHERE client_uid=$1`, uid).Scan(
+	                     FROM users WHERE client_uid=$1 FOR UPDATE`, uid).Scan(
 		&upVigor, &upGreed, &upFortune, &upWard, &upInterest, &upTribute, &upInsight,
 		&upSwift, &upScav, &upMercy, &upCarto, &upQuarter,
 	)
@@ -898,7 +891,11 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	}
 
 	var levelsJSON string
-	_ = tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", abyssTalentKey(uid)).Scan(&levelsJSON)
+	levelsErr := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1 FOR UPDATE", abyssTalentKey(uid)).Scan(&levelsJSON)
+	if levelsErr != nil && !errors.Is(levelsErr, sql.ErrNoRows) {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	allLevels := map[string]int{}
 	if levelsJSON != "" {
 		if err := json.Unmarshal([]byte(levelsJSON), &allLevels); err != nil {
@@ -940,15 +937,15 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		_, err = tx.Exec(`UPDATE users
+		_, err = tx.Exec(`/* economy:bot.WebServer.handleAbyssResetTalents */ UPDATE users
 		                     SET abyss_up_vigor=0, abyss_up_greed=0, abyss_up_fortune=0, abyss_up_ward=0,
 		                         abyss_up_interest=0, abyss_up_tribute=0, abyss_up_insight=0,
 		                         abyss_up_swiftness=0, abyss_up_scavenger=0, abyss_up_mercy=0,
 		                         abyss_up_cartographer=0, abyss_up_quartermaster=0,
-		                         abyss_tokens = abyss_tokens + $1, abyss_upgrades = $3::jsonb
+		                         abyss_talent_credit = abyss_talent_credit + $1, abyss_upgrades = $3::jsonb
 		                   WHERE client_uid=$2`, netRefund, uid, string(preservedBytes))
 	} else {
-		_, err = tx.Exec("UPDATE users SET abyss_tokens = abyss_tokens + $1 WHERE client_uid=$2", netRefund, uid)
+		_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssResetTalents */ UPDATE users SET abyss_talent_credit = abyss_talent_credit + $1 WHERE client_uid=$2", netRefund, uid)
 	}
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db update"})
@@ -978,8 +975,8 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 
 	writeJSON(w, map[string]any{
 		"ok": true, "scope": req.Scope, "gross_refund": grossRefund,
-		"fee": abyssTalentRespecFee, "refund": netRefund, "tokens": s.bot.abyssTokens(uid),
-		"msg": fmt.Sprintf("Respec complete — %d tokens refunded after the %d-token fee.", netRefund, abyssTalentRespecFee),
+		"fee": abyssTalentRespecFee, "refund": 0, "talent_credit": s.bot.abyssTalentCredit(uid), "tokens": s.bot.abyssTokens(uid),
+		"msg": fmt.Sprintf("Free respec complete — %d bound talent credit returned. Credit buys talents only and cannot be exchanged or traded.", netRefund),
 	})
 }
 

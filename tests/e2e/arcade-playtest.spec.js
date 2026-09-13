@@ -1,17 +1,23 @@
 const { test, expect } = require('@playwright/test');
 test.use({ reducedMotion: 'reduce' });
 
-test('a stalled request times out, stops auto-bet, and releases the controls', async ({ page }) => {
+test('an uncertain round retries its receipt key and blocks fresh wagers until recovery', async ({ page }) => {
   await page.clock.install();
-  await page.route('**/api/arcade/play', () => {});
+  const attempts = [];
+  await page.route('**/api/arcade/play', route => { attempts.push(route.request().postDataJSON()); });
   await page.goto('/arcade');
   await page.locator('#autoBet').check();
   const request = page.waitForRequest('**/api/arcade/play');
   await page.locator('#btn-dice').click();
   await request;
+  const retry = page.waitForRequest('**/api/arcade/play');
+  await page.clock.fastForward(16000);
+  await retry;
   await page.clock.fastForward(16000);
   await expect(page.locator('#arcadeMsg')).toContainText('Could not confirm');
-  await expect(page.locator('#btn-dice')).toBeEnabled();
+  await expect(page.locator('#btn-dice')).toBeDisabled();
+  expect(attempts).toHaveLength(2);
+  expect(attempts[0].request_id).toBe(attempts[1].request_id);
   await expect(page.locator('#autoBet')).not.toBeChecked();
   await expect(page.locator('#die')).not.toHaveClass(/rolling/);
 });
@@ -85,11 +91,11 @@ for (const [game, choices, selector] of games) {
 
 test('each wager game previews the current stake beside its controls', async ({ page }) => {
   await page.goto('/arcade');
-  await page.locator('#bet').fill('125');
-  for (const [game] of games) await expect(page.locator('#game-' + game + ' .game-wager')).toContainText('125 gold');
-  await expect(page.locator('#game-coinflip .game-wager')).toContainText('243');
+  await page.locator('#bet').fill('200');
+  for (const [game] of games) await expect(page.locator('#game-' + game + ' .game-wager')).toContainText('200 gold');
+  await expect(page.locator('#game-coinflip .game-wager')).toContainText('386');
   await page.locator('input[value="abyss"]').check();
-  await expect(page.locator('#game-expedition .game-wager')).toContainText('500');
+  await expect(page.locator('#game-expedition .game-wager')).toContainText('800');
 });
 
 test('vault closes and clears the old outcome immediately while the next request is pending', async ({ page }) => {
