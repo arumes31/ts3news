@@ -1,12 +1,14 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
-  const keys = new Set(), touch = new Set();
+  const keys = new Set(), touch = new Set(), taps = new Set();
+  let starting = false, startIntent = 0;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, lastBag = '', currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
   const api = '/api/abyss/rift';
   const status = message => { $('rift-status').textContent = message; };
+  function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function message(title, copy, button, kicker) {
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
@@ -23,13 +25,15 @@
     } finally { clearTimeout(timeout); }
   }
   function input() {
-    const held = name => touch.has(name);
-    return {x:Number(keys.has('KeyD')||keys.has('ArrowRight')||held('right'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')||held('left')),
+    const held = name => touch.has(name)||taps.has(name);
+    const pressed = code => keys.has(code)||taps.has(code);
+    const value = {x:Number(keys.has('KeyD')||keys.has('ArrowRight')||held('right'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')||held('left')),
       y:Number(keys.has('KeyS')||keys.has('ArrowDown')||held('down'))-Number(keys.has('KeyW')||keys.has('ArrowUp')||held('up')),
-      attack:keys.has('KeyJ')||held('attack'),guard:keys.has('KeyL')||held('guard'),jump:keys.has('KeyK')||keys.has('Space')||held('jump'),
-      skill:(run?.build.signatures||[]).find((s,i)=>keys.has(i?'KeyE':'KeyQ')||held(s.id))?.id || (run?.build.ultimate && (keys.has('KeyR')||held(run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>keys.has('Digit'+(i+1))||held(s.id))?.id||''};
+      attack:pressed('KeyJ')||held('attack'),guard:pressed('KeyL')||held('guard'),jump:pressed('KeyK')||pressed('Space')||held('jump'),
+      skill:(run?.build.signatures||[]).find((s,i)=>pressed(i?'KeyE':'KeyQ')||held(s.id))?.id || (run?.build.ultimate && (pressed('KeyR')||held(run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('Digit'+(i+1))||held(s.id))?.id||''};
+    taps.clear();return value;
   }
-  function resetInput(){keys.clear();touch.clear();root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));}
+  function resetInput(){keys.clear();touch.clear();taps.clear();root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));}
   function update(value, replay) {
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
@@ -73,7 +77,7 @@
       message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. Your equipped gear and banked rewards are safe.':run.banked_gold+' gold and '+run.banked_items.length+' Abyss items are safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
       root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=false);
-      setTimeout(()=>{if(!playing)audio.setActive(false);},1500);
+      setTimeout(()=>{if(!playing)silence();},1500);
     }
   }
   async function send(kind) {
@@ -87,7 +91,7 @@
       if(['bank','exit','next','advance'].includes(kind))audio.play('bank',0);
       return true;
     } catch(error){
-      playing=false;resetInput();clearTimeout(timer);await audio.setActive(false);status(error.message);
+      playing=false;resetInput();clearTimeout(timer);silence();status(error.message);
       message('Your expedition is saved.',error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
     } finally {busy=false;root.querySelectorAll('#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=!ready);}
   }
@@ -103,18 +107,27 @@
   }
   async function pause(){
     if(!playing)return;
-    playing=false;clearTimeout(timer);resetInput();audio.setActive(false);
+    playing=false;clearTimeout(timer);resetInput();silence();
     clearedAt=0;$('rift-transition').hidden=true;
     // Wait for the single pending input request, then persist the pause.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
-    if(await send('pause')){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · Esc';$('rift-room-actions').hidden=true;}
+    if(!run||!['fighting','cleared'].includes(run.status))return;
+    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · Esc';$('rift-room-actions').hidden=true;}
   }
   async function begin(){
-    if(busy||!ready)return;
+    if(busy||starting||!ready)return;
     if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;await load();return;}
-    await audio.setActive(true,run?.room||0);
-    const resume=run&&(run.status==='fighting'||run.status==='cleared');
-    if(await send(resume?'resume':'start')){playing=true;$('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;$('rift-pause').textContent='Pause · Esc';update(run,true);$('rift-canvas').focus();status('WASD moves · Space jumps · J attacks · L guards · Q / E class abilities · 1–3 skills · R ultimate.');loop();}
+    starting=true;const intent=++startIntent;
+    try{
+      try{await audio.setActive(true,(run?.level?.region||0)*3+(run?.room||0));}catch(_){silence();}
+      if(intent!==startIntent||document.hidden){silence();return;}
+      const resume=run&&(run.status==='fighting'||run.status==='cleared');
+      if(await send(resume?'resume':'start')){
+        playing=true;
+        if(intent!==startIntent||document.hidden){await pause();return;}
+        $('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;$('rift-pause').textContent='Pause · Esc';update(run,true);$('rift-canvas').focus();status('WASD moves · Space jumps · J attacks · L guards · Q / E class abilities · 1–3 skills · R ultimate.');clearTimeout(timer);loop();
+      }
+    }finally{starting=false;}
   }
   function updateCampaign(){
     const active=run&&['fighting','cleared'].includes(run.status), completed=run?.completed_levels||[];
@@ -170,18 +183,19 @@
     }catch(error){ready=false;$('rift-start').textContent='Reload to reconnect';status(error.message);}
   }
   function hold(button,value){
-    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);button.classList.add('rift-held');});
+    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);button.classList.add('rift-held');});
     const release=()=>{touch.delete(value);button.classList.remove('rift-held');};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   const controlKeys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyK','KeyL','KeyQ','KeyE','KeyR','Space','Digit1','Digit2','Digit3']);
   window.addEventListener('keydown',event=>{
-    if(event.target.matches('input,select,textarea')||event.ctrlKey||event.metaKey||event.altKey)return;
+    if(event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     if(event.code==='Escape'&&!event.repeat){if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
-    if(!playing||!controlKeys.has(event.code))return;event.preventDefault();keys.add(event.code);
+    if(event.target.matches('input,select,textarea'))return;
+    if(!playing||!controlKeys.has(event.code))return;event.preventDefault();keys.add(event.code);if(!event.repeat)taps.add(event.code);
   });
-  window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{resetInput();if(playing)pause();});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){resetInput();if(playing)pause();audio.setActive(false);}});
+  window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
   $('rift-next').addEventListener('click',async()=>{if(await send($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-region').addEventListener('change',()=>root.querySelectorAll('[data-level]').forEach(button=>button.hidden=$('rift-region').value!=='all'&&button.dataset.region!==$('rift-region').value));
