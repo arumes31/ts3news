@@ -21,7 +21,8 @@
       if(response.status===401)throw new Error('Your session expired. Sign in again, then resume this expedition.');
       if(response.status===409)throw new Error('The saved expedition changed. Recover it before continuing.');
       if(!response.ok)throw new Error('Connection interrupted. Recover the saved expedition before continuing.');
-      const data=await response.json();if(!data.ok)throw new Error(data.error||'Could not confirm the expedition.');return data;
+      let data;try{data=await response.json();}catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
+      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');return window.RiftProtocol.validate(data,method,body);
     } finally { clearTimeout(timeout); }
   }
   function input() {
@@ -93,7 +94,7 @@
       if(['bank','exit','next','advance'].includes(kind))audio.play('bank',0);
       return true;
     } catch(error){
-      playing=false;resetInput();clearTimeout(timer);silence();status(error.message);
+      playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       message('Your expedition is saved.',error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
     } finally {busy=false;root.querySelectorAll('#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=!ready);}
   }

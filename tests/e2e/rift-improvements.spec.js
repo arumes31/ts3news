@@ -1,6 +1,28 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 
+for(const corruption of ['missing run','invalid health','future schema','unknown status'])test('invalid response recovery preserves confirmed rewards: '+corruption,async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();
+  const before=await page.locator('#rift-banked').textContent();
+  let corrupted=false;
+  await page.route('**/api/abyss/rift',async route=>{
+    if(route.request().postDataJSON()?.kind==='step'&&!corrupted){
+      corrupted=true;const response=await route.fetch(),data=await response.json();
+      data.run.banked_gold=9999999;
+      if(corruption==='missing run')delete data.run;
+      if(corruption==='invalid health')data.run.player.hp='broken';
+      if(corruption==='future schema')data.run.schema=999;
+      if(corruption==='unknown status')data.run.status='future';
+      await route.fulfill({response,json:data});return;
+    }
+    await route.continue();
+  });
+  await expect(page.locator('#rift-start')).toHaveText('Recover expedition');
+  await expect(page.locator('#rift-banked')).toHaveText(before);
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
+  await expect(page.locator('#rift-banked')).not.toContainText('9999999');
+});
+
 test('display presets preview explicit changes, persist custom values and reset safely',async({page})=>{
   await page.goto('/abyss/rift');
   await page.locator('.rift-settings > summary').click();
