@@ -33,26 +33,37 @@ type itemAtlasView struct {
 }
 
 type itemInspectView struct {
-	Name          string            `json:"name"`
-	Rarity        string            `json:"rarity"`
-	RarityColor   string            `json:"rarity_color"`
-	Slot          string            `json:"slot"`
-	Element       string            `json:"element,omitempty"`
-	CR            float64           `json:"cr"`
-	Score         int               `json:"score"`
-	Stats         []statKV          `json:"stats"`
-	Specials      []itemSpecialView `json:"specials"`
-	Modifiers     []string          `json:"modifiers"`
-	Gemstones     []string          `json:"gemstones,omitempty"`
-	SetID         string            `json:"set_id,omitempty"`
-	Provenance    string            `json:"provenance,omitempty"`
-	MaxDurability int               `json:"max_durability,omitempty"`
-	XPBonusPct    int               `json:"xp_bonus_pct,omitempty"`
-	ArtFamily     string            `json:"art_family"`
-	ArtAsset      string            `json:"art_asset"`
-	ArtPage       int               `json:"art_page"`
-	ArtColumn     int               `json:"art_column"`
-	ArtRow        int               `json:"art_row"`
+	ID            string               `json:"id"`
+	Temper        int                  `json:"temper"`
+	BaseStats     []content.StatDetail `json:"base_stats"`
+	BrokenInBonus []content.StatDetail `json:"broken_in_bonus"`
+	BrokenInAt    string               `json:"broken_in_at"`
+	RegenRate     float64              `json:"regen_rate"`
+	Sockets       int                  `json:"sockets"`
+	Condition     *int                 `json:"condition"`
+	Name          string               `json:"name"`
+	Rarity        string               `json:"rarity"`
+	RarityColor   string               `json:"rarity_color"`
+	Slot          string               `json:"slot"`
+	Element       string               `json:"element,omitempty"`
+	CR            float64              `json:"cr"`
+	Score         int                  `json:"score"`
+	Stats         []statKV             `json:"stats"`
+	Specials      []itemSpecialView    `json:"specials"`
+	Modifiers     []string             `json:"modifiers"`
+	Gemstones     []string             `json:"gemstones,omitempty"`
+	SetID         string               `json:"set_id,omitempty"`
+	Provenance    string               `json:"provenance,omitempty"`
+	MaxDurability int                  `json:"max_durability,omitempty"`
+	XPBonusPct    int                  `json:"xp_bonus_pct,omitempty"`
+	XPDetail      content.GearXPDetail `json:"xp_detail"`
+	StatDetails   []content.StatDetail `json:"stat_details"`
+	StatPower     float64              `json:"stat_power"`
+	ArtFamily     string               `json:"art_family"`
+	ArtAsset      string               `json:"art_asset"`
+	ArtPage       int                  `json:"art_page"`
+	ArtColumn     int                  `json:"art_column"`
+	ArtRow        int                  `json:"art_row"`
 }
 
 // gearView is a template-friendly view of a gear piece.
@@ -224,14 +235,10 @@ func gearProvenance(g content.Gear) string {
 
 // gearStatList returns the gear's non-zero combat stats, largest first.
 func gearStatList(s content.Stats) []statKV {
-	pairs := []statKV{
-		{"HP", s.HP}, {"MNA", s.MNA}, {"STR", s.STR}, {"DEF", s.DEF}, {"SPD", s.SPD},
-		{"CRT%", s.CRT}, {"DGE%", s.DGE}, {"LCK", s.LCK}, {"INT", s.INT}, {"STA", s.STA},
-	}
-	out := make([]statKV, 0, len(pairs))
-	for _, p := range pairs {
-		if p.Value != 0 {
-			out = append(out, p)
+	out := make([]statKV, 0, 14)
+	for _, stat := range s.Details() {
+		if stat.Value != 0 {
+			out = append(out, statKV{Label: stat.Label, Value: stat.Value})
 		}
 	}
 	return out
@@ -253,7 +260,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 	score := g.Stats.Score()
 	gearID := g.ID
 	maxDurability := g.MaxDurability
-	xpBonusPct := int(math.Round((g.XPMultiplier - 1.0) * 100))
+	xpBonusPct := int(math.Round((g.EffectiveXPMultiplier() - 1.0) * 100))
 	sockets := g.Sockets
 	gemstones := g.Gemstones
 	insured := g.Insured
@@ -395,7 +402,7 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		Eldritch:       g.Eldritch,
 		HasRune:        g.Rune != "",
 		Prismatic:      g.Prismatic,
-		BrokenIn:       !g.Unidentified && g.BrokenIn(time.Now()),
+		BrokenIn:       !g.Unidentified && !content.IsPetGearSlot(g.Slot) && g.BrokenIn(time.Now()),
 		Provenance:     gearProvenance(g),
 	}
 	if g.Unidentified {
@@ -431,7 +438,12 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 		v.EffectDesc = effDesc
 	}
 	if !g.Unidentified {
+		brokenInBonus := sentimentalValueBonus(g, time.Now())
+		if content.IsPetGearSlot(g.Slot) {
+			brokenInBonus = content.Stats{}
+		}
 		inspection := itemInspectView{
+			ID: g.ID, Temper: g.Temper, BaseStats: g.Stats.Details(), BrokenInBonus: brokenInBonus.Details(), BrokenInAt: gearBrokenInAt(g), RegenRate: gearRegenRate(g), Sockets: g.Sockets, Condition: g.ComparisonDurability,
 			Name:          v.Name,
 			Rarity:        v.Rarity,
 			RarityColor:   v.RarityColor,
@@ -447,6 +459,9 @@ func toGearView(slot content.GearSlot, g content.Gear) gearView {
 			Provenance:    v.Provenance,
 			MaxDurability: v.MaxDurability,
 			XPBonusPct:    v.XPBonusPct,
+			XPDetail:      g.XPDetail(),
+			StatDetails:   gearContributionStats(g, time.Now()).Details(),
+			StatPower:     gearContributionStats(g, time.Now()).Power(),
 			ArtFamily:     v.Family,
 			ArtAsset:      v.Asset,
 			ArtPage:       v.Page,

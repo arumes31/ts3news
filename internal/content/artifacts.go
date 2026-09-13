@@ -141,6 +141,23 @@ func (g Gear) CombatRating() float64 {
 	return math.Round(cr*10) / 10 // Round to 1 decimal
 }
 
+// EffectiveXPMultiplier is the gear's contribution to player XP after rarity
+// eligibility and slot caps. Pet gear contributes only to pets, not player XP.
+func (g Gear) EffectiveXPMultiplier() float64 {
+	if g.Unidentified || g.Rarity < RarityRare || IsPetGearSlot(g.Slot) {
+		return 1
+	}
+	if g.XPMultiplier < 0 || math.IsNaN(g.XPMultiplier) || math.IsInf(g.XPMultiplier, 0) {
+		return 1
+	}
+	switch g.Slot {
+	case SlotMainHand, SlotChest, SlotHead, SlotLegs, SlotFeet, SlotFinger1:
+		return g.XPMultiplier
+	default:
+		return min(g.XPMultiplier, 1.02)
+	}
+}
+
 // Scaled multiplies the combat stats by f (flavour stats left unchanged). Used
 // for the permanent per-prestige stat bonus.
 func (s Stats) Scaled(f float64) Stats {
@@ -306,15 +323,17 @@ const (
 // Gear is one equippable item: its slot, rarity, stats, and any rolled
 // affixes (sockets, enchant rune, cursed/eldritch/insured flags, etc.).
 type Gear struct {
-	ID            string
-	Name          string
-	Slot          GearSlot
-	Rarity        Rarity
-	XPMultiplier  float64
-	MaxDurability int
-	Stats         Stats
-	Special       ItemEffect
-	Element       Element
+	// ComparisonDurability is a runtime UI input, never persisted into an item roll.
+	ComparisonDurability *int `json:"-"`
+	ID                   string
+	Name                 string
+	Slot                 GearSlot
+	Rarity               Rarity
+	XPMultiplier         float64
+	MaxDurability        int
+	Stats                Stats
+	Special              ItemEffect
+	Element              Element
 
 	// BonusEffects are extra combat affixes layered on top of Special, granted to
 	// high-tier gear (e.g. Mythic/Divine forge upgrades and featured shop relics).

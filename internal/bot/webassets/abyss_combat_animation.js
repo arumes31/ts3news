@@ -2,6 +2,8 @@
    action availability and deadlines; animation callbacks never change them. */
 (function () {
   'use strict';
+  var visuals = window.AbyssFightVisuals;
+  function validSequence(value) { value = Number(value); return Number.isSafeInteger(value) && value > 0 ? value : 0; }
   var session = '', cursor = 0, accepted = 0, queue = [], active = false;
   var generation = 0, timers = new Set(), animations = new Set(), actors = new Map();
   var latest = null, catchup = false, visible = true, initialized = false, batchDeadline = 0;
@@ -18,8 +20,9 @@
     timers.add(timer); return timer;
   }
   function animate(node, frames, duration) {
-    if (reduced() || !node.animate) return;
-    var animation = node.animate(frames, {duration: duration, easing: 'cubic-bezier(.2,.7,.3,1)'});
+    if (reduced() || !node || !node.animate) return;
+    var animation;
+    try { animation = node.animate(frames, {duration: duration, easing: 'cubic-bezier(.2,.7,.3,1)'}); } catch (_) { return; }
     animations.add(animation);
     animation.finished.then(function () { animations.delete(animation); }, function () { animations.delete(animation); });
   }
@@ -29,6 +32,7 @@
     host.dataset.lastEventSeq = String(cursor);
     host.dataset.effects = reduced() ? 'reduced' : 'full';
     host.dataset.playbackSpeed = speed;
+    if (visuals) visuals.playback(state, queue.length + (active ? 1 : 0));
   }
   function setFrame(node, pose, frame) {
     if (!node || !window.AbyssCombatArt) return;
@@ -48,6 +52,7 @@
   }
   function rest(node) { setFrame(node, node._presentationDefeated || !node._pendingDefeat && node._combatUnit && node._combatUnit.hp === 0 && !node._combatUnit.hp_hidden ? 'defeat' : 'idle', 0); }
   function clear() {
+    if (visuals) visuals.clear();
     generation++; timers.forEach(clearTimeout); timers.clear();
     animations.forEach(function (animation) { animation.cancel(); }); animations.clear();
     queue = []; active = false;
@@ -77,11 +82,13 @@
     if (speedSelect) { speedSelect.value = speed; speedSelect.onchange = function () { speed = this.value; save('abyssAnimationSpeed', speed); mark(active ? 'playing' : 'idle'); }; }
     if (effectsSelect) { effectsSelect.value = effects; effectsSelect.onchange = function () { effects = this.value; save('abyssAnimationEffects', effects); preferencesChanged(); }; }
     if (motion.addEventListener) motion.addEventListener('change', preferencesChanged);
+    window.addEventListener('pagehide', function () { clear(); });
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { clear(); catchup = true; cursor = accepted; mark('catchup'); }
     });
     var compact = window.innerWidth <= 760;
     window.addEventListener('resize', function () {
+      if (active) { clear(); cursor = accepted; mark('catchup'); }
       var nextCompact = window.innerWidth <= 760;
       if (nextCompact === compact || !latest || !window.renderAbyssEventStage) return;
       compact = nextCompact; window.renderAbyssEventStage(latest);
@@ -92,13 +99,13 @@
     // Two authored idle poses; no DOM work for hidden, offscreen or still scenes.
     var idleFrame = 0;
     setInterval(function () {
-      if (!session || document.hidden || !visible || reduced()) return;
+      if (!session || document.hidden || !visible || reduced() || latest && /^(complete|failed)$/.test(latest.phase)) return;
       idleFrame = 1 - idleFrame;
       actors.forEach(function (node) { if (node.dataset.pose === 'idle' && !node.classList.contains('ab-departed')) setFrame(node, 'idle', idleFrame); });
     }, 750);
   }
   function preferencesChanged() {
-    if (reduced()) animations.forEach(function (animation) { animation.cancel(); });
+    if (reduced()) { animations.forEach(function (animation) { animation.cancel(); }); if (visuals) visuals.clear(); }
     mark(active ? 'playing' : 'idle');
   }
   function register(node, unit) {
@@ -106,6 +113,7 @@
     node._combatUnit = unit; actors.set(id, node);
     if (window.AbyssCombatArt) node.style.setProperty('--actor-accent', 'url("' + window.AbyssCombatArt.actorProfile(unit).accent + '")');
     if (!node.dataset.pose || !active) rest(node);
+    if (visuals) visuals.actor(node, unit);
   }
   function point(node) {
     var host = stage().getBoundingClientRect();
@@ -123,11 +131,15 @@
   function effect(event, target, profile, phase, duration, sourceID) {
     var source = actors.get(sourceID || event.actor_id), destination = actors.get(target.target_id);
     if (!destination) return;
+    var existing = stage().querySelectorAll('.ab-combat-effect');
+    var cap = stage().dataset.visualQuality === 'low' ? 16 : 48;
+    if (existing.length >= cap) existing[0].remove();
     var from = point(source || destination), to = point(destination), node = document.createElement('span');
     node.className = 'ab-combat-effect ab-effect-' + phase;
     node.dataset.eventSeq = String(event.seq); node.dataset.actorId = event.actor_id || ''; node.dataset.targetId = target.target_id;
     node.dataset.abilityId = event.ability_id || event.kind; node.dataset.effectFamily = profile.family || 'physical';
     node.setAttribute('aria-hidden', 'true');
+    if (visuals) visuals.effect(node, profile);
     node.style.setProperty('--effect-color', (profile.palette || ['#f2bd5b'])[0]);
     if (window.AbyssCombatArt) node.style.backgroundImage = 'url("' + window.AbyssCombatArt.effectFrame(profile, phase, 0) + '")';
     node.style.left = to.x + 'px'; node.style.top = to.y + 'px';
@@ -185,16 +197,18 @@
       var node = document.createElement('span'); node.className = 'ab-combat-number ' + part.kind;
       node.dataset.eventSeq = String(event.seq); node.dataset.targetId = target.target_id; node.dataset.lane = String(lane);
       node.textContent = part.text;
-      node.style.left = Math.max(66, Math.min(width - 66, anchor.x)) + 'px';
-      node.style.top = (Math.max(95, anchor.y - 25) - lane * 22) + 'px';
+      var placed = visuals ? visuals.model.position({x: anchor.x, y: Math.max(132, anchor.y - 25)}, width, host.clientHeight, lane) : {x: Math.max(66, Math.min(width - 66, anchor.x)), y: Math.max(95, anchor.y - 25) - lane * 22};
+      node.style.left = placed.x + 'px'; node.style.top = placed.y + 'px';
+      if (visuals) visuals.number(node, target, hidden);
+      var linger = visuals ? visuals.linger() : 800;
       host.appendChild(node);
-      animate(node, [{opacity: 0, transform: 'translate(-50%,6px)'}, {opacity: 1, offset: .12, transform: 'translate(-50%,0)'}, {opacity: 1, offset: .8, transform: 'translate(-50%,-7px)'}, {opacity: 0, transform: 'translate(-50%,-13px)'}], 760);
-      later(function () { node.remove(); }, 800);
+      animate(node, [{opacity: 0, transform: 'translate(-50%,6px)'}, {opacity: 1, offset: .12, transform: 'translate(-50%,0)'}, {opacity: 1, offset: .8, transform: 'translate(-50%,-7px)'}, {opacity: 0, transform: 'translate(-50%,-13px)'}], linger - 40);
+      later(function () { node.remove(); }, linger);
     });
-    if (!reduced() && (target.damage > 0 || target.blocked || target.absorbed > 0)) {
+    if (!reduced() && !target.defeated && !actor._presentationDefeated && (target.damage > 0 || target.blocked || target.absorbed > 0)) {
       actor._poseEvent = event.seq;
       setFrame(actor, 'hurt'); actor.classList.add('ab-reacting');
-      animate(actor.querySelector('.ab-actor-sprite'), [{filter: 'brightness(1.6)'}, {filter: 'brightness(1)'}], 170);
+      if (window.liveCombatImpactEnabled !== false) animate(actor.querySelector('.ab-actor-sprite'), [{filter: 'brightness(1.25)'}, {filter: 'brightness(1)'}], 170);
       later(function () { if (actor._poseEvent !== event.seq) return; actor.classList.remove('ab-reacting'); rest(actor); }, 180);
     }
     if (target.defeated) { actor._pendingDefeat = false; actor._presentationDefeated = true; actor.disabled = true; setFrame(actor, 'defeat'); actor.classList.add('ab-defeated'); actor.classList.remove('ab-departed'); actor.removeAttribute('aria-hidden'); }
@@ -233,14 +247,15 @@
       actors.forEach(function (node) { rest(node); if (node._departed && !node._presentationDefeated) { node.classList.add('ab-departed'); node.setAttribute('aria-hidden', 'true'); } });
       mark('idle'); return;
     }
-    active = true; mark('playing');
     var event = queue.shift(), actor = actors.get(event.actor_id);
+    active = true; mark('playing');
     var unit = actor && actor._combatUnit || {};
     var profile = window.AbyssCombatArt ? window.AbyssCombatArt.profileFor(Object.assign({}, event, {weapon_type: unit.weapon_type, weapon_name: unit.weapon_name})) : {family: event.element || 'physical', palette: ['#f2bd5b']};
     var fast = speed === 'fast' || (latest && latest.pause_mode === 'fast');
     var terminal = latest && (latest.phase === 'complete' || latest.phase === 'failed');
     var duration = Math.max(12, Math.min(fast ? 190 : 480, (batchDeadline - performance.now()) / Math.max(1, queue.length + 1)));
     if (reduced()) duration = Math.min(duration, 100);
+    if (visuals) visuals.prepare(event, profile, actor, actors);
     manaOutcome(event, duration);
     if (event.kind === 'mana') {
       later(function () { cursor = Math.max(cursor, Number(event.seq) || 0); playNext(); }, duration);
@@ -256,7 +271,7 @@
     }
     later(function () {
       if (actor) setFrame(actor, pose, 1);
-      if (actor && pose === 'attack') animate(actor.querySelector('.ab-actor-sprite'), [{transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}, {transform: 'scaleX(var(--ab-facing,1)) translateX(12px)', offset: .45}, {transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}], duration * .5);
+      if (actor && pose === 'attack') animate(actor.querySelector('.ab-actor-sprite'), [{transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}, {transform: 'scaleX(var(--ab-facing,1)) translateX(' + Math.max(2, Math.min(12, Math.abs(point(actors.get(targets[0] && targets[0].target_id) || actor).x - point(actor).x) * .08)) + 'px)', offset: .45}, {transform: 'scaleX(var(--ab-facing,1)) translateX(0)'}], duration * .5);
       targets.forEach(function (target, index) {
         if (profile.family === 'lightning' && targets.length > 1) {
           var linkDuration = duration * .3 / targets.length;
@@ -265,7 +280,7 @@
       });
     }, duration * .25);
     later(function () {
-      targets.forEach(function (target) { effect(event, target, profile, 'impact', Math.max(140, duration * .4)); outcome(event, target); });
+      targets.forEach(function (target) { effect(event, target, profile, 'impact', Math.max(140, duration * .4)); outcome(event, target); if (visuals) visuals.hit(event, target, actors.get(target.target_id), profile); });
       var healing = targets.some(function (target) { return target.healing > 0; });
       var defeated = targets.some(function (target) { return target.defeated; });
       var cue = defeated ? 'defeat' : healing ? 'heal' : event.kind === 'ultimate' ? 'ultimate' : pose === 'cast' ? 'cast' : 'hit';
@@ -279,19 +294,18 @@
   }
   function ingest(state) {
     init(); reset(state.session_id);
-    renderMana(state);
     var first = !latest, previousVersion = latest && latest.version;
-    latest = state;
-    var events = Array.isArray(state.presentation_events) ? state.presentation_events : [];
-    var nextCursor = Math.max(Number(state.presentation_cursor) || 0, ...events.map(function (event) { return Number(event.seq) || 0; }));
-    if (first || catchup || document.hidden) {
+    if (!first && Number(state.version) < Number(previousVersion)) return;
+    renderMana(state); latest = state;
+    var events = Array.isArray(state.presentation_events) ? state.presentation_events.filter(function (event) { return event && validSequence(event.seq); }) : [];
+    var nextCursor = Math.max(validSequence(state.presentation_cursor), ...events.map(function (event) { return validSequence(event.seq); }));
+    if (first || catchup || document.hidden || !visible) {
       clear(); accepted = cursor = nextCursor; catchup = document.hidden;
       var feedback = document.getElementById('liveManaFeedback'); if (feedback) feedback.textContent = 'Spend on skills · recover each turn';
       mark(first ? 'idle' : 'catchup');
       if (first) actors.forEach(function (node) { if (node._combatUnit.role === 'boss') { node.classList.add('ab-boss-arrival'); later(function () { node.classList.remove('ab-boss-arrival'); }, 650); } });
       return;
     }
-    if (Number(state.version) < Number(previousVersion)) return;
     var sequences = new Set();
     var fresh = events.filter(function (event) { var seq = Number(event.seq); if (seq <= accepted || sequences.has(seq)) return false; sequences.add(seq); return true; }).sort(function (a, b) { return a.seq - b.seq; });
     if (!fresh.length) return;
@@ -308,14 +322,17 @@
       if (latest) { clear(); catchup = true; cursor = accepted; mark('catchup'); }
     }
   }
-  window.AbyssCombatAnimation = {isPlaying: function (id) { return session === id && active; }, reset: reset, register: register, ingest: ingest, connection: connection, dispose: function () { reset(''); }};
+  window.AbyssCombatAnimation = {isPlaying: function (id) { return session === id && active; }, reset: reset, register: register, ingest: ingest, connection: connection, skip: function () { clear(); cursor = accepted; mark('idle'); }, dispose: function () { reset(''); }};
 })();
 
 // Keep actor buttons and formation slots stable while server routing IDs change.
 window.renderAbyssEventStage = function (state) {
+  if (state.session_id === livePixelPrevious.session && Number(state.version) < livePixelPrevious.version) return;
+  var presentationEvents = Array.isArray(state.presentation_events) ? state.presentation_events.filter(function (event) { return event && Number.isSafeInteger(Number(event.seq)) && Number(event.seq) > 0; }) : [];
   resetLivePixelState(state.session_id);
   var stage = document.getElementById('livePixelStage');
   stage.classList.add('ab-event-presentation');
+  if (window.AbyssFightVisuals) window.AbyssFightVisuals.snapshot(state);
   if (window.AbyssCombatArt) {
     var biome = document.getElementById('biomeChip'), depth = document.getElementById('depthNum');
     var scenery = window.AbyssCombatArt.backdrop({biome: state.biome || biome && biome.textContent, depth: state.depth || Number(depth && depth.textContent)});
@@ -338,7 +355,7 @@ window.renderAbyssEventStage = function (state) {
       if (created) { button = document.createElement('button'); button.type = 'button'; button.className = 'ab-pixel-unit'; button.dataset.entityId = entity; }
       button._departed = false;
       if (!unit.hp_hidden && unit.hp > 0) button._presentationDefeated = false;
-      button._pendingDefeat = (state.presentation_events || []).some(function (event) { return event.seq > Number(stage.dataset.lastEventSeq || 0) && (event.targets || []).some(function (target) { return target.target_id === entity && target.defeated; }); });
+      button._pendingDefeat = presentationEvents.some(function (event) { return event.seq > Number(stage.dataset.lastEventSeq || 0) && (event.targets || []).some(function (target) { return target.target_id === entity && target.defeated; }); });
       if (!slots.has(entity)) slots.set(entity, slots.size);
       var slot = slots.get(entity);
       button.style.gridColumn = String(hostile ? (slot % columns) + 1 : columns - (slot % columns));
@@ -366,7 +383,7 @@ window.renderAbyssEventStage = function (state) {
       if (created) button.innerHTML = '<span class="ab-combat-unit-info"></span><span class="' + spriteClass + '" data-art-signature="' + identity.signature + '" data-art-sheet="' + family + '" style="' + spriteStyle + '" aria-hidden="true"></span><span class="ab-pixel-shadow" aria-hidden="true"></span><span class="ab-pixel-effects"></span><span class="ab-combat-action-name" aria-hidden="true"></span>';
       var portrait = art ? '<span class="ab-combat-portrait ab-pixel-icon ab-catalog-icon" style="' + liveUniqueArtStyle(artKey, art.family) + '" aria-hidden="true"></span>' : '';
       var info = '<span class="ab-pixel-name">' + portrait + '<b>' + (unit.revenge ? '◎ ' : '') + consEsc(unit.name) + '</b><span>' + consEsc(unit.revenge ? 'REVENGE TARGET' : unit.role || unit.element || '') + '</span></span>' + (hostile ? liveWeaknessWindowMark(unit, 'pixel') : '') + (!hostile ? liveShieldBar(unit, 'overhead') : '') + (hpHidden ? '<span class="ab-overhead-hp concealed"><i></i><em>??</em></span>' : '<span class="ab-overhead-hp"><i style="width:' + livePct(unit.hp, unit.max_hp) + '%"></i><em>' + livePct(unit.hp, unit.max_hp) + '%</em></span>') + (boss || elite ? '<span class="ab-pixel-rank">' + (boss ? 'BOSS' : 'ELITE') + '</span>' : '');
-      var infoNode = button.querySelector('.ab-combat-unit-info'); if (infoNode.innerHTML !== info) infoNode.innerHTML = info;
+      var infoNode = button.querySelector('.ab-combat-unit-info'); if (infoNode._serverInfo !== info) { infoNode.innerHTML = info; infoNode._serverInfo = info; }
       var effectsNode = button.querySelector('.ab-pixel-effects'); if (effectsNode.innerHTML !== effects) effectsNode.innerHTML = effects;
       var intent = (state.enemy_intents || []).find(function (value) { return value.enemy_id === unit.id; });
       button.classList.toggle('ab-danger-intent', !!intent && /heavy|ultimate|special|cast|charge|heal|aoe/.test(intent.kind || ''));
@@ -377,7 +394,7 @@ window.renderAbyssEventStage = function (state) {
     });
     Array.from(host.children).forEach(function (node) {
       if (node.dataset.entityId && !present.has(node.dataset.entityId)) {
-        var pending = (state.presentation_events || []).some(function (event) { return event.seq > Number(stage.dataset.lastEventSeq || 0) && (event.actor_id === node.dataset.entityId || (event.targets || []).some(function (target) { return target.target_id === node.dataset.entityId; })); });
+        var pending = presentationEvents.some(function (event) { return event.seq > Number(stage.dataset.lastEventSeq || 0) && (event.actor_id === node.dataset.entityId || (event.targets || []).some(function (target) { return target.target_id === node.dataset.entityId; })); });
         node._departed = true; node.disabled = true;
         node.classList.toggle('ab-departed', !pending && !node._presentationDefeated);
         if (!pending && !node._presentationDefeated) node.setAttribute('aria-hidden', 'true'); else node.removeAttribute('aria-hidden');
@@ -385,6 +402,7 @@ window.renderAbyssEventStage = function (state) {
     });
   }
   renderSide('livePixelAllies', state.allies, false); renderSide('livePixelEnemies', state.enemies, true);
+  if (window.AbyssFightVisuals) window.AbyssFightVisuals.fit();
   window.AbyssCombatAnimation.ingest(state);
   livePixelPrevious.version = Number(state.version) || 0;
 };

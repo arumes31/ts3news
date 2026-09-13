@@ -68,9 +68,11 @@ test('Forge previews the authoritative offensive rune resonance', async ({ page 
   await page.goto('/abyss?gear=1');
   await page.locator('.ab-tab[data-tab-key="forge"]').click();
   await page.locator('#forgeItemSelect').selectOption('equipped:MainHand');
+  await page.locator('#forgePlanOperation').selectOption('etch_rune');
+  await page.locator('.forge-advanced-disclosure > summary').click();
   await page.locator('#forgeRuneFamily').selectOption('offensive');
   await page.locator('#forgeRuneElement').selectOption('Fire');
-  await page.locator('#forgePlanOperation').selectOption('etch_rune');
+  await page.locator('#forgeQuoteRefresh').click();
 
   await expect.poll(() => quoteRequest).not.toBeNull();
   expect(quoteRequest.operation).toBe('etch_rune');

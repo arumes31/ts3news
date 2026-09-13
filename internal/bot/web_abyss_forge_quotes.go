@@ -41,18 +41,24 @@ type abyssForgeQuoteCost struct {
 }
 
 type abyssForgeOutcome struct {
-	MinimumStats  content.Stats `json:"minimum_stats"`
-	ExpectedStats content.Stats `json:"expected_stats"`
-	MaximumStats  content.Stats `json:"maximum_stats"`
-	MinimumCR     float64       `json:"minimum_cr"`
-	ExpectedCR    float64       `json:"expected_cr"`
-	MaximumCR     float64       `json:"maximum_cr"`
-	Gained        []string      `json:"gained_effects"`
-	Lost          []string      `json:"lost_effects"`
-	Consequences  []string      `json:"consequences"`
+	SuccessStats  *content.Stats `json:"success_stats,omitempty"`
+	FailureStats  *content.Stats `json:"failure_stats,omitempty"`
+	SuccessCR     float64        `json:"success_cr,omitempty"`
+	FailureCR     float64        `json:"failure_cr,omitempty"`
+	TargetRarity  string         `json:"target_rarity,omitempty"`
+	MinimumStats  content.Stats  `json:"minimum_stats"`
+	ExpectedStats content.Stats  `json:"expected_stats"`
+	MaximumStats  content.Stats  `json:"maximum_stats"`
+	MinimumCR     float64        `json:"minimum_cr"`
+	ExpectedCR    float64        `json:"expected_cr"`
+	MaximumCR     float64        `json:"maximum_cr"`
+	Gained        []string       `json:"gained_effects"`
+	Lost          []string       `json:"lost_effects"`
+	Consequences  []string       `json:"consequences"`
 }
 
 type abyssForgeQuote struct {
+	CurrentCR          *float64            `json:"current_cr,omitempty"`
 	SchemaVersion      int                 `json:"schema_version"`
 	CatalogHash        string              `json:"catalog_hash"`
 	Operation          string              `json:"operation"`
@@ -336,6 +342,10 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 		MinimumStats: minimum.Stats, ExpectedStats: expected.Stats, MaximumStats: maximum.Stats,
 		MinimumCR: minimum.CombatRating(), ExpectedCR: expected.CombatRating(), MaximumCR: maximum.CombatRating(),
 	}
+	if exact, ok := exactForgeStatOutcome(operation, *gear, chance); ok {
+		result = exact
+		scale = 1
+	}
 	if scale > 1 {
 		result.Gained = append(result.Gained, fmt.Sprintf("up to %.0f%% combat-stat improvement", (scale-1)*100))
 	}
@@ -367,6 +377,7 @@ func redactUnidentifiedIdentifyQuote(operation string, gear *content.Gear, quote
 		return
 	}
 	quote.Current = nil
+	quote.CurrentCR = nil
 	quote.Outcome = abyssForgeOutcome{
 		Consequences: []string{"Hidden rarity, stats, effects, and provenance are revealed only after identification commits."},
 	}
@@ -472,6 +483,12 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		targetCraftDuplicate = duplicate
 	}
 	chance, chanceText, pityText := forgeQuoteChance(operation, gear)
+	if operation.ID == "temper" && gear != nil {
+		chance, chanceText, pityText, err = s.temperQuoteChance(ctx, uid, *gear, request)
+		if err != nil {
+			return abyssForgeQuote{}, err
+		}
+	}
 	cost, minimumCost, maximumCost, err := s.resolveAbyssForgeQuoteCost(ctx, uid, operation.ID, gear, parameterValues)
 	if err != nil {
 		return abyssForgeQuote{}, fmt.Errorf("forge cost: %w", err)
@@ -600,6 +617,10 @@ func (s *WebServer) buildAbyssForgeQuote(ctx context.Context, uid string, reques
 		BalanceBefore: before, BalanceAfter: subtractForgeBalance(before, cost), Current: gear,
 		Outcome:        forgeQuoteOutcome(operation.ID, gear, chance),
 		TradeableAfter: true, Recovery: map[string]int{},
+	}
+	if gear != nil {
+		currentCR := gear.CombatRating()
+		quote.CurrentCR = &currentCR
 	}
 	if operation.ID == "gem_upgrade_all" && gear != nil {
 		quote.Outcome = forgeBulkGemOutcome(*gear, int(numberParameter(parameterValues, "stop_at_tier")))

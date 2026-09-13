@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_featured_drops.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shop_demand.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_shop_program.css"}}">
+<link rel="stylesheet" href="{{asset "/static/shop_workbench.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_run_loot_sell.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_duplicate_guard.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_wishlist.css"}}">
@@ -75,8 +76,10 @@
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_usability.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_polish.css"}}">
 <link rel="stylesheet" href="{{asset "/static/abyss_combat_animation.css"}}">
+<link rel="stylesheet" href="{{asset "/static/abyss_fight_visuals.css"}}">
 <script src="{{asset "/static/abyss_combat_catalog.js"}}"></script>
 <script src="{{asset "/static/abyss_combat_art.js"}}"></script>
+<script src="{{asset "/static/abyss_fight_visuals.js"}}"></script>
 <script src="{{asset "/static/abyss_combat_animation.js"}}"></script>
 <div class="abyss-command-page" data-ab-campaign="{{.SeasonJourney.Palette}}" aria-describedby="abyssLayoutGuide" style="--ab-combat-sprites:url('{{asset "/static/abyss_combat_sprites.png"}}');--ab-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas.png"}}');--ab-expanded-enemy-atlas:url('{{asset "/static/abyss_enemy_atlas_expanded.png"}}');--ab-expanded-icon-atlas:url('{{asset "/static/abyss_icon_atlas_expanded.png"}}');--ab-atlas-items:url('{{asset "/static/abyss_atlas_items.png"}}');--ab-atlas-skills:url('{{asset "/static/abyss_atlas_skills.png"}}');--ab-atlas-creatures:url('{{asset "/static/abyss_atlas_creatures.png"}}');--ab-atlas-bosses:url('{{asset "/static/abyss_atlas_bosses.png"}}');--ab-atlas-artifacts:url('{{asset "/static/abyss_atlas_artifacts.png"}}');--ab-atlas-companions:url('{{asset "/static/abyss_atlas_companions.png"}}');--ab-atlas-relics:url('{{asset "/static/abyss_atlas_relics.png"}}');--ab-atlas-ranged:url('{{asset "/static/abyss_atlas_ranged.png"}}');--ab-atlas-souls:url('{{asset "/static/abyss_atlas_souls.png"}}');--ab-atlas-auras:url('{{asset "/static/abyss_atlas_auras.png"}}');--ab-atlas-charms:url('{{asset "/static/abyss_atlas_charms.png"}}');--ab-atlas-mounts:url('{{asset "/static/abyss_atlas_mounts.png"}}');--ab-atlas-pets:url('{{asset "/static/abyss_atlas_pets.png"}}');--ab-atlas-emblems:url('{{asset "/static/abyss_atlas_emblems.png"}}');--ab-atlas-banners:url('{{asset "/static/abyss_atlas_banners.png"}}');--ab-atlas-totems:url('{{asset "/static/abyss_atlas_totems.png"}}');--ab-atlas-offhands:url('{{asset "/static/abyss_atlas_offhands.png"}}')">
 <p class="ab-a11y-live" id="abyssLayoutGuide">Abyss page layout: player stats, run stage and controls, combat log, then Season, Progression, Lore and Bestiary, Leaderboards, Skill Web, Shop, and Forge tabs. Use the skip link to reach run controls.</p>
@@ -234,7 +237,7 @@
       <label>Descents <input id="autoContinueCount" type="number" min="1" max="30" value="5" inputmode="numeric" onchange="normalizeAbyssAutoCount()"></label>
       <button type="button" class="ghost xs" id="autoContinueStop" onclick="stopAbyssAutoContinue('Stopped. Current combat will finish.');" hidden>Stop</button>
       <output id="autoContinueStatus" aria-live="polite">Off · enable, then Descend. Up to 30 normal descents.</output>
-      <small>Waits for choices and resumes after events. Leave the sanctuary when ready. Stops on defeat, descent errors or HP below 25%. Does not bank or re-enter.</small>
+      <small>After 30s without input: picks the first path, boon or biome; repairs once at Sanctuary (normal gold cost); takes free benefits or safe exits, then leaves. Input resets the timer. Stops on defeat, errors or HP below 25%. Does not bank or re-enter.</small>
     </section>
 
     {{template "abyssOnboardingPanel" .}}
@@ -539,10 +542,10 @@
     </div>
     <div class="abyss-side-list" id="lootManifest">
       {{range .RunLoot}}
-      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-estimated-value="{{.EstimatedValue}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
+      <div class="abyss-side-loot {{.BeamClass}} {{if .Foil}}ab-loot-foil{{end}} {{if .Doomed}}ab-loot-doomed{{end}} {{if .Unidentified}}ab-loot-unidentified{{end}} {{if .Corrupted}}ab-loot-corrupted{{end}} {{if .SmartLoot}}ab-smart-loot{{end}} {{if .SetPity}}ab-set-pity{{end}} {{if .Wishlist}}ab-wishlist-drop{{end}}" data-loot-id="{{.EscrowID}}" data-depth="{{.Depth}}" data-source="{{.Source}}" data-item-type="{{.ItemType}}" data-estimated-value="{{.EstimatedValue}}" data-gear-id="{{.GearID}}" data-slot="{{.Slot}}" data-slot-icon="{{.SlotIcon}}" data-rarity-name="{{.Rarity}}" data-rarity-rank="{{.RarityRank}}" data-score="{{.Score}}" data-cr="{{printf "%.3f" .CR}}" data-cr-delta="{{printf "%.3f" .CRDelta}}" data-is-upgrade="{{.IsUpgrade}}" data-comparison="{{.ComparisonJSON}}" data-stat-power="{{.StatPower}}" data-main-stat="{{.MainStat}}" data-quality="{{.Quality}}" data-unidentified="{{.Unidentified}}" data-owned="{{.AlreadyOwned}}" data-set-id="{{.SetID}}" data-set-count="{{.SetCount}}" data-set-max="{{.SetMax}}" data-corrupted="{{.Corrupted}}" data-empty-slot="{{.EmptySlot}}" data-can-equip-best="{{.CanEquipBest}}" data-equip-on-bank="{{.EquipOnBank}}" data-smart-loot="{{.SmartLoot}}" data-smart-loot-reason="{{.SmartLootReason}}" data-set-pity="{{.SetPity}}" data-wishlist="{{.Wishlist}}" data-can-sell-junk="{{.CanSellJunk}}" data-sell-value="{{.SellValue}}" data-tip="{{.Title}}&#10;{{.Source}}{{if .Wishlist}}&#10;{{.WishlistLabel}}{{end}}{{if .SetPity}}&#10;{{.SetPityLabel}}{{end}}{{if .SmartLoot}}&#10;{{.SmartLootLabel}}{{end}}" tabindex="0" role="button" aria-expanded="false" onclick="toggleRunLootDetail(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRunLootDetail(this,event)}">
         <span class="ab-loot-main">{{if .SlotIcon}}<span class="ab-loot-slot" aria-hidden="true">{{.SlotIcon}}</span>{{end}}<span>{{.Label}}</span></span>
         <span class="ab-loot-tags">{{if .Wishlist}}<b class="ab-wishlist-tag">★ {{.WishlistLabel}}</b>{{end}}{{if .SetPity}}<b class="ab-set-pity-tag">🧩 {{.SetPityLabel}}</b>{{end}}{{if .SmartLoot}}<b class="ab-smart-loot-tag">🎯 {{.SmartLootLabel}}</b>{{end}}{{if .Unidentified}}<b class="ab-loot-question">?</b>{{end}}{{if .AlreadyOwned}}<b class="ab-owned-tag">owned</b>{{end}}{{if .SetID}}<b class="ab-set-tag ab-set-{{.SetID}}">🧩 {{.SetID}} {{.SetCount}}/{{.SetMax}}</b>{{end}}{{if .Corrupted}}<b class="ab-corrupt-tag">🩸 corrupted</b>{{end}}</span>
-        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if gt .CR 0.0}} · CR {{printf "%.0f" .CR}} ({{if ge .CRDelta 0.0}}+{{end}}{{printf "%.0f" .CRDelta}}){{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
+        <span class="ab-loot-detail" hidden>{{.Source}}{{if .Wishlist}} · ★ {{.WishlistLabel}}{{end}}{{if .SetPity}} · 🧩 {{.SetPityLabel}}{{end}}{{if .SmartLoot}} · 🎯 {{.SmartLootLabel}}{{end}}{{if .Slot}} · {{.Slot}}{{end}}{{if not .Unidentified}}{{if eq .ItemType "gear"}} · Rarity-weighted CR {{printf "%.1f" .CR}} ({{printf "%+.1f" .CRDelta}}){{with .Comparison}} · {{.Status}} · Stat power {{printf "%.1f" .Power}} ({{printf "%+.1f" .PowerDelta}}){{range .Changes}} · {{.Label}} {{.Before}}→{{.After}} ({{printf "%+d" .Delta}}{{if .HasPercent}}; {{printf "%+.1f" .Percent}}%{{end}}){{end}}{{range .Reasons}} · {{.}}{{end}}{{if .RegenDelta}} · Regeneration {{printf "%+.3f" .RegenDelta}} HP/s{{end}}{{if .DurabilityDelta}} · Max durability {{printf "%+d" .DurabilityDelta}}{{end}}{{if .SocketDelta}} · Sockets {{printf "%+d" .SocketDelta}}{{end}}{{end}}{{if .XPBonusDelta}} · XP bonus {{printf "%+g" .XPBonusDelta}} percentage points{{end}}{{if .IsUpgrade}} · ▲ Upgrade{{else if not .EmptySlot}} · No automatic upgrade; review stat and effect tradeoffs{{end}}{{end}}{{end}}{{if gt .Quality 0}} · {{.Quality}}★ quality{{end}}</span>
         {{if .CanEquipBest}}<button type="button" class="ghost xs ab-equip-best {{if .EquipOnBank}}selected{{end}}" onclick="abyssEquipBestLoot({{.EscrowID}},event)">{{if .EquipOnBank}}✓ Equip on bank{{else}}Equip best on bank{{end}}</button>{{end}}
         {{if .CanSellJunk}}<button type="button" class="ghost xs ab-sell-junk" title="Destroy this ordinary escrow item and add exactly {{.SellValue}} gold to the still-at-risk run cache." onclick="abyssSellJunkLoot({{.EscrowID}},{{.SellValue}},event)">Sell junk · +{{.SellValue}}g cache</button>{{end}}
       </div>
@@ -689,7 +692,7 @@
   </section>
 
   <!-- Token Shop: open-ended sink for Abyss Tokens -->
-  <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop">
+  <section class="abyss-panel" id="abyssTokenShop" data-abyss-section="shop" data-shop-user="{{.U.UID}}">
     <h2>🜲 Token Shop</h2>
     <p class="muted small">Spend Abyss Tokens on consumables, gear and relics. Prices show the exact charged amount; there is no hidden shop fee.</p>
     {{template "abyssShopProgram" .}}
@@ -698,14 +701,14 @@
       <button class="ghost xs" role="tab" aria-selected="false" onclick="abyssShopCategory('insanity',this)">🌀 Weekly cosmetic</button>
     </div>
     <div class="ab-shop">
-      {{range .Shop}}
-      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if gt .DemandPct 0}} ab-shop-hot{{else if lt .DemandPct 0}} ab-shop-cool{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
+      {{range $shopIndex, $shopOffer := .Shop}}
+      <div class="ab-shop-item{{if .HappyAccident}} ab-shop-deal{{end}}{{if gt .DemandPct 0}} ab-shop-hot{{else if lt .DemandPct 0}} ab-shop-cool{{end}}{{if .Insanity}} ab-shop-insanity{{end}}" data-order="{{$shopIndex}}" data-shop-key="{{.Key}}" data-shop-name="{{.Name}}" data-shop-description="{{.Desc}}" data-token-cost="{{.EffectiveCost}}" data-gold-cost="{{.CostGold}}" data-base-cost="{{.Cost}}" data-demand="{{.DemandPct}}" data-deal="{{.HappyAccident}}" data-owned="{{.Owned}}" data-shop-category="{{if .Insanity}}insanity{{else}}supplies{{end}}" {{if .Insanity}}hidden{{end}}>
         <div>
           <b>{{if .HappyAccident}}🎉 {{end}}{{if .Insanity}}🌀 {{end}}{{.Name}}</b>{{if .Owned}} <span class="ab-up-lv">owned</span>{{end}}
           <div class="muted small">{{.Desc}}{{if .Insanity}} · {{.RotationWeek}} · refreshes {{.RotationEnds}}{{end}}</div>
           {{if gt .Cost 0}}<div class="ab-shop-market" title="Server-wide purchases during the previous seven completed UTC days; prices refresh at 00:00 UTC."><span>7-day market</span><b>{{if gt .DemandPct 0}}hot · +{{.DemandPct}}%{{else if lt .DemandPct 0}}cool · {{.DemandPct}}%{{else}}steady{{end}}</b><span>{{.DemandSales}} bought</span></div>{{end}}
         </div>
-        <button class="ghost xs" onclick="abyssShopBuy('{{.Key}}', {{.EffectiveCost}}, this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else if .CostGold}}Exact total {{.CostGold}} gold · fee 0{{else}}Base {{.Cost}} tokens · market {{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% from {{.DemandSales}} prior-window purchases{{if .HappyAccident}} · daily deal −40%{{end}} · exact total {{.EffectiveCost}} tokens · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if ne .EffectiveCost .Cost}} <s>{{.Cost}}</s>{{end}}{{if .DemandPct}} <span class="ab-market-price">{{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% market</span>{{end}}{{if .HappyAccident}} <span class="ab-daily-price">−40% deal</span>{{end}}{{end}}</button>
+        <button class="ghost xs" data-shop-buy onclick="abyssShopBuy('{{.Key}}', {{.EffectiveCost}}, this)" title="{{if .Owned}}Re-equip this permanent cosmetic at no charge{{else if .CostGold}}Exact total {{.CostGold}} gold · fee 0{{else}}Base {{.Cost}} tokens · market {{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% from {{.DemandSales}} prior-window purchases{{if .HappyAccident}} · daily deal −40%{{end}} · exact total {{.EffectiveCost}} tokens · fee 0{{end}}">{{if .Owned}}Equip · free{{else if .CostGold}}🪙 {{gold .CostGold}}{{else}}🜲 {{.EffectiveCost}}{{if ne .EffectiveCost .Cost}} <s>{{.Cost}}</s>{{end}}{{if .DemandPct}} <span class="ab-market-price">{{if gt .DemandPct 0}}+{{end}}{{.DemandPct}}% market</span>{{end}}{{if .HappyAccident}} <span class="ab-daily-price">−40% deal</span>{{end}}{{end}}</button>
       </div>
       {{end}}
     </div>
@@ -2398,7 +2401,7 @@ function applyCombatFrame(f){
     if(acc>=1){ var add=Math.floor(acc); acc-=add; setHP(Math.min(hp+add,max),max); }
   },1000);
 })();
-function setGold(g){var el=document.getElementById('goldPill');if(el){g=Number(g)||0;animateNumber(el, lastGold===null?g:lastGold, g, function(v){return '🪙 '+fmtGold(v);});el.dataset.value=String(g);lastGold=g;}}
+function setGold(g){var el=document.getElementById('goldPill');if(el){g=Number(g)||0;animateNumber(el, lastGold===null?g:lastGold, g, function(v){return '🪙 '+fmtGold(v);});el.dataset.value=String(g);lastGold=g;}if(window.AbyssShopWorkbench)AbyssShopWorkbench.walletChanged('gold',Number(g));}
 // Tokens live in the shared header pill (next to gold), not on the page body.
 function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPill');if(el){t=Number(t)||0;
   // UI-42: track tokens earned this session (gains only) into the mini-HUD chip.
@@ -2407,7 +2410,7 @@ function setTokens(t){if(t!==undefined){var el=document.getElementById('tokenPil
     var mw=document.getElementById('mhTkWrap'), mht=document.getElementById('mhTk');
     if(mw&&mht){mht.textContent='+'+fmtNum(sessionTokensEarned); mw.style.display='';}
   }
-  animateNumber(el, lastTokens===null?t:lastTokens, t, function(v){return '🜲 '+fmtNum(v);}); lastTokens=t;}}}
+  animateNumber(el, lastTokens===null?t:lastTokens, t, function(v){return '🜲 '+fmtNum(v);}); lastTokens=t;}if(window.AbyssShopWorkbench)AbyssShopWorkbench.walletChanged('tokens',Number(t));}}
 function updateJackpot(value){
   value=Math.max(0,Number(value)||0);
   jackpotPulse=value>abyssJackpot;
@@ -3223,7 +3226,7 @@ function applyLootFilter(){
   var min = {rare:3, epic:4, legendary:5}[lootFilter] || 0;
   manifest.querySelectorAll('.abyss-side-loot').forEach(function(row){
     var ok = true;
-    if(lootFilter === 'up'){ ok = (row.textContent.indexOf('▲') >= 0); }
+    if(lootFilter === 'up'){ ok = row.dataset.isUpgrade === 'true'; }
     else if(min > 0){
       var r = 0;
       row.classList.forEach(function(c){ if(AB_RARITY_RANKS[c]) r = AB_RARITY_RANKS[c]; });
@@ -3236,6 +3239,7 @@ function applyLootFilter(){
       else if(lootTypeFilter==='mat')ok=type==='mat';
       else if(lootTypeFilter==='gold')ok=type==='gold'||type==='tokens';
     }
+    if(ok&&window.lootQuickFilter)ok=lootQuickFilter(row);
     row.style.display = ok ? '' : 'none';
   });
   // Hide floor headers whose rows are all filtered out.
@@ -3332,8 +3336,7 @@ function appendRunLoot(loot){
   void refreshRunLootManifest();
 }
 
-// Hover compare card on loot rows (UX-47), built from the label's own
-// gs/CR/slot/rarity fields plus the ▲/▼ delta computed at drop time.
+// Hover comparisons use the current manifest, never the drop-time label.
 (function(){
   var tip = null;
   function hideTip(){ if(tip){ tip.remove(); tip = null; } }
@@ -3342,29 +3345,28 @@ function appendRunLoot(loot){
     if(tip && tip._row === row) return;
     hideTip();
     var t = row.textContent || '';
-    var m = /\[s:([A-Za-z0-9]+)\]\s*\(gs:(-?\d+)\s*CR:([\d.]+)\s*R:(\w+)\)/.exec(t);
-    if(!m) return;
-    var up = /▲\+([\d.]+) CR/.exec(t), down = /▼(-?[\d.]+) CR/.exec(t);
-    var cmp = t.indexOf('▲ empty slot') >= 0 ? '⬆ Slot was empty — pure upgrade'
-      : up ? '⬆ +' + up[1] + ' CR vs your equipped piece'
-      : down ? '⬇ ' + down[1] + ' CR vs your equipped piece'
-      : 'No comparison recorded';
+    if(!row.dataset.slot || row.dataset.unidentified==='true' || !row.hasAttribute('data-is-upgrade'))return;
+    var delta=Number(row.dataset.crDelta)||0;
+    var comparison={};try{comparison=JSON.parse(row.dataset.comparison||'{}');}catch(_){}
+    var cmp=(row.dataset.emptySlot==='true'?'Slot is empty':row.dataset.isUpgrade==='true'?'Upgrade without stat or XP loss':'No automatic upgrade; review tradeoffs')+
+      ' · '+(delta>=0?'+':'')+delta.toFixed(1)+' rarity-weighted CR';
     tip = document.createElement('div');
     tip.className = 'ab-hovercard';
     tip._row = row;
-    var name = t.split('[s:')[0].replace('⬆️ Equipped:', '').replace('🎁', '').trim();
+    var name = (row.querySelector('.ab-loot-main')?.textContent||t).split('[s:')[0].replace('⬆️ Equipped:', '').replace('🎁', '').trim();
+    var changes=(comparison.changes||[]).map(function(stat){return '<div class="ab-hc-row"><span>'+consEsc(stat.label)+'</span><b>'+Number(stat.before)+' → '+Number(stat.after)+' ('+(stat.delta>0?'+':'')+Number(stat.delta)+')</b></div>';}).join('');
     tip.innerHTML = '<b>' + consEsc(name) + '</b>' +
-      '<div class="ab-hc-row"><span>Slot</span><b>' + m[1] + '</b></div>' +
-      '<div class="ab-hc-row"><span>Gear score</span><b>' + m[2] + '</b></div>' +
-      '<div class="ab-hc-row"><span>Combat rating</span><b>' + m[3] + '</b></div>' +
-      '<div class="ab-hc-row"><span>Rarity</span><b>' + m[4] + '</b></div>' +
-      '<div class="ab-hc-cmp">' + cmp + '</div>';
+      '<div class="ab-hc-row"><span>Slot</span><b>' + consEsc(row.dataset.slot) + '</b></div>' +
+      '<div class="ab-hc-row"><span>Gear score</span><b>' + (Number(row.dataset.score)||0) + '</b></div>' +
+      '<div class="ab-hc-row"><span>Rarity-weighted CR</span><b>' + (Number(row.dataset.cr)||0).toFixed(1) + '</b></div>' +
+      '<div class="ab-hc-row"><span>Rarity</span><b>' + consEsc(row.dataset.rarityName||'') + '</b></div>' +
+      changes+'<div class="ab-hc-cmp">' + consEsc(comparison.status?comparison.status+' · '+(comparison.reasons||[]).join(' '):cmp) + '</div>';
     document.body.appendChild(tip);
     var r = row.getBoundingClientRect();
     var left = window.scrollX + r.left - tip.offsetWidth - 10;
     if(left < 8) left = window.scrollX + r.right + 10;
-    tip.style.top = (window.scrollY + r.top) + 'px';
-    tip.style.left = left + 'px';
+    tip.style.top = (window.scrollY + Math.max(8,Math.min(r.top,window.innerHeight-tip.offsetHeight-8))) + 'px';
+    tip.style.left = Math.max(window.scrollX+8,Math.min(left,window.scrollX+window.innerWidth-tip.offsetWidth-8)) + 'px';
   }
   document.addEventListener('mouseover', function(e){
     showTip(e.target.closest ? e.target.closest('.abyss-side-loot') : null);
@@ -3665,6 +3667,62 @@ async function abyssDescend(){
 // Only a successful event-triggered refresh may carry the remaining batch forward.
 var abyssAutoRunKey = {{printf "%s/%v" .U.UID .Run.StartedAt}};
 var abyssAutoContinue = { enabled: false, remaining: 0, timer: 0, waiting: false, started: false, choice: '', eventResolved: false, reloading: false, message: '' };
+var abyssAutoIdleTimer=0,abyssAutoRestRepaired=false,abyssAutoPathChoice=null;
+function resetAbyssAutoIdle(){
+  clearTimeout(abyssAutoIdleTimer);
+  if(abyssAutoContinue.enabled&&abyssAutoContinue.started&&!abyssAutoContinue.reloading){
+    abyssAutoIdleTimer=setTimeout(chooseAbyssAutoIdle,30000);
+  }
+}
+['pointerdown','pointermove','keydown','wheel','input','change'].forEach(function(type){
+  document.addEventListener(type,function(event){if(event.isTrusted)resetAbyssAutoIdle();},{capture:true,passive:true});
+});
+async function chooseAbyssAutoIdle(){
+  if(!abyssAutoContinue.enabled||!abyssAutoContinue.started||abyssAutoContinue.reloading)return;
+  if(!inRun||downed||document.hidden){stopAbyssAutoContinue('Stopped · run unavailable or page hidden.');return;}
+  resetAbyssAutoIdle();
+  if(busy||typeof liveCombatState!=='undefined'&&liveCombatState||typeof abyssRunChoicePending!=='undefined'&&abyssRunChoicePending)return;
+  var modal=document.getElementById('sharedModal'),card=document.getElementById('sharedModalCard');
+  var modalOpen=modal&&modal.classList.contains('open');
+  var button;
+  if(abyssAutoContinue.choice==='path'){
+    if(modalOpen&&!card.querySelector('[data-auto-path]'))return;
+    if(abyssAutoPathChoice)await abyssChooseFloor(abyssAutoPathChoice.index,abyssAutoPathChoice.hp,abyssAutoPathChoice.max);
+    return;
+  }else if(abyssAutoContinue.choice==='boon'){
+    if(!modalOpen){
+      var trigger=document.querySelector('.ab-boon-draft-trigger');
+      if(trigger)trigger.click();
+    }
+    button=card.querySelector('.ab-boon-draft button');
+  }else{
+    if(modalOpen||abyssAutoContinue.waiting||floorType==='combat')return;
+    if(floorType==='rest'){
+      if(!abyssAutoRestRepaired){
+        if(!await abyssNCAction('repair'))stopAbyssAutoContinue('Stopped · automatic repair failed.');
+        return;
+      }
+      button=document.querySelector('#ncOptions .ab-biome-choice-list button');
+    }else if(!abyssAutoContinue.eventResolved){
+      // Only explicit free benefits and safe exits; other encounters can be left.
+      var actions={statue:'statue_touch',fountain:'fountain_drink',buried_cache:'cache_dig',
+        challenge_room:'challenge_leave',cursed_door:'cursed_door_leave',story_crossroads:'story_guide',
+        lost_explorer:'explorer_leave',locked_vault:'vault_leave',collapsed_passage:'passage_detour',
+        abyssal_garden:'garden_harvest',trap_chamber:'trap_detour',unstable_portal:'portal_leave',
+        mimic_king:'mimic_king_retreat',forge_floor:'forge_floor_leave'};
+      var action=actions[abyssEventState(eventState).type];
+      if(action){
+        if(!await abyssNCAction(action))stopAbyssAutoContinue('Stopped · automatic encounter action failed.');
+        return;
+      }
+    }
+    if(!button){
+      if(!await abyssProceed())stopAbyssAutoContinue('Stopped · could not leave this floor.');
+      return;
+    }
+  }
+  if(button)button.click();
+}
 function normalizeAbyssAutoCount(){
   var input=document.getElementById('autoContinueCount');
   var count=Math.max(1,Math.min(30,Math.floor(Number(input.value)||1)));
@@ -3681,6 +3739,8 @@ function renderAbyssAutoContinue(){
 }
 function stopAbyssAutoContinue(message){
   clearTimeout(abyssAutoContinue.timer);
+  clearTimeout(abyssAutoIdleTimer);
+  abyssAutoPathChoice=null;
   abyssAutoContinue.enabled=false;abyssAutoContinue.remaining=0;abyssAutoContinue.waiting=false;
   abyssAutoContinue.started=false;abyssAutoContinue.choice='';abyssAutoContinue.eventResolved=false;
   try{sessionStorage.removeItem('abyssAutoEventResume');}catch(e){}
@@ -3693,6 +3753,7 @@ function toggleAbyssAutoContinue(){
 }
 function beginAbyssAutoDescent(){
   clearTimeout(abyssAutoContinue.timer);
+  clearTimeout(abyssAutoIdleTimer);
   if(!abyssAutoContinue.enabled||abyssAutoContinue.waiting)return;
   if(!abyssAutoContinue.started){abyssAutoContinue.remaining=normalizeAbyssAutoCount();abyssAutoContinue.started=true;}
   abyssAutoContinue.remaining--;abyssAutoContinue.waiting=true;
@@ -3705,7 +3766,7 @@ function settleAbyssAutoDescent(data){
   if(!data||!data.ok||!data.noncombat&&!data.victory){
     stopAbyssAutoContinue('Stopped · review this floor before continuing.');return;
   }
-  if(data.noncombat){abyssAutoContinue.eventResolved=false;pauseAbyssAutoContinue('', 'Waiting for this encounter to finish.');return;}
+  if(data.noncombat){abyssAutoContinue.eventResolved=false;abyssAutoRestRepaired=false;pauseAbyssAutoContinue('', 'Waiting for this encounter to finish.');return;}
   if(data.boon_draft&&data.boon_draft.pending){pauseAbyssAutoContinue('boon', 'Choose a boon; auto-continue will resume afterward.');return;}
   if(!abyssAutoContinue.remaining){stopAbyssAutoContinue('Complete · selected descents finished.');return;}
   abyssAutoContinue.message='Next descent in 2 seconds · '+abyssAutoContinue.remaining+' remaining.';
@@ -3714,10 +3775,13 @@ function settleAbyssAutoDescent(data){
 function pauseAbyssAutoContinue(choice,message){
   if(!abyssAutoContinue.enabled)return;
   abyssAutoContinue.choice=choice;
-  abyssAutoContinue.message=message+' · '+abyssAutoContinue.remaining+' remaining.';
+  abyssAutoContinue.message=message+' · Auto-choice after 30s without input · '+abyssAutoContinue.remaining+' remaining.';
+  resetAbyssAutoIdle();
   renderAbyssAutoContinue();scheduleAbyssAutoContinue();
 }
 function resumeAbyssAutoContinueChoice(choice){
+  clearTimeout(abyssAutoIdleTimer);
+  if(choice==='path')abyssAutoPathChoice=null;
   if(abyssAutoContinue.choice===choice)abyssAutoContinue.choice='';
   if(abyssAutoContinue.enabled&&abyssAutoContinue.started)scheduleAbyssAutoContinue();
 }
@@ -3738,6 +3802,7 @@ function restoreAbyssEventContinuation(){
   document.getElementById('autoContinueCount').value=saved.count;normalizeAbyssAutoCount();
   if(typeof initialAbyssBoonDraft!=='undefined'&&initialAbyssBoonDraft&&initialAbyssBoonDraft.pending)abyssAutoContinue.choice='boon';
   abyssAutoContinue.message='Encounter refreshed · '+saved.remaining+' descents remaining.';
+  resetAbyssAutoIdle();
   renderAbyssAutoContinue();scheduleAbyssAutoContinue();
 }
 document.addEventListener('DOMContentLoaded',restoreAbyssEventContinuation,{once:true});
@@ -3797,10 +3862,11 @@ async function playAbyssMultiFloorResults(data) {
 // Floor-choice modal: shown when abyssDescend rolls 2 candidate paths instead
 // of committing to one immediately.
 function openFloorChoiceModal(options, depth, hp, max){
+  abyssAutoPathChoice=options&&options.length?{index:options[0].index,hp:hp,max:max}:null;
   var html = '<h3>🕳️ Floor '+depth+'</h3><p>Choose your path.</p><div class="modal-body">';
   (options||[]).forEach(function(o){
     var hint=o.loot_hint?'<small class="ab-floor-loot-hint">'+consEsc(o.loot_hint)+'</small>':'';
-    html += '<button class="modal-option" onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+consEsc(o.label)+hint+'</button>';
+    html += '<button class="modal-option" data-auto-path onclick="abyssChooseFloor('+o.index+','+hp+','+max+')">'+(o.icon||'')+' '+consEsc(o.label)+hint+'</button>';
   });
   html += '</div>';
   openModal(html);
@@ -4288,10 +4354,12 @@ async function abyssUseConsumable(cid){
 }
 
 async function abyssNCAction(action, payload){
-  if(busy)return; setBusy(true);
+  if(busy)return false; setBusy(true);
   var d = await abPost('/api/abyss/noncombat/action', {action: action, payload: payload});
   setBusy(false);
-  if(!d.ok){ abToast(d.error||'failed',false); return; }
+  if(!d.ok){ abToast(d.error||'failed',false); return false; }
+  if(floorType==='rest'&&action==='repair')abyssAutoRestRepaired=true;
+  resetAbyssAutoIdle();
   if(d.gold !== undefined) setGold(d.gold);
   if(d.tokens !== undefined) setTokens(d.tokens);
   if(d.hp !== undefined) {
@@ -4325,13 +4393,14 @@ async function abyssNCAction(action, payload){
   }
   if(d.resolved&&abyssAutoContinue.enabled){abyssAutoContinue.eventResolved=true;scheduleAbyssAutoContinue();}
   if(d.reload){ setTimeout(function(){reloadAbyssAfterEvent(d.depth===undefined?curDepth:d.depth);}, 650); }
+  return true;
 }
 
 async function abyssProceed(){
-  if(busy)return; setBusy(true); clearBanner();
+  if(busy)return false; setBusy(true); clearBanner();
   
   var d = await abPost('/api/abyss/noncombat/proceed', {});
-  if(!d.ok){ abToast(d.error||'failed',false); setBusy(false); return; }
+  if(!d.ok){ abToast(d.error||'failed',false); setBusy(false); return false; }
   
   var bannerMsg = '🕊️ Survived floor ' + d.depth + '! +' + fmtGold(d.bonus) + ' to your cache (now ' + fmtGold(d.escrow) + ').';
   if(d.focus_reward) bannerMsg += ' ' + d.focus_reward + '.';
@@ -4340,6 +4409,7 @@ async function abyssProceed(){
 
   setBanner(bannerMsg, 'good');
   reloadAbyssAfterEvent(d.depth);
+  return true;
 }
 
 async function filterCoopHelpers(){
@@ -4412,6 +4482,7 @@ async function abyssBountyClaim(){
 }
 
 async function abyssShopBuy(item, quotedCost, btn){
+  if(window.AbyssShopWorkbench)return AbyssShopWorkbench.buy(item,quotedCost,btn);
   if(busy)return; setBusy(true);
   var d = await abPost('/api/abyss/shop/buy', {item: item, quoted_cost: quotedCost});
   setBusy(false);
@@ -4424,11 +4495,13 @@ async function abyssShopBuy(item, quotedCost, btn){
 }
 
 function abyssShopCategory(category, button){
+  if(window.AbyssShopWorkbench){AbyssShopWorkbench.category(category,button);return;}
   document.querySelectorAll('#abyssTokenShop [data-shop-category]').forEach(function(row){row.hidden=row.dataset.shopCategory!==category;});
   document.querySelectorAll('#abyssTokenShop [role="tab"]').forEach(function(tab){tab.classList.toggle('active',tab===button);tab.setAttribute('aria-selected',String(tab===button));});
 }
 
 async function abyssEconomyPost(url, body){
+  if(window.AbyssShopWorkbench&&/^\/api\/abyss\/(shop\/|season\/exchange)/.test(url))return AbyssShopWorkbench.execute(url,body,document.activeElement&&document.activeElement.tagName==='BUTTON'?document.activeElement:null);
   var d = await abPost(url, body || {});
   abToast(d.msg || d.error || (d.ok ? 'Done.' : 'Request failed.'), !!d.ok);
   if(d.ok && d.gold !== undefined)setGold(d.gold);
@@ -5806,6 +5879,7 @@ function applyLootSort(){
   if(isSortingLoot) return;
   isSortingLoot=true;
   var manifest=document.getElementById('lootManifest');
+  var focused=manifest&&manifest.contains(document.activeElement)?document.activeElement:null;
   var observer=lootSortObserver;
   if(observer)observer.disconnect();
   try {
@@ -5829,7 +5903,7 @@ function applyLootSort(){
       manifest.appendChild(frag);
     } else {
       rows.sort(function(a,b){
-        var d=lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):lootSort==='build'?(lootRowMainStat(b)-lootRowMainStat(a)):lootSort==='upgrade'?((Number(b.dataset.crDelta)>0?1:0)-(Number(a.dataset.crDelta)>0?1:0)||lootRowCR(b)-lootRowCR(a)):(lootRowCR(b)-lootRowCR(a));
+        var d=lootSort==='slot'?(a.dataset.slot||'Other').localeCompare(b.dataset.slot||'Other'):lootSort==='rarity'?(lootRowRarRank(b)-lootRowRarRank(a)):lootSort==='build'?(lootRowMainStat(b)-lootRowMainStat(a)):lootSort==='upgrade'?((b.dataset.isUpgrade==='true'?1:0)-(a.dataset.isUpgrade==='true'?1:0)||Number(b.dataset.statPower||0)-Number(a.dataset.statPower||0)):(lootRowCR(b)-lootRowCR(a));
         return d!==0?d:bySeq(a,b);
       });
       var sorted=document.createDocumentFragment();
@@ -5838,6 +5912,7 @@ function applyLootSort(){
     }
     applyLootFilter();
   } finally {
+    if(focused&&focused.isConnected&&focused.getClientRects().length)focused.focus({preventScroll:true});
     if(observer&&manifest){
       observer.takeRecords();
       observer.observe(manifest,{childList:true});
@@ -6809,6 +6884,8 @@ function initNewDots(){
 <script data-cfasync="false">{{template "abyssRetentionJS" .}}</script>
 <script data-cfasync="false">{{template "abyssRunIdentityJS" .}}</script>
 <script data-cfasync="false">{{template "abyssShopProgramJS" .}}</script>
+<script src="{{asset "/static/shop_workbench.js"}}"></script>
+<script src="{{asset "/static/abyss_shop_workbench.js"}}"></script>
 <script data-cfasync="false">{{template "abyssStageHUDJS" .}}</script>
 <script data-cfasync="false">{{template "abyssCodexExplorerJS" .}}</script>
 <script data-cfasync="false">{{template "abyssPanelToolsJS" .}}</script>
@@ -6828,6 +6905,7 @@ initTabDots();
 initTabScroll();
 </script>
 </div>
+{{template "loot-quickwins" .}}
 {{template "foot" .}}{{end}}
 
 {{define "abUpgrade"}}

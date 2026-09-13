@@ -31,7 +31,10 @@ RUN curl -fsSL -o /tmp/ts3.run \
 # ---- Stage 3: runtime ----
 FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
 ENV DEBIAN_FRONTEND=noninteractive
+# Update vulnerable packages inherited from the pinned base as well as new dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libc6=2.41-12+deb13u4 libc-bin=2.41-12+deb13u4 perl-base=5.40.1-6+deb13u1 \
+    gzip=1.13-1+deb13u1 libpcre2-8-0=10.46-1~deb13u2 \
     xvfb dbus dbus-x11 xdotool python3 sqlite3 ca-certificates fonts-dejavu-core procps \
     libxcb1 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 \
     libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-xfixes0 \
@@ -39,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 libdbus-1-3 \
     libnss3 libglib2.0-0t64 libgl1 libegl1 libpulse0 libasound2t64 libxi6 libxtst6 \
     libxrender1 libxrandr2 libxcomposite1 libxdamage1 libxcursor1 \
-    libevent-2.1-7t64 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
+    libevent-2.1-7t64=2.1.13-stable-1~deb13u1 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
     libpci3 libxslt1.1 liblcms2-2 libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 

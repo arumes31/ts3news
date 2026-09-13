@@ -331,6 +331,9 @@
 .shop-item-stats > div { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
 .shop-item-stats dt { color: var(--shop-muted); }
 .shop-item-stats dd { margin: 0; color: var(--cmd-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.shop-comparison .shop-item-stats { grid-template-columns: minmax(0,1fr); }
+.shop-comparison .shop-item-stats > div { flex-wrap: wrap; }
+.shop-comparison .shop-item-stats dd { overflow-wrap: anywhere; }
 .shop-item-specials h4 { margin: 0 0 .35rem; font: 700 .85rem/1.4 var(--cmd-display); }
 .shop-item-specials p { margin: .3rem 0 0; font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
 .shop-item-specials strong { color: var(--cmd-text); }
@@ -376,6 +379,9 @@
 .shop-buff .small { color: var(--shop-secondary); }
 .shop-buff-price { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .5rem; padding-top: .4rem; font-size: .875rem; font-variant-numeric: tabular-nums; }
 .shop-buff-price strong { color: var(--cmd-text); }
+.shop-buff-amount { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .75rem; font-size: .875rem; }
+.shop-buff-amount input { width: 8rem; max-width: 100%; min-height: 44px; }
+.shop-buff-total { font-variant-numeric: tabular-nums; }
 .shop-buff button { width: 100%; min-height: 44px; margin-top: .45rem; }
 .shop-buffs .shop-buff-rules { margin: .5rem 0 0; }
 .shop-card .shop-rarity-boost { color: var(--shop-boost); border-color: #756187; background: transparent; }

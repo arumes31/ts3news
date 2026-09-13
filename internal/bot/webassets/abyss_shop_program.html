@@ -1,5 +1,5 @@
 {{define "abyssShopProgram"}}{{with .ShopProgram}}
-<div class="ab-shop-program" aria-label="Token Shop program">
+<div class="ab-shop-program" aria-label="Token Shop program" data-gold="{{.Gold}}" data-tokens="{{.Tokens}}" data-loyalty="{{.LoyaltyPunches}}" data-gift-fee="{{.GiftFeeGold}}">
   <div class="ab-shop-wallet" aria-label="Shop wallet">
     <span><small>Gold</small><b id="shopWalletGold">{{gold .Gold}}</b></span>
     <span><small>Tokens</small><b id="shopWalletTokens">🜲 {{comma .Tokens}}</b></span>
@@ -37,6 +37,7 @@
 
 {{define "abyssShopProgramJS"}}
 function updateAbyssShopProgram(d){
+  if(window.AbyssShopWorkbench){AbyssShopWorkbench.update(d);return;}
   if(!d)return;
   var gold=document.getElementById('shopWalletGold'),tokens=document.getElementById('shopWalletTokens'),loyalty=document.getElementById('shopLoyaltyValue');
   if(gold&&d.gold!==undefined)gold.textContent=fmtGold(d.gold);
@@ -45,12 +46,14 @@ function updateAbyssShopProgram(d){
   if(d.loyalty_free){var note=document.getElementById('shopLoyaltyNotice');if(note)note.textContent='Loyalty reward used: this purchase was free. The card has restarted.';}
 }
 async function abyssShopBundleBuy(bundle,cost,button){
+  if(window.AbyssShopWorkbench)return AbyssShopWorkbench.bundle(bundle,cost,button);
   if(button)button.disabled=true;
   var d=await abyssEconomyPost('/api/abyss/shop/bundle',{bundle:bundle,quoted_cost:cost});
   if(button)button.disabled=false;
   updateAbyssShopProgram(d);
 }
 async function abyssGiftCreateForm(event){
+  if(window.AbyssShopWorkbench)return AbyssShopWorkbench.giftCreate(event);
   event.preventDefault();
   var recipient=document.getElementById('abyssGiftRecipient').value.trim(),item=document.getElementById('abyssGiftItem').value;
   var d=await abyssEconomyPost('/api/abyss/shop/gift_create',{recipient:recipient,item:item});
@@ -58,11 +61,13 @@ async function abyssGiftCreateForm(event){
   var output=document.getElementById('abyssGiftOutput');if(output)output.textContent=d.ok?'Gift code: '+d.code:(d.error||'Gift failed.');
 }
 async function abyssGiftRedeemForm(){
+  if(window.AbyssShopWorkbench)return AbyssShopWorkbench.giftRedeem();
   var code=document.getElementById('abyssGiftCode').value.trim();if(!code)return;
   var d=await abyssEconomyPost('/api/abyss/shop/gift_redeem',{code:code});
   var output=document.getElementById('abyssGiftOutput');if(output)output.textContent=d.msg||d.error||'';
 }
 async function abyssSeasonExchange(button){
+  if(window.AbyssShopWorkbench)return AbyssShopWorkbench.season(button);
   if(button)button.disabled=true;
   var d=await abyssEconomyPost('/api/abyss/season/exchange',{});
   if(d.ok&&button)button.textContent='Owned';else if(button)button.disabled=false;

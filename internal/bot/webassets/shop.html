@@ -1,5 +1,6 @@
 {{define "shop"}}{{template "head" .}}
 {{template "shop_relic_styles" .}}
+<link rel="stylesheet" href="{{asset "/static/shop_workbench.css"}}">
 <header class="portal-masthead shop-masthead">
   <div>
     <h1>Shop</h1>
@@ -32,24 +33,25 @@
 
     <div class="shop-filters" aria-label="Filter and sort stock">
       <label>Equipment slot<select id="shopSlot"><option value="">All slots</option></select></label>
-      <label>Sort by<select id="shopSort"><option value="rotation">Rotation order</option><option value="price">Lowest price</option><option value="power">Highest CR</option><option value="gain">Best CR gain</option></select></label>
+      <label>Sort by<select id="shopSort"><option value="rotation">Rotation order</option><option value="price">Lowest price</option><option value="power">Highest stat power</option><option value="gain">Best stat power gain</option></select></label>
+      <label>Comparison<select id="shopComparison"><option value="">All comparisons</option><option value="upgrade">Upgrades</option><option value="tradeoff">Tradeoffs</option><option value="downgrade">Downgrades</option><option value="equivalent">Equivalent</option><option value="unknown">Unknown</option></select></label>
       <label class="shop-filter-check"><input type="checkbox" id="shopUpgrades">Upgrades only</label>
       <label class="shop-filter-check"><input type="checkbox" id="shopAffordable">Affordable only</label>
       <button type="button" class="ghost" id="shopReset">Reset filters</button>
     </div>
 
     {{with .StockPagination}}{{if gt .Pages 1}}<p class="muted small shop-stock-page-note">Stock slots {{integer .Start}}–{{integer .End}} of {{integer .Total}} offers, including the featured relic. Search and filters apply to this page.</p>{{end}}{{end}}
-    <div class="shop-grid" id="shopGrid" role="list" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
+    <div class="shop-grid" id="shopGrid" role="list" data-shop-user="{{.U.UID}}" data-stock-revision="{{.StockRevision}}" data-stock-page="{{.StockPagination.Page}}">
       {{range $index, $item := .Stock}}
       {{if ge $index 12}}<template class="shop-stock-offer">{{end}}
-      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-gain="{{.Comparison.CRDelta}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
+      <article class="shop-card {{if .Featured}}featured-item{{end}} {{if .IsUpgrade}}upgrade-item{{end}}" role="listitem" data-id="{{.ID}}" data-element="{{.Element}}" data-search="{{.Name}} {{.Rarity}} {{.Slot}} {{range .Specials}}{{.Name}} {{end}}" data-name="{{.Name}}" data-slot="{{.Slot}}" data-price="{{.Price}}" data-cr="{{.CR}}" data-power="{{.Comparison.Power}}" data-gain="{{.Comparison.PowerDelta}}" data-comparison="{{.Comparison.Status}}" data-comparison-detail="{{.Comparison.JSON}}" data-order="{{$index}}" data-upgrade="{{.IsUpgrade}}" style="--shop-rarity:{{.RarityColor}}">
         <div class="shop-card-inspect item-inspect-trigger" data-item-inspect="{{.InspectJSON}}">
           <div class="shop-ico{{if .Featured}} shop-relic-stage{{end}}">{{if .Featured}}<div class="shop-relic-mount" aria-hidden="true">{{end}}<span class="item-art item-art-lg"{{if not .Featured}} data-shop-art-pending{{end}} data-art-family="{{.Family}}" data-art-page="{{.Page}}" style="{{if .Asset}}--item-atlas:url({{asset .Asset}});{{end}}--art-col:{{.Column}};--art-row:{{.Row}}" aria-hidden="true"></span>{{if .Featured}}</div>{{end}}</div>
           <div class="shop-card-copy">
             <h3 class="inv-name">{{.Name}}</h3>
             <div class="inv-meta">{{.Rarity}} · {{.Slot}}{{if .Element}} · {{.Element}}{{end}}</div>
-            <div class="inv-meta">CR {{printf "%.0f" .CR}} · GS {{.Score}}</div>
-            {{if or .Featured .IsUpgrade .RarityBoosted}}<div class="shop-item-badges">{{if .Featured}}<span class="upgrade-badge shop-featured-badge" title="Featured {{.Rarity}} relic">Featured</span>{{end}}{{if .RarityBoosted}}<span class="upgrade-badge shop-rarity-boost" title="Your permanent rarity bonus improved this item's rarity or stats">Rarity boosted</span>{{end}}{{if .IsUpgrade}}<span class="upgrade-badge" title="Auto-equip priority: XP bonus, rarity, or combat rating; review stat tradeoffs below">Upgrade</span>{{end}}</div>{{end}}
+            <div class="inv-meta" title="CR is a rarity-weighted estimate, not an upgrade guarantee">CR {{printf "%.1f" .CR}} · GS {{.Score}}</div>
+            {{if or .Featured .IsUpgrade .RarityBoosted}}<div class="shop-item-badges">{{if .Featured}}<span class="upgrade-badge shop-featured-badge" title="Featured {{.Rarity}} relic">Featured</span>{{end}}{{if .RarityBoosted}}<span class="upgrade-badge shop-rarity-boost" title="Your permanent rarity bonus improved this item's rarity or stats">Rarity boosted</span>{{end}}{{if .IsUpgrade}}<span class="upgrade-badge" title="Empty slot or a stat/XP gain with no combat-stat or effective-XP loss; contextual effect changes require manual comparison">Upgrade</span>{{end}}</div>{{end}}
           </div>
         </div>
         <div class="shop-item-details">
@@ -62,15 +64,19 @@
             <h4>Specials</h4>
             {{range .Specials}}<p><strong>{{.Name}}</strong> <span>{{.Description}}</span></p>{{else}}<p class="muted">No special combat effects.</p>{{end}}
           </div>
-          {{with .Comparison}}{{if .Unknown}}<p class="muted small">Identify your equipped item to compare its stats.</p>{{else if .EquippedName}}
+          {{with .Comparison}}{{if .Unknown}}{{range .Reasons}}<p class="muted small">{{.}}</p>{{end}}{{else}}
           <div class="shop-comparison">
-            <h4>Compared with <span>{{.EquippedName}}</span></h4>
-            <p>CR {{printf "%+.0f" .CRDelta}} · GS {{printf "%+d" .ScoreDelta}}{{if .XPBonusDelta}} · XP bonus {{printf "%+d" .XPBonusDelta}} percentage points{{end}}</p>
-            <dl class="shop-item-stats" aria-label="Stat changes versus equipped item">{{range .Stats}}<div><dt>{{.Label}}</dt><dd class="{{if lt .Value 0}}shop-stat-loss{{else}}shop-stat-gain{{end}}">{{printf "%+d" .Value}}</dd></div>{{else}}<div><dt>Stats</dt><dd>No change</dd></div>{{end}}</dl>
+            <h4>{{if .EmptySlot}}Compared with an empty slot{{else}}Compared with <span>{{.EquippedName}}</span>{{end}}</h4>
+            <p><strong>{{.Status}}</strong> · {{.Gains}} combat gains · {{.Losses}} combat losses</p>
+            <p>Stat power {{printf "%.1f" .Power}} ({{printf "%+.1f" .PowerDelta}})</p>
+            <p>Rarity-weighted CR {{printf "%+.1f" .CRDelta}} · GS {{printf "%+d" .ScoreDelta}}{{if .XPBonusDelta}} · Effective XP bonus {{printf "%+g" .XPBonusDelta}} percentage points{{end}}</p>
+            <dl class="shop-item-stats" aria-label="Stat changes versus equipped item">{{range .Changes}}<div title="{{.Description}}"><dt>{{.Label}}{{if not .Combat}} (flavour){{end}}</dt><dd class="{{if and .Combat (lt .Delta 0)}}shop-stat-loss{{else if .Combat}}shop-stat-gain{{end}}">{{comma .Before}} → {{comma .After}} ({{printf "%+d" .Delta}}{{if .HasPercent}}; {{printf "%+.1f" .Percent}}%{{end}})</dd></div>{{else}}<div><dt>Stats</dt><dd>No change</dd></div>{{end}}</dl>
+            {{if .RegenDelta}}<p>Regeneration {{printf "%+.3f" .RegenDelta}} HP/s</p>{{end}}{{if .DurabilityDelta}}<p>Max durability {{printf "%+d" .DurabilityDelta}}</p>{{end}}{{if .SocketDelta}}<p>Socket capacity {{printf "%+d" .SocketDelta}}</p>{{end}}
+            {{range .Reasons}}<p class="muted small">{{.}}</p>{{end}}
             {{range .AddedSpecials}}<p class="shop-stat-gain">Gain {{.Name}}: {{.Description}}</p>{{end}}
             {{range .RemovedSpecials}}<p class="shop-stat-loss">Lose {{.Name}}: {{.Description}}</p>{{end}}
           </div>
-          {{else}}<p class="shop-comparison-empty muted small">No item equipped in this slot.</p>{{end}}{{end}}
+          {{end}}{{end}}
         </div>
         <div class="shop-card-footer">
           <div class="shop-price-stack">
@@ -103,6 +109,10 @@
         <p class="muted small">{{integer .Owned}} tokens owned</p>
         {{if eq .Kind "rarity"}}<p class="small">+0.1% per token on up to 20 randomly selected base stock slots. Each full 100% grants one rarity tier; the remainder rolls for another. Beyond Eternal, each extra upgrade adds 0.1% of base combat stats, without compounding.</p>{{else}}<p class="small">Each token adds 0.1% more stock above the usual 48 items. Fractional extras roll once per rotation; reloading keeps the same result.</p>{{end}}
         <p class="shop-buff-price">Next token <strong>{{integer .Price}} gold</strong></p>
+        <label class="shop-buff-amount" for="shopBuffAmount-{{.Kind}}">Tokens to buy
+          <input id="shopBuffAmount-{{.Kind}}" type="number" min="1" step="1" value="1" inputmode="numeric" aria-label="{{.Name}} tokens to buy" aria-describedby="shopBuffNote-{{.Kind}}" oninput="updateShopAffordability()">
+        </label>
+        <p class="shop-buff-total small" aria-live="polite"></p>
         <p class="shop-buff-affordability muted small" id="shopBuffNote-{{.Kind}}">{{if ge $.U.Gold .Price}}Affordable{{else}}More gold needed{{end}}</p>
         <button type="button" class="shop-buff-action" data-kind="{{.Kind}}" data-owned="{{.Owned}}" data-price="{{.Price}}" onclick="buyShopBuff(this)" aria-label="Buy {{.Kind}} token" aria-describedby="shopBuffNote-{{.Kind}}">Buy {{.Kind}} token</button>
         <p class="shop-local-status" role="status" aria-live="polite" hidden></p>
@@ -161,9 +171,11 @@ function shopMutationBusy(){return shopPurchasePending||shopExchangePending||sho
 
 function syncShopMutationButtons(){
   document.querySelectorAll('.shop-buy-action,.shop-exchange-action,.shop-buff-action').forEach(function(button){
-    var unaffordable=button.hasAttribute('data-price')&&Number(button.dataset.price)>shopCurrentGold;
-    button.disabled=shopMutationBusy()||unaffordable||button.dataset.pending==='true';
+    var price=Number(button.dataset.totalPrice||button.dataset.price);
+    var unaffordable=button.hasAttribute('data-price')&&price>shopCurrentGold;
+    button.disabled=shopMutationBusy()||unaffordable||button.dataset.invalidAmount==='true'||button.dataset.pending==='true';
   });
+  document.querySelectorAll('.shop-buff-amount input').forEach(function(input){input.disabled=shopMutationBusy();});
 }
 
 function showShopResult(message, ok, button){
@@ -304,7 +316,7 @@ function refreshShopAfterEquip(button){
     action.setAttribute('aria-busy','true');
   });
   if(button)button.textContent='Equipped';
-  setTimeout(function(){location.reload();},900);
+  if(window.refreshShopComparisons){void refreshShopComparisons(button);}else setTimeout(function(){location.reload();},900);
 }
 
 function renderShopBalances(){
@@ -320,6 +332,7 @@ function renderShopBalances(){
   shopBalanceState.dataset.levelName=shopCurrentLevelName;
   shopBalanceState.textContent='Balance: 🪙 '+shopCompactGold(shopCurrentGold)+' / ✨ '+shopLocaleNumber(shopCurrentXP)+' XP / '+shopCurrentLevelName+' (Lvl '+shopCurrentLevel+')';
   updateShopAffordability();
+  if(window.ShopMainWorkbench)ShopMainWorkbench.balanceChanged();
 }
 
 function applyBalanceResponse(data){
@@ -332,11 +345,27 @@ function applyBalanceResponse(data){
   filterShopStock();
 }
 
+function shopBuffQuote(button){
+  var owned=Number(button.dataset.owned);
+  var amount=Number(document.getElementById('shopBuffAmount-'+button.dataset.kind).value);
+  if(![owned,amount,owned+amount].every(Number.isSafeInteger)||owned<0||amount<1)return null;
+  var rising=Math.min(amount,Math.max(999-owned,0));
+  var total=(rising>0?rising*(2*owned+rising+1)/2*1000000:0)+(amount-rising)*1000000000;
+  return Number.isSafeInteger(total)?{amount:amount,total:total}:null;
+}
+
 function updateShopAffordability(){
   document.querySelectorAll('.shop-buff-action').forEach(function(button){
     var note=button.closest('.shop-buff').querySelector('.shop-buff-affordability');
-    var shortfall=Number(button.dataset.price)-shopCurrentGold;
-    note.textContent=shortfall>0?'Need '+shopLocaleNumber(shortfall)+' more gold':'Affordable';
+    var quote=shopBuffQuote(button);
+    button.dataset.invalidAmount=String(!quote);
+    button.dataset.totalPrice=quote?String(quote.total):'';
+    button.closest('.shop-buff').querySelector('.shop-buff-total').textContent=quote?'Total: '+shopLocaleNumber(quote.total)+' gold':'';
+    var label=quote&&quote.amount>1?'Buy '+shopLocaleNumber(quote.amount)+' '+button.dataset.kind+' tokens':'Buy '+button.dataset.kind+' token';
+    button.setAttribute('aria-label',label);
+    if(button.dataset.pending!=='true'){button.textContent=label;button.dataset.defaultLabel=label;}
+    var shortfall=quote?quote.total-shopCurrentGold:0;
+    note.textContent=!quote?'Enter a positive whole number of tokens with a total that can be reviewed safely.':shortfall>0?'Need '+shopLocaleNumber(shortfall)+' more gold':'Affordable';
   });
   shopCards.forEach(function(card){
     var price=Number(card.dataset.price||0);
@@ -390,6 +419,7 @@ function filterShopStock(){
   var query=document.getElementById('shopSearch').value.trim().toLocaleLowerCase();
   var slot=document.getElementById('shopSlot').value;
   var upgrades=document.getElementById('shopUpgrades').checked;
+  var comparison=document.getElementById('shopComparison').value;
   var affordable=document.getElementById('shopAffordable').checked;
   var cards=shopSortedCards;
   var grid=document.getElementById('shopGrid');
@@ -397,7 +427,8 @@ function filterShopStock(){
   var matched=0;
   var visible=0;
   cards.forEach(function(card){
-    var matches=(!query||String(card.dataset.search||'').toLocaleLowerCase().includes(query))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
+    var matches=(!query||(window.shopSearchMatches?shopSearchMatches(card.dataset.search,query):String(card.dataset.search||'').toLocaleLowerCase().includes(query)))&&(!slot||card.dataset.slot===slot)&&(!upgrades||card.dataset.upgrade==='true')&&(!comparison||card.dataset.comparison===comparison)&&(!affordable||Number(card.dataset.price)<=shopCurrentGold);
+    matches=matches&&(!window.shopExtraMatches||shopExtraMatches(card));
     if(matches)matched++;
     var withinLimit=matched<=shopVisibleLimit;
     card.hidden=!(matches&&withinLimit);
@@ -505,6 +536,7 @@ async function exchange(direction, inputId, button){
     applyBalanceResponse(data);
     updateShopExchangeRate(data);
     showShopResult('Exchange complete. Balance: '+shopLocaleNumber(shopCurrentGold)+' gold, '+shopLocaleNumber(shopCurrentXP)+' XP, level '+shopCurrentLevel+'.',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt('Exchanged '+shopLocaleNumber(quote.spend)+' '+(direction==='gold_to_xp'?'gold':'XP')+' for '+shopLocaleNumber(quote.gain)+' '+(direction==='gold_to_xp'?'XP':'gold')+'.');
   }catch(error){
     unconfirmed=error&&error.unconfirmed===true;
     showShopResult(error.message||'The exchange could not be completed. Try again.',false,button);
@@ -532,7 +564,7 @@ async function buy(id, button){
   var approved;
   try{
     approved=await confirmShop(
-      '<strong>'+shopEscapeHTML(itemName)+'</strong><br>Exact total: '+shopLocaleNumber(price)+' gold · buyer fee: 0 gold.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>'+delivery,
+      '<strong>'+shopEscapeHTML(itemName)+'</strong><br>Exact total: '+shopLocaleNumber(price)+' gold · buyer fee: 0 gold.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>'+delivery+(window.shopQuickSummary?'<details><summary>Item changes</summary>'+shopEscapeHTML(shopQuickSummary(button)).replaceAll('\n','<br>')+'</details>':''),
       {title:'Confirm purchase',okLabel:'Buy for '+shopLocaleNumber(price)+' gold',cancelLabel:'Keep browsing',returnFocus:button}
     );
   }finally{shopReviewPending=false;syncShopMutationButtons();button.focus({preventScroll:true});}
@@ -553,6 +585,7 @@ async function buy(id, button){
       refreshShopAfterEquip(button);
     }
     showShopResult(message+' Remaining balance: '+shopLocaleNumber(shopCurrentGold)+' gold.',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt(message+' Paid '+shopLocaleNumber(price)+' gold.');
   }catch(error){
     unconfirmed=error&&error.unconfirmed===true;
     showShopResult(error.message||'The purchase could not be completed. Try again.',false,button);
@@ -566,9 +599,11 @@ async function buyShopBuff(button){
   if(shopMutationBusy()||button.disabled)return;
   var kind=button.dataset.kind;
   var owned=Number(button.dataset.owned);
-  var price=Number(button.dataset.price);
+  var quote=shopBuffQuote(button);
+  var amount=quote&&quote.amount;
+  var price=quote&&quote.total;
   var expectedGold=shopCurrentGold;
-  if(![owned,owned+1,price,expectedGold].every(Number.isSafeInteger)||owned<0||price<=0){showShopResult('These amounts cannot be reviewed safely. Refresh the shop.',false,button);return;}
+  if(!quote||!Number.isSafeInteger(expectedGold)){showShopResult('These amounts cannot be reviewed safely. Refresh the shop.',false,button);return;}
   if(price>expectedGold){showShopResult('You need '+shopLocaleNumber(price-expectedGold)+' more gold.',false,button);return;}
   var name=kind==='rarity'?'Rarity':'Quantity';
   var effect=kind==='rarity'
@@ -578,17 +613,18 @@ async function buyShopBuff(button){
   syncShopMutationButtons();
   var recovery=false;
   try{
-    var approved=await confirmShop('<strong>Permanent '+name.toLowerCase()+' token</strong><br>'+effect+'<br>Bonus: '+(owned/10).toFixed(1)+'% → '+((owned+1)/10).toFixed(1)+'%.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>Next '+kind+' token: '+shopLocaleNumber(Math.min(owned+2,1000)*1000000)+' gold. The other token price is unchanged.',
+    var approved=await confirmShop('<strong>'+shopLocaleNumber(amount)+' permanent '+name.toLowerCase()+' token'+(amount===1?'':'s')+'</strong><br>Exact total: '+shopLocaleNumber(price)+' gold.<br>'+effect+'<br>Bonus: '+(owned/10).toFixed(1)+'% → '+((owned+amount)/10).toFixed(1)+'%.<br>Balance: '+shopLocaleNumber(expectedGold)+' → '+shopLocaleNumber(expectedGold-price)+' gold.<br>Next '+kind+' token: '+shopLocaleNumber((Math.min(owned+amount,999)+1)*1000000)+' gold. The other token price is unchanged.',
       {title:'Review '+kind+' token',okLabel:'Buy for '+shopLocaleNumber(price)+' gold',cancelLabel:'Keep my gold',returnFocus:button});
     if(!approved)return;
     setButtonPending(button,true,'Activating…');
-    var data=await post('/api/shop/buffs',{kind:kind,expected_owned:owned,expected_gold:expectedGold});
+    var data=await post('/api/shop/buffs',{kind:kind,amount:amount,expected_owned:owned,expected_gold:expectedGold});
     if(!data.ok){recovery=data.review_required===true;showShopResult(data.error||'The token could not be purchased.',false,button);return;}
-    if(!Number.isSafeInteger(data.gold)||!data.buffs||data.buffs[kind]!==owned+1){
+    if(!Number.isSafeInteger(data.gold)||!data.buffs||data.buffs[kind]!==owned+amount||data.gold!==expectedGold-price){
       var incomplete=new Error('The purchase result is incomplete. Refresh to verify your token and balance.');incomplete.unconfirmed=true;throw incomplete;
     }
     applyBalanceResponse(data);
-    showShopResult(name+' token activated permanently. Refreshing your stock…',true,button);
+    showShopResult(shopLocaleNumber(amount)+' '+name.toLowerCase()+' token'+(amount===1?'':'s')+' activated permanently. Refreshing your stock…',true,button);
+    if(window.ShopMainWorkbench)ShopMainWorkbench.receipt('Activated '+shopLocaleNumber(amount)+' '+kind+' tokens for '+shopLocaleNumber(price)+' gold.');
     shopRefreshPending=true;
     syncShopMutationButtons();
     button.textContent='Activated';
@@ -622,14 +658,14 @@ function sortShopStock(){
   var sort=document.getElementById('shopSort').value;
   shopSortedCards=shopCards.slice().sort(function(a,b){
     var difference=sort==='price'?Number(a.dataset.price)-Number(b.dataset.price)
-      :sort==='power'?Number(b.dataset.cr)-Number(a.dataset.cr)
-      :sort==='gain'?Number(b.dataset.gain)-Number(a.dataset.gain):0;
+      :sort==='power'?Number(b.dataset.power)-Number(a.dataset.power)
+      :sort==='gain'?Number(b.dataset.gain)-Number(a.dataset.gain):sort.startsWith('value_')&&window.shopExtraSort?shopExtraSort(a,b,sort):0;
     return difference||Number(a.dataset.order)-Number(b.dataset.order);
   });
 }
 
 function saveShopFilters(){
-  try{sessionStorage.setItem('shopFilters',JSON.stringify({search:document.getElementById('shopSearch').value,slot:shopSlot.value,sort:document.getElementById('shopSort').value,upgrades:document.getElementById('shopUpgrades').checked,affordable:document.getElementById('shopAffordable').checked,limit:Number.isFinite(shopVisibleLimit)?shopVisibleLimit:shopPageSize}));}catch(_){}
+  try{sessionStorage.setItem('shopFilters',JSON.stringify({search:document.getElementById('shopSearch').value,slot:shopSlot.value,sort:document.getElementById('shopSort').value,comparison:document.getElementById('shopComparison').value,upgrades:document.getElementById('shopUpgrades').checked,affordable:document.getElementById('shopAffordable').checked,limit:Number.isFinite(shopVisibleLimit)?shopVisibleLimit:shopPageSize}));}catch(_){}
 }
 
 function shopFiltersChanged(){
@@ -643,6 +679,7 @@ try{
     document.getElementById('shopSearch').value=typeof saved.search==='string'?saved.search:'';
     shopSlot.value=typeof saved.slot==='string'?saved.slot:'';
     document.getElementById('shopSort').value=typeof saved.sort==='string'?saved.sort:'rotation';
+    document.getElementById('shopComparison').value=['upgrade','tradeoff','downgrade','equivalent','unknown'].includes(saved.comparison)?saved.comparison:'';
     document.getElementById('shopUpgrades').checked=saved.upgrades===true;
     document.getElementById('shopAffordable').checked=saved.affordable===true;
     if(Number.isSafeInteger(saved.limit))shopVisibleLimit=Math.max(shopPageSize,Math.min(saved.limit,shopCards.length));
@@ -650,9 +687,9 @@ try{
 }catch(_){}
 sortShopStock();
 document.getElementById('shopSearch').addEventListener('input',shopFiltersChanged);
-['shopSlot','shopSort','shopUpgrades','shopAffordable'].forEach(function(id){document.getElementById(id).addEventListener('change',shopFiltersChanged);});
+['shopSlot','shopSort','shopComparison','shopUpgrades','shopAffordable'].forEach(function(id){document.getElementById(id).addEventListener('change',shopFiltersChanged);});
 document.getElementById('shopReset').addEventListener('click',function(){
-  document.getElementById('shopSearch').value='';shopSlot.value='';document.getElementById('shopSort').value='rotation';document.getElementById('shopUpgrades').checked=false;document.getElementById('shopAffordable').checked=false;
+  document.getElementById('shopSearch').value='';shopSlot.value='';document.getElementById('shopSort').value='rotation';document.getElementById('shopComparison').value='';document.getElementById('shopUpgrades').checked=false;document.getElementById('shopAffordable').checked=false;
   shopFiltersChanged();document.getElementById('shopSearch').focus({preventScroll:true});
 });
 document.getElementById('shopMore').addEventListener('click',function(){
@@ -705,4 +742,7 @@ var shopLeft={{.RefreshIn}};
 })();
 </script>
 {{template "shop_relic_script" .}}
+{{template "shop-item-quickwins" .}}
+<script src="{{asset "/static/shop_workbench.js"}}"></script>
+<script src="{{asset "/static/shop_main_workbench.js"}}"></script>
 {{template "foot" .}}{{end}}

@@ -14,49 +14,65 @@ import (
 // bbTagRe strips every BBCode tag, leaving plain text for labels and tooltips.
 var bbTagRe = regexp.MustCompile(`\[[^\]]*\]`)
 
+// Drop-time comparisons become stale when equipment changes. Keep the item
+// label, but rebuild comparisons from the current equipped instance on every read.
+var abyssLootOldDeltaRe = regexp.MustCompile(`\s*\[color=[^\]]+\][▲▼][^\[]*\[/color\]`)
+
 // runLootRow is the authoritative presentation model for one escrowed drop.
 // Label is safe HTML produced by bbToHTML, which escapes input before restoring
 // the small BBCode allowlist.
 type runLootRow struct {
-	EscrowID        int64         `json:"id"`
-	Label           template.HTML `json:"label"`
-	Depth           int           `json:"depth"`
-	Title           string        `json:"title"`
-	Source          string        `json:"source"`
-	ItemType        string        `json:"item_type"`
-	GearID          string        `json:"gear_id,omitempty"`
-	Slot            string        `json:"slot,omitempty"`
-	SlotIcon        string        `json:"slot_icon,omitempty"`
-	Rarity          string        `json:"rarity,omitempty"`
-	RarityRank      int           `json:"rarity_rank,omitempty"`
-	Score           int           `json:"score,omitempty"`
-	CR              float64       `json:"cr,omitempty"`
-	CRDelta         float64       `json:"cr_delta,omitempty"`
-	MainStat        int           `json:"main_stat,omitempty"`
-	BeamClass       string        `json:"beam_class,omitempty"`
-	Quality         int           `json:"quality,omitempty"`
-	Foil            bool          `json:"foil,omitempty"`
-	Doomed          bool          `json:"doomed,omitempty"`
-	Unidentified    bool          `json:"unidentified,omitempty"`
-	AlreadyOwned    bool          `json:"already_owned,omitempty"`
-	SetID           string        `json:"set_id,omitempty"`
-	SetCount        int           `json:"set_count,omitempty"`
-	SetMax          int           `json:"set_max,omitempty"`
-	Corrupted       bool          `json:"corrupted,omitempty"`
-	EmptySlot       bool          `json:"empty_slot,omitempty"`
-	CanEquipBest    bool          `json:"can_equip_best,omitempty"`
-	EquipOnBank     bool          `json:"equip_on_bank,omitempty"`
-	SmartLoot       bool          `json:"smart_loot,omitempty"`
-	SmartLootReason string        `json:"smart_loot_reason,omitempty"`
-	SmartLootLabel  string        `json:"smart_loot_label,omitempty"`
-	SetPity         bool          `json:"set_pity,omitempty"`
-	SetPityLabel    string        `json:"set_pity_label,omitempty"`
-	Wishlist        bool          `json:"wishlist,omitempty"`
-	WishlistLabel   string        `json:"wishlist_label,omitempty"`
-	Provenance      string        `json:"provenance,omitempty"`
-	CanSellJunk     bool          `json:"can_sell_junk,omitempty"`
-	SellValue       int64         `json:"sell_value,omitempty"`
-	EstimatedValue  int64         `json:"estimated_value,omitempty"`
+	EscrowID           int64          `json:"id"`
+	Label              template.HTML  `json:"label"`
+	Depth              int            `json:"depth"`
+	Title              string         `json:"title"`
+	Source             string         `json:"source"`
+	ItemType           string         `json:"item_type"`
+	GearID             string         `json:"gear_id,omitempty"`
+	Slot               string         `json:"slot,omitempty"`
+	SlotIcon           string         `json:"slot_icon,omitempty"`
+	Rarity             string         `json:"rarity,omitempty"`
+	RarityRank         int            `json:"rarity_rank,omitempty"`
+	Score              int            `json:"score,omitempty"`
+	CR                 float64        `json:"cr,omitempty"`
+	CRDelta            float64        `json:"cr_delta,omitempty"`
+	IsUpgrade          bool           `json:"is_upgrade"`
+	StatChanges        []statKV       `json:"stat_changes,omitempty"`
+	XPBonusDelta       float64        `json:"xp_bonus_delta,omitempty"`
+	Comparison         gearComparison `json:"comparison"`
+	ComparisonJSON     string         `json:"-"`
+	StatPower          float64        `json:"stat_power"`
+	EffectiveXP        float64        `json:"effective_xp"`
+	RegenRate          float64        `json:"regen_rate"`
+	MainStat           int            `json:"main_stat,omitempty"`
+	BeamClass          string         `json:"beam_class,omitempty"`
+	Quality            int            `json:"quality,omitempty"`
+	Foil               bool           `json:"foil,omitempty"`
+	Doomed             bool           `json:"doomed,omitempty"`
+	Unidentified       bool           `json:"unidentified,omitempty"`
+	AlreadyOwned       bool           `json:"already_owned,omitempty"`
+	SetID              string         `json:"set_id,omitempty"`
+	SetCount           int            `json:"set_count,omitempty"`
+	SetMax             int            `json:"set_max,omitempty"`
+	Corrupted          bool           `json:"corrupted,omitempty"`
+	EmptySlot          bool           `json:"empty_slot,omitempty"`
+	CanEquipBest       bool           `json:"can_equip_best,omitempty"`
+	EquipOnBank        bool           `json:"equip_on_bank,omitempty"`
+	BestReason         string         `json:"best_reason,omitempty"`
+	RunnerUpID         int64          `json:"runner_up_id,omitempty"`
+	RunnerUpTitle      string         `json:"runner_up_title,omitempty"`
+	ReservationWarning string         `json:"reservation_warning,omitempty"`
+	SmartLoot          bool           `json:"smart_loot,omitempty"`
+	SmartLootReason    string         `json:"smart_loot_reason,omitempty"`
+	SmartLootLabel     string         `json:"smart_loot_label,omitempty"`
+	SetPity            bool           `json:"set_pity,omitempty"`
+	SetPityLabel       string         `json:"set_pity_label,omitempty"`
+	Wishlist           bool           `json:"wishlist,omitempty"`
+	WishlistLabel      string         `json:"wishlist_label,omitempty"`
+	Provenance         string         `json:"provenance,omitempty"`
+	CanSellJunk        bool           `json:"can_sell_junk,omitempty"`
+	SellValue          int64          `json:"sell_value,omitempty"`
+	EstimatedValue     int64          `json:"estimated_value,omitempty"`
 }
 
 // abyssRunLootEstimatedValue gives the sidebar one consistent, display-only
@@ -230,13 +246,28 @@ func (b *Bot) currentRunLootManifest(uid string, equipped map[content.GearSlot]c
 			row.SellValue, row.CanSellJunk = abyssRunLootJunkQuote(grant)
 			row.CanSellJunk = row.CanSellJunk && !row.EquipOnBank
 			current, occupied := equipped[gear.Slot]
-			occupied = occupied && abyssGearActiveForCombat(current)
+			occupied = occupied && (abyssGearActiveForCombat(current) || current.ID == comparisonUnavailableID)
 			row.EmptySlot = !occupied
 			if occupied {
 				row.CRDelta = row.CR - current.CombatRating()
 			} else {
 				row.CRDelta = row.CR
 			}
+			comparisonGear := map[string]content.Gear{}
+			if occupied {
+				comparisonGear[string(gear.Slot)] = current
+			}
+			comparison := shopGearComparison(gear, comparisonGear)
+			row.Comparison = comparison
+			if data, err := json.Marshal(comparison); err == nil {
+				row.ComparisonJSON = string(data)
+			}
+			row.StatPower, row.EffectiveXP, row.RegenRate = comparison.Power, gear.EffectiveXPMultiplier(), gearRegenRate(gear)
+			row.IsUpgrade = comparison.IsUpgrade
+			row.StatChanges, row.XPBonusDelta = comparison.Stats, comparison.XPBonusDelta
+			label = abyssLootOldDeltaRe.ReplaceAllString(label, "")
+			row.Label = template.HTML(bbToHTML(label)) // #nosec G203 -- bbToHTML escapes input
+			row.Title = bbTagRe.ReplaceAllString(label, "")
 		}
 		out = append(out, row)
 	}
@@ -330,16 +361,49 @@ func markAbyssBestRunLoot(rows []runLootRow) {
 	best := map[string]int{}
 	for i := range rows {
 		row := &rows[i]
-		if row.Slot == "" || row.CRDelta <= 0 {
+		row.CanEquipBest = false
+		row.BestReason, row.RunnerUpTitle, row.ReservationWarning = "", "", ""
+		row.RunnerUpID = 0
+		if row.Slot == "" || row.Unidentified || !row.IsUpgrade {
 			continue
 		}
-		if previous, ok := best[row.Slot]; !ok || rows[previous].CR < row.CR {
+		if previous, ok := best[row.Slot]; !ok || betterRunLoot(*row, rows[previous]) {
 			best[row.Slot] = i
 		}
 	}
 	for _, index := range best {
 		rows[index].CanEquipBest = true
+		winner := &rows[index]
+		winner.BestReason = "Best eligible upgrade by stat power, then effective XP, regeneration, and earliest drop."
+		second := -1
+		for i := range rows {
+			if i != index && rows[i].Slot == winner.Slot && rows[i].IsUpgrade && !rows[i].Unidentified && (second < 0 || betterRunLoot(rows[i], rows[second])) {
+				second = i
+			}
+		}
+		if second >= 0 {
+			winner.RunnerUpID = rows[second].EscrowID
+			winner.RunnerUpTitle = rows[second].Title
+		}
 	}
+	for i := range rows {
+		if rows[i].EquipOnBank && !rows[i].CanEquipBest {
+			rows[i].ReservationWarning = "Your reserved item is no longer the best eligible upgrade. Review the reservation before banking."
+		}
+	}
+}
+
+func betterRunLoot(a, b runLootRow) bool {
+	if a.StatPower != b.StatPower {
+		return a.StatPower > b.StatPower
+	}
+	if a.EffectiveXP != b.EffectiveXP {
+		return a.EffectiveXP > b.EffectiveXP
+	}
+	if a.RegenRate != b.RegenRate {
+		return a.RegenRate > b.RegenRate
+	}
+	return a.EscrowID < b.EscrowID
 }
 
 func (b *Bot) consumeAndEquipAbyssEscrowGear(uid string, escrowID int64, gear content.Gear) error {
@@ -375,7 +439,7 @@ func (s *WebServer) handleAbyssLootManifest(w http.ResponseWriter, r *http.Reque
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
-	equipped := s.bot.getEquippedItems(uid)
+	equipped := s.bot.getEquippedComparisonItems(uid)
 	recentGear, _ := s.bot.abyssRecentGearProtection(uid)
 	writeJSON(w, map[string]any{
 		"ok":                     true,
@@ -459,16 +523,33 @@ func (s *WebServer) handleAbyssEquipBestLoot(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, map[string]any{"ok": false, "error": "identify this item before reserving it"})
 		return
 	}
-	equipped := s.bot.getEquippedItems(uid)
-	currentCR := 0.0
-	if current, ok := equipped[requested.gear.Slot]; ok && abyssGearActiveForCombat(current) {
-		currentCR = current.CombatRating()
+	// Hold the equipment snapshot stable through selection commit, including empty
+	// slots where row locks cannot prevent a concurrent equipGear insert.
+	if _, err := tx.ExecContext(r.Context(), "LOCK TABLE user_gear IN SHARE MODE"); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
-	bestID, bestCR := int64(0), currentCR
+	equipped := s.bot.getEquippedComparisonItemsFrom(tx, uid)
+	comparisonGear := map[string]content.Gear{}
+	if current, ok := equipped[requested.gear.Slot]; ok && (abyssGearActiveForCombat(current) || current.ID == comparisonUnavailableID) {
+		comparisonGear[string(current.Slot)] = current
+	}
+	var ranked []runLootRow
 	for i := range candidates {
 		candidate := &candidates[i]
-		if !candidate.gear.Unidentified && candidate.gear.Slot == requested.gear.Slot && candidate.gear.CombatRating() > bestCR {
-			bestID, bestCR = candidate.id, candidate.gear.CombatRating()
+		if candidate.gear.Slot == requested.gear.Slot {
+			comparison := shopGearComparison(candidate.gear, comparisonGear)
+			ranked = append(ranked, runLootRow{EscrowID: candidate.id, Slot: string(candidate.gear.Slot),
+				Score: candidate.gear.Stats.Score(), CR: candidate.gear.CombatRating(),
+				StatPower: comparison.Power, EffectiveXP: candidate.gear.EffectiveXPMultiplier(), RegenRate: gearRegenRate(candidate.gear),
+				IsUpgrade: comparison.IsUpgrade})
+		}
+	}
+	markAbyssBestRunLoot(ranked)
+	var bestID int64
+	for _, row := range ranked {
+		if row.CanEquipBest {
+			bestID = row.EscrowID
 		}
 	}
 	if bestID != req.EscrowID {

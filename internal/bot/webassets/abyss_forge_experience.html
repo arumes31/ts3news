@@ -42,21 +42,21 @@
     var option=select.options[select.selectedIndex];
     if(!option||!option.value){card.hidden=true;return;}
     card.hidden=false;
-    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0),pity=Number(forgeUIState&&forgeUIState.temper_fail_stacks)||0;
-    var base=Math.max(20,Math.min(95,95-6*level)),chance=Math.max(20,Math.min(95,base+5*pity));
+    var name=selectedName(option),slot=option.dataset.slot||'Gear',rarity=Number(option.dataset.rarity||0),cr=Number(option.dataset.cr||0),gs=Number(option.dataset.gs||0),level=Number(option.dataset.temper||0);
     document.getElementById('forgeSelectionName').textContent=name;
     var rarityNames=['Common','Uncommon','Rare','Epic','Legendary','Mythic','Divine','Celestial','Eternal'];
     document.getElementById('forgeSelectionMeta').textContent=slot+' · '+(rarityNames[rarity]||'Unknown')+' · CR '+cr.toFixed(1)+' · GS '+gs;
     var visible=Array.prototype.slice.call(actions.querySelectorAll('button')).filter(function(button){return button.style.display!=='none';}).length;
     document.getElementById('forgeSelectionActions').textContent=visible+' applicable action'+(visible===1?'':'s');
-    document.getElementById('forgeTemperChanceLabel').textContent=chance+'%'+(pity?' · +'+Math.min(chance-base,5*pity)+'% pity':'');
-    var track=document.querySelector('#forgeTemperChance .ab-forge-chance-track');track.setAttribute('aria-valuenow',String(chance));
-    document.getElementById('forgeTemperBase').style.width=base+'%';
-    var bonus=document.getElementById('forgeTemperPityBonus');bonus.style.left=base+'%';bonus.style.width=Math.max(0,chance-base)+'%';
+    document.getElementById('forgeTemperChanceLabel').textContent='Awaiting current temper quote';
+    var track=document.querySelector('#forgeTemperChance .ab-forge-chance-track');track.removeAttribute('aria-valuenow');
+    document.getElementById('forgeTemperBase').style.width='0%';
+    var bonus=document.getElementById('forgeTemperPityBonus');bonus.style.left='0%';bonus.style.width='0%';
     document.getElementById('forgeBefore').textContent='Now · +'+level+' · CR '+cr.toFixed(1);
-    document.getElementById('forgeAfter').textContent=level>=15?'Temper cap reached':'Success · +'+(level+1)+' · CR ≈'+(cr*1.02).toFixed(1);
+    document.getElementById('forgeAfter').textContent=level>=15?'Temper cap reached':'Select an operation for an exact quote';
     priceButtons(option);
   }
+  document.addEventListener('forgequotechange',function(event){var q=event.detail;if(!q){document.getElementById('forgeTemperBase').style.width='0%';document.getElementById('forgeTemperPityBonus').style.width='0%';document.querySelector('#forgeTemperChance .ab-forge-chance-track').removeAttribute('aria-valuenow');document.getElementById('forgeAfter').textContent='Awaiting current quote';document.getElementById('forgeTemperChanceLabel').textContent='Awaiting current temper quote';return;}var current=q.current_item||q.current;document.getElementById('forgeBefore').textContent=current?'Now · '+current.Name+' · CR '+Number(q.current_cr||0).toFixed(1):'No existing item';document.getElementById('forgeAfter').textContent=q.operation+' · Expected CR '+Number(q.outcome.expected_cr||0).toFixed(1);document.getElementById('forgeTemperChance').hidden=q.operation!=='temper';if(q.operation==='temper'){var chance=Number(q.success_chance)*100;document.getElementById('forgeTemperChanceLabel').textContent=chance.toFixed(1)+'% · '+(q.pity_explanation||'');document.querySelector('#forgeTemperChance .ab-forge-chance-track').setAttribute('aria-valuenow',String(chance));document.getElementById('forgeTemperBase').style.width=chance+'%';document.getElementById('forgeTemperPityBonus').style.width='0%';}});
   var baseUpdate=window.updateForgeOptions;
   if(typeof baseUpdate==='function')window.updateForgeOptions=function(){var result=baseUpdate.apply(this,arguments);updateSelection();return result;};
   var basePity=window.renderTemperPity;

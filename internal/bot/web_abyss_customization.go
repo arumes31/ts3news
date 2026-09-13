@@ -595,8 +595,7 @@ func (s *WebServer) handleAbyssUpgradeGear(w http.ResponseWriter, r *http.Reques
 	target := g.Rarity + 1
 	cost := abyssUpgradeGearCost(target)
 
-	g.Rarity = target
-	g.Stats = g.Stats.Scaled(1.3) // +30% stats
+	g = forgeStatUpgradeResult(g, "upgrade_gear")
 	g.GearLevel++
 
 	// Ascending into the top tiers imbues extra bonus combat affixes: Mythic gains

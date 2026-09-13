@@ -831,7 +831,7 @@ func (s *WebServer) handleAbyssTemper(w http.ResponseWriter, r *http.Request, ui
 	if success {
 		s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "temper")
 		g.Temper++
-		g.Stats = g.Stats.Scaled(1.02)
+		g.Stats = forgeStatUpgradeResult(g, "temper").Stats
 		dataBytes, _ := json.Marshal(g)
 		if !writeGearItemData(w, tx, uid, req.InvID, req.Slot, string(dataBytes)) {
 			return

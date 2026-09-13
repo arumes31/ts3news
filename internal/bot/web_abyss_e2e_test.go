@@ -350,7 +350,16 @@ func TestAbyssE2EServer(t *testing.T) {
 			}
 			mysteryView := toGearView(mystery.Slot, mystery)
 			mysteryView.InvID = 98
-			fixture["Inventory"] = []gearView{mysteryView}
+			inventoryCharm := content.Gear{
+				ID: "U_LEG_85", Name: "Lucky Test Charm", Slot: content.SlotCharm,
+				Rarity: content.RarityEpic, MaxDurability: 60, Stats: content.Stats{HP: 80, LCK: 35},
+				Special: content.EffectLucky, BonusEffects: []content.ItemEffect{content.EffectTreasureHunter},
+				FoundAt: "2026-08-20T14:15:16Z", FoundDepth: 18, FoundBoss: "Gorgoroth the Firelord",
+			}
+			inventoryCharmView := toGearView(inventoryCharm.Slot, inventoryCharm)
+			inventoryCharmView.InvID = 1
+			inventoryCharmView.Durability = inventoryCharm.MaxDurability
+			fixture["Inventory"] = []gearView{mysteryView, inventoryCharmView}
 			fixture["ForgeWorkbenchEnabled"] = true
 			fixture["ForgeCatalog"] = currentAbyssForgeCatalogSummary()
 			fixture["ForgeOperations"] = abyssForgeOperations()

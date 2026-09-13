@@ -45,15 +45,14 @@ func (b *Bot) autoListUnwantedItems(uid string, item interface{}) bool {
 
 		// Check if player already has better gear in this slot
 		var currentID string
-		err := b.DB.QueryRow("SELECT gear_id FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(v.Slot)).Scan(&currentID)
-		if err == nil {
-			if cur, ok := content.GetGearByID(currentID); ok {
-				if !(cur.Rarity > v.Rarity || (cur.Rarity == v.Rarity && cur.CombatRating() >= v.CombatRating())) {
-					return false // This is actually an upgrade or should have been equipped
-				}
-				// Otherwise the currently-equipped item is unneeded gear — fall
-				// through and price it fairly for listing below.
-			}
+		var currentData sql.NullString
+		err := b.DB.QueryRow("SELECT gear_id, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(v.Slot)).Scan(&currentID, &currentData)
+		if err != nil {
+			return false
+		}
+		cur, ok := b.makeComparisonGear(currentID, currentData)
+		if !ok || !gearShouldReplace(cur, v) {
+			return false // Preserve upgrades and contextual tradeoffs for manual choice.
 		}
 	case content.Skill:
 		// Do not list normal skills on the Auction House

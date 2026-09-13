@@ -69,7 +69,7 @@ test('armoury, inventory, shop, and auction use atlas art and expose every speci
     await trigger.click();
     const inspector = page.locator('.item-inspector');
     await expect(inspector).toBeVisible();
-    await expect(inspector.getByRole('heading', { name: 'Global stats' })).toBeVisible();
+    await expect(inspector.getByRole('heading', { name: 'Item stats', exact: true })).toBeVisible();
     await expect(inspector.getByRole('heading', { name: 'All specials' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(inspector).toBeHidden();

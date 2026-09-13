@@ -1,3 +1,8 @@
+.abyss-command-page .ab-combat-cockpit .abyss-side-right { overflow: auto; }
+.abyss-command-page .abyss-side-right > * { flex-shrink: 0; }
+.abyss-command-page .abyss-side-right .item-tool-controls > label { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.abyss-command-page .abyss-side-right .item-tool-controls select { min-width: 0; max-width: 100%; }
+
 body.ab-loot-density-compact #lootManifest .abyss-side-loot {
   align-items: center;
   display: flex;
