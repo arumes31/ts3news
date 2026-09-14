@@ -100,3 +100,5 @@
 #rift-monster-comparison thead th:first-child {width:36%}
 
 #rift-settings-summary{display:block;margin-top:8px;font:11px/1.7 ui-monospace,monospace;color:#b8cbb0;overflow-wrap:anywhere}
+
+.rift-settings label:has(#rift-transition-delay){flex-wrap:wrap}#rift-transition-delay{max-width:100%}

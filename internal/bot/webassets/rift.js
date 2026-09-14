@@ -8,6 +8,10 @@
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
+  let transitionDelay=1.2;
+  try{const saved=Number(localStorage.getItem('riftTransitionDelay'));if([1.2,3,5,10].includes(saved))transitionDelay=saved;}catch(_){}
+  $('rift-transition-delay').value=String(transitionDelay);
+  $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
   const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):'');
@@ -140,7 +144,7 @@
     if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
         if(!clearedAt)clearedAt=performance.now();
-        const remaining=Math.max(0,1.2-(performance.now()-clearedAt)/1000);
+        const remaining=Math.max(0,transitionDelay-(performance.now()-clearedAt)/1000);
         const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
         $('rift-transition').textContent=remaining>0?'Next: '+(next||'campaign complete')+' · '+remaining.toFixed(1)+'s':'Banking rewards…';
         if(remaining===0)await send('advance');
