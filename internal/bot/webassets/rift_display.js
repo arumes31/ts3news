@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
+  const defaults={personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
   const choices={enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -41,10 +41,11 @@
     ['damageMotion','rift-damage-motion','Moving damage numbers'],['hazardLabels','rift-hazard-labels','Hazard labels'],['lootSparkle','rift-loot-sparkle','Loot sparkle'],
     ['particles','rift-background-particles','Background particles'],['lootMotion','rift-loot-motion','Loot bobbing'],
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
-    ['compactHUD','rift-compact-hud','Compact HUD']
+    ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD']
   ];
   function save(){try{localStorage.setItem('riftDisplay',JSON.stringify({version:1,...values}));}catch(_){} }
   function refresh(){
+    root.classList.toggle('rift-hide-records',!values.personalRecords);
     root.style.setProperty('--rift-hud-scale',values.textScale);root.classList.toggle('rift-compact-hud',values.compactHUD);
     for(const [key,control] of controls)if(control.type==='checkbox')control.checked=values[key];else control.value=values[key];
   }
@@ -56,7 +57,7 @@
   });
   apply.onclick=()=>{Object.assign(values,presets[preset.value].values);save();refresh();};
   const reset=document.createElement('button');reset.id='rift-reset-display';reset.type='button';reset.textContent='Reset display';reset.onclick=()=>{Object.assign(values,defaults);preset.value='balanced';description.textContent=presets.balanced.description;save();refresh();};section.append(reset);
-  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here.';section.append(note);
+  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(note);
   document.querySelector('.rift-settings').append(section);
   refresh();window.RiftDisplay=values;
 })();

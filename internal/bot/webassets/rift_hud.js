@@ -72,7 +72,7 @@
     const career=[['Enemies defeated',(past.enemies||0)+(stats.kills||0)],['Bosses defeated',(past.bosses||0)+(stats.bosses||0)],['Treasure goblins defeated',(past.treasure_goblins||0)+(stats.treasure_goblins||0)],['Gold banked',(past.gold||0)+(run.banked_gold||0)],['Gear pieces banked',(past.gear||0)+(run.banked_items?.length||0)]];
     const careerKey=JSON.stringify(career);if($('rift-career-statistics').dataset.values!==careerKey){$('rift-career-statistics').dataset.values=careerKey;$('rift-career-statistics').replaceChildren();for(const [label,value] of career){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value);$('rift-career-statistics').append(dt,dd);}}
     const key=JSON.stringify(values);
-    if(summaryKey!==key){summaryKey=key;$('rift-statistics').replaceChildren();for(const [label,value] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value||0);$('rift-statistics').append(dt,dd);}}
+    if(summaryKey!==key){summaryKey=key;$('rift-statistics').replaceChildren();for(const [label,value] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value||0);if(['Current mission clear streak','Best mission clear streak','Highest basic combo strike (of 3)','Largest hit'].includes(label)){dt.dataset.personalRecord='true';dd.dataset.personalRecord='true';}$('rift-statistics').append(dt,dd);}}
     const state=[run.id,run.level?.id,run.room,run.status,run.paused].join(':');
     if(state!==announced){
       announced=state;
