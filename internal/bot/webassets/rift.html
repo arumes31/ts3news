@@ -4,6 +4,28 @@
   <header class="rift-heading"><div><p class="rift-eyebrow">THE ABYSS / SOLO ADVENTURE</p><h1>RIFT <span>BRAWL</span></h1></div><div class="rift-heading-right"><span class="rift-tag">100 MISSIONS · 10 REGIONS</span><a href="/abyss">Return to Abyss ↗</a></div></header>
   <link rel="preload" as="image" href="{{asset "/static/rift_props.png"}}" id="rift-props-asset">
   <section id="rift-walkthrough" aria-labelledby="rift-walkthrough-title" hidden><p id="rift-walkthrough-step" class="rift-fine"></p><h2 id="rift-walkthrough-title"></h2><p id="rift-walkthrough-copy" role="status" aria-live="polite"></p><div><button id="rift-walkthrough-back" type="button">Back</button><button id="rift-walkthrough-next" type="button">Next</button><button id="rift-walkthrough-skip" type="button">Skip walkthrough</button></div></section>
+  <details id="rift-field-guide" class="rift-field-guide"><summary>Brawl field guide <span class="rift-fine">Terms, stats &amp; combat basics</span></summary>
+    <h2>Know the battlefield</h2>
+    <dl class="rift-term-list">
+      <dt>Mission</dt><dd>A three-tier route ending in an Abyss boss encounter.</dd>
+      <dt>Tier / room</dt><dd>One battlefield within a mission. Clear its enemies to reach a checkpoint.</dd>
+      <dt>Checkpoint</dt><dd>A cleared room where you can bank rewards and continue or leave.</dd>
+      <dt>Banking</dt><dd>Securing gold and gear in your Abyss account. Unbanked finds are lost on defeat; banked rewards and equipped gear stay safe.</dd>
+      <dt>Telegraph</dt><dd>A warning pose or marked area before an attack. Move clear or time a jump before it lands.</dd>
+      <dt>Cooldown</dt><dd>The wait before an ability can be used again. Having enough mana does not bypass this wait.</dd>
+      <dt>Builder / finisher</dt><dd>Your class abilities: a builder generates class charges, and a finisher spends available charges for a stronger effect. Check your skill reference for the class-specific result.</dd>
+      <dt>Practice</dt><dd>An isolated drill using your Abyss build. It earns no loot or campaign records and keeps a separate save.</dd>
+    </dl>
+    <h3>Your RPG build, tuned for action</h3>
+    <p>Brawl brings your Abyss class, subclass, permanent stats and equipment into real-time combat. Large RPG stat values are compressed into a smaller action-game range, so Brawl HP, damage and armor differ from the numbers on your RPG character sheet. Stronger stats still help, but doubling an RPG stat does not double its Brawl value.</p>
+    <p>The current run keeps the build it started with. Changes to your character, gear or learned skills apply when you start a new expedition.</p>
+    <h3>Armor, guard and barriers</h3>
+    <p><strong>Armor</strong> reduces incoming damage automatically. <strong>Guard</strong> then reduces remaining frontal damage by 82%; turn toward the attacker, because attacks from behind bypass guard. A <strong>barrier</strong> absorbs the damage left after those reductions until its protection runs out. Guarding is not immunity.</p>
+    <p>For example, if 10 damage remains after armor, a successful guard reduces it to 1.8. A barrier can absorb that remainder before it reaches your HP.</p>
+    <h3>Depth and melee range</h3>
+    <p>Moving up or down changes your depth on the battlefield. Jumping changes height instead. For a basic melee strike, face the enemy, close the horizontal gap and line up at roughly the same depth. An enemy just above or below you can look close enough but still be outside the strike's narrow depth range.</p>
+    <p>Try moving up or down to align your fighter's feet with the target, then attack. Spells have their own ranges; use the skill reference for each ability.</p>
+  </details>
   <nav id="rift-practice-links" aria-label="Practice drills"><a href="/abyss/rift?practice=movement">Movement practice</a> · <a href="/abyss/rift?practice=jump">Jump practice</a> · <a href="/abyss/rift?practice=combo">Combo practice</a> · <a href="/abyss/rift?practice=guard">Guard practice</a> · <a href="/abyss/rift?practice=hazard">Hazard practice</a></nav>
   <section id="rift-practice-guide" hidden aria-label="Practice drill"><h2 id="rift-practice-title"></h2><p id="rift-practice-instructions"></p><p id="rift-practice-progress" role="status"></p><button id="rift-practice-reset" type="button" disabled>Reset drill</button> <a href="/abyss/rift">Return to campaign</a><div id="rift-practice-tools"><button type="button" data-practice-action="practice_health" disabled>Refill health</button><button type="button" data-practice-action="practice_mana" disabled>Refill mana</button><button type="button" data-practice-action="practice_cooldowns" disabled>Reset skill cooldowns</button><p class="rift-fine">These controls pause the drill and preserve its progress. Resume when ready. Cooldown reset affects learned abilities only.</p><p id="rift-practice-tool-status" role="status"></p></div><p>No loot or campaign records are earned here. Your campaign save is kept separately.</p></section>
   <details id="rift-campaign" class="rift-campaign" open><summary>Choose your expedition <span id="rift-progress">100 missions · 300 combat rooms</span></summary><div class="rift-campaign-tools"><label>Region <select id="rift-region" aria-label="Campaign region"><option value="all">All regions</option></select></label><label><input id="rift-auto" type="checkbox" checked> Seamless tiers · bank & continue automatically</label></div><p id="rift-level-description">Choose any mission. Jump low cover and evade glowing hazard zones.</p><div id="rift-levels" class="rift-levels" aria-label="Campaign missions"></div></details>
