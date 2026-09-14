@@ -88,6 +88,10 @@ func NewRunWithCatalog(id string, build Build, now time.Time, catalog []content.
 	return r
 }
 
+var encounterCounts = [...]int{3, 4, 3}
+
+func roomHealthMultiplier(room int) float64 { return 1 + float64(room)*.15 }
+
 func planEncounters(id string, catalog []content.Mob) [][]Actor {
 	var regular, bosses []Actor
 	for _, mob := range catalog {
@@ -112,7 +116,7 @@ func planEncounters(id string, catalog []content.Mob) [][]Actor {
 	rng.Shuffle(len(regular), func(i, j int) { regular[i], regular[j] = regular[j], regular[i] })
 	plan := make([][]Actor, len(Rooms))
 	cursor := 0
-	for room, count := range []int{3, 4, 3} {
+	for room, count := range encounterCounts {
 		for index := 0; index < count; index++ {
 			a := regular[cursor%len(regular)]
 			cursor++
@@ -124,7 +128,7 @@ func planEncounters(id string, catalog []content.Mob) [][]Actor {
 			a.X = 580 + float64(index)*240
 			a.Y = 355 + float64(index%3)*50
 			a.Cooldown = 1 + float64(index)*.3
-			a.HP *= 1 + float64(room)*.15
+			a.HP *= roomHealthMultiplier(room)
 			a.MaxHP = a.HP
 			plan[room] = append(plan[room], a)
 		}

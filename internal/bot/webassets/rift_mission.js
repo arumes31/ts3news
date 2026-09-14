@@ -4,6 +4,7 @@
   const section=document.createElement('section');section.className='rift-mission-planning';section.setAttribute('aria-label','Selected mission plan');
   const add=(tag,id,text,parent=section)=>{const node=document.createElement(tag);if(id)node.id=id;if(text)node.textContent=text;parent.append(node);return node;};
   add('p','rift-mission-class');
+  add('p','rift-mission-difficulty');
   const controls=add('div','','',section);controls.className='rift-mission-link-tools';
   const label=add('label','','Mission link',controls),link=add('input','rift-mission-link','',label);link.readOnly=true;link.type='text';
   const copy=add('button','rift-copy-mission','Copy mission link',controls);copy.type='button';
@@ -27,6 +28,8 @@
     if(!level)return;
     const next=JSON.stringify([level,build?.class_name,build?.class,active]);if(stamp===next)return;stamp=next;
     $('rift-mission-class').textContent='Mission '+level.id+' · '+(build?.class_name||build?.class||'Your Abyss class');
+    const encounters=level.rooms.map(room=>room.encounter),known=encounters.every(encounter=>encounter&&Number.isInteger(encounter.enemies)&&encounter.enemies>=0&&Number.isFinite(encounter.health_multiplier)&&Number.isFinite(encounter.damage_multiplier));
+    $('rift-mission-difficulty').textContent=known?level.difficulty+' · '+Math.min(...encounters.map(encounter=>encounter.enemies))+'–'+Math.max(...encounters.map(encounter=>encounter.enemies))+' initial enemies per tier · '+encounters.reduce((sum,encounter)=>sum+encounter.enemies,0)+' across the mission. Enemy identities vary; multipliers below apply to each monster’s Brawl template before defenses and combat effects.':level.difficulty+' · Encounter estimates were not saved with this expedition.';
     const url=new URL(location.pathname,location.origin);url.searchParams.set('mission',level.id);link.value=url.href;
     if(active&&linked!==null&&linked!==level.id)status.textContent='Your saved expedition takes priority. Finish or leave it before choosing mission '+linked+'.';
     else if(!invalid)status.textContent='Share this mission without including character or account details.';
@@ -34,6 +37,7 @@
     level.rooms.forEach((room,index)=>{
       const obstacles=room.obstacles||[],zones=room.hazards||[];
       const card=add('article','','',route);add('h4','','Tier '+(index+1)+' · '+room.name,card);
+      if(known){const encounter=room.encounter;add('p','','Expected initial defenders: '+encounter.enemies+(index===2?' (includes the guardian)':'')+' · Health ×'+encounter.health_multiplier.toFixed(3)+' · Damage ×'+encounter.damage_multiplier.toFixed(3),card);}
       const terrainSummary=obstacles.length+' cover '+(obstacles.length===1?'block':'blocks')+' · '+zones.length+' hazard '+(zones.length===1?'zone':'zones');
       const svg=document.createElementNS(namespace,'svg');svg.setAttribute('viewBox','0 300 1600 210');svg.setAttribute('role','img');svg.setAttribute('aria-label',room.name+': '+terrainSummary);card.append(svg);
       const rectangle=(terrain,kind)=>{const rect=document.createElementNS(namespace,'rect');for(const [attribute,value] of Object.entries({x:terrain.x,y:terrain.y,width:terrain.w,height:terrain.h}))rect.setAttribute(attribute,value);rect.dataset.terrain=kind;const title=document.createElementNS(namespace,'title');title.textContent=kind==='cover'?'Low cover':terrain.kind+' hazard';rect.append(title);svg.append(rect);};

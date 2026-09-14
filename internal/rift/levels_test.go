@@ -9,6 +9,29 @@ import (
 	"ts3news/internal/content"
 )
 
+func TestCampaignEncounterPreviewsMatchFrozenCombat(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	templates := map[string]Actor{}
+	for _, mob := range catalog {
+		templates[mob.Name] = AdaptMonster(mob)
+	}
+	for _, level := range Campaign() {
+		run := NewRunAtLevel("preview-test", Build{HP: 100}, time.Now(), catalog, level.ID)
+		for room, arena := range level.Rooms {
+			preview := arena.Encounter
+			if preview == nil || preview.Enemies != len(run.EncounterPlan[room]) {
+				t.Fatalf("mission %d tier %d count mismatch", level.ID, room+1)
+			}
+			for _, actor := range run.EncounterPlan[room] {
+				base := templates[actor.Name]
+				if math.Abs(actor.MaxHP-base.MaxHP*preview.HealthMultiplier) > 1e-8 || math.Abs(actor.Damage-base.Damage*preview.DamageMultiplier) > 1e-8 {
+					t.Fatalf("mission %d tier %d scaling mismatch for %s", level.ID, room+1, actor.Name)
+				}
+			}
+		}
+	}
+}
+
 func TestCampaignHas100DistinctPlayableMissions(t *testing.T) {
 	levels := Campaign()
 	if len(levels) != 100 {

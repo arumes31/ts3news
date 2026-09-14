@@ -1,5 +1,27 @@
 const {test,expect}=require('@playwright/test');
 
+test('mission briefing shows server encounter counts and scaling across difficulty bands',async({page})=>{
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  const levels=(await(await page.request.get('/api/abyss/rift')).json()).levels;
+  await page.locator('#rift-mission-preview > summary').click();
+  for(const id of [1,26,52,78,100]){
+    await page.locator('[data-level="'+id+'"]').click();const level=levels.find(level=>level.id===id);
+    await expect(page.locator('#rift-mission-difficulty')).toContainText(level.difficulty);
+    const total=level.rooms.reduce((sum,room)=>sum+room.encounter.enemies,0);
+    await expect(page.locator('#rift-mission-difficulty')).toContainText(total+' across the mission');
+    for(let i=0;i<3;i++){
+      const preview=level.rooms[i].encounter,card=page.locator('#rift-room-previews article').nth(i);
+      await expect(card).toContainText('Expected initial defenders: '+preview.enemies);
+      await expect(card).toContainText('Health ×'+preview.health_multiplier.toFixed(3));
+      await expect(card).toContainText('Damage ×'+preview.damage_multiplier.toFixed(3));
+    }
+  }
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();const level=data.levels[0];level.rooms.forEach(room=>delete room.encounter);window.RiftMission.update(level,data.build,true);});
+  await expect(page.locator('#rift-mission-difficulty')).toContainText('not saved with this expedition');
+  await expect(page.locator('#rift-room-previews')).not.toContainText('Expected initial defenders');
+});
+
 test('mission links select the route and previews match all three saved terrain layouts',async({page})=>{
   await page.goto('/abyss/rift?mission=87');await expect(page.locator('#rift-start')).toHaveText('Enter mission 87');
   await expect(page.locator('[data-level="87"]')).toHaveAttribute('aria-current','true');

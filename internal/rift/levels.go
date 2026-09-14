@@ -27,10 +27,23 @@ type Hazard struct {
 }
 
 type Arena struct {
-	Name      string     `json:"name"`
-	Obstacles []Obstacle `json:"obstacles"`
-	Hazards   []Hazard   `json:"hazards"`
+	Name      string            `json:"name"`
+	Obstacles []Obstacle        `json:"obstacles"`
+	Hazards   []Hazard          `json:"hazards"`
+	Encounter *EncounterPreview `json:"encounter,omitempty"`
 }
+
+// EncounterPreview describes initial defenders and scaling relative to each
+// monster's adapted Brawl template, before player defenses or combat effects.
+type EncounterPreview struct {
+	Enemies          int     `json:"enemies"`
+	HealthMultiplier float64 `json:"health_multiplier"`
+	DamageMultiplier float64 `json:"damage_multiplier"`
+}
+
+func missionExtraEnemies(id int) int         { return (id - 1) % 3 }
+func missionHealthMultiplier(id int) float64 { return 1 + float64(id-1)*.004 }
+func missionDamageMultiplier(id int) float64 { return 1 + float64(id-1)*.0025 }
 
 // Level is copied into the saved expedition, so content changes never alter
 // terrain underneath a player resuming a fight.
@@ -73,6 +86,7 @@ func Campaign() []Level {
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}}
+				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionExtraEnemies(id), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {
 					obstacle.X += float64(region*7 + room*19)
 					obstacle.Y += float64((region+room+i)%3-1) * 4
@@ -107,7 +121,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 		if len(actors) == 0 {
 			continue
 		}
-		for extra := 0; extra < (id-1)%3; extra++ {
+		for extra := 0; extra < missionExtraEnemies(id); extra++ {
 			actors = append(actors, actors[1%len(actors)])
 		}
 		for i := range actors {
@@ -115,9 +129,9 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 			a.ID = fmt.Sprintf("l%d-r%d-e%d", id, room, i)
 			a.X = 540 + float64(i)*170 + float64((id+room)%4)*25
 			a.Y = 330 + float64((i+id+room)%4)*48
-			a.HP *= 1 + float64(id-1)*.004
+			a.HP *= missionHealthMultiplier(id)
 			a.MaxHP = a.HP
-			a.Damage *= 1 + float64(id-1)*.0025
+			a.Damage *= missionDamageMultiplier(id)
 			settle(a, level.Rooms[room].Obstacles)
 		}
 		r.EncounterPlan[room] = actors
