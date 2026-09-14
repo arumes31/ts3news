@@ -59,3 +59,5 @@
 #rift-cosmetic-awards h3{font-size:13px;margin:8px 0}#rift-class-badges{display:flex;flex-wrap:wrap;gap:0 8px}
 
 .rift-hide-records #rift-clear-result,.rift-hide-records .rift-career-records,.rift-hide-records [data-personal-record]{display:none!important}
+
+#rift-attempt-history{border-top:1px solid #42553e;padding:12px 0;font-size:13px}#rift-attempt-list{max-height:360px;overflow:auto;padding-left:24px}#rift-attempt-list li{padding:8px 0;border-bottom:1px solid #35493e;overflow-wrap:anywhere}#rift-attempt-list p{font-size:12px;line-height:1.5;margin:5px 0}#rift-attempt-comparison{color:#f2d797}

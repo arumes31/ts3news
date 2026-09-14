@@ -88,6 +88,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 		r.ClearStreak = 0
 	}
 	r.History[r.Level.ID] = h
+	r.appendAttempt(r.attemptSnapshot(outcome, r.LastMS))
 	r.HistoryActive = false
 }
 
@@ -98,6 +99,10 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		return
 	}
 	r.PastExpeditions = previous.RecordedTotals()
+	r.AttemptHistory = append([]AttemptRecord(nil), previous.AttemptHistory...)
+	if previous.HistoryActive && previous.Level != nil {
+		r.appendAttempt(previous.attemptSnapshot("expired", r.LastMS))
+	}
 	current := r.History[r.Level.ID]
 	r.BestClearStreak = previous.BestClearStreak
 	if previous.Status == "complete" || previous.Status == "banked" {

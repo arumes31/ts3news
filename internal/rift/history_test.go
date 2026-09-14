@@ -475,3 +475,52 @@ func TestPersonalRecordDatesChangeOnlyWhenRecordImproves(t *testing.T) {
 		t.Fatal("invented dates for older records")
 	}
 }
+
+func TestAttemptHistoryRecordsOutcomesAndRemainsBounded(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	var previous *Run
+	for i := 0; i < 52; i++ {
+		r := NewRunAtLevel("attempt", Build{HP: 100, Class: "vanguard"}, time.Unix(int64(100+i), 0), catalog, 1)
+		r.InheritCampaignHistory(previous)
+		r.Stats.Seconds = 12
+		r.Stats.HitsTaken = 2
+		r.Player.HP = 70
+		r.finishMissionHistory("completed")
+		r.finishMissionHistory("completed")
+		if len(r.AttemptHistory) != min(i+1, 50) {
+			t.Fatal("duplicate or unbounded attempt log")
+		}
+		previous = r
+	}
+	first := previous.AttemptHistory[0]
+	if first.AtMS != 102000 || first.Seconds != 12 || first.Hits == nil || *first.Hits != 2 || first.Class != "vanguard" || first.HP != 70 {
+		t.Fatalf("wrong attempt snapshot: %+v", first)
+	}
+	data, err := json.Marshal(previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	early := NewRunAtLevel("early", Build{HP: 100}, time.Unix(200, 0), catalog, 2)
+	early.InheritCampaignHistory(&saved)
+	early.finishMissionHistory("exited")
+	if early.AttemptHistory[49].Outcome != "exited" || saved.AttemptHistory[49].Outcome != "completed" {
+		t.Fatal("outcome missing or previous history mutated")
+	}
+	active := NewRunAtLevel("active", Build{HP: 100}, time.Unix(300, 0), catalog, 2)
+	active.InheritCampaignHistory(early)
+	next := NewRunAtLevel("next", Build{HP: 100}, time.Unix(400, 0), catalog, 3)
+	next.InheritCampaignHistory(active)
+	if next.AttemptHistory[49].Outcome != "expired" || next.AttemptHistory[49].AtMS != 400000 {
+		t.Fatal("abandoned attempt missing")
+	}
+	next.MissionStartHits = nil
+	next.finishMissionHistory("defeated")
+	last := next.AttemptHistory[49]
+	if last.Outcome != "defeated" || last.Hits != nil {
+		t.Fatal("legacy hit count invented")
+	}
+}

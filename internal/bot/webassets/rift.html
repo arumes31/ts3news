@@ -8,6 +8,7 @@
     <div class="rift-filter-row"><label>Find a mission <input id="rift-mission-search" type="search" maxlength="80" placeholder="Name, number or tactic…"></label><label>Progress <select id="rift-completion"><option value="all">Any progress</option><option value="unfinished">Unfinished</option><option value="complete">Completed</option></select></label><label>Difficulty <select id="rift-difficulty"><option value="all">Any difficulty</option><option>Wayfarer</option><option>Veteran</option><option>Champion</option><option>Mythic</option></select></label><label><input id="rift-favorites-only" type="checkbox"> Favorites only</label><label><input id="rift-compact" type="checkbox"> Compact cards</label></div>
     <div class="rift-filter-actions"><button id="rift-clear-filters" type="button">Clear filters</button><button id="rift-previous-mission" type="button">← Previous</button><button id="rift-next-mission" type="button">Next →</button><button id="rift-unfinished" type="button">Next unfinished</button><button id="rift-favorite" type="button" aria-pressed="false">☆ Favorite mission</button><button id="rift-show-selected" type="button" hidden>Show selected mission</button><span id="rift-filter-count" role="status" aria-live="polite"></span></div>
     <p id="rift-regional-milestone" class="rift-fine" role="status"></p><section id="rift-cosmetic-awards" aria-label="Cosmetic awards"><h3>Campaign awards</h3><p class="rift-fine">No gold, gear or combat bonuses. Complete the first region or all 100 missions to earn completion badges. Subclass mastery requires recorded clears of ten distinct missions with that subclass; repeat clears count once.</p><span id="rift-region-badge" class="rift-region-badge" hidden></span> <span id="rift-campaign-badge" class="rift-region-badge" hidden></span><div id="rift-class-badges"></div></section>
+    <details id="rift-attempt-history"><summary>Recent attempts &amp; comparison</summary><p class="rift-fine">Latest 50 recorded attempts, newest first. Combat time excludes pauses and checkpoint waiting. Different outcomes are not comparable clear-time records. Earlier attempts are unavailable.</p><p id="rift-attempt-comparison" class="rift-fine"></p><ol id="rift-attempt-list"></ol></details>
     <p id="rift-filter-empty" hidden>No missions match these filters. Clear filters to explore the campaign.</p><details><summary>Regional progress</summary><p id="rift-region-progress"></p></details>
   </div>
   <div class="rift-layout">
@@ -91,6 +92,7 @@
 <script defer src="{{asset "/static/rift_campaign.js"}}"></script>
 <script defer src="{{asset "/static/rift_mission.js"}}"></script>
 <script defer src="{{asset "/static/rift_loadout.js"}}"></script>
+<script defer src="{{asset "/static/rift_records.js"}}"></script>
 <script defer src="{{asset "/static/rift_hud.js"}}"></script>
 <script defer src="{{asset "/static/rift_abilities.js"}}"></script>
 <script defer src="{{asset "/static/rift_protocol.js"}}"></script>

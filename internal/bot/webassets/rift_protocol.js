@@ -17,6 +17,7 @@
   const event=value=>point(value)&&nonnegative(value.id)&&text(value.kind)&&(value.value===undefined||finite(value.value));
   const arena=value=>object(value)&&text(value.name)&&optionalList(value.obstacles,box)&&optionalList(value.hazards,h=>box(h)&&text(h.kind)&&finite(h.period)&&h.period>0&&nonnegative(h.offset)&&nonnegative(h.duration));
   function level(value){return object(value)&&Number.isInteger(value.id)&&value.id>0&&text(value.name)&&text(value.region_name)&&text(value.tactic)&&text(value.difficulty)&&Number.isInteger(value.region)&&value.region>=0&&value.region<10&&list(value.rooms,arena)&&value.rooms.length===3;}
+  const attempt=value=>object(value)&&Number.isInteger(value.mission)&&value.mission>=1&&value.mission<=100&&['completed','defeated','exited','expired'].includes(value.outcome)&&Number.isSafeInteger(value.at_ms)&&value.at_ms>=0&&value.at_ms<=8640000000000000&&text(value.class)&&nonnegative(value.seconds)&&nonnegative(value.hp)&&nonnegative(value.max_hp)&&(value.hits===undefined||Number.isSafeInteger(value.hits)&&value.hits>=0);
   function run(value){
     if(!object(value))return false;
     if(value.schema!==1)throw new Error('This expedition uses an unsupported save version. Reload the page to get the current game before recovering.');
@@ -31,6 +32,7 @@
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&
       (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
       (value.last_clear===undefined||object(value.last_clear)&&Number.isInteger(value.last_clear.mission)&&value.last_clear.mission>=1&&value.last_clear.mission<=100&&typeof value.last_clear.first==='boolean'&&list(value.last_clear.records,key=>['time','health','hits'].includes(key)))&&
+      (value.attempt_history===undefined||list(value.attempt_history,attempt)&&value.attempt_history.length<=50)&&
       ['clear_streak','best_clear_streak'].every(key=>value[key]===undefined||Number.isSafeInteger(value[key])&&value[key]>=0)&&
       (!value.stats||object(value.stats)&&Object.entries(value.stats).every(([key,count])=>['skill_uses','skill_hits'].includes(key)?object(count)&&Object.values(count).every(n=>Number.isSafeInteger(n)&&n>=0):['skill_mana','skill_healing','skill_barrier'].includes(key)?object(count)&&Object.values(count).every(nonnegative):nonnegative(count)));
   }
