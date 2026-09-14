@@ -414,10 +414,7 @@ func riftGearOrigin(run *rift.Run) string {
 func rollRiftGear(room int, now time.Time) (content.Gear, error) {
 	catalog := content.AbyssGearCatalog()
 	pool := []content.Gear{}
-	capRarity := content.RarityEpic
-	if room == len(rift.Rooms)-1 {
-		capRarity = content.RarityLegendary
-	}
+	capRarity := rift.LootRarityCap(room)
 	for _, gear := range catalog {
 		if gear.Rarity <= capRarity {
 			pool = append(pool, gear)

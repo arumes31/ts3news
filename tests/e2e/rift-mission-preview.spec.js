@@ -7,6 +7,8 @@ test('mission briefing shows server encounter counts and scaling across difficul
   for(const id of [1,26,52,78,100]){
     await page.locator('[data-level="'+id+'"]').click();const level=levels.find(level=>level.id===id);
     await expect(page.locator('#rift-mission-difficulty')).toContainText(level.difficulty);
+    await expect(page.locator('#rift-mission-loot')).toContainText('Tier 1 — Epic · Tier 2 — Epic · Tier 3 — Legendary');
+    await expect(page.locator('#rift-mission-loot')).toContainText('not guaranteed rarities');
     const total=level.rooms.reduce((sum,room)=>sum+room.encounter.enemies,0);
     await expect(page.locator('#rift-mission-difficulty')).toContainText(total+' across the mission');
     for(let i=0;i<3;i++){
@@ -17,9 +19,10 @@ test('mission briefing shows server encounter counts and scaling across difficul
     }
   }
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();const level=data.levels[0];level.rooms.forEach(room=>delete room.encounter);window.RiftMission.update(level,data.build,true);});
+  await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();const level=data.levels[0];level.rooms.forEach(room=>{delete room.encounter;delete room.loot_rarity_ceiling;});window.RiftMission.update(level,data.build,true);});
   await expect(page.locator('#rift-mission-difficulty')).toContainText('not saved with this expedition');
   await expect(page.locator('#rift-room-previews')).not.toContainText('Expected initial defenders');
+  await expect(page.locator('#rift-mission-loot')).toContainText('not saved with this expedition');
 });
 
 test('mission links select the route and previews match all three saved terrain layouts',async({page})=>{

@@ -5,6 +5,7 @@
   const add=(tag,id,text,parent=section)=>{const node=document.createElement(tag);if(id)node.id=id;if(text)node.textContent=text;parent.append(node);return node;};
   add('p','rift-mission-class');
   add('p','rift-mission-difficulty');
+  add('p','rift-mission-loot');
   const controls=add('div','','',section);controls.className='rift-mission-link-tools';
   const label=add('label','','Mission link',controls),link=add('input','rift-mission-link','',label);link.readOnly=true;link.type='text';
   const copy=add('button','rift-copy-mission','Copy mission link',controls);copy.type='button';
@@ -28,6 +29,8 @@
     if(!level)return;
     const next=JSON.stringify([level,build?.class_name,build?.class,active]);if(stamp===next)return;stamp=next;
     $('rift-mission-class').textContent='Mission '+level.id+' · '+(build?.class_name||build?.class||'Your Abyss class');
+    const lootKnown=level.rooms.every(room=>typeof room.loot_rarity_ceiling==='string'&&room.loot_rarity_ceiling.length>0);
+    $('rift-mission-loot').textContent=lootKnown?'Loot rarity ceiling: '+level.rooms.map((room,index)=>'Tier '+(index+1)+' — '+room.loot_rarity_ceiling).join(' · ')+'. These are upper limits, not guaranteed rarities. Bank collected loot at a checkpoint to keep it.':'Loot rarity limits were not saved with this expedition.';
     const encounters=level.rooms.map(room=>room.encounter),known=encounters.every(encounter=>encounter&&Number.isInteger(encounter.enemies)&&encounter.enemies>=0&&Number.isFinite(encounter.health_multiplier)&&Number.isFinite(encounter.damage_multiplier));
     $('rift-mission-difficulty').textContent=known?level.difficulty+' · '+Math.min(...encounters.map(encounter=>encounter.enemies))+'–'+Math.max(...encounters.map(encounter=>encounter.enemies))+' initial enemies per tier · '+encounters.reduce((sum,encounter)=>sum+encounter.enemies,0)+' across the mission. Enemy identities vary; multipliers below apply to each monster’s Brawl template before defenses and combat effects.':level.difficulty+' · Encounter estimates were not saved with this expedition.';
     const url=new URL(location.pathname,location.origin);url.searchParams.set('mission',level.id);link.value=url.href;

@@ -15,6 +15,37 @@ import (
 	"ts3news/internal/rift"
 )
 
+func TestRiftLootCapsMatchMissionPreviews(t *testing.T) {
+	for room, expected := range []content.Rarity{content.RarityEpic, content.RarityEpic, content.RarityLegendary} {
+		if rift.LootRarityCap(room) != expected {
+			t.Fatalf("tier %d cap changed", room+1)
+		}
+		for _, level := range rift.Campaign() {
+			if level.Rooms[room].LootRarityCeiling != expected.String() {
+				t.Fatalf("mission %d tier %d preview mismatch", level.ID, room+1)
+			}
+		}
+		available := false
+		for _, gear := range content.AbyssGearCatalog() {
+			if gear.Rarity == expected {
+				available = true
+			}
+		}
+		if !available {
+			t.Fatalf("tier %d ceiling has no catalog gear", room+1)
+		}
+		for range 100 {
+			gear, err := rollRiftGear(room, time.Unix(100, 0))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gear.Rarity > expected {
+				t.Fatalf("tier %d rolled above ceiling: %v", room+1, gear.Rarity)
+			}
+		}
+	}
+}
+
 func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 	for _, scenario := range []string{"success", "duplicate", "state failure", "old epoch", "wrong run", "fighting", "advance", "advance duplicate", "advance failure"} {
 		t.Run(scenario, func(t *testing.T) {

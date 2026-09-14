@@ -27,10 +27,19 @@ type Hazard struct {
 }
 
 type Arena struct {
-	Name      string            `json:"name"`
-	Obstacles []Obstacle        `json:"obstacles"`
-	Hazards   []Hazard          `json:"hazards"`
-	Encounter *EncounterPreview `json:"encounter,omitempty"`
+	Name              string            `json:"name"`
+	Obstacles         []Obstacle        `json:"obstacles"`
+	Hazards           []Hazard          `json:"hazards"`
+	Encounter         *EncounterPreview `json:"encounter,omitempty"`
+	LootRarityCeiling string            `json:"loot_rarity_ceiling,omitempty"`
+}
+
+// LootRarityCap is shared by campaign previews and server-owned gear rolls.
+func LootRarityCap(room int) content.Rarity {
+	if room == len(Rooms)-1 {
+		return content.RarityLegendary
+	}
+	return content.RarityEpic
 }
 
 // EncounterPreview describes initial defenders and scaling relative to each
@@ -86,6 +95,7 @@ func Campaign() []Level {
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}}
+				arena.LootRarityCeiling = LootRarityCap(room).String()
 				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionExtraEnemies(id), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {
 					obstacle.X += float64(region*7 + room*19)
