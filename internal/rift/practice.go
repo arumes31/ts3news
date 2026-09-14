@@ -14,8 +14,13 @@ type PracticeState struct {
 	Arena     Arena   `json:"arena"`
 }
 
+// ValidPracticeMode reports whether mode names a supported isolated drill.
+func ValidPracticeMode(mode string) bool {
+	return mode == "movement" || mode == "jump" || mode == "combo"
+}
+
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
-	if mode != "movement" && mode != "jump" && mode != "combo" {
+	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
 	}
 	r := NewRunWithCatalog(id, build, now, nil)

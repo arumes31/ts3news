@@ -182,13 +182,18 @@ func riftRarities() []map[string]any {
 
 func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid string) {
 	w.Header().Set("Cache-Control", "no-store")
+	mode := r.URL.Query().Get("practice")
+	if mode != "" && !rift.ValidPracticeMode(mode) {
+		http.Error(w, "unknown practice drill", http.StatusBadRequest)
+		return
+	}
 	if r.Method == http.MethodGet {
 		build, err := s.bot.riftBuild(r.Context(), uid)
 		if err != nil {
 			riftFailure(w, r, err)
 			return
 		}
-		run, err := loadRift(r.Context(), s.bot.DB, uid)
+		run, err := loadRiftMode(r.Context(), s.bot.DB, uid, mode)
 		if err != nil {
 			riftFailure(w, r, err)
 			return
@@ -219,7 +224,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 	var req riftRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil || decoder.Decode(&struct{}{}) != io.EOF || !validRiftRequest(req) {
+	if err := decoder.Decode(&req); err != nil || decoder.Decode(&struct{}{}) != io.EOF || !validRiftRequest(req) || !validRiftModeAction(mode, req.Kind) {
 		http.Error(w, "invalid expedition controls", http.StatusBadRequest)
 		return
 	}
@@ -249,7 +254,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			build.Skills = build.Skills[:3]
 		}
 	}
-	run, err := s.bot.updateRift(r.Context(), uid, req, build, time.Now())
+	run, err := s.bot.updateRiftMode(r.Context(), uid, req, build, time.Now(), mode)
 	if errors.Is(err, errRiftConflict) {
 		writeJSONStatus(w, http.StatusConflict, map[string]any{"ok": false, "error": errRiftConflict.Error()})
 		return
@@ -276,7 +281,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "practice_reset":
 		return true
 	}
 	return false
@@ -301,9 +306,52 @@ func decodeRift(saved string) (*rift.Run, error) {
 	return &run, nil
 }
 
+func validRiftModeAction(mode, kind string) bool {
+	if mode == "" {
+		switch kind {
+		case "start", "step", "pause", "resume", "bank", "next", "advance", "exit":
+			return true
+		}
+		return false
+	}
+	if !rift.ValidPracticeMode(mode) {
+		return false
+	}
+	switch kind {
+	case "start", "step", "pause", "resume", "practice_reset":
+		return true
+	}
+	return false
+}
+
+func riftModeKey(uid, mode string) (string, error) {
+	if mode == "" {
+		return "rift_brawl:" + uid, nil
+	}
+	if !rift.ValidPracticeMode(mode) {
+		return "", errors.New("unknown practice drill")
+	}
+	return "rift_practice:" + uid + ":" + mode, nil
+}
+
+func matchingRiftMode(run *rift.Run, mode string) bool {
+	if mode == "" {
+		return run.Practice == nil
+	}
+	return run.Practice != nil && run.Practice.Mode == mode
+}
+
 func loadRift(ctx context.Context, database *sql.DB, uid string) (*rift.Run, error) {
+	return loadRiftMode(ctx, database, uid, "")
+}
+
+func loadRiftMode(ctx context.Context, database *sql.DB, uid, mode string) (*rift.Run, error) {
+	key, err := riftModeKey(uid, mode)
+	if err != nil {
+		return nil, err
+	}
 	var saved string
-	err := database.QueryRowContext(ctx, "SELECT value FROM app_meta WHERE key=$1", "rift_brawl:"+uid).Scan(&saved)
+	err = database.QueryRowContext(ctx, "SELECT value FROM app_meta WHERE key=$1", key).Scan(&saved)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -313,6 +361,9 @@ func loadRift(ctx context.Context, database *sql.DB, uid string) (*rift.Run, err
 	run, err := decodeRift(saved)
 	if err != nil {
 		return nil, err
+	}
+	if !matchingRiftMode(run, mode) {
+		return nil, errors.New("rift snapshot mode mismatch")
 	}
 	var epoch string
 	if err := database.QueryRowContext(ctx, "SELECT COALESCE((SELECT value FROM app_meta WHERE key='gold_economy_version'),'0')").Scan(&epoch); err != nil {
@@ -332,6 +383,17 @@ func loadRift(ctx context.Context, database *sql.DB, uid string) (*rift.Run, err
 }
 
 func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build rift.Build, now time.Time) (*rift.Run, error) {
+	return b.updateRiftMode(ctx, uid, req, build, now, "")
+}
+
+func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, build rift.Build, now time.Time, mode string) (*rift.Run, error) {
+	key, err := riftModeKey(uid, mode)
+	if err != nil {
+		return nil, err
+	}
+	if !validRiftModeAction(mode, req.Kind) {
+		return nil, errors.New("action unavailable in this mode")
+	}
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -345,7 +407,6 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 	if err := tx.QueryRowContext(ctx, "SELECT COALESCE((SELECT value FROM app_meta WHERE key='gold_economy_version'),'0')").Scan(&epoch); err != nil {
 		return nil, err
 	}
-	key := "rift_brawl:" + uid
 	var saved string
 	var run *rift.Run
 	err = tx.QueryRowContext(ctx, "SELECT value FROM app_meta WHERE key=$1", key).Scan(&saved)
@@ -356,6 +417,9 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
+	}
+	if run != nil && !matchingRiftMode(run, mode) {
+		return nil, errors.New("rift snapshot mode mismatch")
 	}
 	if req.Kind == "start" {
 		if run != nil && run.StartKey == req.RequestID && run.Epoch == epoch {
@@ -372,8 +436,15 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 			return nil, err
 		}
 		previous := run
-		run = rift.NewRunAtLevel(id, build, now, riftMobCatalog(now), req.LevelID)
-		run.InheritCampaignHistory(previous)
+		if mode != "" {
+			run, err = rift.NewPracticeRun(id, build, mode, now)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			run = rift.NewRunAtLevel(id, build, now, riftMobCatalog(now), req.LevelID)
+			run.InheritCampaignHistory(previous)
+		}
 		run.StartKey = req.RequestID
 		run.Epoch = epoch
 	} else {
@@ -387,6 +458,10 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 			return nil, errRiftConflict
 		}
 		switch req.Kind {
+		case "practice_reset":
+			if err := run.ResetPractice(now); err != nil {
+				return nil, err
+			}
 		case "step":
 			run.Step(req.Input, now)
 		case "pause":
@@ -408,7 +483,7 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 	}
 	for i := range run.Drops {
 		drop := &run.Drops[i]
-		if drop.NeedsGear && drop.Gear == nil {
+		if run.Practice == nil && drop.NeedsGear && drop.Gear == nil {
 			gear, err := rollRiftGear(run.Room, now)
 			if err != nil {
 				return nil, err
