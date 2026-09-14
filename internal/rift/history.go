@@ -3,11 +3,13 @@ package rift
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
-	Attempts      int     `json:"attempts"`
-	Completions   int     `json:"completions"`
-	LastStartedMS int64   `json:"last_started_ms"`
-	LastOutcome   string  `json:"last_outcome"`
-	BestSeconds   float64 `json:"best_seconds,omitempty"`
+	Attempts        int     `json:"attempts"`
+	Completions     int     `json:"completions"`
+	LastStartedMS   int64   `json:"last_started_ms"`
+	LastOutcome     string  `json:"last_outcome"`
+	BestSeconds     float64 `json:"best_seconds,omitempty"`
+	BestFinishHP    float64 `json:"best_finish_hp,omitempty"`
+	BestFinishMaxHP float64 `json:"best_finish_max_hp,omitempty"`
 }
 
 func (r *Run) beginMissionHistory() {
@@ -34,6 +36,10 @@ func (r *Run) finishMissionHistory(outcome string) {
 	h.LastOutcome = outcome
 	if outcome == "completed" {
 		h.Completions++
+		if r.Player.HP > h.BestFinishHP {
+			h.BestFinishHP = r.Player.HP
+			h.BestFinishMaxHP = r.Player.MaxHP
+		}
 		elapsed := r.Stats.Seconds - r.MissionStartSeconds
 		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
@@ -64,6 +70,8 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		current.Attempts += old.Attempts
 		current.Completions = old.Completions
 		current.BestSeconds = old.BestSeconds
+		current.BestFinishHP = old.BestFinishHP
+		current.BestFinishMaxHP = old.BestFinishMaxHP
 	}
 	r.History[r.Level.ID] = current
 	r.CompletedLevels = append([]int(nil), previous.CompletedLevels...)

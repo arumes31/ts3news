@@ -66,6 +66,52 @@ func TestMissionHistoryLifecycleAndCarry(t *testing.T) {
 	}
 }
 
+func TestMissionHistoryFinishHealthPrecedesRecoveryAndKeepsBest(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	r := NewRunAtLevel("first", Build{HP: 240}, time.Unix(100, 0), catalog, 4)
+	r.Status = "cleared"
+	r.Room = 2
+	r.Player.HP = 120
+	r.FinishCheckpoint("advance", catalog)
+	if r.History[4].BestFinishHP != 120 || r.History[4].BestFinishMaxHP != 240 || r.Player.HP != 180 {
+		t.Fatalf("record included recovery: %+v", r.History[4])
+	}
+	for i, hp := range []float64{100, 160} {
+		next := NewRunAtLevel("next", Build{HP: 240}, time.Unix(int64(110+i), 0), catalog, 4)
+		next.InheritCampaignHistory(r)
+		next.Status = "cleared"
+		next.Room = 2
+		next.Player.HP = hp
+		next.FinishCheckpoint("bank", catalog)
+		want := 120.0
+		if hp > 120 {
+			want = hp
+		}
+		if next.History[4].BestFinishHP != want {
+			t.Fatalf("best health lost: %+v", next.History[4])
+		}
+		r = next
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err = json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.History[4].BestFinishHP != 160 {
+		t.Fatal("finish health lost after save")
+	}
+	next := NewRunAtLevel("early", Build{HP: 240}, time.Unix(120, 0), catalog, 4)
+	next.InheritCampaignHistory(&restored)
+	next.Status = "cleared"
+	next.FinishCheckpoint("exit", catalog)
+	if next.History[4].BestFinishHP != 160 {
+		t.Fatal("early exit established a health record")
+	}
+}
+
 func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	now := time.Unix(100, 0)
