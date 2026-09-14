@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -47,6 +47,7 @@
     ['motionIntensity','rift-motion-intensity','Decorative motion',[[0,'Still'],[0.5,'Gentle'],[1,'Full']]],
     ['flashIntensity','rift-flash-intensity','Transition fade intensity',[[0,'Off'],[0.5,'Gentle'],[1,'Full']]],
     ['effectIntensity','rift-effect-intensity','Spell effect opacity',[[0.35,'Soft'],[0.65,'Medium'],[1,'Full']]],
+    ['optionalCombatText','rift-optional-combat-text','Optional combat text (loot labels and gold popups)'],
     ['healthBars','rift-enemy-health','Enemy health bars'],['damageNumbers','rift-damage-numbers','Damage numbers'],
     ['damageMotion','rift-damage-motion','Moving damage numbers'],['hazardLabels','rift-hazard-labels','Hazard labels'],['lootSparkle','rift-loot-sparkle','Loot sparkle'],
     ['particles','rift-background-particles','Background particles'],['lootMotion','rift-loot-motion','Loot bobbing'],

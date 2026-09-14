@@ -159,7 +159,7 @@
       const icon=drop.gear?window.RiftLoot.icon(drop.gear.Slot):8,img=images.items,size=drop.gear?36:25;
       ctx.drawImage(img,icon%4*img.width/4,Math.floor(icon/4)*img.height/4,img.width/4,img.height/4,x-size/2,y-size/2,size,size);
     });
-    for(const label of window.RiftLoot.floorLabels(run.drops||[],camera)){
+    for(const label of display.optionalCombatText?window.RiftLoot.floorLabels(run.drops||[],camera):[]){
       if(label.moved){ctx.strokeStyle='#80927b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(label.drop.x-camera,label.drop.y-26);ctx.lineTo(label.x,label.y+17);ctx.stroke();}
       ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
     }
@@ -184,7 +184,7 @@
     effects.forEach(e=>{
       const age=(now-e.started)/750;
       if(effectRows[e.kind]!==undefined && (!renderer.reduced || e.kind==='pickup') && (e.kind!=='pickup'||display.lootSparkle))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
-      if(e.value>0 && e.kind!=='area' && (display.damageNumbers||e.kind==='pickup')){ctx.font='bold '+(14*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=e.kind==='hurt'?'#ffb2a0':'#fff0bb';ctx.strokeStyle='#14221d';ctx.lineWidth=3;const label=e.kind==='pickup'?'+'+Math.round(e.value)+' gold':String(Math.round(e.value));ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));}
+      if(e.value>0 && e.kind!=='area' && (e.kind==='pickup'?display.optionalCombatText:display.damageNumbers)){ctx.font='bold '+(14*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=e.kind==='hurt'?'#ffb2a0':'#fff0bb';ctx.strokeStyle='#14221d';ctx.lineWidth=3;const label=e.kind==='pickup'?'+'+Math.round(e.value)+' gold':String(Math.round(e.value));ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));}
     });
     if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();
