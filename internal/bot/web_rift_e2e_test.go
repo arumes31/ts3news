@@ -53,6 +53,23 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "history" {
+			mu.Lock()
+			run := rift.NewRunAtLevel("history", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 2)
+			run.Status = "banked"
+			run.HistoryActive = false
+			run.Epoch = "fixture"
+			run.CompletedLevels = []int{1, 4, 5, 6}
+			run.History = map[int]rift.MissionHistory{
+				1: {Attempts: 3, Completions: 2, LastStartedMS: 1000, LastOutcome: "completed", BestSeconds: 80},
+				2: {Attempts: 2, LastStartedMS: 5000, LastOutcome: "defeated"},
+				3: {Attempts: 1, LastStartedMS: 4000, LastOutcome: "exited"},
+				4: {Attempts: 1, Completions: 1, LastStartedMS: 3000, LastOutcome: "completed", BestSeconds: 40},
+				5: {Attempts: 2, Completions: 1, LastStartedMS: 2000, LastOutcome: "completed", BestSeconds: 40},
+			}
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "checkpoint" {
 			mu.Lock()
 			run := rift.NewRunAtLevel("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)

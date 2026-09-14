@@ -162,7 +162,7 @@
   }
   function updateCampaign(){
     const active=run&&['fighting','cleared'].includes(run.status), completed=run?.completed_levels||[];
-    const key=[selectedLevel,active,completed.join(',')].join('|');
+    const key=[selectedLevel,active,completed.join(','),JSON.stringify(run?.mission_history||{})].join('|');
     if(campaignKey===key)return;campaignKey=key;
     const level=run?.level?.id===selectedLevel?run.level:levels.find(l=>l.id===selectedLevel);
     if(!level)return;
