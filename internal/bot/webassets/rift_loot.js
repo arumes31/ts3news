@@ -7,6 +7,25 @@
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const slots={weapon:0,mainhand:0,offhand:1,ranged:3,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,finger1:12,finger2:12,neck:13,amulet:13,relic:15,artifact:15};
   const legendary=drop=>!!drop.gear&&rarities.get(drop.gear.Rarity)?.legendary===true;
+  function floorLabels(drops,camera,width=960,height=540){
+    const labels=[],half=57,row=21,minX=half+4,maxX=width-half-4;
+    const fits=(x,y)=>labels.every(label=>Math.abs(label.x-x)>=118||Math.abs(label.y-y)>=row);
+    for(const drop of drops){
+      if(!drop.gear||drop.collected||drop.banked||drop.x-camera < -36||drop.x-camera > width+36)continue;
+      const rare=legendary(drop),preferredX=Math.max(minX,Math.min(maxX,drop.x-camera)),preferredY=Math.max(4,Math.min(height-21,drop.y-8-(rare?52:33)));
+      const columns=[preferredX];for(let x=minX;x<=maxX;x+=122)if(Math.abs(x-preferredX)>1)columns.push(x);
+      columns.sort((a,b)=>Math.abs(a-preferredX)-Math.abs(b-preferredX));
+      let position=null;
+      for(const x of columns){
+        for(let step=0;step<=Math.ceil(height/row)&&!position;step++){
+          for(const y of step?[preferredY-step*row,preferredY+step*row]:[preferredY])if(y>=4&&y<=height-21&&fits(x,y)){position={x,y};break;}
+        }
+        if(position)break;
+      }
+      if(position)labels.push({...position,drop,legendary:rare,text:rare?'◆ LEGENDARY':'ABYSS GEAR',moved:position.x!==preferredX||position.y!==preferredY});
+    }
+    return labels;
+  }
   const icon=slot=>slots[String(slot).toLowerCase()]??9;
   let rarities=new Map(),run=null,bagKey='',receiptKey='';
   let pickupIdentity='',collected=new Set(),pickupTimer=0;
@@ -85,5 +104,5 @@
     const lines=['Rift Brawl — banked rewards',format.format(run.banked_gold)+' gold',count(run.banked_items.length,'item'),...[...names].map(([name,n])=>name+(n>1?' × '+format.format(n):''))];
     try{await navigator.clipboard.writeText(lines.join('\n'));$('rift-receipt-copy-status').textContent='Receipt copied.';}catch(_){$('rift-receipt-copy-status').textContent='Copy is unavailable. Select the receipt text to copy it.';}
   };
-  window.RiftLoot={icon,legendary,init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
+  window.RiftLoot={icon,legendary,floorLabels,init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
 })();

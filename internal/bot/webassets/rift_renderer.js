@@ -151,8 +151,11 @@
       if(display.lootSparkle)fx(5,0,x,y,34,.7);
       const icon=drop.gear?window.RiftLoot.icon(drop.gear.Slot):8,img=images.items,size=drop.gear?36:25;
       ctx.drawImage(img,icon%4*img.width/4,Math.floor(icon/4)*img.height/4,img.width/4,img.height/4,x-size/2,y-size/2,size,size);
-      if(drop.gear){const labelOffset=legendary?52:33;ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(x-57,y-labelOffset,114,17);ctx.fillStyle=legendary?'#ffc66d':'#d7ecbb';ctx.fillText(legendary?'◆ LEGENDARY':'ABYSS GEAR',x,y-labelOffset+12);}
     });
+    for(const label of window.RiftLoot.floorLabels(run.drops||[],camera)){
+      if(label.moved){ctx.strokeStyle='#80927b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(label.drop.x-camera,label.drop.y-26);ctx.lineTo(label.x,label.y+17);ctx.stroke();}
+      ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
+    }
     const units=[...run.enemies,run.player];
     if(run.build.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':run.player.pose==='run'?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
