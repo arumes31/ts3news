@@ -41,3 +41,5 @@
 #rift-loadout-presets{border-top:1px solid #425441;margin-top:1rem;padding-top:.5rem;width:100%}#rift-loadout-presets select,#rift-loadout-presets input{background:#142b20;color:#e8e4cb;border:1px solid #536d59;padding:.5rem;font:inherit}
 
 #rift-preset-json{width:100%;max-width:100%;box-sizing:border-box;resize:vertical;background:#142b20;color:#e8e4cb;border:1px solid #536d59;font:12px monospace}#rift-empty-loadout{font-size:.8rem;line-height:1.5}#rift-loadout-presets details p{font-size:.8rem;line-height:1.5}
+
+#rift-loadout-order{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}#rift-loadout-order button{font-size:.75rem;padding:.4rem}

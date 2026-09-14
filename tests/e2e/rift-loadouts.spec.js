@@ -1,5 +1,18 @@
 const {test,expect}=require('@playwright/test');
 
+test('direct slot swaps preserve skills, save their order and lock during expeditions',async({page})=>{
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  const values=()=>page.locator('#rift-loadout select').evaluateAll(slots=>slots.map(slot=>slot.value));
+  const swap=page.getByRole('button',{name:'Swap slots 1 and 2',exact:true});
+  await swap.focus();await page.keyboard.press('Enter');expect(await values()).toEqual(['bash','guard','spark']);await expect(swap).toBeFocused();
+  await page.getByRole('button',{name:'Swap slots 2 and 3',exact:true}).click();expect(await values()).toEqual(['bash','spark','guard']);
+  await page.locator('#rift-loadout-name').fill('Swap test');await page.locator('#rift-save-loadout').click();
+  await swap.click();await page.locator('#rift-apply-loadout').click();expect(await values()).toEqual(['bash','spark','guard']);
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.locator('#rift-start').click();await page.keyboard.press('Escape');await expect(swap).toBeDisabled();
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.build.skills.map(skill=>skill.id)).toEqual(['bash','spark','guard']);
+});
+
 test('preset transfer rejects invalid skills and imports owned slots for review before application',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   await page.locator('#rift-loadout-presets details > summary').click();
