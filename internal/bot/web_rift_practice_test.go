@@ -4,19 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"github.com/DATA-DOG/go-sqlmock"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+
 	"ts3news/internal/rift"
 )
 
 func TestRiftPracticeScopeRejectsEconomicActionsBeforeStorage(t *testing.T) {
 	b := &Bot{}
-	for _, kind := range []string{"bank", "next", "advance", "exit"} {
-		if _, err := b.updateRiftMode(context.Background(), "owner", riftRequest{Kind: kind}, rift.Build{}, time.Now(), "movement"); err == nil {
-			t.Fatal("practice economic action accepted")
+	for _, mode := range []string{"movement", "jump", "combo", "guard"} {
+		for _, kind := range []string{"bank", "next", "advance", "exit"} {
+			if _, err := b.updateRiftMode(context.Background(), "owner", riftRequest{Kind: kind}, rift.Build{}, time.Now(), mode); err == nil {
+				t.Fatal("practice economic action accepted")
+			}
 		}
 	}
 	if _, err := b.updateRiftMode(context.Background(), "owner", riftRequest{Kind: "practice_reset"}, rift.Build{}, time.Now(), ""); err == nil {
@@ -28,7 +32,7 @@ func TestRiftPracticeScopeRejectsEconomicActionsBeforeStorage(t *testing.T) {
 }
 
 func TestRiftPracticeStartWritesOnlyItsOwnAccountDrill(t *testing.T) {
-	for _, mode := range []string{"movement", "jump", "combo"} {
+	for _, mode := range []string{"movement", "jump", "combo", "guard"} {
 		t.Run(mode, func(t *testing.T) {
 			database, mock, err := sqlmock.New()
 			if err != nil {

@@ -73,5 +73,7 @@
 #rift-practice-links a:hover,#rift-practice-links a:focus-visible {background:#284234;outline:2px solid #c2da9c;outline-offset:2px}
 #rift-practice-guide {padding:1rem 1.25rem;margin-bottom:1rem;border:1px solid #49664b;border-radius:8px;background:#14271f;color:#deedc9}
 #rift-practice-guide h2 {margin:0 0 .5rem}
-#rift-app[data-practice]:not([data-practice=""]) :is(#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,.rift-classbar,#rift-finisher-state,#rift-ultimate-state,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout) {display:none!important}
+#rift-app[data-practice]:not([data-practice=""]) :is(#rift-defeat-guide,#rift-checkpoint-guide,#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,.rift-classbar,#rift-finisher-state,#rift-ultimate-state,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout) {display:none!important}
 #rift-app[data-practice="movement"] .rift-basics,#rift-app[data-practice="jump"] [data-bind="attack"],#rift-app[data-practice="jump"] [data-bind="guard"],#rift-app[data-practice="combo"] [data-bind="jump"] {display:none}
+
+#rift-app[data-practice="guard"] :is([data-bind="attack"],[data-bind="jump"]) {display:none}

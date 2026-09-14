@@ -16,7 +16,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "movement" || mode == "jump" || mode == "combo"
+	return mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -34,6 +34,9 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	}
 	if mode == "combo" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
+	}
+	if mode == "guard" {
+		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
 	}
 	return r, nil
 }
@@ -62,6 +65,8 @@ func (r *Run) practiceInput(in Input) Input {
 		return Input{X: in.X, Y: in.Y}
 	case "jump":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
+	case "guard":
+		return Input{X: in.X, Y: in.Y, Guard: in.Guard}
 	case "combo":
 		return Input{X: in.X, Y: in.Y, Attack: in.Attack, Guard: in.Guard}
 	}
@@ -78,6 +83,9 @@ func (r *Run) practiceTick() {
 	}
 	if r.Practice.Mode == "combo" {
 		complete = r.Practice.Hits >= 3 && r.Combo == 3
+	}
+	if r.Practice.Mode == "guard" {
+		complete = r.Stats.Guards >= 3
 	}
 	if complete {
 		r.Practice.Completed = true

@@ -62,3 +62,24 @@ func TestPracticeJumpRequiresCrossingCoverAndComboRequiresHits(t *testing.T) {
 		t.Fatal("practice reset failed")
 	}
 }
+
+func TestPracticeDirectionalGuardRequiresFacingAttacker(t *testing.T) {
+	r, err := NewPracticeRun("guard", testRun().Build, "guard", time.Unix(100, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Player.Facing = -1
+	for i := 1; i <= 100; i++ {
+		r.Step(Input{Guard: true, Attack: true, Jump: true, Skill: "fire"}, time.UnixMilli(100000+int64(i)*50))
+	}
+	if r.Stats.Guards != 0 || r.Practice.Completed || r.Stats.DamageTaken == 0 {
+		t.Fatal("rear attacks counted as guarded")
+	}
+	r.Player.Facing = 1
+	for i := 101; i <= 300 && r.Status == "fighting"; i++ {
+		r.Step(Input{Guard: true}, time.UnixMilli(100000+int64(i)*50))
+	}
+	if !r.Practice.Completed || r.Stats.Guards < 3 || r.Stats.Attacks != 0 || r.Stats.Jumps != 0 || len(r.Drops) != 0 || len(r.History) != 0 {
+		t.Fatalf("guard drill did not complete safely: %+v", r.Stats)
+	}
+}
