@@ -44,7 +44,7 @@
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
     else if(!clearedAt) clearedAt = performance.now();
-    run=value;renderer.snapshot(run,replay);
+    run=value;renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();

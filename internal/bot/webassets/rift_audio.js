@@ -95,6 +95,9 @@
       case 'defeat': [294,247,196,147].forEach((f,i) => t(f,f*.95,.65,.07,'triangle',i*.16)); break;
       case 'area': t(110,165,.8,.05,'sine'); t(220,247,.9,.04,'sine',.1); break;
       case 'ui': t(540,720,.07,.035,'triangle'); break;
+      case 'low_health': [0,.22].forEach(delay=>t(180,120,.16,.075,'triangle',delay)); break;
+      case 'ultimate_ready': [523,784,1047].forEach((f,i)=>t(f,f,.22,.05,'sine',i*.09)); break;
+      case 'finisher_ready': t(330,494,.16,.05,'triangle');t(494,660,.18,.05,'triangle',.14);break;
       default: break;
     }
   };

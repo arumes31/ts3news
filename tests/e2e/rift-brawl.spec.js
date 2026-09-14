@@ -83,7 +83,8 @@ test('clear all three rooms, defeat the catalog boss and bank the expedition', a
       await controls(new Set());
       await expect(page.locator('#rift-next')).toBeVisible();
       if(run.room===2)await page.screenshot({path:'test-results/rift-boss-cleared.png'});
-      await page.locator('#rift-next').click();continue;
+      await page.locator('#rift-next').click();
+      await expect(page.locator('#rift-next')).toBeHidden();continue;
     }
     const p=run.player,target=run.enemies.filter(e=>e.hp>0).sort((a,b)=>Math.abs(a.x-p.x)-Math.abs(b.x-p.x))[0];
     const dx=target.x-p.x,dy=target.y-p.y,wanted=new Set(['Space']);
