@@ -1,0 +1,6 @@
+const {test,expect}=require('@playwright/test');
+
+for(const compact of [true,false])test('restored browser storage keeps the '+(compact?'compact':'full')+' HUD layout',async({page,browser})=>{
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('.rift-settings > summary').click();await page.locator('#rift-compact-hud').setChecked(!compact);await page.locator('#rift-compact-hud').setChecked(compact);
+ const storageState=await page.context().storageState(),url=page.url();const restored=await browser.newContext({storageState});try{const next=await restored.newPage();await next.goto(url);await expect(next.locator('#rift-start')).toBeEnabled();expect(await next.locator('#rift-app').evaluate(el=>el.classList.contains('rift-compact-hud'))).toBe(compact);expect(await next.locator('.rift-combat-signals').evaluate(el=>getComputedStyle(el).display==='none')).toBe(compact);await next.locator('.rift-settings > summary').click();if(compact)await expect(next.locator('#rift-compact-hud')).toBeChecked();else await expect(next.locator('#rift-compact-hud')).not.toBeChecked();expect((await(await next.request.get(new URL('/api/abyss/rift',url).href)).json()).run).toBeNull();}finally{await restored.close();}
+});
