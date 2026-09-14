@@ -120,6 +120,8 @@ type Event struct {
 }
 
 type Run struct {
+	ClearStreak         int                    `json:"clear_streak,omitempty"`
+	BestClearStreak     int                    `json:"best_clear_streak,omitempty"`
 	RoomStartHits       *int                   `json:"room_start_hits,omitempty"`
 	MissionStartHits    *int                   `json:"mission_start_hits,omitempty"`
 	History             map[int]MissionHistory `json:"mission_history,omitempty"`

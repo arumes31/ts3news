@@ -42,6 +42,8 @@ func (r *Run) finishMissionHistory(outcome string) {
 	h := r.History[r.Level.ID]
 	h.LastOutcome = outcome
 	if outcome == "completed" {
+		r.ClearStreak++
+		r.BestClearStreak = max(r.BestClearStreak, r.ClearStreak)
 		h.Completions++
 		if r.MissionStartHits != nil {
 			hits := r.Stats.HitsTaken - *r.MissionStartHits
@@ -65,6 +67,8 @@ func (r *Run) finishMissionHistory(outcome string) {
 		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
 		}
+	} else {
+		r.ClearStreak = 0
 	}
 	r.History[r.Level.ID] = h
 	r.HistoryActive = false
@@ -77,6 +81,10 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		return
 	}
 	current := r.History[r.Level.ID]
+	r.BestClearStreak = previous.BestClearStreak
+	if previous.Status == "complete" || previous.Status == "banked" {
+		r.ClearStreak = previous.ClearStreak
+	}
 	for id, history := range previous.History {
 		if id < 1 || id > LevelCount {
 			continue

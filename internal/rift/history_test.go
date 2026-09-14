@@ -249,6 +249,51 @@ func TestFlawlessRoomRecordsUseDamageAndPersistAcrossTiers(t *testing.T) {
 	}
 }
 
+func TestMissionClearStreakCarriesCompletedRunsAndBreaksOnIncompleteAttempts(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	r := NewRunAtLevel("streak", Build{HP: 240}, time.Unix(100, 0), catalog, 4)
+	r.Status = "cleared"
+	r.Room = 2
+	r.FinishCheckpoint("advance", catalog)
+	r.Status = "cleared"
+	r.Room = 2
+	r.FinishCheckpoint("bank", catalog)
+	r.FinishCheckpoint("bank", catalog)
+	if r.ClearStreak != 2 || r.BestClearStreak != 2 {
+		t.Fatalf("streak not counted exactly once: %+v", r)
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err = json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	next := NewRunAtLevel("next", Build{HP: 240}, time.Unix(110, 0), catalog, 1)
+	next.InheritCampaignHistory(&saved)
+	if next.ClearStreak != 2 || next.BestClearStreak != 2 {
+		t.Fatal("completed-run streak lost")
+	}
+	next.Status = "cleared"
+	next.FinishCheckpoint("exit", catalog)
+	if next.ClearStreak != 0 || next.BestClearStreak != 2 {
+		t.Fatal("early exit did not break current streak")
+	}
+	next = NewRunAtLevel("abandoned", Build{HP: 240}, time.Unix(120, 0), catalog, 1)
+	next.InheritCampaignHistory(&saved)
+	resumed := NewRunAtLevel("replacement", Build{HP: 240}, time.Unix(130, 0), catalog, 2)
+	resumed.InheritCampaignHistory(next)
+	if resumed.ClearStreak != 0 || resumed.BestClearStreak != 2 {
+		t.Fatal("unfinished attempt extended streak")
+	}
+	next.Player.HP = 0
+	next.tick(Input{}, 1.0/30)
+	if next.ClearStreak != 0 || next.BestClearStreak != 2 {
+		t.Fatal("defeat failed to retain best and reset current")
+	}
+}
+
 func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	now := time.Unix(100, 0)
