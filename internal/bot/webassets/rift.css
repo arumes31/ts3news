@@ -33,3 +33,5 @@
 #rift-region-overview{margin:1rem 0;display:grid;gap:.5rem}#rift-region-overview[hidden],#rift-levels[hidden]{display:none}#rift-region-overview section{border:1px solid #4b6050;border-radius:4px;padding:.7rem}#rift-region-overview summary{cursor:pointer;font-weight:700}#rift-selected-mission{border-left:3px solid #e2c67a;padding:.75rem;background:#21372b}
 
 .rift-mission-history{display:block;font-size:.7rem;line-height:1.45;white-space:normal;color:#dedac3;margin-top:.35rem}.rift-mission-history[hidden]{display:none}#rift-last-attempt{display:block;margin:.65rem 0;max-width:100%;white-space:normal;text-align:left}#rift-last-attempt[hidden]{display:none}
+
+#rift-result-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-top:.65rem}#rift-result-actions[hidden],#rift-replay[hidden]{display:none}#rift-result-actions button{font-size:.8rem;padding:.5rem .7rem}

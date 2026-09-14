@@ -15,6 +15,7 @@
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node.textContent!==String(value))node.textContent=value;}
   function message(title, copy, button, kicker) {
+    $('rift-result-actions').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
@@ -89,6 +90,9 @@
       const lost=run.status==='defeated';
       message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. Your equipped gear and banked rewards are safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
+      $('rift-result-actions').hidden=!run.level||run.status==='expired';
+      $('rift-replay').hidden=!run.level||!['complete','banked'].includes(run.status)||run.room!==2;
+      $('rift-replay').textContent='Replay mission '+(run.level?.id||1);
       root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=false);
       setTimeout(()=>{if(!playing)silence();},1500);
     }
@@ -252,6 +256,14 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
+  $('rift-replay').addEventListener('click',()=>{
+    if(!ready||busy||starting||!run?.level||!['complete','banked'].includes(run.status)||run.room!==2)return;
+    selectedLevel=run.level.id;campaignKey='';updateCampaign();begin();
+  });
+  $('rift-result-region').addEventListener('click',()=>{
+    if(busy||starting||!run?.level||!['complete','banked','defeated'].includes(run.status))return;
+    window.RiftCampaignTools.showRegion(run.level.region);
+  });
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));

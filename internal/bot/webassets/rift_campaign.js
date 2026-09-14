@@ -147,5 +147,6 @@
     }
   }
   window.RiftCampaignTools={init,preferred:()=>Number.isInteger(view.selected)&&view.selected>=1&&view.selected<=100?view.selected:1,
+    showRegion(region){if(!levels.some(level=>level.region===region))return;overview=true;apply();$('rift-campaign').open=true;const section=$('rift-region-overview').querySelector('[data-overview-region="'+region+'"]');section.querySelector('details').open=true;section.querySelector('summary').focus();section.scrollIntoView({block:'center'});},
     update(run,id){if(!levels.length)return;selected=id;history=run?.mission_history||{};active=!!run&&['fighting','cleared'].includes(run.status);completed=new Set(run?.completed_levels||[]);view.selected=id;save();apply();}};
 })();
