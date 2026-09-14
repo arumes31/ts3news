@@ -30,6 +30,8 @@
   }
   function update(run,playing,replay=false){
     recentDamage(run,replay);
+    const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
+    if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
     $('rift-paused-badge').hidden=!['fighting','cleared'].includes(run.status)||(playing&&!run.paused);
     put($('rift-paused-badge'),run.paused?'Paused':'Not running');

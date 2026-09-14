@@ -152,6 +152,7 @@ type Run struct {
 	SkillTimers         map[string]float64     `json:"skill_timers"`
 	Gold                int64                  `json:"gold"`
 	BankedAtMS          int64                  `json:"banked_at_ms,omitempty"`
+	LastClear           *ClearResult           `json:"last_clear,omitempty"`
 	PastExpeditions     CareerTotals           `json:"past_expeditions"`
 	BankedGold          int64                  `json:"banked_gold"`
 	BankedLoot          []BankedLoot           `json:"banked_loot,omitempty"`

@@ -2,6 +2,13 @@ package rift
 
 import "slices"
 
+// ClearResult preserves the most recent completed mission result through advancement.
+type ClearResult struct {
+	Mission int      `json:"mission"`
+	First   bool     `json:"first"`
+	Records []string `json:"records"`
+}
+
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
@@ -42,6 +49,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 	h := r.History[r.Level.ID]
 	h.LastOutcome = outcome
 	if outcome == "completed" {
+		r.LastClear = &ClearResult{Mission: r.Level.ID, First: h.Completions == 0 && !slices.Contains(r.CompletedLevels, r.Level.ID), Records: []string{}}
 		r.ClearStreak++
 		r.BestClearStreak = max(r.BestClearStreak, r.ClearStreak)
 		h.Completions++
@@ -49,6 +57,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 			hits := r.Stats.HitsTaken - *r.MissionStartHits
 			if hits >= 0 && (h.FewestHits == nil || hits < *h.FewestHits) {
 				h.FewestHits = &hits
+				r.LastClear.Records = append(r.LastClear.Records, "hits")
 			}
 		}
 		if r.Build.Class != "" {
@@ -60,12 +69,14 @@ func (r *Run) finishMissionHistory(outcome string) {
 			h.CompletedByClass = classes
 		}
 		if r.Player.HP > h.BestFinishHP {
+			r.LastClear.Records = append(r.LastClear.Records, "health")
 			h.BestFinishHP = r.Player.HP
 			h.BestFinishMaxHP = r.Player.MaxHP
 		}
 		elapsed := r.Stats.Seconds - r.MissionStartSeconds
 		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
+			r.LastClear.Records = append(r.LastClear.Records, "time")
 		}
 	} else {
 		r.ClearStreak = 0

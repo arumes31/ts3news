@@ -382,3 +382,61 @@ func TestTreasureGoblinRecordCountsOnlyConfirmedDefeats(t *testing.T) {
 		t.Fatalf("incorrect goblin record: %+v", r.Stats)
 	}
 }
+
+func TestClearResultDistinguishesFirstRepeatAndImprovedRecords(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	r := NewRunAtLevel("first", Build{HP: 100}, time.Unix(100, 0), catalog, 1)
+	r.Stats.Seconds = 20
+	r.Stats.HitsTaken = 3
+	r.Player.HP = 60
+	r.finishMissionHistory("completed")
+	if r.LastClear == nil || !r.LastClear.First || r.LastClear.Mission != 1 || len(r.LastClear.Records) != 3 {
+		t.Fatalf("first clear: %+v", r.LastClear)
+	}
+	r.finishMissionHistory("completed")
+	if !r.LastClear.First {
+		t.Fatal("duplicate completion replaced result")
+	}
+	next := NewRunAtLevel("next", Build{HP: 100}, time.Unix(200, 0), catalog, 1)
+	next.InheritCampaignHistory(r)
+	next.Stats.Seconds = 20
+	next.Stats.HitsTaken = 3
+	next.Player.HP = 60
+	next.finishMissionHistory("completed")
+	if next.LastClear.First || len(next.LastClear.Records) != 0 {
+		t.Fatalf("tie claimed new records: %+v", next.LastClear)
+	}
+	best := NewRunAtLevel("best", Build{HP: 100}, time.Unix(300, 0), catalog, 1)
+	best.InheritCampaignHistory(next)
+	best.Stats.Seconds = 15
+	best.Stats.HitsTaken = 0
+	best.Player.HP = 80
+	best.Room = 2
+	best.Status = "cleared"
+	best.FinishCheckpoint("advance", catalog)
+	if best.LastClear.First || best.LastClear.Mission != 1 || len(best.LastClear.Records) != 3 || best.Level.ID != 2 {
+		t.Fatalf("improved records lost during seamless advance: %+v", best.LastClear)
+	}
+	data, err := json.Marshal(best)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.LastClear.Mission != 1 || len(restored.LastClear.Records) != 3 {
+		t.Fatal("result lost on reload")
+	}
+	legacy := NewRunAtLevel("legacy", Build{HP: 100}, time.Unix(400, 0), catalog, 1)
+	legacy.CompletedLevels = []int{1}
+	legacy.finishMissionHistory("completed")
+	if legacy.LastClear.First {
+		t.Fatal("legacy completion presented as first clear")
+	}
+	early := NewRunAtLevel("early", Build{HP: 100}, time.Unix(500, 0), catalog, 1)
+	early.finishMissionHistory("exited")
+	if early.LastClear != nil {
+		t.Fatal("early exit presented as clear")
+	}
+}
