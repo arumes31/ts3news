@@ -146,12 +146,17 @@ type Run struct {
 }
 
 type Input struct {
-	X      int    `json:"x"`
-	Y      int    `json:"y"`
-	Attack bool   `json:"attack"`
-	Guard  bool   `json:"guard"`
-	Jump   bool   `json:"jump"`
-	Skill  string `json:"skill"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Attack bool    `json:"attack"`
+	Guard  bool    `json:"guard"`
+	Jump   bool    `json:"jump"`
+	Skill  string  `json:"skill"`
+}
+
+// ValidMovement accepts finite stick axes and legacy digital directions.
+func (in Input) ValidMovement() bool {
+	return in.X >= -1 && in.X <= 1 && in.Y >= -1 && in.Y <= 1
 }
 
 func NewRun(id string, build Build, now time.Time) *Run {
@@ -200,6 +205,9 @@ func (r *Run) event(kind string, x, y, value float64) {
 
 // Step uses elapsed server time, capped to avoid catch-up damage after a disconnect.
 func (r *Run) Step(in Input, now time.Time) {
+	if !in.ValidMovement() {
+		return
+	}
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
 	r.LastMS = max(r.LastMS, now.UnixMilli())
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
@@ -236,7 +244,7 @@ func (r *Run) tick(in Input, dt float64) {
 	if p.Guard {
 		speed = 75
 	}
-	x, y := float64(in.X), float64(in.Y)
+	x, y := in.X, in.Y
 	length := math.Hypot(x, y)
 	if length > 1 {
 		x /= length

@@ -237,7 +237,7 @@ func validRiftRequest(r riftRequest) bool {
 	if r.LevelID < 0 || r.LevelID > rift.LevelCount {
 		return false
 	}
-	if len(r.RunID) > 80 || len(r.RequestID) < 16 || len(r.RequestID) > 80 || r.Revision < 0 || len(r.Input.Skill) > 100 || r.Input.X < -1 || r.Input.X > 1 || r.Input.Y < -1 || r.Input.Y > 1 || len(r.Skills) > 3 {
+	if len(r.RunID) > 80 || len(r.RequestID) < 16 || len(r.RequestID) > 80 || r.Revision < 0 || len(r.Input.Skill) > 100 || !r.Input.ValidMovement() || len(r.Skills) > 3 {
 		return false
 	}
 	seen := map[string]bool{}
