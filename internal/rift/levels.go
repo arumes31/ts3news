@@ -294,7 +294,11 @@ func (r *Run) hazardTick() {
 			continue
 		}
 		r.SkillTimers[key] = 1
-		r.hurtPlayer(12+float64(r.Level.Region), r.Player.X, r.Player.Y)
+		region := 0
+		if r.Level != nil {
+			region = r.Level.Region
+		}
+		r.hurtPlayer(12+float64(region), r.Player.X, r.Player.Y)
 		switch h.Kind {
 		case "ice", "thorns", "poison":
 			r.SkillTimers["slowed"] = 1.4

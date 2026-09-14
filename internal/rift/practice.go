@@ -2,21 +2,26 @@ package rift
 
 import (
 	"errors"
+	"math"
 	"time"
 )
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
-	Mode      string  `json:"mode"`
-	GoalX     float64 `json:"goal_x"`
-	Completed bool    `json:"completed"`
-	Hits      int     `json:"hits"`
-	Arena     Arena   `json:"arena"`
+	Dodges        int     `json:"dodges,omitempty"`
+	PulseCycle    int     `json:"pulse_cycle,omitempty"`
+	PulseHits     int     `json:"pulse_hits,omitempty"`
+	PulseResolved bool    `json:"pulse_resolved,omitempty"`
+	Mode          string  `json:"mode"`
+	GoalX         float64 `json:"goal_x"`
+	Completed     bool    `json:"completed"`
+	Hits          int     `json:"hits"`
+	Arena         Arena   `json:"arena"`
 }
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard"
+	return mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -37,6 +42,10 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	}
 	if mode == "guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
+	}
+	if mode == "hazard" {
+		r.Practice.Arena.Name = "Warning zone"
+		r.Practice.Arena.Hazards = []Hazard{{Obstacle: Obstacle{X: 110, Y: 365, W: 100, H: 90}, Kind: "fire", Period: 3.5, Duration: .45}}
 	}
 	return r, nil
 }
@@ -63,7 +72,7 @@ func (r *Run) practiceInput(in Input) Input {
 	switch r.Practice.Mode {
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
-	case "jump":
+	case "jump", "hazard":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
 	case "guard":
 		return Input{X: in.X, Y: in.Y, Guard: in.Guard}
@@ -86,6 +95,27 @@ func (r *Run) practiceTick() {
 	}
 	if r.Practice.Mode == "guard" {
 		complete = r.Stats.Guards >= 3
+	}
+	if r.Practice.Mode == "hazard" {
+		practice := r.Practice
+		h := &practice.Arena.Hazards[0]
+		cycle := int(math.Floor(r.Clock / h.Period))
+		if cycle > practice.PulseCycle {
+			practice.PulseCycle = cycle
+			practice.PulseHits = r.Stats.HitsTaken
+			practice.PulseResolved = false
+			h.X = clamp(r.Player.X-h.W/2, 0, Width-h.W)
+			h.Y = r.Player.Y - h.H/2
+		}
+		if h.Phase(r.Clock) >= 1.2+h.Duration && !practice.PulseResolved {
+			practice.PulseResolved = true
+			if r.Stats.HitsTaken == practice.PulseHits {
+				practice.Dodges++
+			} else {
+				practice.Dodges = 0
+			}
+		}
+		complete = practice.Dodges >= 3
 	}
 	if complete {
 		r.Practice.Completed = true

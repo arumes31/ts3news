@@ -9,7 +9,7 @@
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
-  const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard'};
+  const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):'');
   const status = message => { $('rift-status').textContent = message; };
   function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
@@ -46,6 +46,7 @@
   function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
+  function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
@@ -89,7 +90,7 @@
     if(practice){
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
       for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=true;
-      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
       $('rift-practice-reset').disabled=!ready||busy;
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
@@ -312,7 +313,7 @@
   if(practice){
     root.querySelector('.rift-tag').textContent='PRACTICE · '+drillNames[practice].toUpperCase();
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
-    $('rift-practice-instructions').textContent=practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
+    $('rift-practice-instructions').textContent=practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
     for(const node of [$('rift-campaign'),$('rift-campaign-tools-extra'),root.querySelector('.rift-route')?.closest('section'),$('rift-loot')?.closest('section'),root.querySelector('.rift-run-statistics'),$('rift-walkthrough')])if(node)node.hidden=true;
     $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||!run)return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
   }

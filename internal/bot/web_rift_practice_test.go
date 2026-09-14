@@ -16,7 +16,7 @@ import (
 
 func TestRiftPracticeScopeRejectsEconomicActionsBeforeStorage(t *testing.T) {
 	b := &Bot{}
-	for _, mode := range []string{"movement", "jump", "combo", "guard"} {
+	for _, mode := range []string{"movement", "jump", "combo", "guard", "hazard"} {
 		for _, kind := range []string{"bank", "next", "advance", "exit"} {
 			if _, err := b.updateRiftMode(context.Background(), "owner", riftRequest{Kind: kind}, rift.Build{}, time.Now(), mode); err == nil {
 				t.Fatal("practice economic action accepted")
@@ -32,7 +32,7 @@ func TestRiftPracticeScopeRejectsEconomicActionsBeforeStorage(t *testing.T) {
 }
 
 func TestRiftPracticeStartWritesOnlyItsOwnAccountDrill(t *testing.T) {
-	for _, mode := range []string{"movement", "jump", "combo", "guard"} {
+	for _, mode := range []string{"movement", "jump", "combo", "guard", "hazard"} {
 		t.Run(mode, func(t *testing.T) {
 			database, mock, err := sqlmock.New()
 			if err != nil {

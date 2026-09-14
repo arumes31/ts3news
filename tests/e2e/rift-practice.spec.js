@@ -40,3 +40,15 @@ test('directional guard blocks only while facing the training attacker',async({p
  await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');expect((await saved()).stats.guards).toBe(3);expect(errors).toEqual([]);
  await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await saved()).stats.guards).toBe(0);
 });
+
+test('hazard practice punishes missed warnings and rewards three evasions',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.goto('/abyss/rift?practice=hazard');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ const saved=async()=>(await(await page.request.get('/api/abyss/rift?practice=hazard')).json()).run;
+ await expect.poll(async()=>(await saved()).stats.damage_taken).toBeGreaterThan(0);expect((await saved()).practice.dodges||0).toBe(0);
+ await page.locator('#rift-practice-reset').click();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ for(const [index,key] of ['KeyD','KeyA','KeyD'].entries()){
+  await page.keyboard.down(key);await expect.poll(async()=>(await saved()).practice.dodges||0,{timeout:7000}).toBe(index+1);await page.keyboard.up(key);
+ }
+ await expect(page.locator('#rift-overlay-title')).toHaveText('Drill complete.');const run=await saved();expect(run.stats.damage_taken).toBe(0);expect(run.drops).toHaveLength(0);expect(errors).toEqual([]);
+});

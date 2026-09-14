@@ -77,3 +77,5 @@
 #rift-app[data-practice="movement"] .rift-basics,#rift-app[data-practice="jump"] [data-bind="attack"],#rift-app[data-practice="jump"] [data-bind="guard"],#rift-app[data-practice="combo"] [data-bind="jump"] {display:none}
 
 #rift-app[data-practice="guard"] :is([data-bind="attack"],[data-bind="jump"]) {display:none}
+
+#rift-app[data-practice="hazard"] :is([data-bind="attack"],[data-bind="guard"]) {display:none}
