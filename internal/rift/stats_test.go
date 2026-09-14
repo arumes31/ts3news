@@ -70,6 +70,78 @@ func TestCombatStatsCountEffectiveDamageAndKillsOnce(t *testing.T) {
 	}
 }
 
+func TestSkillHitsCountDamagedTargetsAndSurviveProjectileSave(t *testing.T) {
+	r := testRun()
+	r.Build.Skills = []Skill{{ID: "sweep", Kind: "slash", Power: 2}}
+	r.Enemies = []Actor{
+		{ID: "near", HP: 10, MaxHP: 10, X: r.Player.X + 50, Y: r.Player.Y},
+		{ID: "near2", HP: 100, MaxHP: 100, X: r.Player.X + 70, Y: r.Player.Y},
+		{ID: "dead", HP: 0, MaxHP: 10, X: r.Player.X + 60, Y: r.Player.Y},
+		{ID: "far", HP: 100, MaxHP: 100, X: r.Player.X + 500, Y: r.Player.Y},
+	}
+	r.cast("sweep")
+	r.skillHit(0, 100, r.Build.Skills[0], 0, "")
+	r.skillHit(1, 0, r.Build.Skills[0], 0, "")
+	if r.Stats.SkillHits["sweep"] != 2 {
+		t.Fatalf("hits must count damaged targets, excluding dead targets and zero damage: %+v", r.Stats)
+	}
+	r = testRun()
+	r.Enemies = []Actor{{ID: "target", HP: 100, MaxHP: 100, X: r.Player.X + 60, Y: r.Player.Y, Cooldown: 10}}
+	r.cast("fire")
+	if len(r.Stats.SkillHits) != 0 {
+		t.Fatal("projectile launch counted as a hit")
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	restored.tick(Input{}, 1.0/30)
+	if restored.Stats.SkillHits["fire"] != 1 {
+		t.Fatalf("restored projectile lost attribution: %+v", restored.Stats)
+	}
+}
+
+func TestSkillHealingCountsActualClassAndDirectRecovery(t *testing.T) {
+	for _, class := range []string{"bloodblade", "alchemist"} {
+		t.Run(class, func(t *testing.T) {
+			r := testRun()
+			r.Build.Class = class
+			r.Resource = 3
+			r.Build.Skills = []Skill{{ID: "restore", Kind: "heal", Role: "finisher", Heal: .15}}
+			r.Player.HP = r.Player.MaxHP - 40
+			r.cast("restore")
+			if r.Stats.SkillHealing["restore"] != 40 || r.Stats.Healing != 40 {
+				t.Fatalf("class recovery or overheal accounting incorrect: %+v", r.Stats)
+			}
+			r.Player.Cooldown = 0
+			r.cast("restore")
+			if r.Stats.SkillHealing["restore"] != 40 {
+				t.Fatal("overheal counted")
+			}
+			r.Player.HP -= 5
+			r.healPlayer(5)
+			if r.Stats.SkillHealing["restore"] != 40 || r.Stats.Healing != 45 {
+				t.Fatal("unattributed healing assigned to previous skill")
+			}
+			data, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var restored Run
+			if err := json.Unmarshal(data, &restored); err != nil {
+				t.Fatal(err)
+			}
+			if restored.Stats.SkillHealing["restore"] != 40 {
+				t.Fatal("saved healing lost")
+			}
+		})
+	}
+}
+
 func TestCombatStatsSeparateGuardBarrierAndHealthDamage(t *testing.T) {
 	r := testRun()
 	r.Build.Armor = 0

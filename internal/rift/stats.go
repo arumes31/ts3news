@@ -7,6 +7,8 @@ import "math"
 type CombatStats struct {
 	SkillUses      map[string]int     `json:"skill_uses,omitempty"`
 	SkillMana      map[string]float64 `json:"skill_mana,omitempty"`
+	SkillHits      map[string]int     `json:"skill_hits,omitempty"`
+	SkillHealing   map[string]float64 `json:"skill_healing,omitempty"`
 	Seconds        float64            `json:"seconds"`
 	DamageDealt    float64            `json:"damage_dealt"`
 	DamageTaken    float64            `json:"damage_taken"`
@@ -29,4 +31,15 @@ func (r *Run) healPlayer(amount float64) {
 	before := r.Player.HP
 	r.Player.HP = math.Min(r.Player.MaxHP, r.Player.HP+math.Max(0, amount))
 	r.Stats.Healing += math.Max(0, r.Player.HP-before)
+}
+
+func (r *Run) healPlayerBySkill(amount float64, skillID string) {
+	before := r.Stats.Healing
+	r.healPlayer(amount)
+	if healed := r.Stats.Healing - before; healed > 0 && skillID != "" {
+		if r.Stats.SkillHealing == nil {
+			r.Stats.SkillHealing = map[string]float64{}
+		}
+		r.Stats.SkillHealing[skillID] += healed
+	}
 }

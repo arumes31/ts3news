@@ -414,13 +414,13 @@ func (r *Run) cast(id string) {
 		}
 		power := base * skill.Power * (1 + float64(charges)*.2)
 		if skill.Heal > 0 {
-			r.healPlayer(p.MaxHP * skill.Heal)
+			r.healPlayerBySkill(p.MaxHP*skill.Heal, skill.ID)
 		}
 		if skill.Kind == "shield" {
 			r.Barrier = math.Min(p.MaxHP*.5, r.Barrier+25+r.Build.Armor*4)
 		} else if skill.Kind == "heal" {
 			if skill.Heal == 0 {
-				r.healPlayer(p.MaxHP * .15)
+				r.healPlayerBySkill(p.MaxHP*.15, skill.ID)
 			}
 		} else if skill.Kind == "slash" || skill.Kind == "quake" || skill.Kind == "ultimate" {
 			rangeX, rangeY := 155.0, 60.0

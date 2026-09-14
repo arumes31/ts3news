@@ -39,9 +39,9 @@ func (r *Run) classCast(skill Skill) (int, string) {
 		}
 		r.SkillTimers["jump"] = math.Max(0, r.SkillTimers["jump"]-1.5)
 	case "bloodblade":
-		r.healPlayer(p.MaxHP * .04 * float64(charges))
+		r.healPlayerBySkill(p.MaxHP*.04*float64(charges), skill.ID)
 	case "alchemist":
-		r.healPlayer(p.MaxHP * .03 * float64(charges))
+		r.healPlayerBySkill(p.MaxHP*.03*float64(charges), skill.ID)
 	case "voidwalker":
 		cost := math.Min(math.Max(0, p.HP-1), p.MaxHP*.05)
 		p.HP -= cost
@@ -106,5 +106,12 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 	if effect == "" {
 		effect = "hit"
 	}
+	before := e.HP
 	r.hurtEnemyPiercing(index, damage, effect, pierce)
+	if e.HP < before && skill.ID != "" {
+		if r.Stats.SkillHits == nil {
+			r.Stats.SkillHits = map[string]int{}
+		}
+		r.Stats.SkillHits[skill.ID]++
+	}
 }
