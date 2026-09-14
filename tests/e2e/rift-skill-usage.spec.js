@@ -4,6 +4,8 @@ test('protocol accepts skill count maps and rejects malformed per-skill counts',
   await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
   const outcomes=await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();return [{guard:2},{guard:-1},{guard:1.5},{guard:'2'},[]].map(counts=>{data.run.stats.skill_uses=counts;try{window.RiftProtocol.validate(data,'GET');return true;}catch(_){return false;}});});
   expect(outcomes).toEqual([true,false,false,false,false]);
+  const mana=await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();return [{guard:12.5},{guard:-1},{guard:Infinity},{guard:'2'},[]].map(counts=>{data.run.stats.skill_mana=counts;try{window.RiftProtocol.validate(data,'GET');return true;}catch(_){return false;}});});
+  expect(mana).toEqual([true,false,false,false,false]);
 });
 
 test('skill usage displays confirmed casts and survives reload',async({page})=>{
@@ -14,7 +16,10 @@ test('skill usage displays confirmed casts and survives reload',async({page})=>{
   await page.locator('.rift-run-statistics > summary').click();
   const count=page.locator('#rift-statistics dt').filter({hasText:'Casts · Iron Guard (optional)'}).locator('xpath=following-sibling::dd[1]');await expect(count).toHaveText('1');
   await page.reload();await page.locator('.rift-run-statistics > summary').click();await expect(count).toHaveText('1');
-  await page.evaluate(async()=>{const run=(await(await fetch('/api/abyss/rift')).json()).run;delete run.stats.skill_uses;window.RiftHUD.update(run,false,true);});
+  const run=await read();expect(run.stats.skill_mana.guard).toBe(run.build.skills.find(skill=>skill.id==='guard').cost);
+  const mana=page.locator('#rift-statistics dt').filter({hasText:'Mana · Iron Guard (optional)'}).locator('xpath=following-sibling::dd[1]');await expect(mana).toHaveText(String(run.stats.skill_mana.guard));
+  await page.evaluate(async()=>{const run=(await(await fetch('/api/abyss/rift')).json()).run;delete run.stats.skill_uses;delete run.stats.skill_mana;window.RiftHUD.update(run,false,true);});
   await expect(page.locator('#rift-statistics')).toContainText('Earlier casts without per-skill records');
+  await expect(page.locator('#rift-statistics')).toContainText('Earlier mana without per-skill records');
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -28,7 +28,7 @@ func TestDropProvenanceSurvivesSaving(t *testing.T) {
 
 func TestSkillUsageCountsOnlySuccessfulOwnedCasts(t *testing.T) {
 	r := testRun()
-	r.Build.Skills = []Skill{{ID: "one", Name: "One", Kind: "shield", Cost: 10, Cooldown: 2}, {ID: "two", Name: "Two", Kind: "shield", Cost: 10, Cooldown: 2}}
+	r.Build.Skills = []Skill{{ID: "one", Name: "One", Kind: "shield", Cost: 10, Cooldown: 2}, {ID: "two", Name: "Two", Kind: "shield", Cost: 12.5, Cooldown: 2}}
 	r.Player.Mana = 100
 	r.cast("missing")
 	r.cast("one")
@@ -38,6 +38,9 @@ func TestSkillUsageCountsOnlySuccessfulOwnedCasts(t *testing.T) {
 	r.cast("two")
 	if r.Stats.SkillsCast != 1 || r.Stats.SkillUses["one"] != 1 || len(r.Stats.SkillUses) != 1 {
 		t.Fatalf("rejected cast counted: %+v", r.Stats)
+	}
+	if r.Stats.SkillMana["one"] != 10 || len(r.Stats.SkillMana) != 1 || r.Stats.ManaSpent != 10 {
+		t.Fatalf("rejected cast spent mana: %+v", r.Stats)
 	}
 	r.Player.Mana = 100
 	r.cast("two")
@@ -51,6 +54,9 @@ func TestSkillUsageCountsOnlySuccessfulOwnedCasts(t *testing.T) {
 	}
 	if restored.Stats.SkillUses["one"] != 1 || restored.Stats.SkillUses["two"] != 1 || restored.Stats.SkillsCast != 2 {
 		t.Fatalf("usage lost: %+v", restored.Stats)
+	}
+	if restored.Stats.SkillMana["one"] != 10 || restored.Stats.SkillMana["two"] != 12.5 || restored.Stats.ManaSpent != 22.5 {
+		t.Fatalf("mana accounting lost: %+v", restored.Stats)
 	}
 }
 

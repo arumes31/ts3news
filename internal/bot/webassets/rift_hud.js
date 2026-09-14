@@ -51,8 +51,9 @@
     }
     const values=[['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
-    let attributed=0;for(const [skill,kind] of abilityUses){const casts=stats.skill_uses?.[skill.id]||0;attributed+=casts;values.push(['Casts · '+skill.name+' ('+kind+')',casts]);}
+    let attributed=0,attributedMana=0;for(const [skill,kind] of abilityUses){const casts=stats.skill_uses?.[skill.id]||0,mana=stats.skill_mana?.[skill.id]||0;attributed+=casts;attributedMana+=mana;values.push(['Casts · '+skill.name+' ('+kind+')',casts],['Mana · '+skill.name+' ('+kind+')',mana]);}
     if((stats.skills_cast||0)>attributed)values.push(['Earlier casts without per-skill records',stats.skills_cast-attributed]);
+    if((stats.mana_spent||0)>attributedMana+.001)values.push(['Earlier mana without per-skill records',stats.mana_spent-attributedMana]);
     const key=JSON.stringify(values);
     if(summaryKey!==key){summaryKey=key;$('rift-statistics').replaceChildren();for(const [label,value] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value||0);$('rift-statistics').append(dt,dd);}}
     const state=[run.id,run.level?.id,run.room,run.status,run.paused].join(':');

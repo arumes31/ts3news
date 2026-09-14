@@ -4,6 +4,10 @@ test('finished mission results open region progress and replay the finished miss
   await page.goto('/abyss/rift?scenario=checkpoint&room=final');await page.locator('#rift-auto').uncheck();
   await page.locator('#rift-start').click();await page.locator('#rift-next').click();
   await expect(page.locator('#rift-replay')).toBeVisible();await expect(page.locator('#rift-replay')).toHaveText('Replay mission 1');
+  await page.locator('#rift-result-skills').click();
+  await expect(page.locator('.rift-run-statistics')).toHaveAttribute('open','');
+  await expect(page.locator('.rift-run-statistics > summary')).toBeFocused();
+  await expect(page.locator('#rift-statistics')).toContainText('Mana · Iron Guard (optional)');
   await page.locator('#rift-result-region').click();
   await expect(page.locator('#rift-campaign')).toHaveAttribute('open','');
   await expect(page.locator('[data-overview-region="0"] details')).toHaveAttribute('open','');
