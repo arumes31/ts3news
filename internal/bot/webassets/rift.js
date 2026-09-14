@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
   const keys = new Set(), touch = new Set(), taps = new Set(), mouse = new Set();
+  const keyOrder=new Map();let keySequence=0;
   let guardLatched=false,canvasMouse=false;
   const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
@@ -32,20 +33,22 @@
     const pad=window.RiftGamepad.consume();
     const held = name => touch.has(name)||taps.has(name)||mouse.has(name);
     const pressed = action => pad.actions.has(action)||controls.codes(action).some(code=>keys.has(code)||taps.has(code));
-    const value = {x:Number(pressed('right')||held('right'))-Number(pressed('left')||held('left')),
-      y:Number(pressed('down')||held('down'))-Number(pressed('up')||held('up')),
+    const direction=(positive,negative)=>{const last=action=>Math.max(0,...controls.codes(action).filter(code=>keys.has(code)||taps.has(code)).map(code=>keyOrder.get(code)||0));const p=last(positive),n=last(negative);return p||n?(p>n?1:-1):0;};
+    const value = {x:direction('right','left')||Number(held('right'))-Number(held('left')),
+      y:direction('down','up')||Number(held('down'))-Number(held('up')),
       attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
-      skill:(run?.build.signatures||[]).find((s,i)=>pressed('signature'+i)||held('skill:'+s.id))?.id || (run?.build.ultimate && (pressed('ultimate')||held('skill:'+run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('skill'+i)||held('skill:'+s.id))?.id||''};
+      skill:''};
+    const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){window.RiftGamepad.reset();keys.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
+  function resetInput(){window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function update(value, replay) {
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
     else if(!clearedAt) clearedAt = performance.now();
-    run=value;renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);
+    run=value;window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();
@@ -218,13 +221,14 @@
   }
   function hold(button,value){
     button.dataset.action=value;
-    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);button.classList.add('rift-held');});
-    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled){if(value==='guard'&&controls.toggleGuard)toggleGuard();else taps.add(value);}});
-    const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value))taps.delete(value);touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
+    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);window.RiftIntents.press(value);button.classList.add('rift-held');});
+    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled){if(value==='guard'&&controls.toggleGuard)toggleGuard();else{taps.add(value);window.RiftIntents.press(value);}}});
+    const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open();});
   window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
+  window.addEventListener('riftintentchange',resetInput);
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
   $('rift-canvas').addEventListener('mousedown',event=>{
     const action=controls.pointer(event.button);if(!playing||controls.opened||!canvasMouse||!action||event.ctrlKey||event.metaKey||event.altKey)return;
@@ -241,7 +245,7 @@
     if(event.target.matches('input,select,textarea'))return;
     if(['Space','Enter'].includes(event.code)&&event.target.closest('button,summary,a'))return;
     if(action==='pause'&&!event.repeat){event.preventDefault();if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
-    if(!playing||!action)return;event.preventDefault();keys.add(event.code);if(!event.repeat){if(action==='guard'&&controls.toggleGuard)toggleGuard();else taps.add(event.code);}
+    if(!playing||!action)return;event.preventDefault();keys.add(event.code);if(!event.repeat){keyOrder.set(event.code,++keySequence);window.RiftIntents.press(action);if(action==='guard'&&controls.toggleGuard)toggleGuard();else taps.add(event.code);}
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
@@ -260,6 +264,6 @@
   $('rift-reduced').addEventListener('change',()=>{reducedOverride=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(reducedOverride));}catch(_){}motionPreference();});
   $('rift-system-motion').addEventListener('click',()=>{reducedOverride=null;try{localStorage.removeItem('riftReducedMotion');}catch(_){}motionPreference();});
   systemMotion.addEventListener('change',()=>{if(reducedOverride===null)motionPreference();});motionPreference();
-  window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
+  window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,ability:action=>window.RiftIntents.press(action),guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
   load();
 })();

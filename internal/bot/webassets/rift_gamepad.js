@@ -58,7 +58,7 @@
     x=buttons[14]||buttons[15]?Number(buttons[15])-Number(buttons[14]):sx;
     y=buttons[12]||buttons[13]?Number(buttons[13])-Number(buttons[12]):sy;
     held.clear();for(const [i,action] of [[0,'jump'],[1,'guard'],[2,'attack'],[3,'skill'+selected],[4,'signature0'],[5,'signature1'],[8,'ultimate']]){
-      if(buttons[i])held.add(action);if(edges[i]){taps.add(action);if(action==='guard')callbacks.guard();}
+      if(buttons[i])held.add(action);if(edges[i]){taps.add(action);callbacks.ability(action);if(action==='guard')callbacks.guard();}
     }
   }
   window.addEventListener('gamepaddisconnected',event=>{if(identity.startsWith(String(event.gamepad.index)+':'))disconnect('Controller disconnected. Expedition paused.');});

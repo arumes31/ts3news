@@ -23,3 +23,5 @@
 #rift-captions{padding:9px 14px;border-top:1px solid var(--rift-line);background:#132b20;color:#f2ddb0;font:12px/1.5 ui-monospace,monospace}#rift-captions ul{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0;padding-left:18px}
 
 #rift-gamepad-panel{font:12px/1.6 ui-monospace,monospace;margin-top:16px;padding-top:12px;border-top:1px solid var(--rift-line)}#rift-gamepad-panel p{overflow-wrap:anywhere}#rift-gamepad-panel label{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#rift-gamepad-panel input{max-width:100%}#rift-gamepad-test{display:block;margin:12px 0;color:#e9bd70;font:12px/1.6 ui-monospace,monospace}
+
+.rift-settings .rift-ability-setting{flex-wrap:wrap}#rift-ability-mode{max-width:100%}#rift-ability-mode-description{font:12px/1.6 ui-monospace,monospace;color:#b8cbb0}
