@@ -25,10 +25,10 @@
   enabled.onchange=()=>{try{localStorage.setItem('riftInputReadout',JSON.stringify(enabled.checked));}catch(_){}clearReadout();};
   window.RiftIntents={
     recognize,
-    press(action){recognize(action);const now=performance.now();queue=queue.filter(item=>item.until>now);if(ability(action)){if(queue.length<8)queue.push({action,until:now+1200});else result('',false,'Ability queue full');}},
-    cancel(action){for(let i=queue.length-1;i>=0;i--)if(queue[i].action===action){queue.splice(i,1);break;}clearReadout();},
-    reset(){queue=[];clearReadout();},
-    sync(run,replay){currentRun=run;const next=[run.id,run.level?.id,run.room].join(':');if(replay||identity!==next){queue=[];clearReadout();}identity=next;paint();},
+    press(action){recognize(action);if(action==='jump')window.RiftJump.press();const now=performance.now();queue=queue.filter(item=>item.until>now);if(ability(action)){if(queue.length<8)queue.push({action,until:now+1200});else result('',false,'Ability queue full');}},
+    cancel(action){if(action==='jump')window.RiftJump.reset();for(let i=queue.length-1;i>=0;i--)if(queue[i].action===action){queue.splice(i,1);break;}clearReadout();},
+    reset(){window.RiftJump.reset();queue=[];clearReadout();},
+    sync(run,replay){window.RiftJump.sync(run,replay);currentRun=run;const next=[run.id,run.level?.id,run.room].join(':');if(replay||identity!==next){queue=[];clearReadout();}identity=next;paint();},
     take(run,held,guard){
       const now=performance.now(),skills=entries(run);queue=queue.filter(item=>item.until>now);
       while(queue.length){

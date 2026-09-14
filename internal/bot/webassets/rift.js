@@ -36,7 +36,7 @@
     const direction=(positive,negative)=>{const last=action=>Math.max(0,...controls.codes(action).filter(code=>keys.has(code)||taps.has(code)).map(code=>keyOrder.get(code)||0));const p=last(positive),n=last(negative);return p||n?(p>n?1:-1):0;};
     const value = {x:direction('right','left')||Number(held('right'))-Number(held('left')),
       y:direction('down','up')||Number(held('down'))-Number(held('up')),
-      attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
+      attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:window.RiftJump.input(pressed('jump')||held('jump')),
       skill:''};
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
