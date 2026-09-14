@@ -98,3 +98,5 @@
 #rift-monster-comparison {width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem}#rift-monster-comparison caption {text-align:left;margin:.5rem 0;color:#e5ce96}#rift-monster-comparison th,#rift-monster-comparison td {padding:.6rem .4rem;border-bottom:1px solid #49664b;vertical-align:top;text-align:left;overflow-wrap:anywhere}#rift-monster-comparison th {color:#e5ce96}.rift-compare-different {background:#b7cf8b10}
 
 #rift-monster-comparison thead th:first-child {width:36%}
+
+#rift-settings-summary{display:block;margin-top:8px;font:11px/1.7 ui-monospace,monospace;color:#b8cbb0;overflow-wrap:anywhere}

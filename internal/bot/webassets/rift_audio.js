@@ -138,6 +138,7 @@
   audio.set = function (key, value) {
     if(!['muted','mono',...Object.keys(buses())].includes(key))return;
     audio[key]=key==='muted'||key==='mono'?!!value:clamp(value);save(key,audio[key]);
+    window.dispatchEvent(new Event('riftaudiochange'));
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,audio[name]);for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
   audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false}))audio.set(key,value);};

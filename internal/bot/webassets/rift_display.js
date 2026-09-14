@@ -21,6 +21,14 @@
   const section=document.createElement('div');section.className='rift-display-settings';
   const heading=document.createElement('h4');heading.textContent='Battlefield display';section.append(heading);
   const controls=new Map();
+  const summary=document.createElement('span');summary.id='rift-settings-summary';document.querySelector('.rift-settings > summary').append(summary);
+  function refreshSummary(){
+    const audio=window.RiftAudio,reduced=document.getElementById('rift-reduced').checked;
+    const shake=reduced||values.motionIntensity===0?'Off':values.shakeIntensity===1?'Full':values.shakeIntensity===0.5?'Gentle':'Off';
+    const mix=[['effects','Effects'],['ambience','Ambience'],['music','Music'],['voice','Voices'],['interface','Interface']].map(([key,label])=>label+' '+Math.round(audio[key]*100)+'%').join(' · ');
+    summary.textContent=(values.compactHUD?'Compact':'Full')+' HUD · Text '+Math.round(values.textScale*100)+'% · '+values.fps+' FPS · '+(reduced?'Reduced effects':'Motion '+(values.motionIntensity===0?'Still':values.motionIntensity===0.5?'Gentle':'Full'))+' · Shake '+shake+' — '+(audio.muted?'Sound muted':'Sound enabled')+' · '+(audio.mono?'Mono':'Stereo')+' · '+mix;
+  }
+  window.addEventListener('riftaudiochange',refreshSummary);window.addEventListener('riftmotionchange',refreshSummary);
   function selectControl(id,label,options){
     const wrapper=document.createElement('label'),select=document.createElement('select');wrapper.textContent=label;select.id=id;
     options.forEach(([value,text])=>{const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);});
@@ -47,6 +55,7 @@
   ];
   function save(){try{localStorage.setItem('riftDisplay',JSON.stringify({version:1,...values}));}catch(_){} }
   function refresh(){
+    refreshSummary();
     root.classList.toggle('rift-hide-records',!values.personalRecords);
     root.style.setProperty('--rift-hud-scale',values.textScale);root.classList.toggle('rift-compact-hud',values.compactHUD);
     for(const [key,control] of controls)if(control.type==='checkbox')control.checked=values[key];else control.value=values[key];
