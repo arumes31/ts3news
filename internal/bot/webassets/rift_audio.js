@@ -56,6 +56,9 @@
   }
   audio.play = function (kind, pan) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    playCue(kind,pan);
+  };
+  function playCue(kind,pan){
     audio.played++;
     const target=kind==='ui'||kind==='bank'?interfaceBus:/(?:_attack|_death|_roar)$/.test(kind)?voice:sfx;
     const t = (f, end, d, v, wave, delay) => tone(f, end, d, v, wave, delay, pan,target);
@@ -138,17 +141,21 @@
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,audio[name]);for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
   audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false}))audio.set(key,value);};
-  audio.preview=async channel=>{
+  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
+  audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
+  audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
+  audio.preview=async (channel,cueKind)=>{
     if(!Object.hasOwn(buses(),channel))return false;
     const intent=++previewIntent;previewRequested=true;clearTimeout(previewTimer);if(!active){stopAmbience();stopVoices();}
     const ready=await audio.unlock();if(intent!==previewIntent||document.hidden){if(document.hidden)previewRequested=false;if(!active&&!previewRequested&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
     if(!ready||audio.muted){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
     const bus=buses()[channel];
-    if(channel==='ambience')hiss(.45,.1,900,0,0,bus);
+    if(cueKind)playCue(cueKind,0);
+    else if(channel==='ambience')hiss(.45,.1,900,0,0,bus);
     else if(channel==='voice')tone(170,65,.4,.09,'sawtooth',0,0,bus);
     else if(channel==='music')[220,330,440].forEach(f=>tone(f,f,.5,.035,'sine',0,0,bus));
     else tone(channel==='interface'?540:350,channel==='interface'?720:100,.2,.09,'triangle',0,0,bus);
-    previewTimer=setTimeout(()=>{if(intent!==previewIntent)return;previewRequested=false;if(!active&&audio.context?.state==='running')audio.context.suspend().catch(()=>{});},650);
+    previewTimer=setTimeout(()=>{if(intent!==previewIntent)return;previewRequested=false;if(!active&&audio.context?.state==='running')audio.context.suspend().catch(()=>{});},cueKind?1750:650);
     return true;
   };
   window.addEventListener('pagehide', () => { active = false;activation++;previewIntent++;previewRequested=false;clearTimeout(previewTimer);stopAmbience();stopVoices(); if (audio.context) audio.context.close().catch(() => {}); });

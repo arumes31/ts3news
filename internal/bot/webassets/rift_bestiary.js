@@ -37,16 +37,22 @@
     window.addEventListener('riftmotionchange',animate);
     render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',onToggle);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
     poseSelect.onchange=()=>{tick=0;paint();};
-    function close(){selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
+    function close(){window.RiftAudio.cancelPreview();selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;
     panel.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}};
     function inspect(unit,button){
-      selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
+      window.RiftAudio.cancelPreview();selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
       const title=document.getElementById('rift-monster-title');title.textContent=unit.name;
       const stats=document.getElementById('rift-monster-stats');stats.replaceChildren();
-      const values=[['Tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
+      const values=[['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
       values.forEach(([label,value])=>{const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;row.append(dt,dd);stats.append(row);});
       document.getElementById('rift-monster-tip').textContent=unit.kind==='boss'?'Watch the marked slam area and jump or move clear. This boss alternates slams with aimed projectiles. Use the recovery after a slam to strike.':unit.kind==='archer'?'Change lanes to evade aimed shots, then close the gap during recovery.':unit.kind==='treasure'?'Flees when you approach. Drive it toward the arena edge to stop its retreat.':'Move out of its lane during the windup, then strike during recovery. A third basic strike can knock it down.';
+      const sounds=document.getElementById('rift-monster-sounds'),soundStatus=document.getElementById('rift-monster-sound-status');sounds.replaceChildren();soundStatus.textContent='';
+      const cues=unit.kind==='boss'?[['roar','boss_roar'],['slam','slam'],['projectile',unit.shot||'arrow'],['defeat','boss_death']]:unit.kind==='archer'?[['projectile',unit.shot||'arrow'],['defeat','archer_death']]:[['attack',unit.kind+'_attack'],['defeat',unit.kind+'_death']];
+      for(const [label,cue] of cues){const previewButton=document.createElement('button');previewButton.type='button';previewButton.textContent='Preview '+label;
+        previewButton.onclick=async()=>{previewButton.disabled=true;try{const played=await window.RiftAudio.previewCue(cue);if(selected===unit&&!panel.hidden)soundStatus.textContent=played?'Previewing '+label+' for '+unit.name+'.':window.RiftAudio.muted?'Sound is muted. Unmute to preview.':'Audio is unavailable or blocked by the browser.';}finally{previewButton.disabled=false;}};
+        sounds.append(previewButton);
+      }
       animate();title.focus();
     }
     document.getElementById('rift-monster-count').textContent=roster.length+' monsters';
