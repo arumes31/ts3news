@@ -6,6 +6,7 @@
   const create=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const slots={weapon:0,mainhand:0,offhand:1,ranged:3,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,finger1:12,finger2:12,neck:13,amulet:13,relic:15,artifact:15};
+  const legendary=drop=>!!drop.gear&&rarities.get(drop.gear.Rarity)?.legendary===true;
   const icon=slot=>slots[String(slot).toLowerCase()]??9;
   let rarities=new Map(),run=null,bagKey='',receiptKey='';
   let pickupIdentity='',collected=new Set(),pickupTimer=0;
@@ -64,6 +65,8 @@
     put($('rift-gold'),format.format(run.gold));put($('rift-banked'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item'));
     put($('rift-loot-count'),count(items.length,'item')+' pending');
     const pending=run.drops.filter(d=>!d.banked);put($('rift-checkpoint-total'),format.format(pending.reduce((sum,d)=>sum+d.gold,0))+' gold · '+count(pending.filter(d=>d.gear).length,'item')+' ready to bank');
+    const legendaryCount=run.drops.filter(d=>!d.collected&&!d.banked&&legendary(d)).length;
+    put($('rift-legendary-drops'),legendaryCount?'◆ '+count(legendaryCount,'legendary drop')+' on the battlefield':'No legendary drops on the battlefield');
     const floor=run.drops.filter(d=>!d.collected&&!d.banked).length;put($('rift-floor-loot'),floor?count(floor,'drop')+' still on the battlefield':'All available drops collected');
     put($('rift-pending-hud'),'Unbanked: '+format.format(pending.reduce((sum,d)=>sum+d.gold,0))+' gold · '+pending.filter(d=>d.gear).length+' gear'+(floor?' · '+floor+' uncollected':''));
     let nearest=null,distance=Infinity;
@@ -82,5 +85,5 @@
     const lines=['Rift Brawl — banked rewards',format.format(run.banked_gold)+' gold',count(run.banked_items.length,'item'),...[...names].map(([name,n])=>name+(n>1?' × '+format.format(n):''))];
     try{await navigator.clipboard.writeText(lines.join('\n'));$('rift-receipt-copy-status').textContent='Receipt copied.';}catch(_){$('rift-receipt-copy-status').textContent='Copy is unavailable. Select the receipt text to copy it.';}
   };
-  window.RiftLoot={icon,init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
+  window.RiftLoot={icon,legendary,init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
 })();

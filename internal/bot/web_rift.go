@@ -175,7 +175,7 @@ func riftSignatureKind(style, role, fallback string) string {
 func riftRarities() []map[string]any {
 	var values []map[string]any
 	for rarity := content.RarityCommon; rarity <= content.RarityEternal; rarity++ {
-		values = append(values, map[string]any{"value": int(rarity), "name": rarity.String(), "color": rarity.Color()})
+		values = append(values, map[string]any{"value": int(rarity), "name": rarity.String(), "color": rarity.Color(), "legendary": rarity == content.RarityLegendary})
 	}
 	return values
 }
