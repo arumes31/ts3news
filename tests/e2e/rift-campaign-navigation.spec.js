@@ -1,5 +1,38 @@
 const {test,expect}=require('@playwright/test');
 
+test('region overview expands the selected region and preserves combined filters when browsing',async({page})=>{
+  await page.goto('/abyss/rift?mission=87');await expect(page.locator('#rift-start')).toHaveText('Enter mission 87');
+  await page.locator('#rift-mission-search').fill('impossible-mission');
+  await page.locator('#rift-difficulty').selectOption('Mythic');
+  await expect(page.locator('#rift-selected-mission')).toContainText('Selected mission: 87');
+  await page.locator('#rift-overview-toggle').click();
+  const overview=page.getByRole('navigation',{name:'Campaign regions'});
+  await expect(overview.getByRole('region')).toHaveCount(10);
+  await expect(page.locator('#rift-levels')).toBeHidden();
+  await expect(page.locator('[data-overview-region="8"] details')).toHaveAttribute('open','');
+  await expect(page.locator('[data-overview-region="8"] p')).toContainText('Selected mission: 87');
+  await page.locator('[data-overview-region="2"] summary').click();
+  await page.locator('[data-overview-region="2"] button').click();
+  await expect(overview).toBeHidden();await expect(page.locator('#rift-region')).toHaveValue('2');
+  await expect(page.locator('#rift-mission-search')).toHaveValue('impossible-mission');
+  await expect(page.locator('#rift-difficulty')).toHaveValue('Mythic');
+  await expect(page.locator('#rift-filter-count')).toHaveText('0 of 100 missions');
+  await expect(page.locator('#rift-selected-mission')).toContainText('Selected mission: 87');
+  await page.locator('#rift-clear-filters').click();await expect(page.locator('#rift-selected-mission')).toBeHidden();
+  await page.locator('[data-level="21"]').click();await page.locator('#rift-overview-toggle').click();
+  await expect(page.locator('[data-overview-region="2"] details')).toHaveAttribute('open','');
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('active expedition remains visible and its region opens despite a different incoming mission link',async({page})=>{
+  await page.goto('/abyss/rift?mission=21');await expect(page.locator('#rift-start')).toBeEnabled();
+  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.goto('/abyss/rift?mission=87');await page.locator('#rift-overview-toggle').click();
+  await expect(page.locator('#rift-selected-mission')).toContainText('Active expedition: 21');
+  await expect(page.locator('[data-overview-region="2"] details')).toHaveAttribute('open','');
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.level.id).toBe(21);
+});
+
 test('mission keyboard browsing follows filtered cards without changing selection until activation',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   await page.locator('#rift-region').selectOption('2');

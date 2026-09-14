@@ -29,3 +29,5 @@
 #rift-input-readout{margin:0;padding:9px 14px;border-top:1px solid var(--rift-line);background:#10251d;color:#e9bd70;font:12px/1.5 ui-monospace,monospace;overflow-wrap:anywhere}
 
 .rift-settings .rift-jump-setting{flex-wrap:wrap}#rift-jump-buffer{max-width:100%}#rift-jump-buffer-description{font:12px/1.6 ui-monospace,monospace;color:#b8cbb0}
+
+#rift-region-overview{margin:1rem 0;display:grid;gap:.5rem}#rift-region-overview[hidden],#rift-levels[hidden]{display:none}#rift-region-overview section{border:1px solid #4b6050;border-radius:4px;padding:.7rem}#rift-region-overview summary{cursor:pointer;font-weight:700}#rift-selected-mission{border-left:3px solid #e2c67a;padding:.75rem;background:#21372b}

@@ -3,7 +3,7 @@
   const $=id=>document.getElementById(id);
   const key='riftCampaignView';
   const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[]};
-  let view={...defaults},levels=[],completed=new Set(),active=false,selected=1,initialized=false;
+  let view={...defaults},levels=[],completed=new Set(),active=false,selected=1,initialized=false,overview=false,expandedRegion=null;
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')view={...view,...saved};}catch(_){}
   view.search=typeof view.search==='string'?view.search.slice(0,80):'';
   view.favorites=Array.isArray(view.favorites)?view.favorites.filter(n=>Number.isInteger(n)&&n>=1&&n<=100).slice(0,100):[];
@@ -37,6 +37,19 @@
     $('rift-unfinished').disabled=active||levels.every(l=>completed.has(l.id));
     const selectedButton=$('rift-levels').querySelector('[data-level="'+selected+'"]');
     $('rift-show-selected').hidden=!selectedButton?.hidden;
+    $('rift-selected-mission').hidden=!selectedButton?.hidden&&!overview;
+    $('rift-selected-mission').textContent=(active?'Active expedition: ':'Selected mission: ')+selected+' · '+selectedLevel.name+' — '+selectedLevel.difficulty+'. '+selectedLevel.tactic;
+    $('rift-region-overview').hidden=!overview;
+    $('rift-levels').hidden=overview;$('rift-grid-navigation').hidden=overview;
+    $('rift-overview-toggle').textContent=overview?'Show mission cards':'Region overview';
+    $('rift-overview-toggle').setAttribute('aria-expanded',String(overview));
+    $('rift-region-overview').querySelectorAll('[data-overview-region]').forEach(section=>{
+      const region=Number(section.dataset.overviewRegion),regional=levels.filter(level=>level.region===region);
+      section.querySelector('summary').textContent=regional[0].region_name+' · '+regional.filter(level=>completed.has(level.id)).length+'/'+regional.length+' completed';
+      section.querySelector('p').textContent='Missions '+regional[0].id+'–'+regional[regional.length-1].id+'. '+(selectedLevel.region===region?(active?'Active expedition':'Selected mission')+': '+selected+'.':'');
+      if(expandedRegion!==selectedLevel.region)section.querySelector('details').open=selectedLevel.region===region;
+    });
+    expandedRegion=selectedLevel.region;
     $('rift-region-progress').textContent=Array.from({length:10},(_,region)=>{
       const regional=levels.filter(l=>l.region===region);return regional[0].region_name+': '+regional.filter(l=>completed.has(l.id)).length+'/'+regional.length;
     }).join(' · ');
@@ -56,6 +69,19 @@
       hint.id='rift-grid-navigation';hint.className='rift-muted';
       hint.textContent='Mission cards: use arrow keys to browse, Home or End for the first or last result, and Enter to select.';
       grid.before(hint);grid.setAttribute('aria-describedby',hint.id);
+      const toggle=document.createElement('button'),regions=document.createElement('nav'),pinned=document.createElement('p');
+      toggle.id='rift-overview-toggle';toggle.type='button';toggle.setAttribute('aria-controls','rift-region-overview');
+      regions.id='rift-region-overview';regions.setAttribute('aria-label','Campaign regions');regions.hidden=true;
+      pinned.id='rift-selected-mission';pinned.hidden=true;pinned.setAttribute('role','status');
+      hint.before(toggle,pinned,regions);
+      for(const region of [...new Set(levels.map(level=>level.region))]){
+        const regional=levels.filter(level=>level.region===region),section=document.createElement('section'),details=document.createElement('details'),summary=document.createElement('summary'),description=document.createElement('p'),browse=document.createElement('button');
+        section.dataset.overviewRegion=region;section.setAttribute('aria-label',regional[0].region_name);
+        browse.type='button';browse.textContent='Browse '+regional[0].region_name;
+        browse.addEventListener('click',()=>{view.region=String(region);overview=false;reflect();save();apply();$('rift-region').focus();});
+        details.append(summary,description,browse);section.append(details);regions.append(section);
+      }
+      toggle.addEventListener('click',()=>{overview=!overview;if(overview)expandedRegion=null;apply();});
       grid.addEventListener('keydown',event=>{
         if(active||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
         const cards=Array.from(grid.querySelectorAll('[data-level]')).filter(button=>!button.hidden&&!button.disabled);
