@@ -8,6 +8,21 @@
   const slots={weapon:0,mainhand:0,offhand:1,ranged:3,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,finger1:12,finger2:12,neck:13,amulet:13,relic:15,artifact:15};
   const icon=slot=>slots[String(slot).toLowerCase()]??9;
   let rarities=new Map(),run=null,bagKey='',receiptKey='';
+  let pickupIdentity='',collected=new Set(),pickupTimer=0;
+  const notices=document.createElement('div');notices.id='rift-pickup-notices';notices.hidden=true;notices.setAttribute('role','status');notices.setAttribute('aria-atomic','true');document.querySelector('.rift-combat-signals').before(notices);
+  function pickups(value,replay){
+    const identity=[value.id,value.level?.id,value.room].join(':');
+    const fresh=identity!==pickupIdentity;
+    const picked=value.drops.filter(d=>d.collected&&!d.banked&&!collected.has(d.id));
+    collected=new Set(value.drops.filter(d=>d.collected).map(d=>d.id));pickupIdentity=identity;
+    if(fresh||replay||!['fighting','cleared'].includes(value.status)){clearTimeout(pickupTimer);notices.replaceChildren();notices.hidden=true;return;}
+    if(!picked.length)return;
+    const gold=picked.reduce((sum,d)=>sum+d.gold,0),gear=picked.filter(d=>d.gear).map(d=>d.gear.Name);
+    notices.replaceChildren();
+    if(gold>0)create('p','Gold picked up: +'+format.format(gold)+' · unbanked',notices);
+    if(gear.length)create('p','Gear picked up: '+gear.slice(0,3).join(', ')+(gear.length>3?' and '+(gear.length-3)+' more':'')+' · unbanked',notices);
+    notices.hidden=!notices.childElementCount;clearTimeout(pickupTimer);pickupTimer=setTimeout(()=>{notices.hidden=true;notices.replaceChildren();},4000);
+  }
   function bag(){
     if(!run)return;
     const items=run.drops.filter(drop=>drop.collected&&!drop.banked&&drop.gear),sort=$('rift-loot-sort').value;
@@ -43,8 +58,8 @@
     $('rift-receipt-limit').textContent='Showing 200 of '+format.format(matches.length)+' matching item names. Search to narrow the receipt.';
     put($('rift-receipt-total'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item')+' safely banked');
   }
-  function update(value){
-    run=value;
+  function update(value,replay=false){
+    pickups(value,replay);run=value;
     const items=run.drops.filter(d=>d.collected&&!d.banked&&d.gear);
     put($('rift-gold'),format.format(run.gold));put($('rift-banked'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item'));
     put($('rift-loot-count'),count(items.length,'item')+' pending');
