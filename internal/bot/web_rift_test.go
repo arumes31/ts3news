@@ -365,3 +365,14 @@ func TestRiftMapsEveryAbyssSubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftPracticeCannotBankEvenWithInjectedDrops(t *testing.T) {
+	run, err := rift.NewPracticeRun("practice", rift.Build{HP: 100}, "movement", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Drops = []rift.Drop{{Gold: 999, Collected: true}}
+	if err := bankRift(context.Background(), nil, "owner", "practice-bank", run); err == nil {
+		t.Fatal("practice rewards accepted")
+	}
+}

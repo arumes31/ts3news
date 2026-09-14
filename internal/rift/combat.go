@@ -120,6 +120,7 @@ type Event struct {
 }
 
 type Run struct {
+	Practice            *PracticeState         `json:"practice,omitempty"`
 	ClearStreak         int                    `json:"clear_streak,omitempty"`
 	BestClearStreak     int                    `json:"best_clear_streak,omitempty"`
 	RoomSplits          [3]*float64            `json:"room_splits"`
@@ -209,7 +210,7 @@ func (r *Run) spawnRoom() {
 }
 
 func (r *Run) NextRoom() bool {
-	if r.Status != "cleared" || r.Room >= len(Rooms)-1 {
+	if r.Practice != nil || r.Status != "cleared" || r.Room >= len(Rooms)-1 {
 		return false
 	}
 	r.Room++
@@ -234,6 +235,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	if !in.ValidMovement() {
 		return
 	}
+	in = r.practiceInput(in)
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
 	r.LastMS = max(r.LastMS, now.UnixMilli())
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
@@ -310,7 +312,9 @@ func (r *Run) tick(in Input, dt float64) {
 				if r.Combo == 3 && e.HP > 0 && e.Kind != "boss" {
 					e.Knockdown = .55
 					e.Windup = 0
-					e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+					if r.Practice == nil || e.ID != "practice-target" {
+						e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+					}
 					r.event("knockdown", e.X, e.Y, 0)
 				}
 			}
@@ -376,7 +380,10 @@ func (r *Run) tick(in Input, dt float64) {
 			alive++
 		}
 	}
-	if alive == 0 && r.Status == "fighting" {
+	if r.Practice != nil {
+		r.practiceTick()
+	}
+	if r.Practice == nil && alive == 0 && r.Status == "fighting" {
 		r.Stats.RoomsCleared++
 		r.recordFlawlessRoom()
 		if r.RoomStartSeconds != nil && r.RoomSplits[r.Room] == nil {
@@ -491,6 +498,13 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.Pose = "hit"
 	e.PoseTime = .2
 	r.event(effect, e.X, e.Y-30, damage)
+	if r.Practice != nil {
+		if damage > 0 && e.ID == "practice-target" && effect == "hit" {
+			r.Practice.Hits++
+		}
+		e.HP = e.MaxHP
+		return
+	}
 	if e.HP == 0 {
 		r.Stats.Kills++
 		if e.Kind == "treasure" {
@@ -540,6 +554,15 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 }
 
 func (r *Run) enemyTick(i int, dt float64) {
+	if r.Practice != nil && r.Enemies[i].ID == "practice-target" {
+		e := &r.Enemies[i]
+		e.PoseTime = math.Max(0, e.PoseTime-dt)
+		e.Knockdown = math.Max(0, e.Knockdown-dt)
+		if e.PoseTime == 0 && e.Knockdown == 0 {
+			e.Pose = "idle"
+		}
+		return
+	}
 	e := &r.Enemies[i]
 	if e.HP <= 0 {
 		return

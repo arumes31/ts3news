@@ -152,6 +152,9 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 }
 
 func (r *Run) Arena() Arena {
+	if r.Practice != nil {
+		return r.Practice.Arena
+	}
 	if r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
 		return r.Level.Rooms[r.Room]
 	}
@@ -161,6 +164,9 @@ func (r *Run) Arena() Arena {
 // FinishCheckpoint is called only after rewards have been banked atomically.
 // Advancing keeps the same run, build and receipt, without a page reload.
 func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
+	if r.Practice != nil {
+		return
+	}
 	if r.Status != "cleared" {
 		return
 	}

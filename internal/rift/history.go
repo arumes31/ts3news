@@ -95,7 +95,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 // InheritCampaignHistory carries bounded account progress into a newly created
 // expedition, whose first attempt has already been recorded by setLevel.
 func (r *Run) InheritCampaignHistory(previous *Run) {
-	if previous == nil || r.Level == nil {
+	if previous == nil || r.Level == nil || r.Practice != nil || previous.Practice != nil {
 		return
 	}
 	r.PastExpeditions = previous.RecordedTotals()

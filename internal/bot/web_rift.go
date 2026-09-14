@@ -458,6 +458,9 @@ func rollRiftGear(room int, now time.Time) (content.Gear, error) {
 }
 
 func bankRift(ctx context.Context, tx *sql.Tx, uid, requestID string, run *rift.Run) error {
+	if run.Practice != nil {
+		return errors.New("practice runs cannot bank rewards")
+	}
 	if err := db.SetEconomyContext(ctx, tx, "rift_brawl", requestID, run.ID, ""); err != nil {
 		return err
 	}
