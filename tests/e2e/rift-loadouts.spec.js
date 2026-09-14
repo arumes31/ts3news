@@ -1,5 +1,33 @@
 const {test,expect}=require('@playwright/test');
 
+test('preset transfer rejects invalid skills and imports owned slots for review before application',async({page})=>{
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  await page.locator('#rift-loadout-presets details > summary').click();
+  const values=()=>page.locator('#rift-loadout select').evaluateAll(slots=>slots.map(slot=>slot.value));const original=await values();
+  for(const payload of ['bad JSON',JSON.stringify({version:2,name:'Future',skills:[]}),JSON.stringify({version:1,name:'Missing',skills:['not_owned']}),JSON.stringify({version:1,name:'Duplicate',skills:['guard','guard']})]){
+    await page.locator('#rift-preset-json').fill(payload);await page.locator('#rift-import-loadout').click();
+    await expect(page.locator('#rift-preset-list option')).toHaveCount(1);expect(await values()).toEqual(original);
+  }
+  const preset={version:1,name:'Reordered',skills:['spark','guard','bash']};
+  await page.locator('#rift-preset-json').fill(JSON.stringify(preset));await page.locator('#rift-import-loadout').click();
+  await expect(page.locator('#rift-loadout-status')).toContainText('Review the changes');expect(await values()).toEqual(original);
+  await expect(page.locator('#rift-loadout-review')).toContainText('Iron Guard → Cinder Bolt');
+  await page.locator('#rift-apply-loadout').click();expect(await values()).toEqual(preset.skills);
+  await page.locator('#rift-export-loadout').click();expect(JSON.parse(await page.locator('#rift-preset-json').inputValue())).toEqual(preset);
+  await page.locator('#rift-start').click();await page.keyboard.press('Escape');await expect(page.locator('#rift-import-loadout')).toBeDisabled();
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.build.skills.map(skill=>skill.id)).toEqual(preset.skills);
+});
+
+test('empty optional loadouts explain retained controls and can be saved and applied',async({page})=>{
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-empty-loadout')).toBeHidden();
+  for(const slot of await page.locator('#rift-loadout select').all())await slot.selectOption('');
+  await expect(page.locator('#rift-empty-loadout')).toContainText('Basic attacks, jumping and guarding remain available');
+  await page.locator('#rift-loadout-name').fill('Basics');await page.locator('#rift-save-loadout').click();
+  await page.locator('#rift-loadout select').first().selectOption('guard');await expect(page.locator('#rift-empty-loadout')).toBeHidden();
+  await page.locator('#rift-apply-loadout').click();await expect(page.locator('#rift-empty-loadout')).toBeVisible();
+  await page.setViewportSize({width:390,height:844});await page.locator('#rift-loadout-presets details > summary').click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('named presets review changes before apply, persist, rename and delete without changing current skills',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   const values=()=>page.locator('#rift-loadout select').evaluateAll(slots=>slots.map(slot=>slot.value));
