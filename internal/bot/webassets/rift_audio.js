@@ -5,6 +5,8 @@
   function levelSetting(key,fallback){const value=setting(key,fallback);return typeof value==='number'&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):fallback;}
   const audio = { context: null, muted: setting('muted', false)===true, effects: levelSetting('effects', .65), ambience: levelSetting('ambience', .35), played: 0, voices: 0 };
   audio.music=levelSetting('music',audio.ambience);audio.voice=levelSetting('voice',audio.effects);audio.interface=levelSetting('interface',audio.effects);audio.mono=setting('mono',false)===true;
+  audio.interfaceMuted=setting('interfaceMuted',false)===true;
+  const channelLevel=key=>key==='interface'&&audio.interfaceMuted?0:audio[key];
   let master, sfx, ambient, music, voice, interfaceBus, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
   const panners=new Map(),sources=new Map();let previewRequested=false;
   const buses=()=>({effects:sfx,ambience:ambient,music,voice,interface:interfaceBus});
@@ -23,7 +25,7 @@
         master = c.createGain(); sfx = c.createGain(); ambient = c.createGain(); music=c.createGain(); voice=c.createGain(); interfaceBus=c.createGain();
         const limiter = c.createDynamicsCompressor(); limiter.threshold.value = -16; limiter.ratio.value = 8;
         Object.values(buses()).forEach(bus=>bus.connect(master)); master.connect(limiter); limiter.connect(c.destination);
-        master.gain.value = audio.muted ? 0 : .6; for(const [key,bus] of Object.entries(buses()))bus.gain.value=audio[key];
+        master.gain.value = audio.muted ? 0 : .6; for(const [key,bus] of Object.entries(buses()))bus.gain.value=channelLevel(key);
         noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
         const data = noise.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -136,12 +138,12 @@
     else{stopAmbience();stopVoices();if(audio.context&&audio.context.state==='running'){try{await audio.context.suspend();}catch(_){}}}
   };
   audio.set = function (key, value) {
-    if(!['muted','mono',...Object.keys(buses())].includes(key))return;
-    audio[key]=key==='muted'||key==='mono'?!!value:clamp(value);save(key,audio[key]);
+    if(!['muted','mono','interfaceMuted',...Object.keys(buses())].includes(key))return;
+    audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'?!!value:clamp(value);save(key,audio[key]);
     window.dispatchEvent(new Event('riftaudiochange'));
-    if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,audio[name]);for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
+    if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
-  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false}))audio.set(key,value);};
+  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false}))audio.set(key,value);};
   const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
@@ -149,7 +151,7 @@
     if(!Object.hasOwn(buses(),channel))return false;
     const intent=++previewIntent;previewRequested=true;clearTimeout(previewTimer);if(!active){stopAmbience();stopVoices();}
     const ready=await audio.unlock();if(intent!==previewIntent||document.hidden){if(document.hidden)previewRequested=false;if(!active&&!previewRequested&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
-    if(!ready||audio.muted){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
+    if(!ready||audio.muted||channel==='interface'&&audio.interfaceMuted){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
     const bus=buses()[channel];
     if(cueKind)playCue(cueKind,0);
     else if(channel==='ambience')hiss(.45,.1,900,0,0,bus);

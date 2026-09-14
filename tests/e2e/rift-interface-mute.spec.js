@@ -1,0 +1,12 @@
+const {test,expect}=require('@playwright/test');
+
+test('interface mute persists without losing volume and reset restores it',async({page})=>{
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('.rift-settings > summary').click();const mute=page.locator('#rift-interface-muted');await expect(mute).not.toBeChecked();await page.locator('#rift-interface-volume').evaluate(el=>{el.value='42';el.dispatchEvent(new Event('input',{bubbles:true}));});await mute.check();await expect(page.locator('#rift-settings-summary')).toContainText('Interface muted (42%)');await page.locator('[data-audio-preview="interface"]').click();await expect(page.locator('#rift-audio-preview-status')).toContainText('Interface sounds are muted');
+ await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('.rift-settings > summary').click();await expect(mute).toBeChecked();await expect(page.locator('#rift-interface-volume')).toHaveValue('42');await mute.uncheck();expect(await page.evaluate(()=>window.RiftAudio.interface)).toBe(.42);await mute.check();await page.locator('#rift-reset-audio').click();await expect(mute).not.toBeChecked();await expect(page.locator('#rift-interface-volume')).toHaveValue('65');expect((await(await page.request.get('/api/abyss/rift')).json()).run).toBeNull();
+});
+
+test('interface mute silences only its real audio bus',async({page})=>{
+ await page.addInitScript(()=>{window.audioEdges=[];const original=AudioNode.prototype.connect;AudioNode.prototype.connect=function(target,...args){window.audioEdges.push([this,target]);return original.call(this,target,...args);};});await page.goto('/abyss/rift');
+ const gains=await page.evaluate(async()=>{const audio=window.RiftAudio;audio.set('interfaceMuted',true);await audio.setActive(true,0);const result={};for(const kind of ['slash','boss_roar','ui','bank']){window.audioEdges=[];audio.play(kind,0);result[kind]=window.audioEdges.filter(([source])=>source instanceof StereoPannerNode).map(([,target])=>target.gain.value);}await audio.setActive(false);return result;});
+ for(const kind of ['ui','bank']){expect(gains[kind].length).toBeGreaterThan(0);for(const gain of gains[kind])expect(gain).toBe(0);}for(const kind of ['slash','boss_roar']){expect(gains[kind].length).toBeGreaterThan(0);for(const gain of gains[kind])expect(gain).toBeGreaterThan(0);}
+});

@@ -25,7 +25,7 @@
   function refreshSummary(){
     const audio=window.RiftAudio,reduced=document.getElementById('rift-reduced').checked;
     const shake=reduced||values.motionIntensity===0?'Off':values.shakeIntensity===1?'Full':values.shakeIntensity===0.5?'Gentle':'Off';
-    const mix=[['effects','Effects'],['ambience','Ambience'],['music','Music'],['voice','Voices'],['interface','Interface']].map(([key,label])=>label+' '+Math.round(audio[key]*100)+'%').join(' · ');
+    const mix=[['effects','Effects'],['ambience','Ambience'],['music','Music'],['voice','Voices'],['interface','Interface']].map(([key,label])=>key==='interface'&&audio.interfaceMuted?'Interface muted ('+Math.round(audio[key]*100)+'%)':label+' '+Math.round(audio[key]*100)+'%').join(' · ');
     summary.textContent=(values.compactHUD?'Compact':'Full')+' HUD · Text '+Math.round(values.textScale*100)+'% · '+values.fps+' FPS · '+(reduced?'Reduced effects':'Motion '+(values.motionIntensity===0?'Still':values.motionIntensity===0.5?'Gentle':'Full'))+' · Shake '+shake+' — '+(audio.muted?'Sound muted':'Sound enabled')+' · '+(audio.mono?'Mono':'Stereo')+' · '+mix;
   }
   window.addEventListener('riftaudiochange',refreshSummary);window.addEventListener('riftmotionchange',refreshSummary);
