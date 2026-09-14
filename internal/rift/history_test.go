@@ -440,3 +440,38 @@ func TestClearResultDistinguishesFirstRepeatAndImprovedRecords(t *testing.T) {
 		t.Fatal("early exit presented as clear")
 	}
 }
+
+func TestPersonalRecordDatesChangeOnlyWhenRecordImproves(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	var previous *Run
+	for index, seconds := range []float64{20, 20, 15} {
+		r := NewRunAtLevel("dated", Build{HP: 100}, time.Unix(int64(100+100*index), 0), catalog, 1)
+		r.InheritCampaignHistory(previous)
+		r.Stats.Seconds = seconds
+		r.finishMissionHistory("completed")
+		h := r.History[1]
+		wantTime := int64(100000)
+		if index == 2 {
+			wantTime = 300000
+		}
+		if h.BestSecondsAtMS != wantTime || h.BestFinishHPAtMS != 100000 || h.FewestHitsAtMS != 100000 {
+			t.Fatalf("incorrect record dates: %+v", h)
+		}
+		data, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var saved Run
+		if err := json.Unmarshal(data, &saved); err != nil {
+			t.Fatal(err)
+		}
+		previous = &saved
+	}
+	legacy := NewRunAtLevel("legacy", Build{HP: 100}, time.Unix(500, 0), catalog, 1)
+	legacy.History[1] = MissionHistory{Attempts: 1, BestSeconds: 10, BestFinishHP: 100}
+	legacy.Stats.Seconds = 20
+	legacy.finishMissionHistory("completed")
+	if legacy.History[1].BestSecondsAtMS != 0 || legacy.History[1].BestFinishHPAtMS != 0 {
+		t.Fatal("invented dates for older records")
+	}
+}

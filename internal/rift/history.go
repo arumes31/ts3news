@@ -12,6 +12,9 @@ type ClearResult struct {
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
+	BestSecondsAtMS  int64          `json:"best_seconds_at_ms,omitempty"`
+	BestFinishHPAtMS int64          `json:"best_finish_hp_at_ms,omitempty"`
+	FewestHitsAtMS   int64          `json:"fewest_hits_at_ms,omitempty"`
 	FlawlessTiers    []int          `json:"flawless_tiers,omitempty"`
 	FewestHits       *int           `json:"fewest_hits,omitempty"`
 	Attempts         int            `json:"attempts"`
@@ -57,6 +60,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 			hits := r.Stats.HitsTaken - *r.MissionStartHits
 			if hits >= 0 && (h.FewestHits == nil || hits < *h.FewestHits) {
 				h.FewestHits = &hits
+				h.FewestHitsAtMS = r.LastMS
 				r.LastClear.Records = append(r.LastClear.Records, "hits")
 			}
 		}
@@ -71,11 +75,13 @@ func (r *Run) finishMissionHistory(outcome string) {
 		if r.Player.HP > h.BestFinishHP {
 			r.LastClear.Records = append(r.LastClear.Records, "health")
 			h.BestFinishHP = r.Player.HP
+			h.BestFinishHPAtMS = r.LastMS
 			h.BestFinishMaxHP = r.Player.MaxHP
 		}
 		elapsed := r.Stats.Seconds - r.MissionStartSeconds
 		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
+			h.BestSecondsAtMS = r.LastMS
 			r.LastClear.Records = append(r.LastClear.Records, "time")
 		}
 	} else {
@@ -111,6 +117,9 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		current.Attempts += old.Attempts
 		current.Completions = old.Completions
 		current.BestSeconds = old.BestSeconds
+		current.BestSecondsAtMS = old.BestSecondsAtMS
+		current.BestFinishHPAtMS = old.BestFinishHPAtMS
+		current.FewestHitsAtMS = old.FewestHitsAtMS
 		current.FewestHits = old.FewestHits
 		current.BestFinishHP = old.BestFinishHP
 		current.BestFinishMaxHP = old.BestFinishMaxHP

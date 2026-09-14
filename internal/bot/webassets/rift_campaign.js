@@ -15,6 +15,7 @@
   if(!['mission','best','recent'].includes(view.sort))view.sort='mission';
   const outcomeNames={active:'In progress',completed:'Finished',defeated:'Defeated',exited:'Left early',expired:'Expired'};
   const record=id=>history[id];
+  const recordDate=stamp=>Number.isSafeInteger(stamp)&&stamp>0&&stamp<=8640000000000000?' ('+new Date(stamp).toLocaleString()+')':'';
   const best=id=>Number.isFinite(record(id)?.best_seconds)&&record(id).best_seconds>0?record(id).best_seconds:Infinity;
   const recent=id=>Number.isFinite(record(id)?.last_started_ms)?record(id).last_started_ms:0;
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -33,8 +34,8 @@
       const entry=record(id),note=button.querySelector('.rift-mission-history');
       note.hidden=!entry&&!completed.has(id);
       const classClears=Object.entries(entry?.completed_by_class||{}).filter(([name,count])=>name&&Number.isSafeInteger(count)&&count>0).sort(([a],[b])=>a.localeCompare(b)).map(([name,count])=>name.charAt(0).toUpperCase()+name.slice(1)+' ×'+count).join(', ');
-      note.textContent=entry?entry.attempts+' recorded '+(entry.attempts===1?'attempt':'attempts')+' · '+(outcomeNames[entry.last_outcome]||'Outcome unavailable')+(Number.isFinite(best(id))?' · Best '+best(id).toFixed(1)+'s':'')+(Number.isFinite(entry.best_finish_hp)&&entry.best_finish_hp>0&&Number.isFinite(entry.best_finish_max_hp)&&entry.best_finish_max_hp>0?' · Most HP at finish '+entry.best_finish_hp.toFixed(1)+'/'+entry.best_finish_max_hp.toFixed(1):''): 'Completed before attempt tracking';
-      if(Number.isSafeInteger(entry?.fewest_hits)&&entry.fewest_hits>=0)note.textContent+=' · Fewest damaging hits '+entry.fewest_hits;
+      note.textContent=entry?entry.attempts+' recorded '+(entry.attempts===1?'attempt':'attempts')+' · '+(outcomeNames[entry.last_outcome]||'Outcome unavailable')+(Number.isFinite(best(id))?' · Best '+best(id).toFixed(1)+'s'+recordDate(entry.best_seconds_at_ms):'')+(Number.isFinite(entry.best_finish_hp)&&entry.best_finish_hp>0&&Number.isFinite(entry.best_finish_max_hp)&&entry.best_finish_max_hp>0?' · Most HP at finish '+entry.best_finish_hp.toFixed(1)+'/'+entry.best_finish_max_hp.toFixed(1)+recordDate(entry.best_finish_hp_at_ms):''): 'Completed before attempt tracking';
+      if(Number.isSafeInteger(entry?.fewest_hits)&&entry.fewest_hits>=0)note.textContent+=' · Fewest damaging hits '+entry.fewest_hits+recordDate(entry.fewest_hits_at_ms);
       const flawless=Array.isArray(entry?.flawless_tiers)?entry.flawless_tiers.filter(tier=>Number.isInteger(tier)&&tier>=1&&tier<=3):[];
       if(flawless.length)note.textContent+=' · Flawless tiers '+flawless.join(', ');
       if(classClears)note.textContent+=' · Recorded subclass clears: '+classClears;
