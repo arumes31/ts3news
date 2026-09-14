@@ -4,9 +4,12 @@
   const assetURL=path=>path+(window.__ASSET_VER__?'?v='+encodeURIComponent(window.__ASSET_VER__):'');
   function profile(unit){return art.actorProfile({...unit,role:unit.kind==='boss'?'boss':unit.kind});}
   function frame(unit,pose,index){return art.actorFrame({...unit,role:unit.kind==='boss'?'boss':unit.kind},pose,index);}
-  function render(roster){
+  let records={},practice=false,recordKey='';
+  function update(run){const next=run?.monster_records||{},isPractice=!!run?.practice||!!document.getElementById("rift-app").dataset.practice,key=JSON.stringify([next,isPractice]);if(key===recordKey)return;recordKey=key;records=next;practice=isPractice;if(render.refreshRecords)render.refreshRecords();}
+  function render(roster,run){
     const list=document.getElementById('rift-monsters'),search=document.getElementById('rift-monster-search');
     const root=list.closest('details'),panel=document.getElementById('rift-monster-detail');
+    const encountered=document.getElementById('rift-monster-seen');
     const tier=document.getElementById('rift-monster-tier'),element=document.getElementById('rift-monster-element'),style=document.getElementById('rift-monster-style');
     const poseSelect=document.getElementById('rift-monster-pose'),preview=document.getElementById('rift-monster-preview');
     const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -40,6 +43,10 @@
     function close(){window.RiftAudio.cancelPreview();selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;
     panel.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}};
+    function showRecord(){
+      if(!selected)return;const record=records[selected.art_key];
+      document.getElementById('rift-monster-record').textContent=practice?'Campaign records are shown in campaign mode. Practice does not add encounters or defeats.':record?'First recorded encounter: '+new Date(record.first_seen_ms).toLocaleString()+' · Defeats: '+record.defeats+'. Older fights may be missing.':'No recorded encounter. Older fights may be missing.';
+    }
     function inspect(unit,button){
       window.RiftAudio.cancelPreview();selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
       const title=document.getElementById('rift-monster-title');title.textContent=unit.name;
@@ -53,7 +60,7 @@
         previewButton.onclick=async()=>{previewButton.disabled=true;try{const played=await window.RiftAudio.previewCue(cue);if(selected===unit&&!panel.hidden)soundStatus.textContent=played?'Previewing '+label+' for '+unit.name+'.':window.RiftAudio.muted?'Sound is muted. Unmute to preview.':'Audio is unavailable or blocked by the browser.';}finally{previewButton.disabled=false;}};
         sounds.append(previewButton);
       }
-      animate();title.focus();
+      showRecord();animate();title.focus();
     }
     document.getElementById('rift-monster-count').textContent=roster.length+' monsters';
     list.replaceChildren();
@@ -68,9 +75,12 @@
       });
       filter();
     }
-    function filter(){let visible=0;for(const item of list.children){item.hidden=!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}document.getElementById('rift-monsters-empty').hidden=visible>0;document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
+    function filter(){let visible=0;for(const item of list.children){item.hidden=(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}document.getElementById('rift-monsters-empty').hidden=visible>0;document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
+    encountered.onchange=filter;
+    render.refreshRecords=()=>{encountered.disabled=practice;if(practice)encountered.checked=false;showRecord();if(built)filter();};
+    update(run);render.refreshRecords();
     search.oninput=filter;[tier,element,style].forEach(select=>select.onchange=filter);
-    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';filter();search.focus();};onToggle();
+    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;filter();search.focus();};onToggle();
   }
-  window.RiftBestiary={profile,frame,render,assetURL,assets:art.atlasAssets};
+  window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets};
 })();

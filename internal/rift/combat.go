@@ -120,52 +120,53 @@ type Event struct {
 }
 
 type Run struct {
-	Practice            *PracticeState         `json:"practice,omitempty"`
-	ClearStreak         int                    `json:"clear_streak,omitempty"`
-	BestClearStreak     int                    `json:"best_clear_streak,omitempty"`
-	RoomSplits          [3]*float64            `json:"room_splits"`
-	PauseStartedMS      *int64                 `json:"pause_started_ms,omitempty"`
-	RoomStartSeconds    *float64               `json:"room_start_seconds,omitempty"`
-	RoomStartHits       *int                   `json:"room_start_hits,omitempty"`
-	MissionStartHits    *int                   `json:"mission_start_hits,omitempty"`
-	History             map[int]MissionHistory `json:"mission_history,omitempty"`
-	MissionStartSeconds float64                `json:"mission_start_seconds,omitempty"`
-	HistoryActive       bool                   `json:"history_active,omitempty"`
-	Stats               CombatStats            `json:"stats"`
-	Level               *Level                 `json:"level,omitempty"`
-	CompletedLevels     []int                  `json:"completed_levels,omitempty"`
-	EncounterPlan       [][]Actor              `json:"encounter_plan,omitempty"`
-	Resource            int                    `json:"resource"`
-	Marked              string                 `json:"marked"`
-	Barrier             float64                `json:"barrier"`
-	BarrierSources      map[string]float64     `json:"barrier_sources,omitempty"`
-	Schema              int                    `json:"schema"`
-	ID                  string                 `json:"id"`
-	StartKey            string                 `json:"start_key"`
-	Epoch               string                 `json:"epoch"`
-	Revision            int                    `json:"revision"`
-	Room                int                    `json:"room"`
-	Status              string                 `json:"status"`
-	Paused              bool                   `json:"paused"`
-	Build               Build                  `json:"build"`
-	Player              Actor                  `json:"player"`
-	Enemies             []Actor                `json:"enemies"`
-	Projectiles         []Projectile           `json:"projectiles"`
-	Drops               []Drop                 `json:"drops"`
-	Events              []Event                `json:"events"`
-	SkillTimers         map[string]float64     `json:"skill_timers"`
-	Gold                int64                  `json:"gold"`
-	BankedAtMS          int64                  `json:"banked_at_ms,omitempty"`
-	AttemptHistory      []AttemptRecord        `json:"attempt_history,omitempty"`
-	LastClear           *ClearResult           `json:"last_clear,omitempty"`
-	PastExpeditions     CareerTotals           `json:"past_expeditions"`
-	BankedGold          int64                  `json:"banked_gold"`
-	BankedLoot          []BankedLoot           `json:"banked_loot,omitempty"`
-	BankedItems         []string               `json:"banked_items"`
-	Clock               float64                `json:"clock"`
-	LastMS              int64                  `json:"last_ms"`
-	Counter             int                    `json:"counter"`
-	Combo               int                    `json:"combo"`
+	MonsterRecords      map[string]MonsterRecord `json:"monster_records,omitempty"`
+	Practice            *PracticeState           `json:"practice,omitempty"`
+	ClearStreak         int                      `json:"clear_streak,omitempty"`
+	BestClearStreak     int                      `json:"best_clear_streak,omitempty"`
+	RoomSplits          [3]*float64              `json:"room_splits"`
+	PauseStartedMS      *int64                   `json:"pause_started_ms,omitempty"`
+	RoomStartSeconds    *float64                 `json:"room_start_seconds,omitempty"`
+	RoomStartHits       *int                     `json:"room_start_hits,omitempty"`
+	MissionStartHits    *int                     `json:"mission_start_hits,omitempty"`
+	History             map[int]MissionHistory   `json:"mission_history,omitempty"`
+	MissionStartSeconds float64                  `json:"mission_start_seconds,omitempty"`
+	HistoryActive       bool                     `json:"history_active,omitempty"`
+	Stats               CombatStats              `json:"stats"`
+	Level               *Level                   `json:"level,omitempty"`
+	CompletedLevels     []int                    `json:"completed_levels,omitempty"`
+	EncounterPlan       [][]Actor                `json:"encounter_plan,omitempty"`
+	Resource            int                      `json:"resource"`
+	Marked              string                   `json:"marked"`
+	Barrier             float64                  `json:"barrier"`
+	BarrierSources      map[string]float64       `json:"barrier_sources,omitempty"`
+	Schema              int                      `json:"schema"`
+	ID                  string                   `json:"id"`
+	StartKey            string                   `json:"start_key"`
+	Epoch               string                   `json:"epoch"`
+	Revision            int                      `json:"revision"`
+	Room                int                      `json:"room"`
+	Status              string                   `json:"status"`
+	Paused              bool                     `json:"paused"`
+	Build               Build                    `json:"build"`
+	Player              Actor                    `json:"player"`
+	Enemies             []Actor                  `json:"enemies"`
+	Projectiles         []Projectile             `json:"projectiles"`
+	Drops               []Drop                   `json:"drops"`
+	Events              []Event                  `json:"events"`
+	SkillTimers         map[string]float64       `json:"skill_timers"`
+	Gold                int64                    `json:"gold"`
+	BankedAtMS          int64                    `json:"banked_at_ms,omitempty"`
+	AttemptHistory      []AttemptRecord          `json:"attempt_history,omitempty"`
+	LastClear           *ClearResult             `json:"last_clear,omitempty"`
+	PastExpeditions     CareerTotals             `json:"past_expeditions"`
+	BankedGold          int64                    `json:"banked_gold"`
+	BankedLoot          []BankedLoot             `json:"banked_loot,omitempty"`
+	BankedItems         []string                 `json:"banked_items"`
+	Clock               float64                  `json:"clock"`
+	LastMS              int64                    `json:"last_ms"`
+	Counter             int                      `json:"counter"`
+	Combo               int                      `json:"combo"`
 }
 
 type Input struct {
@@ -203,6 +204,7 @@ func (r *Run) spawnRoom() {
 		r.EncounterPlan = planEncounters(r.ID, content.AbyssMobCatalog())
 	}
 	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
+	r.observeRoomMonsters()
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
@@ -241,6 +243,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
 		return
 	}
+	r.observeRoomMonsters()
 	for dt > .000001 {
 		slice := math.Min(dt, 1.0/30)
 		r.tick(in, slice)
@@ -506,6 +509,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		return
 	}
 	if e.HP == 0 {
+		r.recordMonsterDefeat(*e)
 		r.Stats.Kills++
 		if e.Kind == "treasure" {
 			r.Stats.TreasureGoblins++

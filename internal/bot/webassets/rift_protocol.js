@@ -31,6 +31,7 @@
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
       (!value.level||level(value.level))&&(value.practice===undefined||object(value.practice)&&["movement","jump","combo","guard","hazard"].includes(value.practice.mode)&&nonnegative(value.practice.goal_x)&&Number.isSafeInteger(value.practice.hits)&&value.practice.hits>=0&&typeof value.practice.completed==="boolean"&&arena(value.practice.arena)&&(value.practice.dodges===undefined||Number.isSafeInteger(value.practice.dodges)&&value.practice.dodges>=0))&&optionalList(value.encounter_plan,room=>list(room,actor))&&
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&
+      (value.monster_records===undefined||object(value.monster_records)&&Object.values(value.monster_records).every(record=>object(record)&&Number.isSafeInteger(record.first_seen_ms)&&record.first_seen_ms>=0&&record.first_seen_ms<=8640000000000000&&Number.isSafeInteger(record.defeats)&&record.defeats>=0))&&
       (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
       (value.last_clear===undefined||object(value.last_clear)&&Number.isInteger(value.last_clear.mission)&&value.last_clear.mission>=1&&value.last_clear.mission<=100&&typeof value.last_clear.first==='boolean'&&list(value.last_clear.records,key=>['time','health','hits'].includes(key)))&&
       (value.room_splits===undefined||splits(value.room_splits))&&

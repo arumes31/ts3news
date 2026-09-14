@@ -89,7 +89,7 @@
       <label>Tier<select id="rift-monster-tier"><option value="">All tiers</option></select></label>
       <label>Element<select id="rift-monster-element"><option value="">All elements</option></select></label>
       <label>Attack style<select id="rift-monster-style"><option value="">All styles</option></select></label>
-      <button type="button" id="rift-monster-clear">Clear filters</button>
+      <label><input type="checkbox" id="rift-monster-seen"> Recorded encounters only</label><button type="button" id="rift-monster-clear">Clear filters</button>
     </div>
     <p id="rift-monster-matches" role="status"></p>
     <section id="rift-monster-detail" class="rift-monster-detail" aria-labelledby="rift-monster-title" hidden>
@@ -97,7 +97,7 @@
       <span id="rift-monster-preview" class="rift-monster-art" aria-hidden="true"></span>
       <label>Preview animation<select id="rift-monster-pose"><option value="idle">Idle</option><option value="run">Run</option><option value="attack">Attack</option><option value="hurt">Hurt</option><option value="defeat">Defeat</option></select></label>
       <div id="rift-monster-sounds" aria-label="Creature sound previews"></div><p id="rift-monster-sound-status" class="rift-fine" role="status"></p><p class="rift-fine">Preview the shared Brawl combat cues for this creature. Uses your current mute and sound mix settings.</p>
-      <dl id="rift-monster-stats"></dl><p id="rift-monster-tip"></p>
+      <p id="rift-monster-record" class="rift-fine"></p><dl id="rift-monster-stats"></dl><p id="rift-monster-tip"></p>
       <p class="rift-fine">Base Brawl stats. Mission difficulty and room depth scale these values in combat.</p>
     </section>
     <div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters. Clear filters or try another name.</p>
