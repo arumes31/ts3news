@@ -150,6 +150,58 @@ func TestMissionHistorySubclassClearsUseFrozenBuildAndDoNotAlias(t *testing.T) {
 	}
 }
 
+func TestMissionHistoryFewestHitsIncludesZeroAndExcludesPartialLegacy(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	var previous *Run
+	for i, hits := range []int{2, 4, 0} {
+		r := NewRunAtLevel("attempt", Build{HP: 240}, time.Unix(int64(100+i), 0), catalog, 4)
+		r.InheritCampaignHistory(previous)
+		r.Stats.HitsTaken = hits
+		r.Status = "cleared"
+		r.Room = 2
+		r.FinishCheckpoint("bank", catalog)
+		want := 2
+		if hits == 0 {
+			want = 0
+		}
+		if r.History[4].FewestHits == nil || *r.History[4].FewestHits != want {
+			t.Fatalf("wrong best hit count: %+v", r.History[4])
+		}
+		previous = r
+	}
+	data, err := json.Marshal(previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err = json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.History[4].FewestHits == nil || *restored.History[4].FewestHits != 0 {
+		t.Fatal("zero record lost after saving")
+	}
+	advance := NewRunAtLevel("advance", Build{HP: 240}, time.Unix(109, 0), catalog, 6)
+	advance.Stats.HitsTaken = 5
+	advance.Status = "cleared"
+	advance.Room = 2
+	advance.FinishCheckpoint("advance", catalog)
+	advance.Stats.HitsTaken = 6
+	advance.Status = "cleared"
+	advance.Room = 2
+	advance.FinishCheckpoint("bank", catalog)
+	if advance.History[7].FewestHits == nil || *advance.History[7].FewestHits != 1 {
+		t.Fatal("hits carried across mission boundary")
+	}
+	legacy := NewRunAtLevel("legacy", Build{HP: 240}, time.Unix(110, 0), catalog, 5)
+	legacy.MissionStartHits = nil
+	legacy.Status = "cleared"
+	legacy.Room = 2
+	legacy.FinishCheckpoint("bank", catalog)
+	if legacy.History[5].FewestHits != nil {
+		t.Fatal("partial legacy attempt invented a flawless record")
+	}
+}
+
 func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	now := time.Unix(100, 0)

@@ -284,3 +284,23 @@ func TestCombatStatsExcludeOverhealAndPausedTime(t *testing.T) {
 		t.Fatal("pause or checkpoint time inflated combat duration")
 	}
 }
+
+func TestDamagingHitsExcludeFullAbsorptionAndRepeatedDeath(t *testing.T) {
+	r := testRun()
+	r.Build.Armor = 0
+	r.Barrier = 50
+	r.hurtPlayer(30, 0, 0)
+	if r.Stats.HitsTaken != 0 {
+		t.Fatal("absorbed hit counted")
+	}
+	r.hurtPlayer(30, 0, 0)
+	if r.Stats.HitsTaken != 1 {
+		t.Fatal("partially absorbed damage was not counted")
+	}
+	r.Player.HP = 1
+	r.hurtPlayer(100, 0, 0)
+	r.hurtPlayer(100, 0, 0)
+	if r.Stats.HitsTaken != 2 {
+		t.Fatal("death counted more than once")
+	}
+}

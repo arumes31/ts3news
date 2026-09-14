@@ -120,6 +120,7 @@ type Event struct {
 }
 
 type Run struct {
+	MissionStartHits    *int                   `json:"mission_start_hits,omitempty"`
 	History             map[int]MissionHistory `json:"mission_history,omitempty"`
 	MissionStartSeconds float64                `json:"mission_start_seconds,omitempty"`
 	HistoryActive       bool                   `json:"history_active,omitempty"`
@@ -506,6 +507,9 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	damage = math.Min(p.HP, damage)
 	p.HP = math.Max(0, p.HP-damage)
 	r.Stats.DamageTaken += damage
+	if damage > 0 {
+		r.Stats.HitsTaken++
+	}
 	p.Pose = "hit"
 	p.PoseTime = .18
 	r.event(kind, p.X, p.Y-30, damage)
