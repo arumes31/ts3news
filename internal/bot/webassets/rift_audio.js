@@ -5,6 +5,7 @@
   function levelSetting(key,fallback){const value=setting(key,fallback);return typeof value==='number'&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):fallback;}
   const audio = { context: null, muted: setting('muted', false)===true, effects: levelSetting('effects', .65), ambience: levelSetting('ambience', .35), played: 0, voices: 0 };
   audio.music=levelSetting('music',audio.ambience);audio.voice=levelSetting('voice',audio.effects);audio.interface=levelSetting('interface',audio.effects);audio.mono=setting('mono',false)===true;
+  audio.steadyAmbience=setting('steadyAmbience',false)===true;
   audio.interfaceMuted=setting('interfaceMuted',false)===true;
   const channelLevel=key=>key==='interface'&&audio.interfaceMuted?0:audio[key];
   let master, sfx, ambient, music, voice, interfaceBus, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
@@ -124,7 +125,7 @@
     nextBird = c.currentTime + 2;
   };
   audio.tick = function () {
-    if (!active || !audio.context || audio.context.state !== 'running') return;
+    if (!active || audio.steadyAmbience || !audio.context || audio.context.state !== 'running') return;
     const c = audio.context;
     if (c.currentTime > nextBird) {
       if (room < 2) { tone(1800,2400,.13,.024,'sine',0,-.6,ambient); tone(2100,1600,.16,.02,'sine',.2,.5,ambient); }
@@ -138,12 +139,12 @@
     else{stopAmbience();stopVoices();if(audio.context&&audio.context.state==='running'){try{await audio.context.suspend();}catch(_){}}}
   };
   audio.set = function (key, value) {
-    if(!['muted','mono','interfaceMuted',...Object.keys(buses())].includes(key))return;
-    audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'?!!value:clamp(value);save(key,audio[key]);
+    if(!['muted','mono','interfaceMuted','steadyAmbience',...Object.keys(buses())].includes(key))return;
+    audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);save(key,audio[key]);
     window.dispatchEvent(new Event('riftaudiochange'));
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
-  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false}))audio.set(key,value);};
+  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false}))audio.set(key,value);};
   const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
