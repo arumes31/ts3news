@@ -95,10 +95,11 @@
     <details id="rift-compare"><summary>Compare two creatures</summary><div class="rift-compare-pickers"><label>First creature<select id="rift-compare-left"><option value="">Choose a creature</option></select></label><label>Second creature<select id="rift-compare-right"><option value="">Choose a creature</option></select></label><button id="rift-compare-clear" type="button">Clear comparison</button></div><p id="rift-compare-status" class="rift-fine" role="status">Choose two creatures to compare their base stats.</p><table id="rift-monster-comparison" hidden></table></details>
     <section id="rift-monster-detail" class="rift-monster-detail" aria-labelledby="rift-monster-title" hidden>
       <div><h3 id="rift-monster-title" tabindex="-1"></h3><button type="button" id="rift-monster-close">Close monster details</button></div>
+      <p id="rift-monster-quick-summary"></p>
       <span id="rift-monster-preview" class="rift-monster-art" aria-hidden="true"></span>
       <label>Preview animation<select id="rift-monster-pose"><option value="idle">Idle</option><option value="run">Run</option><option value="attack">Attack</option><option value="hurt">Hurt</option><option value="defeat">Defeat</option></select></label>
       <div id="rift-monster-sounds" aria-label="Creature sound previews"></div><p id="rift-monster-sound-status" class="rift-fine" role="status"></p><p class="rift-fine">Preview the shared Brawl combat cues for this creature. Uses your current mute and sound mix settings.</p>
-      <p id="rift-monster-record" class="rift-fine"></p><dl id="rift-monster-stats"></dl><p id="rift-monster-tip"></p>
+      <p id="rift-monster-record" class="rift-fine"></p><details id="rift-monster-stat-details"><summary>Full stats and training</summary><dl id="rift-monster-stats"></dl></details><p id="rift-monster-tip"></p>
       <p class="rift-fine">Base Brawl stats. Mission difficulty and room depth scale these values in combat.</p>
     </section>
     <div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters. Clear filters or try another name.</p>

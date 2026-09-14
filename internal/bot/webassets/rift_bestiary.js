@@ -23,6 +23,7 @@
     }
     options(tier,roster.map(unit=>unit.tier));options(element,roster.map(elementName));options(style,roster.map(attackStyle));
     if(render.cleanup)render.cleanup();
+    document.getElementById('rift-monster-stat-details').open=!window.matchMedia('(max-width:600px)').matches;
     let selected=null,opener=null,timer=null,tick=0,built=false;
     panel.hidden=true;
     function paint(){
@@ -55,6 +56,7 @@
     function inspect(unit,button){
       window.RiftAudio.cancelPreview();selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
       const title=document.getElementById('rift-monster-title');title.textContent=unit.name;
+      document.getElementById('rift-monster-quick-summary').textContent=attackStyle(unit)+' · '+elementName(unit)+(unit.training?' · Windup '+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s':'');
       const stats=document.getElementById('rift-monster-stats');stats.replaceChildren();
       const values=statsFor(unit);
       values.forEach(([label,value])=>{const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;row.append(dt,dd);stats.append(row);});
