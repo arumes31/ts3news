@@ -23,5 +23,5 @@ test('career display sums recorded expeditions and validates saved totals',async
  });
  expect(validation).toEqual([true,false,false,false,false,false,true]);
  for(const [label,count] of [['Enemies defeated','104'],['Bosses defeated','11'],['Treasure goblins defeated','5'],['Gold banked','230'],['Gear pieces banked','9']])await expect(value(page,label)).toHaveText(count);
- await page.locator('.rift-run-statistics > summary').click();await expect(page.locator('.rift-run-statistics')).toContainText('Older expeditions without saved records are not included');
+ await page.locator('.rift-run-statistics > summary').click();await expect(page.locator('.rift-run-statistics')).toContainText('Older expeditions without saved records are not included');await expect(page.locator('.rift-run-statistics')).toContainText('Mission completion, personal bests, subclass clears and career totals survive economy resets');await expect(page.locator('.rift-run-statistics')).toContainText('A reset expires the current expedition and removes its unbanked loot');
 });

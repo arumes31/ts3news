@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +15,17 @@ import (
 	"ts3news/internal/content"
 	"ts3news/internal/rift"
 )
+
+type riftSnapshotCheck func(*rift.Run) bool
+
+func (check riftSnapshotCheck) Match(value driver.Value) bool {
+	saved, ok := value.(string)
+	if !ok {
+		return false
+	}
+	var run rift.Run
+	return json.Unmarshal([]byte(saved), &run) == nil && check(&run)
+}
 
 func TestRiftLootCapsMatchMissionPreviews(t *testing.T) {
 	for room, expected := range []content.Rarity{content.RarityEpic, content.RarityEpic, content.RarityLegendary} {
@@ -59,6 +71,10 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			if advance {
 				run = rift.NewRunAtLevel("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
 				run.Room = 2
+				run.Build.Class = "vanguard"
+				run.Stats.Seconds = 20
+				run.Stats.HitsTaken = 2
+				run.Player.HP = 120
 			}
 			run.Status = "cleared"
 			run.Epoch = "2"
@@ -100,7 +116,14 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", request.RequestID, "run", "").WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "ABYSS_TEST", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(30), "owner").WillReturnResult(sqlmock.NewResult(0, 1))
-				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", sqlmock.AnyArg())
+				var snapshot sqlmock.Argument = sqlmock.AnyArg()
+				if advance {
+					snapshot = riftSnapshotCheck(func(saved *rift.Run) bool {
+						h := saved.History[10]
+						return saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
+					})
+				}
+				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)
 				if scenario == "state failure" || scenario == "advance failure" {
 					write.WillReturnError(errors.New("disk unavailable"))
 					mock.ExpectRollback()
@@ -128,11 +151,14 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				if out.BankedAtMS != wantBankedAt {
 					t.Fatalf("bank timestamp changed or missing: %d", out.BankedAtMS)
 				}
+				if advance && (out.History[10].Completions != 1 || out.History[10].CompletedByClass["vanguard"] != 1 || out.ClearStreak != 1 || out.History[10].BestSeconds != 20) {
+					t.Fatalf("request replay altered records: %+v", out.History[10])
+				}
 				if advance && (out.Level.ID != 11 || out.Room != 0 || out.Status != "fighting" || len(out.CompletedLevels) != 1 || out.CompletedLevels[0] != 10) {
 					t.Fatalf("advance lost persisted state: %+v", out)
 				}
-			} else if err == nil {
-				t.Fatal("invalid or failed settlement accepted")
+			} else if err == nil || out != nil {
+				t.Fatal("invalid or failed settlement returned uncommitted records")
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal(err)
@@ -199,7 +225,8 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	old.Stats.Kills = 7
 	old.Stats.Bosses = 1
 	old.Stats.TreasureGoblins = 2
-	old.History[10] = rift.MissionHistory{Attempts: 3, Completions: 2, BestSeconds: 45, LastOutcome: "completed"}
+	fewest := 0
+	old.History[10] = rift.MissionHistory{Attempts: 3, Completions: 2, BestSeconds: 45, LastOutcome: "completed", BestFinishHP: 150, BestFinishMaxHP: 200, FewestHits: &fewest, FlawlessTiers: []int{1, 3}, CompletedByClass: map[string]int{"vanguard": 2}}
 	data, err := json.Marshal(old)
 	if err != nil {
 		t.Fatal(err)
@@ -222,6 +249,10 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	}
 	if run.History[10].Attempts != 3 || run.History[10].BestSeconds != 45 || run.History[42].Attempts != 1 {
 		t.Fatalf("history lost: %+v", run.History)
+	}
+	h := run.History[10]
+	if h.BestFinishHP != 150 || h.BestFinishMaxHP != 200 || h.FewestHits == nil || *h.FewestHits != 0 || len(h.FlawlessTiers) != 2 || h.CompletedByClass["vanguard"] != 2 {
+		t.Fatalf("fresh expedition lost personal records: %+v", h)
 	}
 	// A retry of the same start must return the saved first attempt, without
 	// another write or increment.
@@ -286,6 +317,8 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	run.BankedItems = []string{"Sword"}
 	run.Stats.Kills = 5
 	run.PastExpeditions = rift.CareerTotals{Enemies: 10, Gold: 20, Gear: 2}
+	run.CompletedLevels = []int{1}
+	run.History = map[int]rift.MissionHistory{1: {Completions: 1, BestSeconds: 12, BestFinishHP: 150, CompletedByClass: map[string]int{"vanguard": 1}}}
 	encoded, err := json.Marshal(run)
 	if err != nil {
 		t.Fatal(err)
@@ -298,6 +331,9 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	}
 	if totals := got.RecordedTotals(); totals != (rift.CareerTotals{Enemies: 15, Gold: 100, Gear: 3}) {
 		t.Fatalf("economy reset erased career totals: %+v", totals)
+	}
+	if len(got.CompletedLevels) != 1 || got.History[1].BestSeconds != 12 || got.History[1].BestFinishHP != 150 || got.History[1].CompletedByClass["vanguard"] != 1 {
+		t.Fatalf("economy reset erased mission records: %+v", got.History)
 	}
 	if got.Status != "expired" || got.ID != "old-run" || got.Gold != 0 {
 		t.Fatalf("cannot recover expired expedition: %+v", got)
