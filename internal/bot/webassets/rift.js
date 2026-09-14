@@ -41,14 +41,14 @@
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
+  function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function update(value, replay) {
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
     else if(!clearedAt) clearedAt = performance.now();
-    run=value;window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);
+    run=value;window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     $('rift-settings-return').disabled=!controlsEnabled;
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}

@@ -64,5 +64,6 @@
   }
   window.addEventListener('gamepaddisconnected',event=>{if(identity.startsWith(String(event.gamepad.index)+':'))disconnect('Controller disconnected. Expedition paused.');});
   window.addEventListener('keydown',()=>device(false),true);window.addEventListener('pointerdown',()=>device(false),true);
-  window.RiftGamepad={init(value){callbacks=value;function frame(){poll();requestAnimationFrame(frame);}frame();},reset,consume(){const actions=new Set([...held,...taps]);taps.clear();return {x,y,actions};},get active(){return active;},label(action){return names[action]||(action.startsWith('skill')?(Number(action.slice(5))===selected?'North':'LT / RT'):null);}};
+  function actuator(){try{const pad=[...(navigator.getGamepads?.()||[])].find(p=>p?.connected&&p.mapping==='standard'&&String(p.index)+':'+p.id===identity),value=pad?.vibrationActuator;return value&&typeof value.playEffect==='function'&&(!value.effects||value.effects.includes('dual-rumble'))?value:null;}catch(_){return null;}}
+  window.RiftGamepad={actuator,init(value){callbacks=value;function frame(){poll();requestAnimationFrame(frame);}frame();},reset,consume(){const actions=new Set([...held,...taps]);taps.clear();return {x,y,actions};},get active(){return active;},label(action){return names[action]||(action.startsWith('skill')?(Number(action.slice(5))===selected?'North':'LT / RT'):null);}};
 })();
