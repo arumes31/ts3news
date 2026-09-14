@@ -101,7 +101,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 			}
 		}
 	}
-	if skill.Kind == "ice" && e.Kind != "boss" {
+	if skill.Kind == "ice" && EnemyTraining(e.Kind).Interruptible {
 		e.Windup = 0
 		e.Cooldown = math.Max(e.Cooldown, 1)
 	}

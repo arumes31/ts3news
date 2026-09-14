@@ -312,7 +312,7 @@ func (r *Run) tick(in Input, dt float64) {
 			e := &r.Enemies[i]
 			if e.HP > 0 && math.Abs(e.Y-p.Y) < 32 && (e.X-p.X)*p.Facing >= -10 && (e.X-p.X)*p.Facing < 95 {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit")
-				if r.Combo == 3 && e.HP > 0 && e.Kind != "boss" {
+				if r.Combo == 3 && e.HP > 0 && !EnemyTraining(e.Kind).ResistsKnockdown {
 					e.Knockdown = .55
 					e.Windup = 0
 					if r.Practice == nil || e.ID != "practice-target" {
@@ -648,12 +648,11 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.Pose = "run"
 		}
 	} else if e.Cooldown == 0 {
-		e.Windup = .55
+		e.Windup = EnemyTraining(e.Kind).WindupSeconds
 		e.Pose = "windup"
 		e.TargetX = p.X
 		e.TargetY = p.Y
 		if e.Kind == "boss" {
-			e.Windup = 1.15
 			r.event("boss_roar", e.X, e.Y, 0)
 		}
 	} else if e.PoseTime == 0 {

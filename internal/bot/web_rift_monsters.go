@@ -39,11 +39,17 @@ func riftMobCatalog(now time.Time) []content.Mob {
 	return catalog
 }
 
-func riftBestiary(now time.Time) []rift.Actor {
+type riftBestiaryEntry struct {
+	rift.Actor
+	Training rift.EnemyTrainingProfile `json:"training"`
+}
+
+func riftBestiary(now time.Time) []riftBestiaryEntry {
 	mobs := riftMobCatalog(now)
-	out := make([]rift.Actor, 0, len(mobs))
+	out := make([]riftBestiaryEntry, 0, len(mobs))
 	for _, mob := range mobs {
-		out = append(out, rift.AdaptMonster(mob))
+		actor := rift.AdaptMonster(mob)
+		out = append(out, riftBestiaryEntry{Actor: actor, Training: rift.EnemyTraining(actor.Kind)})
 	}
 	return out
 }
