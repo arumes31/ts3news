@@ -1,6 +1,7 @@
 (function(){
   'use strict';
   const roles={builder:['＋','Builder'],finisher:['◆','Finisher'],ultimate:['★','Ultimate']};
+  const healthCost=(run,skill)=>run.build?.class==='voidwalker'&&skill?.role==='finisher'&&run.resource>0?Math.min(Math.max(0,run.player.hp-1),run.player.max_hp*.05):0;
   function update(button,skill,run,reason,ultimate=false){
     const role=ultimate?'ultimate':skill.role,identity=roles[role];
     let ring=button.querySelector('.rift-cooldown-ring');
@@ -11,10 +12,10 @@
     const remaining=Math.max(0,run.skill_timers[skill.id]||0),duration=Math.max(0,skill.cooldown),cooling=remaining>0;
     ring.style.setProperty('--cooldown-progress',(duration?Math.min(1,remaining/duration)*100:0)+'%');
     ring.hidden=!cooling;
-    const name=skill.name+(identity?' · '+identity[1]:'');
+    const cost=healthCost(run,skill),name=skill.name+(identity?' · '+identity[1]:'')+(cost>0?' · Spends '+cost.toFixed(1)+' HP':'');
     button.setAttribute('aria-label',name+' · '+reason);
     button.title=name+' · '+skill.cost+' MP · '+skill.cooldown+'s cooldown · '+reason;
     button.dataset.abilityRole=identity?role:'optional';
   }
-  window.RiftAbilities={update};
+  window.RiftAbilities={update,healthCost};
 })();

@@ -103,6 +103,24 @@ func TestFinisherStatisticsCountConfirmedSequencesAndEmptyCasts(t *testing.T) {
 	}
 }
 
+func TestVoidFinisherHealthCostRequiresChargesAndLeavesOneHP(t *testing.T) {
+	for _, tc := range []struct {
+		hp      float64
+		charges int
+		want    float64
+	}{{240, 3, 228}, {7, 1, 1}, {1, 3, 1}, {240, 0, 240}} {
+		r := testRun()
+		r.Build.Class = "voidwalker"
+		r.Player.HP = tc.hp
+		r.Resource = tc.charges
+		r.Build.Signatures = []Skill{{ID: "void", Role: "finisher", Kind: "slash", Power: 1}}
+		r.cast("void")
+		if r.Player.HP != tc.want {
+			t.Fatalf("hp=%v charges=%v: got %v want %v", tc.hp, tc.charges, r.Player.HP, tc.want)
+		}
+	}
+}
+
 func TestSkillHitsCountDamagedTargetsAndSurviveProjectileSave(t *testing.T) {
 	r := testRun()
 	r.Build.Skills = []Skill{{ID: "sweep", Kind: "slash", Power: 2}}

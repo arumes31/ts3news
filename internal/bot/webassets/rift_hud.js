@@ -47,6 +47,8 @@
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
+    $('rift-health-cost').hidden=run.build.class!=='voidwalker'||!finisher;
+    if(!$('rift-health-cost').hidden)put($('rift-health-cost'),'Finisher health cost: '+window.RiftAbilities.healthCost(run,finisher).toFixed(1)+' HP'+(run.resource>0?' · leaves at least 1 HP':' · no charges to spend'));
     const builder=run.build.signatures?.find(s=>s.role==='builder');
     coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
