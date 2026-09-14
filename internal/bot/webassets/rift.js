@@ -166,10 +166,11 @@
     $('rift-progress').textContent=completed.length+'/100 completed · Mission '+selectedLevel;
     root.querySelectorAll('.rift-room-name').forEach((node,i)=>node.textContent=level.rooms[i].name.split(' / ')[1]);
     root.querySelectorAll('[data-level]').forEach(button=>{
-      const id=Number(button.dataset.level);button.disabled=!!active;button.setAttribute('aria-pressed',String(id===selectedLevel));
+      const id=Number(button.dataset.level);button.disabled=!!active;button.setAttribute('aria-pressed',String(id===selectedLevel));if(id===selectedLevel)button.setAttribute('aria-current','true');else button.removeAttribute('aria-current');
       button.classList.toggle('completed',completed.includes(id));button.querySelector('small').textContent=completed.includes(id)?'Completed ✓':levels[id-1].difficulty;
     });
     window.RiftCampaignTools.update(run,selectedLevel);
+    window.RiftMission.update(level,run&&active?run.build:build,!!active);
   }
   function campaign(){
     $('rift-levels').replaceChildren();
@@ -185,7 +186,8 @@
     });
     $('rift-campaign').insertBefore($('rift-campaign-tools-extra'),$('rift-level-description'));
     window.RiftCampaignTools.init(levels);
-    selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:window.RiftCampaignTools.preferred();campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
+    const preferred=window.RiftMission.preferred(window.RiftCampaignTools.preferred(),levels);
+    selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:preferred;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
   function loadout(){
     renderer.build(build);
