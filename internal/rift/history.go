@@ -3,13 +3,14 @@ package rift
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
-	Attempts        int     `json:"attempts"`
-	Completions     int     `json:"completions"`
-	LastStartedMS   int64   `json:"last_started_ms"`
-	LastOutcome     string  `json:"last_outcome"`
-	BestSeconds     float64 `json:"best_seconds,omitempty"`
-	BestFinishHP    float64 `json:"best_finish_hp,omitempty"`
-	BestFinishMaxHP float64 `json:"best_finish_max_hp,omitempty"`
+	Attempts         int            `json:"attempts"`
+	Completions      int            `json:"completions"`
+	LastStartedMS    int64          `json:"last_started_ms"`
+	LastOutcome      string         `json:"last_outcome"`
+	BestSeconds      float64        `json:"best_seconds,omitempty"`
+	BestFinishHP     float64        `json:"best_finish_hp,omitempty"`
+	BestFinishMaxHP  float64        `json:"best_finish_max_hp,omitempty"`
+	CompletedByClass map[string]int `json:"completed_by_class,omitempty"`
 }
 
 func (r *Run) beginMissionHistory() {
@@ -36,6 +37,14 @@ func (r *Run) finishMissionHistory(outcome string) {
 	h.LastOutcome = outcome
 	if outcome == "completed" {
 		h.Completions++
+		if r.Build.Class != "" {
+			classes := make(map[string]int, len(h.CompletedByClass)+1)
+			for class, count := range h.CompletedByClass {
+				classes[class] = count
+			}
+			classes[r.Build.Class]++
+			h.CompletedByClass = classes
+		}
 		if r.Player.HP > h.BestFinishHP {
 			h.BestFinishHP = r.Player.HP
 			h.BestFinishMaxHP = r.Player.MaxHP
@@ -72,6 +81,7 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		current.BestSeconds = old.BestSeconds
 		current.BestFinishHP = old.BestFinishHP
 		current.BestFinishMaxHP = old.BestFinishMaxHP
+		current.CompletedByClass = old.CompletedByClass
 	}
 	r.History[r.Level.ID] = current
 	r.CompletedLevels = append([]int(nil), previous.CompletedLevels...)

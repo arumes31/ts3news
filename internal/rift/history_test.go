@@ -112,6 +112,44 @@ func TestMissionHistoryFinishHealthPrecedesRecoveryAndKeepsBest(t *testing.T) {
 	}
 }
 
+func TestMissionHistorySubclassClearsUseFrozenBuildAndDoNotAlias(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	first := NewRunAtLevel("first", Build{HP: 240, Class: "vanguard"}, time.Unix(100, 0), catalog, 4)
+	first.Status = "cleared"
+	first.Room = 2
+	first.FinishCheckpoint("bank", catalog)
+	next := NewRunAtLevel("next", Build{HP: 240, Class: "oracle"}, time.Unix(110, 0), catalog, 4)
+	next.InheritCampaignHistory(first)
+	next.Status = "cleared"
+	next.Room = 2
+	next.FinishCheckpoint("bank", catalog)
+	next.FinishCheckpoint("bank", catalog)
+	if classes := next.History[4].CompletedByClass; classes["vanguard"] != 1 || classes["oracle"] != 1 {
+		t.Fatalf("class clears incorrect: %+v", classes)
+	}
+	if len(first.History[4].CompletedByClass) != 1 {
+		t.Fatal("later completion mutated previous snapshot")
+	}
+	data, err := json.Marshal(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err = json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.History[4].CompletedByClass["oracle"] != 1 {
+		t.Fatal("class records lost on save")
+	}
+	early := NewRunAtLevel("early", Build{HP: 240, Class: "marksman"}, time.Unix(120, 0), catalog, 4)
+	early.InheritCampaignHistory(&restored)
+	early.Status = "cleared"
+	early.FinishCheckpoint("exit", catalog)
+	if len(early.History[4].CompletedByClass) != 2 {
+		t.Fatal("early exit counted as subclass clear")
+	}
+}
+
 func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	now := time.Unix(100, 0)

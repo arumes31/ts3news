@@ -32,7 +32,9 @@
       button.hidden=!matches;button.classList.toggle('favorite',favorites.has(id));if(matches)count++;
       const entry=record(id),note=button.querySelector('.rift-mission-history');
       note.hidden=!entry&&!completed.has(id);
+      const classClears=Object.entries(entry?.completed_by_class||{}).filter(([name,count])=>name&&Number.isSafeInteger(count)&&count>0).sort(([a],[b])=>a.localeCompare(b)).map(([name,count])=>name.charAt(0).toUpperCase()+name.slice(1)+' ×'+count).join(', ');
       note.textContent=entry?entry.attempts+' recorded '+(entry.attempts===1?'attempt':'attempts')+' · '+(outcomeNames[entry.last_outcome]||'Outcome unavailable')+(Number.isFinite(best(id))?' · Best '+best(id).toFixed(1)+'s':'')+(Number.isFinite(entry.best_finish_hp)&&entry.best_finish_hp>0&&Number.isFinite(entry.best_finish_max_hp)&&entry.best_finish_max_hp>0?' · Most HP at finish '+entry.best_finish_hp.toFixed(1)+'/'+entry.best_finish_max_hp.toFixed(1):''): 'Completed before attempt tracking';
+      if(classClears)note.textContent+=' · Recorded subclass clears: '+classClears;
     });
     const grid=$('rift-levels'),cards=Array.from(grid.children),ordered=[...cards].sort((a,b)=>{
       const left=Number(a.dataset.level),right=Number(b.dataset.level);
