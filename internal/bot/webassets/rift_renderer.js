@@ -146,8 +146,7 @@
       if(drop.collected)return;
       const y=drop.y-8+(renderer.reduced||!display.lootMotion?0:Math.sin(now/200)*3),x=drop.x-camera;
       fx(5,0,x,y,34,.7);
-      const slots={weapon:0,offhand:1,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,amulet:13,relic:15};
-      const icon=drop.gear?(slots[String(drop.gear.Slot).toLowerCase()]??9):8,img=images.items,size=drop.gear?36:25;
+      const icon=drop.gear?window.RiftLoot.icon(drop.gear.Slot):8,img=images.items,size=drop.gear?36:25;
       ctx.drawImage(img,icon%4*img.width/4,Math.floor(icon/4)*img.height/4,img.width/4,img.height/4,x-size/2,y-size/2,size,size);
       if(drop.gear){ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(x-57,y-33,114,17);ctx.fillStyle='#d7ecbb';ctx.fillText('ABYSS GEAR',x,y-21);}
     });

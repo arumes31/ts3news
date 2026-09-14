@@ -2,8 +2,8 @@
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
   const keys = new Set(), touch = new Set(), taps = new Set();
-  let starting = false, startIntent = 0;
-  let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, lastBag = '', currentSkillIDs = '';
+  let starting = false, startIntent = 0, checkpointPending = false;
+  let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
   const api = '/api/abyss/rift';
@@ -54,10 +54,8 @@
     const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';$('rift-boss-name').textContent=boss.name;}
     const finalBoss=run.encounter_plan?.[2]?.find(e=>e.kind==='boss')||run.enemies.find(e=>e.kind==='boss');
     $('rift-route-boss').textContent=finalBoss?'Defeat '+finalBoss.name:'Defeat an Abyss boss';
-    $('rift-gold').textContent=run.gold;$('rift-banked').textContent=run.banked_gold+' gold · '+run.banked_items.length+' items';
+    window.RiftLoot.update(run);
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
-    const bag=run.drops.filter(d=>d.collected&&!d.banked&&d.gear),bagKey=bag.map(d=>d.id).join(',');
-    if(lastBag!==bagKey){lastBag=bagKey;$('rift-loot').replaceChildren();if(!bag.length)text('li','Your next discovery is out there.',$('rift-loot'),'rift-empty');bag.forEach(d=>{const li=text('li',d.gear.Name,$('rift-loot'));text('small',d.gear.Slot+' · Ready to bank',li);});}
     const signature=run.build.skills.map(s=>s.id).join(',');
     if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
       currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-skills').append(btn);hold(btn,s.id);});
@@ -77,7 +75,7 @@
     if(['defeated','complete','banked','expired'].includes(run.status)){
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
       const lost=run.status==='defeated';
-      message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. Your equipped gear and banked rewards are safe.':run.banked_gold+' gold and '+run.banked_items.length+' Abyss items are safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
+      message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. Your equipped gear and banked rewards are safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
       root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=false);
       setTimeout(()=>{if(!playing)silence();},1500);
@@ -88,7 +86,7 @@
     busy=true;
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
-    root.querySelectorAll('#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=true);
+    root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=true);
     try {
       const data=await request('POST',body);update(data.run,false);
       if(['bank','exit','next','advance'].includes(kind))audio.play('bank',0);
@@ -96,11 +94,21 @@
     } catch(error){
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       message('Your expedition is saved.',error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
-    } finally {busy=false;root.querySelectorAll('#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=!ready);}
+    } finally {busy=false;$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
+  }
+  async function checkpoint(kind){
+    if(checkpointPending||!playing||run?.status!=='cleared')return false;
+    const identity=run.id,room=run.room,mission=run.level?.id;
+    checkpointPending=true;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=true);
+    try{
+      while(busy)await new Promise(resolve=>setTimeout(resolve,20));
+      if(!playing||document.hidden||run?.id!==identity||run.status!=='cleared'||run.room!==room||run.level?.id!==mission)return false;
+      return await send(kind);
+    }finally{checkpointPending=false;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready);}
   }
   async function loop(){
     if(!playing)return;
-    if(!busy){
+    if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
         if(!clearedAt)clearedAt=performance.now();
         const remaining=Math.max(0,1.2-(performance.now()-clearedAt)/1000);
@@ -191,7 +199,7 @@
     try{
       await renderer.ready;
       artworkReady=true;
-      const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];loadout();campaign();window.RiftBestiary.render(data.bestiary||[]);ready=true;
+      const data=await request('GET');build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[]);ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
@@ -218,9 +226,9 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
-  $('rift-next').addEventListener('click',async()=>{if(await send($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
+  $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
-  $('rift-exit').addEventListener('click',()=>send('exit'));
+  $('rift-exit').addEventListener('click',()=>checkpoint('exit'));
   $('rift-fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('rift-viewport').requestFullscreen();}catch(_){status('Fullscreen is unavailable in this browser.');}});
   function soundLabel(){$('rift-sound').textContent=audio.muted?'Sound off':'Sound on';$('rift-sound').setAttribute('aria-pressed',String(audio.muted));}
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});

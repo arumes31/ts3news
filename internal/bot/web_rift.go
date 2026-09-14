@@ -144,6 +144,14 @@ func riftSignatureKind(style, role, fallback string) string {
 	return fallback
 }
 
+func riftRarities() []map[string]any {
+	var values []map[string]any
+	for rarity := content.RarityCommon; rarity <= content.RarityEternal; rarity++ {
+		values = append(values, map[string]any{"value": int(rarity), "name": rarity.String(), "color": rarity.Color()})
+	}
+	return values
+}
+
 func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid string) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method == http.MethodGet {
@@ -157,7 +165,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now())})
+		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities()})
 		return
 	}
 	if r.Method != http.MethodPost {

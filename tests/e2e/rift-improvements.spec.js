@@ -1,6 +1,60 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 
+test('pausing cancels a queued checkpoint before rewards are banked',async({page})=>{
+  await page.goto('/abyss/rift?scenario=checkpoint');await page.locator('#rift-auto').uncheck();
+  let release,notify;const pending=new Promise(resolve=>notify=resolve),exits=[];
+  await page.route('**/api/abyss/rift',async route=>{
+    const kind=route.request().postDataJSON()?.kind;if(kind==='exit')exits.push(kind);
+    if(kind==='step'&&notify){const ready=notify;notify=null;await new Promise(resolve=>{release=resolve;ready();});}
+    await route.continue();
+  });
+  await page.locator('#rift-start').click();await pending;
+  try{await page.locator('#rift-exit').click();await page.keyboard.press('Escape');}finally{release();}
+  await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
+  await expect(page.locator('#rift-banked')).toHaveText('0 gold · 0 items');expect(exits).toEqual([]);
+});
+
+test('checkpoint clicks queue once behind an in-flight combat update',async({page})=>{
+  await page.goto('/abyss/rift?scenario=checkpoint');await page.locator('#rift-auto').uncheck();
+  let release,notify;const pending=new Promise(resolve=>notify=resolve),exits=[];
+  await page.route('**/api/abyss/rift',async route=>{
+    const kind=route.request().postDataJSON()?.kind;
+    if(kind==='exit')exits.push(kind);
+    if(kind==='step'&&notify){const ready=notify;notify=null;await new Promise(resolve=>{release=resolve;ready();});}
+    await route.continue();
+  });
+  await page.locator('#rift-start').click();await pending;
+  try{await expect(page.locator('#rift-exit')).toBeEnabled();await page.locator('#rift-exit').click();await page.locator('#rift-exit').evaluate(button=>button.click());}finally{release();}
+  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');expect(exits).toHaveLength(1);
+});
+
+test('loot inspection and the bank receipt match confirmed inventory delivery',async({page})=>{
+  await page.goto('/abyss/rift?scenario=checkpoint');await page.locator('#rift-auto').uncheck();
+  const data=await(await page.request.get('/api/abyss/rift')).json(),gear=data.run.drops[0].gear;
+  await expect(page.locator('#rift-loot-count')).toHaveText('1 item pending');
+  await page.locator('#rift-loot details > summary').click();
+  await expect(page.locator('#rift-loot')).toContainText(gear.Name);
+  await expect(page.locator('#rift-loot')).toContainText('Maximum durability');
+  await expect(page.locator('#rift-loot')).toContainText('Mission 1 · Tier 1');
+  await expect(page.locator('#rift-loot summary')).toHaveAttribute('title','Found: '+gear.found_boss);
+  await page.locator('#rift-loot-sort').selectOption('slot');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-checkpoint-total')).toHaveText('30 gold · 1 item ready to bank');await page.locator('#rift-exit').click();
+  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
+  await expect(page.locator('#rift-loot-count')).toHaveText('0 items pending');
+  await page.locator('#rift-receipt > summary').click();
+  await expect(page.locator('#rift-receipt-list')).toContainText(gear.Name);
+  await expect(page.locator('#rift-receipt a')).toHaveAttribute('href','/inventory');
+  await page.locator('#rift-receipt-search').fill('absent item');
+  await expect(page.locator('#rift-receipt-empty')).toBeVisible();
+  await page.locator('#rift-receipt-search').fill('');
+  await page.evaluate(()=>{navigator.clipboard.writeText=async text=>window.copiedReceipt=text;});
+  await page.locator('#rift-copy-receipt').click();
+  const copied=await page.evaluate(()=>window.copiedReceipt);expect(copied).toContain(gear.Name);expect(copied).toContain('30 gold');expect(copied).not.toContain(data.run.id);
+  await page.goto('/abyss/rift');await page.locator('#rift-receipt > summary').click();
+  await expect(page.locator('#rift-receipt-list')).toContainText(gear.Name);
+});
+
 for(const corruption of ['missing run','invalid health','future schema','unknown status'])test('invalid response recovery preserves confirmed rewards: '+corruption,async({page})=>{
   await page.goto('/abyss/rift');await page.locator('#rift-start').click();
   const before=await page.locator('#rift-banked').textContent();

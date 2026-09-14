@@ -40,7 +40,7 @@
       announced=state;
       if(run.status==='cleared')put($('rift-announcer'),'Room '+(run.room+1)+' cleared. Loot is ready to bank.');
       else if(run.status==='defeated')put($('rift-announcer'),'Expedition ended. Banked rewards are safe.');
-      else if(['complete','banked'].includes(run.status))put($('rift-announcer'),'Expedition finished. '+numbers.format(run.banked_gold)+' gold and '+run.banked_items.length+' items banked.');
+      else if(['complete','banked'].includes(run.status))put($('rift-announcer'),'Expedition finished. '+numbers.format(run.banked_gold)+' gold and '+numbers.format(run.banked_items.length)+' '+(run.banked_items.length===1?'item':'items')+' banked.');
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }

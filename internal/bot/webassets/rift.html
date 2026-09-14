@@ -25,7 +25,7 @@
           <button class="rift-primary" id="rift-start" disabled>Loading your character…</button>
           <span class="rift-overlay-note" id="rift-overlay-note">Your Abyss character · Real loot · Solo stages</span>
         </div>
-        <div class="rift-room-actions" id="rift-room-actions" hidden><strong id="rift-clear-label">Area secured</strong><span>All drops here will be collected and banked.</span><div><button id="rift-next" class="rift-primary">Bank & continue →</button><button id="rift-exit">Bank & leave</button></div></div>
+        <div class="rift-room-actions" id="rift-room-actions" hidden><strong id="rift-clear-label">Area secured</strong><span>All drops here will be collected and banked.<br><b id="rift-checkpoint-total"></b></span><div><button id="rift-next" class="rift-primary">Bank & continue →</button><button id="rift-exit">Bank & leave</button></div></div>
       </div>
       <div class="rift-actionbar"><div class="rift-basics"><button data-hold="attack"><kbd>J</kbd><span>Attack</span></button><button data-hold="jump" title="Space to jump; K also works"><kbd>Space</kbd><span>Jump</span></button><button data-hold="guard"><kbd>L</kbd><span>Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint"><kbd>W A S D</kbd> move</span></div>
       <div class="rift-classbar"><div><strong id="rift-style">Abyss class abilities</strong><span id="rift-resource">Choose your class in Abyss</span></div><div id="rift-signatures" class="rift-signatures"></div></div>
@@ -37,7 +37,12 @@
     </section>
     <aside class="rift-sidebar">
       <section><p class="rift-eyebrow">YOUR EXPEDITION</p><h2 id="rift-region-title">Mossbound Ruins</h2><ol class="rift-route"><li class="current"><span>01</span><div><b class="rift-room-name">Approach</b><small>A new patrol each expedition</small></div></li><li><span>02</span><div><b class="rift-room-name">Inner Court</b><small>Face the Abyss bestiary</small></div></li><li><span>03</span><div><b class="rift-room-name">Guardian's Stand</b><small id="rift-route-boss">Defeat an Abyss boss</small></div></li></ol></section>
-      <section><div class="rift-section-heading"><h3>Expedition bag</h3><span class="rift-at-risk">AT RISK</span></div><p class="rift-gold"><b id="rift-gold">0</b> gold</p><ul id="rift-loot" class="rift-loot"><li class="rift-empty">Your next discovery is out there.</li></ul><p class="rift-fine">Bank after a cleared room. Defeat loses only unbanked finds.</p><div class="rift-banked"><span>Safely banked</span><strong id="rift-banked">0 gold · 0 items</strong></div></section>
+      <section><div class="rift-section-heading"><h3>Expedition bag</h3><span class="rift-at-risk">AT RISK</span></div><p class="rift-gold"><b id="rift-gold">0</b> gold</p>
+        <p id="rift-loot-count" class="rift-fine">0 items pending</p><p id="rift-floor-loot" class="rift-fine"></p>
+        <label class="rift-loot-sort">Sort gear <select id="rift-loot-sort"><option value="found">Discovery order</option><option value="rarity">Rarity</option><option value="slot">Equipment slot</option></select></label>
+        <ul id="rift-loot" class="rift-loot"><li class="rift-empty">Your next discovery is out there.</li></ul><p class="rift-fine">Bank after a cleared room. Defeat loses only unbanked finds.</p><div class="rift-banked"><span>Safely banked</span><strong id="rift-banked">0 gold · 0 items</strong></div>
+        <details id="rift-receipt" class="rift-receipt" hidden><summary>Banked loot receipt</summary><p id="rift-receipt-total" class="rift-fine"></p><label>Find banked gear<input id="rift-receipt-search" type="search" maxlength="100"></label><ul id="rift-receipt-list"></ul><p id="rift-receipt-empty" hidden></p><p id="rift-receipt-limit" hidden></p><button id="rift-copy-receipt" type="button">Copy receipt</button><p id="rift-receipt-copy-status" role="status"></p><a href="/inventory">Open inventory ↗</a></details>
+      </section>
       <section><h3>Your build</h3><p id="rift-build" class="rift-fine">Connecting to your Abyss character…</p><p id="rift-sequence" class="rift-fine"></p><div id="rift-loadout" class="rift-loadout"></div><details><summary>Equipped gear</summary><ul id="rift-gear" class="rift-fine"></ul></details><a class="rift-build-link" href="/abyss">Manage class & build in Abyss ↗</a><p class="rift-fine">Your selected class, subclass, permanent stats and equipped skills carry over with action-mode tuning. The loadout is fixed for this expedition.</p></section>
       <details class="rift-settings"><summary>Sound & display</summary><label>Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label>Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
     </aside>
@@ -67,6 +72,7 @@
 <script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
 <script defer src="{{asset "/static/rift_audio.js"}}"></script>
 <script defer src="{{asset "/static/rift_display.js"}}"></script>
+<script defer src="{{asset "/static/rift_loot.js"}}"></script>
 <script defer src="{{asset "/static/rift_renderer.js"}}"></script>
 <script defer src="{{asset "/static/rift_campaign.js"}}"></script>
 <script defer src="{{asset "/static/rift_hud.js"}}"></script>

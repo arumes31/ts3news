@@ -93,6 +93,8 @@ type Projectile struct {
 }
 
 type Drop struct {
+	Mission   int           `json:"mission,omitempty"`
+	Tier      int           `json:"tier,omitempty"`
 	ID        string        `json:"id"`
 	X         float64       `json:"x"`
 	Y         float64       `json:"y"`
@@ -450,7 +452,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			r.Stats.Bosses++
 		}
 		r.event(e.Kind+"_death", e.X, e.Y, 0)
-		r.Drops = append(r.Drops, Drop{ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
+		mission := 1
+		if r.Level != nil {
+			mission = r.Level.ID
+		}
+		r.Drops = append(r.Drops, Drop{Mission: mission, Tier: r.Room + 1, ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
 	}
 }
 

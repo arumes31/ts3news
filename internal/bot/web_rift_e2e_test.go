@@ -68,7 +68,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				http.Error(w, lootErr.Error(), 500)
 				return
 			}
-			run.Drops = []rift.Drop{{ID: "fixture-drop", Gold: 30, Collected: true, Gear: &gear}}
+			run.Drops = []rift.Drop{{Mission: 1, Tier: run.Room + 1, ID: "fixture-drop", Gold: 30, Collected: true, Gear: &gear}}
 			run.Gold = 30
 			for i := range run.Enemies {
 				run.Enemies[i].HP = 0
@@ -89,7 +89,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		run := runs[cookie.Value]
 		build := builds[cookie.Value]
 		if r.Method == http.MethodGet {
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now())})
+			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities()})
 			return
 		}
 		var req riftRequest

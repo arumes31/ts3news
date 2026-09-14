@@ -1,10 +1,30 @@
 package rift
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 	"time"
 )
+
+func TestDropProvenanceSurvivesSaving(t *testing.T) {
+	r := testRun()
+	r.Level = &Level{ID: 43}
+	r.Room = 2
+	r.Enemies = []Actor{{ID: "boss", Kind: "boss", HP: 20, MaxHP: 20}}
+	r.hurtEnemy(0, 1000, "hit")
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if len(restored.Drops) != 1 || restored.Drops[0].Mission != 43 || restored.Drops[0].Tier != 3 {
+		t.Fatalf("drop lost its discovery location: %+v", restored.Drops)
+	}
+}
 
 func TestCombatStatsCountEffectiveDamageAndKillsOnce(t *testing.T) {
 	r := testRun()

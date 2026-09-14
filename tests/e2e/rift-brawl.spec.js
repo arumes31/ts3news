@@ -142,11 +142,11 @@ test('checkpoint banks actual catalog loot once and survives reload', async ({ p
   const before = (await (await page.request.get('/api/abyss/rift')).json()).run;
   expect(before.drops[0].gear.ID).toMatch(/^ABYSS_/);
   await page.locator('#rift-exit').click();
-  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 items');
+  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
   const banked = (await (await page.request.get('/api/abyss/rift')).json()).run;
   await page.request.post('/api/abyss/rift', {data:{kind:'exit',run_id:banked.id,revision:banked.revision,request_id:'retry-bank-request',input:{}}});
   await page.goto('/abyss/rift');
-  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 items');
+  await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
 });
 
 test('100 missions are selectable and the final region survives reload',async({page})=>{
