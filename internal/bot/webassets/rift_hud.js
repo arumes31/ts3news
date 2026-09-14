@@ -19,6 +19,7 @@
     $('rift-paused-badge').hidden=!['fighting','cleared'].includes(run.status)||(playing&&!run.paused);
     put($('rift-paused-badge'),run.paused?'Paused':'Not running');
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
+    put($('rift-guard-reduction'),run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
     put($('rift-combat-time'),duration(stats.seconds||0)+' combat');
     const continues=run.room<2||($('rift-auto').checked&&run.level?.id<100),health=Math.min(run.player.max_hp,run.player.hp+run.player.max_hp*.25);
