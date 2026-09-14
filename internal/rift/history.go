@@ -1,8 +1,11 @@
 package rift
 
+import "slices"
+
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
+	FlawlessTiers    []int          `json:"flawless_tiers,omitempty"`
 	FewestHits       *int           `json:"fewest_hits,omitempty"`
 	Attempts         int            `json:"attempts"`
 	Completions      int            `json:"completions"`
@@ -92,7 +95,22 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 		current.BestFinishHP = old.BestFinishHP
 		current.BestFinishMaxHP = old.BestFinishMaxHP
 		current.CompletedByClass = old.CompletedByClass
+		current.FlawlessTiers = old.FlawlessTiers
 	}
 	r.History[r.Level.ID] = current
 	r.CompletedLevels = append([]int(nil), previous.CompletedLevels...)
+}
+
+func (r *Run) recordFlawlessRoom() {
+	if !r.HistoryActive || r.Level == nil || r.RoomStartHits == nil || r.Stats.HitsTaken != *r.RoomStartHits {
+		return
+	}
+	h := r.History[r.Level.ID]
+	tier := r.Room + 1
+	if slices.Contains(h.FlawlessTiers, tier) {
+		return
+	}
+	h.FlawlessTiers = append(append([]int(nil), h.FlawlessTiers...), tier)
+	slices.Sort(h.FlawlessTiers)
+	r.History[r.Level.ID] = h
 }

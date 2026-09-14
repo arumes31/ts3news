@@ -202,6 +202,53 @@ func TestMissionHistoryFewestHitsIncludesZeroAndExcludesPartialLegacy(t *testing
 	}
 }
 
+func TestFlawlessRoomRecordsUseDamageAndPersistAcrossTiers(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	r := NewRunAtLevel("rooms", Build{HP: 240}, time.Unix(100, 0), catalog, 1)
+	for room := 0; room < 3; room++ {
+		r.Enemies = nil
+		r.Level.Rooms[room].Hazards = nil
+		if room == 1 {
+			r.hurtPlayer(10, 0, 0)
+		}
+		if room == 2 {
+			r.Barrier = 100
+			r.hurtPlayer(10, 0, 0)
+		}
+		r.tick(Input{}, 1.0/30)
+		r.tick(Input{}, 1.0/30)
+		if room < 2 {
+			if !r.NextRoom() {
+				t.Fatal("room did not advance")
+			}
+		}
+	}
+	if tiers := r.History[1].FlawlessTiers; len(tiers) != 2 || tiers[0] != 1 || tiers[1] != 3 {
+		t.Fatalf("incorrect flawless tiers: %v", tiers)
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err = json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	next := NewRunAtLevel("next", Build{HP: 240}, time.Unix(110, 0), catalog, 1)
+	next.InheritCampaignHistory(&restored)
+	if len(next.History[1].FlawlessTiers) != 2 {
+		t.Fatal("records lost across expeditions")
+	}
+	legacy := NewRunAtLevel("legacy", Build{HP: 240}, time.Unix(120, 0), catalog, 2)
+	legacy.RoomStartHits = nil
+	legacy.Enemies = nil
+	legacy.Level.Rooms[0].Hazards = nil
+	legacy.tick(Input{}, 1.0/30)
+	if len(legacy.History[2].FlawlessTiers) != 0 {
+		t.Fatal("partial legacy room counted as flawless")
+	}
+}
+
 func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	now := time.Unix(100, 0)

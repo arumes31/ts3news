@@ -120,6 +120,7 @@ type Event struct {
 }
 
 type Run struct {
+	RoomStartHits       *int                   `json:"room_start_hits,omitempty"`
 	MissionStartHits    *int                   `json:"mission_start_hits,omitempty"`
 	History             map[int]MissionHistory `json:"mission_history,omitempty"`
 	MissionStartSeconds float64                `json:"mission_start_seconds,omitempty"`
@@ -177,6 +178,8 @@ func NewRun(id string, build Build, now time.Time) *Run {
 }
 
 func (r *Run) spawnRoom() {
+	hits := r.Stats.HitsTaken
+	r.RoomStartHits = &hits
 	r.Marked = ""
 	for key := range r.SkillTimers {
 		if strings.HasPrefix(key, "hazard-") || key == "slowed" {
@@ -364,6 +367,7 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	if alive == 0 && r.Status == "fighting" {
 		r.Stats.RoomsCleared++
+		r.recordFlawlessRoom()
 		// A secured room sweeps remaining drops into the bag before presenting
 		// its checkpoint, so displayed rewards agree with the banking receipt.
 		for i := range r.Drops {
