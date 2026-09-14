@@ -245,6 +245,7 @@
   $('rift-canvas').addEventListener('lostpointercapture',()=>{for(const action of mouse)taps.delete(action);mouse.clear();});
   $('rift-canvas').addEventListener('contextmenu',event=>{if(playing&&controls.pointer(2))event.preventDefault();});
   window.addEventListener('keydown',event=>{
+    if(event.code==='KeyL'&&event.altKey&&event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();openLoadoutReference();return;}
     if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     const action=controls.action(event.code);
     if(event.code==='Escape'&&!event.repeat){if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
@@ -257,6 +258,13 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
+  async function openLoadoutReference(){
+    if(!ready||starting||controls.opened)return;
+    if(playing)await pause();
+    if(busy||controls.opened||(run&&['fighting','cleared'].includes(run.status)&&!run.paused))return;
+    resetInput();window.RiftLoadouts.openReference();
+  }
+  const loadoutPreview=document.createElement('button');loadoutPreview.type='button';loadoutPreview.id='rift-loadout-preview';loadoutPreview.textContent='Skill reference · Alt+Shift+L';loadoutPreview.setAttribute('aria-keyshortcuts','Alt+Shift+L');loadoutPreview.addEventListener('click',openLoadoutReference);$('rift-loadout-order').after(loadoutPreview);
   $('rift-replay').addEventListener('click',()=>{
     if(!ready||busy||starting||!run?.level||!['complete','banked'].includes(run.status)||run.room!==2)return;
     selectedLevel=run.level.id;campaignKey='';updateCampaign();begin();

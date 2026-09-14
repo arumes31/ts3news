@@ -65,5 +65,5 @@
       reorder.append(button);
     }
     options();
-  },refresh};
+  },refresh,openReference(){glossary.open=true;$('rift-glossary-search').focus();glossary.scrollIntoView({block:'center'});}};
 })();

@@ -1,5 +1,16 @@
 const {test,expect}=require('@playwright/test');
 
+test('loadout shortcut opens the reference, ignores typing, and confirms combat pause first',async({page})=>{
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  await page.locator('#rift-loadout-name').focus();await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-skill-glossary')).not.toHaveAttribute('open','');
+  await page.locator('#rift-canvas').focus();await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-glossary-search')).toBeFocused();
+  await page.locator('#rift-skill-glossary > summary').click();await page.locator('#rift-start').click();
+  await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-glossary-search')).toBeFocused();
+  expect((await(await page.request.get('/api/abyss/rift')).json()).run.paused).toBe(true);
+  await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
+  await page.locator('#rift-skill-glossary > summary').click();await page.locator('#rift-loadout-preview').click();await expect(page.locator('#rift-glossary-search')).toBeFocused();
+});
+
 test('skill reference matches owned costs and cooldowns and tracks reordered slots',async({page})=>{
   await page.goto('/abyss/rift?subclass=elementalist');await expect(page.locator('#rift-start')).toBeEnabled();
   const build=(await(await page.request.get('/api/abyss/rift')).json()).build;
