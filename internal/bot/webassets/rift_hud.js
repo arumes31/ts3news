@@ -2,6 +2,16 @@
   'use strict';
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   let announced='',summaryKey='';
+  let recentBaseline=null,recentChanges=[];
+  function recentDamage(run,replay){
+    const current={id:run.id,seconds:run.stats?.seconds||0,damage:run.stats?.damage_taken||0,healing:run.stats?.healing||0};
+    const previous=recentBaseline;
+    if(replay||!previous||previous.id!==current.id||current.seconds<previous.seconds||current.damage<previous.damage||current.healing<previous.healing)recentChanges=[];
+    else if(current.damage>previous.damage||current.healing>previous.healing)recentChanges.push({seconds:current.seconds,damage:current.damage-previous.damage,healing:current.healing-previous.healing});
+    recentBaseline=current;recentChanges=recentChanges.filter(change=>current.seconds-change.seconds<5).slice(-256);
+    const totals=recentChanges.reduce((total,change)=>({damage:total.damage+change.damage,healing:total.healing+change.healing}),{damage:0,healing:0});
+    put($('rift-recent-damage'),'Last 5 combat seconds: '+numbers.format(totals.damage)+' damage taken · '+numbers.format(totals.healing)+' healing');
+  }
   const put=(node,value)=>{if(node&&node.textContent!==String(value))node.textContent=value;};
   const attr=(node,key,value)=>{if(node&&node.getAttribute(key)!==String(value))node.setAttribute(key,String(value));};
   function meter(selector,label,current,max){const node=document.querySelector(selector);attr(node,'role','meter');attr(node,'aria-label',label);attr(node,'aria-valuemin',0);attr(node,'aria-valuemax',Math.max(1,max));attr(node,'aria-valuenow',Math.min(max,Math.max(0,current)));}
@@ -14,7 +24,8 @@
     if(run.player.mana<skill.cost)return Math.ceil(skill.cost-run.player.mana)+' more mana needed';
     return 'Ready · '+skill.cost+' mana';
   }
-  function update(run,playing){
+  function update(run,playing,replay=false){
+    recentDamage(run,replay);
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
     $('rift-paused-badge').hidden=!['fighting','cleared'].includes(run.status)||(playing&&!run.paused);
     put($('rift-paused-badge'),run.paused?'Paused':'Not running');
