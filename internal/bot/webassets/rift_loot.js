@@ -50,6 +50,7 @@
     put($('rift-loot-count'),count(items.length,'item')+' pending');
     const pending=run.drops.filter(d=>!d.banked);put($('rift-checkpoint-total'),format.format(pending.reduce((sum,d)=>sum+d.gold,0))+' gold · '+count(pending.filter(d=>d.gear).length,'item')+' ready to bank');
     const floor=run.drops.filter(d=>!d.collected&&!d.banked).length;put($('rift-floor-loot'),floor?count(floor,'drop')+' still on the battlefield':'All available drops collected');
+    put($('rift-pending-hud'),'Unbanked: '+format.format(pending.reduce((sum,d)=>sum+d.gold,0))+' gold · '+pending.filter(d=>d.gear).length+' gear'+(floor?' · '+floor+' uncollected':''));
     const key=run.id+':'+JSON.stringify(items.map(d=>[d.id,d.gear.ID]));if(key!==bagKey){bagKey=key;bag();}
     const next=JSON.stringify([run.id,run.banked_gold,run.banked_items]);
     $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);
