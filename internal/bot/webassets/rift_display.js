@@ -1,8 +1,8 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
-  const choices={enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
+  const defaults={shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
+  const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
     const saved=JSON.parse(localStorage.getItem('riftDisplay'));
@@ -17,6 +17,7 @@
     lowPower:{label:'Lower power',description:'Standard text, health bars and hazard labels. Boss names only, no damage numbers, decoration or fade. Soft spell effects, compact HUD, direct camera and 30 FPS.',values:{...defaults,fps:30,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,enemyNames:'boss',damageNumbers:false,compactHUD:true,cameraSmooth:false}},
     cinematic:{label:'Cinematic effects',description:'Full decoration, moving damage numbers, spell opacity and transition fades. Standard text, boss names, health bars and hazard labels. Compact HUD, smooth camera and 60 FPS; reduced motion still takes priority.',values:{...defaults,enemyNames:'boss',compactHUD:true}}
   };
+  for(const preset of Object.values(presets))preset.description+=' Screen shake is off.';
   const section=document.createElement('div');section.className='rift-display-settings';
   const heading=document.createElement('h4');heading.textContent='Battlefield display';section.append(heading);
   const controls=new Map();
@@ -34,6 +35,7 @@
     ['enemyNames','rift-enemy-names','Enemy names',[['all','All'],['boss','Bosses only'],['none','Hidden']]],
     ['fps','rift-render-rate','Rendering limit',[[60,'60 FPS'],[30,'30 FPS']]],
     ['particleIntensity','rift-particle-intensity','Background particle density',[[0,'Off'],[0.5,'Half'],[1,'Full']]],
+    ['shakeIntensity','rift-shake-intensity','Screen shake',[[0,'Off'],[0.5,'Gentle'],[1,'Full']]],
     ['motionIntensity','rift-motion-intensity','Decorative motion',[[0,'Still'],[0.5,'Gentle'],[1,'Full']]],
     ['flashIntensity','rift-flash-intensity','Transition fade intensity',[[0,'Off'],[0.5,'Gentle'],[1,'Full']]],
     ['effectIntensity','rift-effect-intensity','Spell effect opacity',[[0.35,'Soft'],[0.65,'Medium'],[1,'Full']]],
@@ -57,7 +59,7 @@
   });
   apply.onclick=()=>{Object.assign(values,presets[preset.value].values);save();refresh();};
   const reset=document.createElement('button');reset.id='rift-reset-display';reset.type='button';reset.textContent='Reset display';reset.onclick=()=>{Object.assign(values,defaults);preset.value='balanced';description.textContent=presets.balanced.description;save();refresh();};section.append(reset);
-  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(note);
+  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Screen shake defaults to off; reduced visual effects and Still decorative motion disable it. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(note);
   document.querySelector('.rift-settings').append(section);
   refresh();window.RiftDisplay=values;
 })();

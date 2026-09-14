@@ -8,7 +8,7 @@
   const deaths = new Map();
   let animationTime = 0, decorationTime = 0, motion = 1;
   let previewStyle = 'vanguard';
-  let previewLevel = null, transitionAt = -1000;
+  let previewLevel = null, transitionAt = -1000, impactAt=-Infinity;
   // Authored atlas panels have slightly different row heights. Crop inside
   // each panel to keep neighboring regions out of the battlefield.
   const regionRows = [0,.179,.363,.559,.755,1];
@@ -23,7 +23,7 @@
   renderer.snapshot = function (run, replay) {
     if (!run) return;
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
-    if (changed) { runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
+    if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
     else previous = snapshot;
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; transitionAt=animationTime; }
     snapshot = run; received = performance.now();
@@ -31,6 +31,7 @@
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
+      if(!replay&&(event.kind==='slam'||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       window.RiftAudio.play(event.kind, (event.x - run.player.x) / 700);
     });
@@ -110,6 +111,9 @@
     motion=renderer.reduced?0:display.motionIntensity;
     if (!snapshot || !snapshot.paused) { animationTime += dt*1000; decorationTime += dt*1000*motion; }
     const wallNow = now; now = animationTime;
+    ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#091914';ctx.fillRect(0,0,960,540);
+    const impactAge=wallNow-impactAt,shake=snapshot&&!snapshot.paused&&motion>0?display.shakeIntensity*motion*4*Math.max(0,1-impactAge/200):0;
+    if(shake>0)ctx.translate(Math.sin(impactAge*.19)*shake,Math.cos(impactAge*.23)*shake*.6);
     const targetCamera = snapshot ? Math.max(0,Math.min(640,snapshot.player.x-350)) : 220;
     camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
     // Slow background parallax retains the full walkable foreground.
