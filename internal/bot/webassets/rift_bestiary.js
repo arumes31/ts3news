@@ -20,7 +20,7 @@
     }
     options(tier,roster.map(unit=>unit.tier));options(element,roster.map(elementName));options(style,roster.map(attackStyle));
     if(render.cleanup)render.cleanup();
-    let selected=null,opener=null,timer=null,tick=0;
+    let selected=null,opener=null,timer=null,tick=0,built=false;
     panel.hidden=true;
     function paint(){
       if(!selected)return;
@@ -32,9 +32,10 @@
       if(!selected||!root.open||document.hidden)return;
       paint();if(!window.RiftRenderer?.reduced)timer=setInterval(paint,180);
     }
-    root.addEventListener('toggle',animate);document.addEventListener('visibilitychange',animate);
+    function onToggle(){if(root.open)buildCards();animate();}
+    root.addEventListener('toggle',onToggle);document.addEventListener('visibilitychange',animate);
     window.addEventListener('riftmotionchange',animate);
-    render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',animate);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
+    render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',onToggle);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
     poseSelect.onchange=()=>{tick=0;paint();};
     function close(){selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;
@@ -50,16 +51,20 @@
     }
     document.getElementById('rift-monster-count').textContent=roster.length+' monsters';
     list.replaceChildren();
-    roster.forEach(unit=>{
-      const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize(unit.name+' '+unit.tier+' '+elementName(unit)+' '+attackStyle(unit));item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
-      const sprite=document.createElement('span'),pose=frame(unit,'idle',0);sprite.className='rift-monster-art';sprite.setAttribute('aria-hidden','true');sprite.style.backgroundImage='url("'+assetURL(pose.asset)+'")';sprite.style.backgroundPosition=pose.position;sprite.style.backgroundSize=pose.size;
-      const body=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=unit.name;detail.textContent=unit.tier+' · '+(unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee');
-      const button=document.createElement('button');button.type='button';button.textContent='Inspect';button.setAttribute('aria-label','Inspect '+unit.name);button.onclick=()=>inspect(unit,button);
-      body.append(name,detail,button);item.append(sprite,body);list.append(item);
-    });
+    function buildCards(){
+      if(built)return;built=true;
+      roster.forEach(unit=>{
+        const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize(unit.name+' '+unit.tier+' '+elementName(unit)+' '+attackStyle(unit));item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
+        const sprite=document.createElement('span'),pose=frame(unit,'idle',0);sprite.className='rift-monster-art';sprite.setAttribute('aria-hidden','true');sprite.style.backgroundImage='url("'+assetURL(pose.asset)+'")';sprite.style.backgroundPosition=pose.position;sprite.style.backgroundSize=pose.size;
+        const body=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=unit.name;detail.textContent=unit.tier+' · '+(unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee');
+        const button=document.createElement('button');button.type='button';button.textContent='Inspect';button.setAttribute('aria-label','Inspect '+unit.name);button.onclick=()=>inspect(unit,button);
+        body.append(name,detail,button);item.append(sprite,body);list.append(item);
+      });
+      filter();
+    }
     function filter(){let visible=0;for(const item of list.children){item.hidden=!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}document.getElementById('rift-monsters-empty').hidden=visible>0;document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
     search.oninput=filter;[tier,element,style].forEach(select=>select.onchange=filter);
-    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';filter();search.focus();};filter();
+    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';filter();search.focus();};onToggle();
   }
   window.RiftBestiary={profile,frame,render,assetURL,assets:art.atlasAssets};
 })();
