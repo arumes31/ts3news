@@ -61,3 +61,5 @@
 .rift-hide-records #rift-clear-result,.rift-hide-records .rift-career-records,.rift-hide-records [data-personal-record]{display:none!important}
 
 #rift-attempt-history{border-top:1px solid #42553e;padding:12px 0;font-size:13px}#rift-attempt-list{max-height:360px;overflow:auto;padding-left:24px}#rift-attempt-list li{padding:8px 0;border-bottom:1px solid #35493e;overflow-wrap:anywhere}#rift-attempt-list p{font-size:12px;line-height:1.5;margin:5px 0}#rift-attempt-comparison{color:#f2d797}
+
+#rift-walkthrough{padding:16px 20px;margin:12px 0;border:1px solid #687851;border-radius:6px;background:#192c21;color:#dbe4c9}#rift-walkthrough h2{font-size:19px;margin:5px 0 8px}#rift-walkthrough-copy{font-size:14px;line-height:1.6;max-width:85ch}#rift-walkthrough>div{display:flex;gap:8px;flex-wrap:wrap}#rift-walkthrough button{padding:8px 12px;border:1px solid #6e815c;background:#263e2b;color:#edf0d5;border-radius:4px;cursor:pointer}#rift-walkthrough button:disabled{opacity:.45;cursor:default}#rift-walkthrough[hidden]{display:none}
