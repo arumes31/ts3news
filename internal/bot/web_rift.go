@@ -390,11 +390,9 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		case "step":
 			run.Step(req.Input, now)
 		case "pause":
-			run.Paused = true
-			run.LastMS = max(run.LastMS, now.UnixMilli())
+			run.SetPaused(true, now)
 		case "resume":
-			run.Paused = false
-			run.LastMS = max(run.LastMS, now.UnixMilli())
+			run.SetPaused(false, now)
 		case "bank", "exit", "next", "advance":
 			if run.Status != "cleared" {
 				return nil, errRiftConflict

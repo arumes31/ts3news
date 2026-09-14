@@ -160,10 +160,9 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			case "step":
 				run.Step(req.Input, time.Now())
 			case "pause":
-				run.Paused = true
+				run.SetPaused(true, time.Now())
 			case "resume":
-				run.Paused = false
-				run.LastMS = time.Now().UnixMilli()
+				run.SetPaused(false, time.Now())
 			case "bank", "exit", "next", "advance":
 				if run.Status != "cleared" {
 					http.Error(w, "room not clear", 409)

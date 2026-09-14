@@ -341,3 +341,37 @@ func TestHighestBasicComboPersistsAcrossWrapAndSave(t *testing.T) {
 		t.Fatal("new expedition inherited combo peak")
 	}
 }
+
+func TestPausedTimeIsSeparateSavedAndNotDoubleCounted(t *testing.T) {
+	r := testRun()
+	r.SetPaused(true, time.Unix(101, 0))
+	r.SetPaused(true, time.Unix(103, 0))
+	r.Step(Input{Attack: true}, time.Unix(104, 0))
+	if r.Stats.Seconds != 0 || r.Stats.Attacks != 0 {
+		t.Fatal("pause advanced combat")
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	saved.SetPaused(false, time.Unix(106, 0))
+	saved.SetPaused(false, time.Unix(108, 0))
+	if saved.Stats.PausedSeconds != 5 || saved.PauseStartedMS != nil {
+		t.Fatalf("pause total incorrect: %+v", saved.Stats)
+	}
+	saved.SetPaused(true, time.Unix(110, 0))
+	saved.SetPaused(false, time.Unix(109, 0))
+	if saved.Stats.PausedSeconds != 5 {
+		t.Fatal("backwards clock changed pause total")
+	}
+	legacy := testRun()
+	legacy.Paused = true
+	legacy.SetPaused(false, time.Unix(200, 0))
+	if legacy.Stats.PausedSeconds != 0 {
+		t.Fatal("legacy pause duration invented")
+	}
+}

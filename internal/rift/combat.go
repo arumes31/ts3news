@@ -123,6 +123,7 @@ type Run struct {
 	ClearStreak         int                    `json:"clear_streak,omitempty"`
 	BestClearStreak     int                    `json:"best_clear_streak,omitempty"`
 	RoomSplits          [3]*float64            `json:"room_splits"`
+	PauseStartedMS      *int64                 `json:"pause_started_ms,omitempty"`
 	RoomStartSeconds    *float64               `json:"room_start_seconds,omitempty"`
 	RoomStartHits       *int                   `json:"room_start_hits,omitempty"`
 	MissionStartHits    *int                   `json:"mission_start_hits,omitempty"`
@@ -215,7 +216,7 @@ func (r *Run) NextRoom() bool {
 	r.Status = "fighting"
 	r.Player.HP = math.Min(r.Player.MaxHP, r.Player.HP+r.Player.MaxHP*.25)
 	r.Player.Mana = 100
-	r.Paused = false
+	r.SetPaused(false, time.UnixMilli(r.LastMS))
 	r.spawnRoom()
 	return true
 }

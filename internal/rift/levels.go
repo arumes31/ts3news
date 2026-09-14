@@ -164,6 +164,7 @@ func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 	if r.Status != "cleared" {
 		return
 	}
+	r.SetPaused(false, time.UnixMilli(r.LastMS))
 	if r.Room == len(Rooms)-1 {
 		r.finishMissionHistory("completed")
 	} else if kind == "exit" {
