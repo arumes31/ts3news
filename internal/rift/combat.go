@@ -114,35 +114,38 @@ type Event struct {
 }
 
 type Run struct {
-	Stats           CombatStats        `json:"stats"`
-	Level           *Level             `json:"level,omitempty"`
-	CompletedLevels []int              `json:"completed_levels,omitempty"`
-	EncounterPlan   [][]Actor          `json:"encounter_plan,omitempty"`
-	Resource        int                `json:"resource"`
-	Marked          string             `json:"marked"`
-	Barrier         float64            `json:"barrier"`
-	Schema          int                `json:"schema"`
-	ID              string             `json:"id"`
-	StartKey        string             `json:"start_key"`
-	Epoch           string             `json:"epoch"`
-	Revision        int                `json:"revision"`
-	Room            int                `json:"room"`
-	Status          string             `json:"status"`
-	Paused          bool               `json:"paused"`
-	Build           Build              `json:"build"`
-	Player          Actor              `json:"player"`
-	Enemies         []Actor            `json:"enemies"`
-	Projectiles     []Projectile       `json:"projectiles"`
-	Drops           []Drop             `json:"drops"`
-	Events          []Event            `json:"events"`
-	SkillTimers     map[string]float64 `json:"skill_timers"`
-	Gold            int64              `json:"gold"`
-	BankedGold      int64              `json:"banked_gold"`
-	BankedItems     []string           `json:"banked_items"`
-	Clock           float64            `json:"clock"`
-	LastMS          int64              `json:"last_ms"`
-	Counter         int                `json:"counter"`
-	Combo           int                `json:"combo"`
+	History             map[int]MissionHistory `json:"mission_history,omitempty"`
+	MissionStartSeconds float64                `json:"mission_start_seconds,omitempty"`
+	HistoryActive       bool                   `json:"history_active,omitempty"`
+	Stats               CombatStats            `json:"stats"`
+	Level               *Level                 `json:"level,omitempty"`
+	CompletedLevels     []int                  `json:"completed_levels,omitempty"`
+	EncounterPlan       [][]Actor              `json:"encounter_plan,omitempty"`
+	Resource            int                    `json:"resource"`
+	Marked              string                 `json:"marked"`
+	Barrier             float64                `json:"barrier"`
+	Schema              int                    `json:"schema"`
+	ID                  string                 `json:"id"`
+	StartKey            string                 `json:"start_key"`
+	Epoch               string                 `json:"epoch"`
+	Revision            int                    `json:"revision"`
+	Room                int                    `json:"room"`
+	Status              string                 `json:"status"`
+	Paused              bool                   `json:"paused"`
+	Build               Build                  `json:"build"`
+	Player              Actor                  `json:"player"`
+	Enemies             []Actor                `json:"enemies"`
+	Projectiles         []Projectile           `json:"projectiles"`
+	Drops               []Drop                 `json:"drops"`
+	Events              []Event                `json:"events"`
+	SkillTimers         map[string]float64     `json:"skill_timers"`
+	Gold                int64                  `json:"gold"`
+	BankedGold          int64                  `json:"banked_gold"`
+	BankedItems         []string               `json:"banked_items"`
+	Clock               float64                `json:"clock"`
+	LastMS              int64                  `json:"last_ms"`
+	Counter             int                    `json:"counter"`
+	Combo               int                    `json:"combo"`
 }
 
 type Input struct {
@@ -336,6 +339,7 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	if p.HP <= 0 {
 		r.Status = "defeated"
+		r.finishMissionHistory("defeated")
 		r.Gold = 0
 		r.Drops = []Drop{}
 		r.Projectiles = []Projectile{}

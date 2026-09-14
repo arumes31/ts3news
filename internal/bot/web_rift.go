@@ -340,12 +340,9 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 		if err != nil {
 			return nil, err
 		}
-		var completed []int
-		if run != nil {
-			completed = run.CompletedLevels
-		}
+		previous := run
 		run = rift.NewRunAtLevel(id, build, now, riftMobCatalog(now), req.LevelID)
-		run.CompletedLevels = completed
+		run.InheritCampaignHistory(previous)
 		run.StartKey = req.RequestID
 		run.Epoch = epoch
 	} else {
@@ -374,8 +371,8 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 			if err := bankRift(ctx, tx, uid, req.RequestID, run); err != nil {
 				return nil, err
 			}
-			run.FinishCheckpoint(req.Kind, riftMobCatalog(now))
 			run.LastMS = max(run.LastMS, now.UnixMilli())
+			run.FinishCheckpoint(req.Kind, riftMobCatalog(now))
 		}
 		run.Revision = req.Revision
 	}

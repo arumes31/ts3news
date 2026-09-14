@@ -123,6 +123,7 @@ func NewRunAtLevel(id string, build Build, now time.Time, catalog []content.Mob,
 func (r *Run) setLevel(id int, catalog []content.Mob) {
 	level := Campaign()[id-1]
 	r.Level = &level
+	r.beginMissionHistory()
 	r.Room = 0
 	// The whole shared bestiary remains eligible, including future additions.
 	r.EncounterPlan = planEncounters(fmt.Sprintf("%s-level-%d", r.ID, id), catalog)
@@ -161,6 +162,11 @@ func (r *Run) Arena() Arena {
 func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 	if r.Status != "cleared" {
 		return
+	}
+	if r.Room == len(Rooms)-1 {
+		r.finishMissionHistory("completed")
+	} else if kind == "exit" {
+		r.finishMissionHistory("exited")
 	}
 	if r.Room == len(Rooms)-1 && r.Level != nil && !slices.Contains(r.CompletedLevels, r.Level.ID) {
 		r.CompletedLevels = append(r.CompletedLevels, r.Level.ID)

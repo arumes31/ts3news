@@ -182,6 +182,7 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	old.Epoch = "2"
 	old.CompletedLevels = []int{1, 10}
 	old.BankedGold = 300
+	old.History[10] = rift.MissionHistory{Attempts: 3, Completions: 2, BestSeconds: 45, LastOutcome: "completed"}
 	data, err := json.Marshal(old)
 	if err != nil {
 		t.Fatal(err)
@@ -198,6 +199,24 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	}
 	if run.Level.ID != 42 || len(run.CompletedLevels) != 2 || run.CompletedLevels[1] != 10 || run.BankedGold != 0 || run.ID == "old" {
 		t.Fatalf("incorrect new expedition: %+v", run)
+	}
+	if run.History[10].Attempts != 3 || run.History[10].BestSeconds != 45 || run.History[42].Attempts != 1 {
+		t.Fatalf("history lost: %+v", run.History)
+	}
+	// A retry of the same start must return the saved first attempt, without
+	// another write or increment.
+	data, err = json.Marshal(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
+	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
+	mock.ExpectRollback()
+	replayed, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", riftRequest{Kind: "start", RunID: "old", RequestID: "new-mission-request", LevelID: 42}, rift.Build{HP: 200}, time.Unix(102, 0))
+	if err != nil || replayed.History[42].Attempts != 1 {
+		t.Fatalf("start replay duplicated history: %v %+v", err, replayed)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

@@ -118,12 +118,9 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if req.Skills == nil {
 				selected.Skills = build.Skills
 			}
-			var completed []int
-			if run != nil {
-				completed = run.CompletedLevels
-			}
+			previous := run
 			run = rift.NewRunAtLevel(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()), req.LevelID)
-			run.CompletedLevels = completed
+			run.InheritCampaignHistory(previous)
 			run.StartKey = req.RequestID
 			run.Epoch = "fixture"
 			runs[cookie.Value] = run
@@ -161,8 +158,8 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					}
 				}
 				run.Gold = 0
-				run.FinishCheckpoint(req.Kind, riftMobCatalog(time.Now()))
 				run.LastMS = time.Now().UnixMilli()
+				run.FinishCheckpoint(req.Kind, riftMobCatalog(time.Now()))
 			}
 			run.Revision = req.Revision
 		}
