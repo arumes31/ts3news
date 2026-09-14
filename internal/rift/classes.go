@@ -47,7 +47,7 @@ func (r *Run) classCast(skill Skill) (int, string) {
 		p.HP -= cost
 		r.event("void_cost", p.X, p.Y-35, cost)
 	case "runesmith":
-		r.Barrier = math.Min(p.MaxHP*.5, r.Barrier+15+r.Build.Armor*2)
+		r.addBarrier(15+r.Build.Armor*2, skill.ID)
 	}
 	return charges, marked
 }

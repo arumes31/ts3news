@@ -9,6 +9,7 @@ type CombatStats struct {
 	SkillMana      map[string]float64 `json:"skill_mana,omitempty"`
 	SkillHits      map[string]int     `json:"skill_hits,omitempty"`
 	SkillHealing   map[string]float64 `json:"skill_healing,omitempty"`
+	SkillBarrier   map[string]float64 `json:"skill_barrier,omitempty"`
 	Seconds        float64            `json:"seconds"`
 	DamageDealt    float64            `json:"damage_dealt"`
 	DamageTaken    float64            `json:"damage_taken"`
@@ -42,4 +43,41 @@ func (r *Run) healPlayerBySkill(amount float64, skillID string) {
 		}
 		r.Stats.SkillHealing[skillID] += healed
 	}
+}
+
+func (r *Run) addBarrier(amount float64, skillID string) {
+	before := r.Barrier
+	r.Barrier = math.Min(r.Player.MaxHP*.5, r.Barrier+math.Max(0, amount))
+	if added := r.Barrier - before; added > 0 && skillID != "" {
+		if r.BarrierSources == nil {
+			r.BarrierSources = map[string]float64{}
+		}
+		r.BarrierSources[skillID] += added
+	}
+}
+
+// Mixed barriers share absorption in proportion to their remaining strength.
+// Any shield from an older snapshot without sources stays unattributed.
+func (r *Run) absorbBarrier(damage float64) float64 {
+	if r.Barrier <= 0 {
+		return 0
+	}
+	absorbed := math.Min(math.Max(0, damage), r.Barrier)
+	for skillID, remaining := range r.BarrierSources {
+		share := math.Min(remaining, absorbed*remaining/r.Barrier)
+		if share > 0 {
+			if r.Stats.SkillBarrier == nil {
+				r.Stats.SkillBarrier = map[string]float64{}
+			}
+			r.Stats.SkillBarrier[skillID] += share
+		}
+		if absorbed == r.Barrier || remaining <= share {
+			delete(r.BarrierSources, skillID)
+		} else {
+			r.BarrierSources[skillID] = remaining - share
+		}
+	}
+	r.Barrier -= absorbed
+	r.Stats.BarrierBlocked += absorbed
+	return absorbed
 }

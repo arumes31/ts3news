@@ -124,6 +124,7 @@ type Run struct {
 	Resource            int                    `json:"resource"`
 	Marked              string                 `json:"marked"`
 	Barrier             float64                `json:"barrier"`
+	BarrierSources      map[string]float64     `json:"barrier_sources,omitempty"`
 	Schema              int                    `json:"schema"`
 	ID                  string                 `json:"id"`
 	StartKey            string                 `json:"start_key"`
@@ -417,7 +418,7 @@ func (r *Run) cast(id string) {
 			r.healPlayerBySkill(p.MaxHP*skill.Heal, skill.ID)
 		}
 		if skill.Kind == "shield" {
-			r.Barrier = math.Min(p.MaxHP*.5, r.Barrier+25+r.Build.Armor*4)
+			r.addBarrier(25+r.Build.Armor*4, skill.ID)
 		} else if skill.Kind == "heal" {
 			if skill.Heal == 0 {
 				r.healPlayerBySkill(p.MaxHP*.15, skill.ID)
@@ -496,9 +497,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		kind = "block"
 	}
 	if r.Barrier > 0 {
-		absorbed := math.Min(damage, r.Barrier)
-		r.Stats.BarrierBlocked += absorbed
-		r.Barrier -= absorbed
+		absorbed := r.absorbBarrier(damage)
 		damage -= absorbed
 		kind = "block"
 	}

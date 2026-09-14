@@ -159,6 +159,58 @@ func TestCombatStatsSeparateGuardBarrierAndHealthDamage(t *testing.T) {
 	}
 }
 
+func TestBarrierAttributionSharesOverlappingSourcesAndPreservesLegacy(t *testing.T) {
+	r := testRun()
+	r.Build.Armor = 0
+	r.Barrier = 10 // An older save has no source for this part of its shield.
+	r.addBarrier(30, "first")
+	r.addBarrier(20, "second")
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	restored.hurtPlayer(30, 0, 0)
+	if restored.Barrier != 30 || restored.Stats.BarrierBlocked != 30 || restored.Stats.SkillBarrier["first"] != 15 || restored.Stats.SkillBarrier["second"] != 10 {
+		t.Fatalf("overlap or legacy attribution incorrect: %+v", restored)
+	}
+	restored.hurtPlayer(50, 0, 0)
+	if restored.Barrier != 0 || len(restored.BarrierSources) != 0 || restored.Stats.SkillBarrier["first"] != 30 || restored.Stats.SkillBarrier["second"] != 20 || restored.Stats.DamageTaken != 20 {
+		t.Fatalf("depletion or spillover incorrect: %+v", restored)
+	}
+}
+
+func TestBarrierAttributionCountsOnlyAddedShieldAndPostGuardDamage(t *testing.T) {
+	r := testRun()
+	r.Build.Armor = 0
+	r.addBarrier(100, "first")
+	r.addBarrier(100, "second")
+	r.addBarrier(100, "capped")
+	if r.Barrier != 120 || r.BarrierSources["second"] != 20 || len(r.BarrierSources) != 2 {
+		t.Fatalf("shield above cap attributed: %+v", r.BarrierSources)
+	}
+	r.Player.Guard = true
+	r.hurtPlayer(100, r.Player.X+20, r.Player.Y)
+	if math.Abs(r.Stats.SkillBarrier["first"]-15) > .001 || math.Abs(r.Stats.SkillBarrier["second"]-3) > .001 || math.Abs(r.Stats.GuardBlocked-82) > .001 {
+		t.Fatalf("guard prevention counted as shield absorption: %+v", r.Stats)
+	}
+}
+
+func TestRuneFinisherAndShieldCreditTheCastingSkill(t *testing.T) {
+	r := testRun()
+	r.Build.Class = "runesmith"
+	r.Resource = 3
+	r.Build.Skills = []Skill{{ID: "ward", Kind: "shield", Role: "finisher"}}
+	r.cast("ward")
+	want := 15 + r.Build.Armor*2 + 25 + r.Build.Armor*4
+	if r.Barrier != want || r.BarrierSources["ward"] != want || len(r.BarrierSources) != 1 {
+		t.Fatalf("class and direct barriers lost their casting skill: %+v", r.BarrierSources)
+	}
+}
+
 func TestCombatStatsExcludeOverhealAndPausedTime(t *testing.T) {
 	r := testRun()
 	r.Player.HP = r.Player.MaxHP - 5
