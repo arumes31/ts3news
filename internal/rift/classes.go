@@ -25,8 +25,11 @@ func (r *Run) classCast(skill Skill) (int, string) {
 	r.Resource = 0
 	r.Marked = ""
 	if charges == 0 {
+		r.Stats.EmptyFinishers++
 		return 0, marked
 	}
+	r.Stats.ChargedFinishers++
+	r.Stats.ChargesSpent += charges
 	p := &r.Player
 	switch r.Build.Class {
 	case "chronomancer":

@@ -49,3 +49,5 @@
 #rift-paused-badge{background:#e6c47d;color:#19291f;padding:.25rem .5rem;border-radius:3px;white-space:nowrap}#rift-paused-badge[hidden]{display:none}
 
 #rift-app .rift-signatures button{position:relative;padding-right:20px}#rift-app .rift-cooldown-ring{position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:50%;background:conic-gradient(#d5bf88 var(--cooldown-progress),#4c5b50 0);mask:radial-gradient(farthest-side,transparent 65%,#000 70%);pointer-events:none}#rift-app .rift-cooldown-ring[hidden]{display:none}#rift-app .rift-role-mark{font-size:12px;color:#d5bf88;line-height:1}
+
+#rift-class-coaching{padding:12px 16px;border-top:1px solid var(--rift-line)}#rift-class-coaching p{font-size:12px;line-height:1.5}

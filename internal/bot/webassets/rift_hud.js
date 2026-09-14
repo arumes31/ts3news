@@ -2,6 +2,10 @@
   'use strict';
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   let announced='',summaryKey='';
+  let coachingDismissed=false;
+  try{coachingDismissed=localStorage.getItem('riftClassCoachingDismissed')==='true';}catch(_){}
+  const coaching=document.createElement('div');coaching.id='rift-class-coaching';coaching.hidden=true;coaching.innerHTML='<p role="status"></p><button type="button">Dismiss class coaching</button>';document.querySelector('.rift-run-statistics').before(coaching);
+  coaching.querySelector('button').onclick=()=>{coachingDismissed=true;coaching.hidden=true;document.querySelector('.rift-run-statistics > summary').focus();try{localStorage.setItem('riftClassCoachingDismissed','true');}catch(_){}};
   let recentBaseline=null,recentChanges=[];
   function recentDamage(run,replay){
     const current={id:run.id,seconds:run.stats?.seconds||0,damage:run.stats?.damage_taken||0,healing:run.stats?.healing||0};
@@ -43,13 +47,16 @@
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
+    const builder=run.build.signatures?.find(s=>s.role==='builder');
+    coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
+    if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     meter('#rift-vitals .hp','Player health',run.player.hp,run.player.max_hp);
     meter('#rift-vitals .mana','Player mana',run.player.mana,100);
     if(boss)meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp);
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
-    const values=[['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
+    const values=[['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
     let attributed=0,attributedMana=0,attributedHealing=0,attributedBarrier=0;for(const [skill,kind] of abilityUses){const casts=stats.skill_uses?.[skill.id]||0,mana=stats.skill_mana?.[skill.id]||0,healing=stats.skill_healing?.[skill.id]||0,barrier=stats.skill_barrier?.[skill.id]||0;attributed+=casts;attributedMana+=mana;attributedHealing+=healing;attributedBarrier+=barrier;const name=skill.name+' ('+kind+')';values.push(['Casts · '+name,casts],['Mana · '+name,mana],['Hits · '+name,stats.skill_hits?.[skill.id]||0],['Healing · '+name,healing],['Absorbed · '+name,barrier]);}
     if((stats.skills_cast||0)>attributed)values.push(['Earlier casts without per-skill records',stats.skills_cast-attributed]);

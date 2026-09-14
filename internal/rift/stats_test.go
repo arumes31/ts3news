@@ -70,6 +70,39 @@ func TestCombatStatsCountEffectiveDamageAndKillsOnce(t *testing.T) {
 	}
 }
 
+func TestFinisherStatisticsCountConfirmedSequencesAndEmptyCasts(t *testing.T) {
+	r := testRun()
+	r.Build.Signatures = []Skill{{ID: "build", Role: "builder", Kind: "shield", Cost: 10}, {ID: "finish", Role: "finisher", Kind: "slash", Power: 1, Cost: 10}}
+	r.cast("finish")
+	r.cast("finish") // Global cooldown rejects this attempt.
+	for range 3 {
+		r.Player.Cooldown = 0
+		r.cast("build")
+	}
+	r.Player.Cooldown = 0
+	r.Player.Mana = 0
+	r.cast("finish") // Resource rejection must preserve charges and counters.
+	if r.Resource != 3 || r.Stats.EmptyFinishers != 1 || r.Stats.ChargedFinishers != 0 {
+		t.Fatalf("rejected finisher changed statistics: %+v", r.Stats)
+	}
+	r.Player.Mana = 100
+	r.cast("finish")
+	if r.Resource != 0 || r.Stats.ChargedFinishers != 1 || r.Stats.ChargesSpent != 3 {
+		t.Fatalf("sequence missing: %+v", r.Stats)
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.Stats.EmptyFinishers != 1 || restored.Stats.ChargedFinishers != 1 || restored.Stats.ChargesSpent != 3 {
+		t.Fatal("finisher statistics lost on save")
+	}
+}
+
 func TestSkillHitsCountDamagedTargetsAndSurviveProjectileSave(t *testing.T) {
 	r := testRun()
 	r.Build.Skills = []Skill{{ID: "sweep", Kind: "slash", Power: 2}}
