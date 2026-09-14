@@ -168,7 +168,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 }
 
 func TestRiftRejectsUntrustedRequestsBeforeDatabase(t *testing.T) {
-	for _, scenario := range []string{"origin", "cross-site", "content-type", "forged hp", "movement", "oversize", "method", "invalid mission", "negative mission"} {
+	for _, scenario := range []string{"origin", "cross-site", "content-type", "forged hp", "forged elapsed", "forged record time", "movement", "oversize", "method", "invalid mission", "negative mission"} {
 		t.Run(scenario, func(t *testing.T) {
 			body := `{"kind":"step","request_id":"test-request-123456","input":{"x":0}}`
 			if scenario == "invalid mission" {
@@ -179,6 +179,12 @@ func TestRiftRejectsUntrustedRequestsBeforeDatabase(t *testing.T) {
 			}
 			if scenario == "forged hp" {
 				body = `{"kind":"step","request_id":"test-request-123456","hp":999}`
+			}
+			if scenario == "forged elapsed" {
+				body = `{"kind":"step","request_id":"test-request-123456","input":{"x":0,"dt":1000}}`
+			}
+			if scenario == "forged record time" {
+				body = `{"kind":"step","request_id":"test-request-123456","stats":{"seconds":0.001}}`
 			}
 			if scenario == "movement" {
 				body = `{"kind":"step","request_id":"test-request-123456","input":{"x":999}}`

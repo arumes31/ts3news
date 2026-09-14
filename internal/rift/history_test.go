@@ -561,3 +561,23 @@ func TestRoomSplitsExcludeCheckpointWaitingAndSurviveAdvance(t *testing.T) {
 		t.Fatal("legacy split invented")
 	}
 }
+
+func TestLoadingResumeGapDoesNotEnterClearTime(t *testing.T) {
+	for _, paused := range []bool{false, true} {
+		r := NewRunAtLevel("loading", Build{HP: 100}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+		if paused {
+			r.SetPaused(true, time.Unix(100, 0))
+		}
+		r.SetPaused(false, time.Unix(200, 0))
+		if r.Stats.Seconds != 0 {
+			t.Fatal("loading entered combat time")
+		}
+		r.Step(Input{}, time.Unix(200, 100000000))
+		r.Room = 2
+		r.Status = "cleared"
+		r.FinishCheckpoint("bank", content.AbyssMobCatalog())
+		if got := r.History[1].BestSeconds; got < 0.099999 || got > 0.100001 {
+			t.Fatalf("record included resume gap: %f", got)
+		}
+	}
+}

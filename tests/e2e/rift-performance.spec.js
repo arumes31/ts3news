@@ -1,12 +1,13 @@
 const {test,expect}=require('@playwright/test');
 
 test('character metadata loads while critical artwork is still pending',async({page})=>{
-  let release;const gate=new Promise(resolve=>release=resolve);let fetched=false;
+  let release;const gate=new Promise(resolve=>release=resolve);let fetched=false;let mutations=0;
+  page.on('request',request=>{if(request.url().includes('/api/abyss/rift')&&request.method()==='POST')mutations++;});
   await page.route('**/static/rift_regions.png*',async route=>{await gate;await route.continue();});
   page.on('response',response=>{if(response.url().endsWith('/api/abyss/rift')&&response.request().method()==='GET')fetched=true;});
   try{
     await page.goto('/abyss/rift',{waitUntil:'domcontentloaded'});
-    await expect.poll(()=>fetched,{timeout:1500}).toBe(true);await expect(page.locator('#rift-start')).toBeDisabled();
+    await expect.poll(()=>fetched,{timeout:1500}).toBe(true);await expect(page.locator('#rift-start')).toBeDisabled();expect((await(await page.request.get('/api/abyss/rift')).json()).run).toBeNull();expect(mutations).toBe(0);
   }finally{release();}
   await expect(page.locator('#rift-start')).toBeEnabled();
 });
