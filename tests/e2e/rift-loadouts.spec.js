@@ -1,5 +1,19 @@
 const {test,expect}=require('@playwright/test');
 
+test('skill reference matches owned costs and cooldowns and tracks reordered slots',async({page})=>{
+  await page.goto('/abyss/rift?subclass=elementalist');await expect(page.locator('#rift-start')).toBeEnabled();
+  const build=(await(await page.request.get('/api/abyss/rift')).json()).build;
+  await page.locator('#rift-skill-glossary > summary').click();
+  const skills=[...build.skills,...build.signatures,build.ultimate];await expect(page.locator('#rift-glossary-entries article')).toHaveCount(skills.length);
+  for(const skill of skills){const entry=page.locator('#rift-glossary-entries article').filter({has:page.getByText(skill.name,{exact:true})});await expect(entry).toContainText(skill.cost+' MP');await expect(entry).toContainText(skill.cooldown+'s cooldown');}
+  const guard=page.locator('#rift-glossary-entries [data-skill="guard"]');await expect(guard).toContainText('Slot 1');
+  await page.getByRole('button',{name:'Swap slots 1 and 2',exact:true}).click();await expect(guard).toContainText('Slot 2');
+  await page.locator('#rift-glossary-search').fill('cinder');await expect(page.locator('#rift-glossary-entries article:visible')).toHaveCount(1);
+  await page.locator('#rift-glossary-search').fill('no such skill');await expect(page.locator('#rift-glossary-count')).toHaveText('No matching skills.');
+  await page.locator('#rift-glossary-search').fill('');await expect(page.locator('#rift-glossary-entries article:visible')).toHaveCount(skills.length);
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('direct slot swaps preserve skills, save their order and lock during expeditions',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   const values=()=>page.locator('#rift-loadout select').evaluateAll(slots=>slots.map(slot=>slot.value));
@@ -15,7 +29,7 @@ test('direct slot swaps preserve skills, save their order and lock during expedi
 
 test('preset transfer rejects invalid skills and imports owned slots for review before application',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
-  await page.locator('#rift-loadout-presets details > summary').click();
+  await page.locator('#rift-loadout-presets details > summary').filter({hasText:'Import or export a preset'}).click();
   const values=()=>page.locator('#rift-loadout select').evaluateAll(slots=>slots.map(slot=>slot.value));const original=await values();
   for(const payload of ['bad JSON',JSON.stringify({version:2,name:'Future',skills:[]}),JSON.stringify({version:1,name:'Missing',skills:['not_owned']}),JSON.stringify({version:1,name:'Duplicate',skills:['guard','guard']})]){
     await page.locator('#rift-preset-json').fill(payload);await page.locator('#rift-import-loadout').click();
@@ -38,7 +52,7 @@ test('empty optional loadouts explain retained controls and can be saved and app
   await page.locator('#rift-loadout-name').fill('Basics');await page.locator('#rift-save-loadout').click();
   await page.locator('#rift-loadout select').first().selectOption('guard');await expect(page.locator('#rift-empty-loadout')).toBeHidden();
   await page.locator('#rift-apply-loadout').click();await expect(page.locator('#rift-empty-loadout')).toBeVisible();
-  await page.setViewportSize({width:390,height:844});await page.locator('#rift-loadout-presets details > summary').click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.setViewportSize({width:390,height:844});await page.locator('#rift-loadout-presets details > summary').filter({hasText:'Import or export a preset'}).click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
 test('named presets review changes before apply, persist, rename and delete without changing current skills',async({page})=>{

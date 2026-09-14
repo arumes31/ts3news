@@ -9,6 +9,9 @@
   const reorder=document.createElement('div');reorder.id='rift-loadout-order';reorder.setAttribute('role','group');reorder.setAttribute('aria-label','Reorder expedition skills');$('rift-loadout').after(reorder);
   const empty=document.createElement('p');empty.id='rift-empty-loadout';empty.hidden=true;empty.textContent='No optional skills selected. Basic attacks, jumping and guarding remain available. Learned class abilities are separate from these slots.';$('rift-loadout').after(empty);
   const transfer=document.createElement('details');transfer.innerHTML='<summary>Import or export a preset</summary><label>Preset JSON <textarea id="rift-preset-json" maxlength="2000" rows="5" spellcheck="false"></textarea></label><button type="button" id="rift-export-loadout">Export selected preset</button><button type="button" id="rift-import-loadout">Import for review</button><p>Copy the JSON to transfer a named preset. Import saves it locally for review; it does not equip skills.</p>';section.append(transfer);
+  const glossary=document.createElement('details');glossary.id='rift-skill-glossary';glossary.innerHTML='<summary>Skill reference</summary><p>Current Abyss skills. An active expedition keeps the build it started with.</p><label>Find a skill <input id="rift-glossary-search" type="search" maxlength="80"></label><p id="rift-glossary-count" role="status"></p><div id="rift-glossary-entries"></div>';section.append(glossary);
+  function filterGlossary(){const query=$('rift-glossary-search').value.trim().toLocaleLowerCase(),entries=Array.from($('rift-glossary-entries').children);let count=0;entries.forEach(entry=>{entry.hidden=!entry.dataset.search.includes(query);if(!entry.hidden)count++;});$('rift-glossary-count').textContent=count?count+' of '+entries.length+' skills':'No matching skills.';}
+  $('rift-glossary-search').addEventListener('input',filterGlossary);
   const slots=()=>Array.from($('rift-loadout').querySelectorAll('select'));
   const chosen=()=>presets.find(p=>p.id===$('rift-preset-list').value);
   const name=id=>id?(skills.find(skill=>skill.id===id)?.name||'Unavailable skill: '+id):'None';
@@ -23,6 +26,7 @@
     $('rift-import-loadout').disabled=locked||presets.length>=10;$('rift-export-loadout').disabled=!p;
     empty.hidden=slots().some(slot=>slot.value);
     reorder.querySelectorAll('button').forEach(button=>button.disabled=locked);
+    $('rift-glossary-entries').querySelectorAll('[data-optional-skill]').forEach(entry=>{const index=slots().findIndex(slot=>slot.value===entry.dataset.optionalSkill);entry.querySelector('.rift-skill-slot').textContent=index<0?'Not selected':'Slot '+(index+1);});
     $('rift-loadout-review').textContent=p?slots().map((slot,i)=>'Slot '+(i+1)+': '+name(slot.value)+' → '+name(p.skills[i]||'')).join(' · ')+(invalid(p)?' Cannot apply: unavailable or duplicate skills.':' Applying changes only these expedition skill slots.'):'Save up to 10 presets in this browser. Empty slots keep basic attacks and class abilities available.';
   }
   $('rift-preset-list').addEventListener('change',()=>{$('rift-loadout-name').value=chosen()?.name||'';refresh();});
@@ -45,6 +49,16 @@
   };
   window.RiftLoadouts={init(build,isBlocked){
     skills=build.skills;blocked=isBlocked;section.hidden=false;reorder.replaceChildren();
+    $('rift-glossary-entries').replaceChildren();
+    const entries=[...skills.map(skill=>({skill,category:'Optional skill'})),...(build.signatures||[]).map(skill=>({skill,category:skill.role==='builder'?'Class builder':'Class finisher'})),...(build.ultimate?[{skill:build.ultimate,category:'Ultimate'}]:[])];
+    for(const {skill,category} of entries){
+      const entry=document.createElement('article'),title=document.createElement('strong'),stats=document.createElement('p'),slot=document.createElement('small');
+      entry.dataset.skill=skill.id;entry.dataset.search=(skill.name+' '+category+' '+skill.kind).toLocaleLowerCase();title.textContent=skill.name;
+      stats.textContent=category+' · '+skill.cost+' MP · '+skill.cooldown+'s cooldown · Effect: '+skill.kind;
+      slot.className='rift-skill-slot';if(category==='Optional skill')entry.dataset.optionalSkill=skill.id;else slot.textContent='Separate from optional skill slots';
+      entry.append(title,stats,slot);$('rift-glossary-entries').append(entry);
+    }
+    filterGlossary();
     for(let index=0;index<slots().length-1;index++){
       const button=document.createElement('button');button.type='button';button.textContent='Swap slots '+(index+1)+' and '+(index+2);
       button.onclick=()=>{if(blocked())return;const current=slots(),value=current[index].value;current[index].value=current[index+1].value;current[index+1].value=value;refresh();$('rift-loadout-status').textContent='Swapped skill slots '+(index+1)+' and '+(index+2)+'.';};
