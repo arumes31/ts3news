@@ -79,3 +79,5 @@
 #rift-app[data-practice="guard"] :is([data-bind="attack"],[data-bind="jump"]) {display:none}
 
 #rift-app[data-practice="hazard"] :is([data-bind="attack"],[data-bind="guard"]) {display:none}
+
+#rift-practice-tools {margin-top:1rem;padding-top:.7rem;border-top:1px solid #49664b}#rift-practice-tools button {margin:0 .4rem .4rem 0}

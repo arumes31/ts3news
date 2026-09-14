@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
   const keys = new Set(), touch = new Set(), taps = new Set(), mouse = new Set();
   const keyOrder=new Map();let keySequence=0;
-  let guardLatched=false,canvasMouse=false;
+  let guardLatched=false,canvasMouse=false,practiceToolPending=false;
   const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
@@ -46,6 +46,7 @@
   function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
+  function practiceToolButtons(){root.querySelectorAll('[data-practice-action]').forEach(button=>button.disabled=!practice||!ready||busy||practiceToolPending||run?.status!=='fighting');}
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
@@ -91,7 +92,7 @@
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
       for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=true;
       put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
-      $('rift-practice-reset').disabled=!ready||busy;
+      $('rift-practice-reset').disabled=!ready||busy||practiceToolPending;practiceToolButtons();
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
     }
@@ -109,7 +110,7 @@
   }
   async function send(kind) {
     if(busy)return false;
-    busy=true;$('rift-practice-reset').disabled=true;
+    busy=true;$('rift-practice-reset').disabled=true;practiceToolButtons();
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
@@ -122,7 +123,7 @@
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
       message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
-    } finally {busy=false;$('rift-practice-reset').disabled=!practice||!ready||!run;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
+    } finally {busy=false;practiceToolButtons();$('rift-practice-reset').disabled=!practice||!ready||!run;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
   }
   async function checkpoint(kind){
     if(checkpointPending||!playing||run?.status!=='cleared')return false;
@@ -158,7 +159,7 @@
     if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · '+controls.label('pause');$('rift-room-actions').hidden=true;}
   }
   async function begin(){
-    if(busy||starting||controls.opened)return;
+    if(busy||starting||practiceToolPending||controls.opened)return;
     if($('rift-start').dataset.retry){
       if($('rift-start').dataset.artworkRetry==='true'){location.reload();return;}
       delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
@@ -315,7 +316,15 @@
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
     $('rift-practice-instructions').textContent=practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
     for(const node of [$('rift-campaign'),$('rift-campaign-tools-extra'),root.querySelector('.rift-route')?.closest('section'),$('rift-loot')?.closest('section'),root.querySelector('.rift-run-statistics'),$('rift-walkthrough')])if(node)node.hidden=true;
-    $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||!run)return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
+    root.querySelectorAll('[data-practice-action]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!ready||busy||starting||practiceToolPending||run?.status!=='fighting')return;
+      practiceToolPending=true;practiceToolButtons();$('rift-practice-reset').disabled=true;
+      try{await pause();if(run?.status==='fighting'&&!run.paused&&!await send('pause'))return;if(run?.status==='fighting'&&run.paused&&await send(button.dataset.practiceAction)){
+        $('rift-practice-tool-status').textContent=button.textContent+' applied. Drill progress is unchanged.';
+        message(drillNames[practice],$('rift-practice-instructions').textContent,'Resume drill','PRACTICE PAUSED');
+      }}finally{practiceToolPending=false;practiceToolButtons();$('rift-practice-reset').disabled=!ready||busy||!run;}
+    }));
+    $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||practiceToolPending||!run)return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
   }
   load();
 })();

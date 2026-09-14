@@ -135,3 +135,18 @@ func TestRiftPracticeResetIsScopedAndRevisionIdempotent(t *testing.T) {
 		})
 	}
 }
+
+func TestRiftPracticeRecoveryCannotEnterCampaign(t *testing.T) {
+	for _, kind := range []string{"practice_health", "practice_mana", "practice_cooldowns"} {
+		if _, err := (&Bot{}).updateRift(context.Background(), "owner", riftRequest{Kind: kind}, rift.Build{}, time.Now()); err == nil {
+			t.Fatal("campaign accepted practice tool")
+		}
+		request := httptest.NewRequest("POST", "/api/abyss/rift", strings.NewReader(`{"kind":"`+kind+`","request_id":"practice-request-123"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		(&WebServer{}).handleRiftAPI(response, request, "owner")
+		if response.Code != 400 {
+			t.Fatal("campaign HTTP accepted practice tool")
+		}
+	}
+}

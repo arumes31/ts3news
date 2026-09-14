@@ -123,3 +123,29 @@ func (r *Run) practiceTick() {
 		r.event("clear", r.Player.X, r.Player.Y, 0)
 	}
 }
+
+// PracticeTool changes practice resources without changing drill or campaign records.
+func (r *Run) PracticeTool(kind string) error {
+	if r.Practice == nil || r.Status != "fighting" {
+		return errors.New("practice recovery requires an active drill")
+	}
+	switch kind {
+	case "practice_health":
+		r.Player.HP = r.Player.MaxHP
+	case "practice_mana":
+		r.Player.Mana = 100
+	case "practice_cooldowns":
+		for _, skill := range r.Build.Skills {
+			r.SkillTimers[skill.ID] = 0
+		}
+		for _, skill := range r.Build.Signatures {
+			r.SkillTimers[skill.ID] = 0
+		}
+		if r.Build.Ultimate != nil {
+			r.SkillTimers[r.Build.Ultimate.ID] = 0
+		}
+	default:
+		return errors.New("unknown practice recovery control")
+	}
+	return nil
+}

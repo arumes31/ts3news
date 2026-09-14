@@ -142,3 +142,43 @@ func TestPracticeHazardDamageResetsEarnedStreak(t *testing.T) {
 		t.Fatal("missed warning retained the clean streak")
 	}
 }
+
+func TestPracticeRecoveryToolsPreserveProgressAndCombatTimers(t *testing.T) {
+	r, _ := NewPracticeRun("tools", testRun().Build, "guard", time.Unix(100, 0))
+	r.Build.Skills = []Skill{{ID: "fire"}}
+	r.Build.Signatures = []Skill{{ID: "builder"}}
+	r.Build.Ultimate = &Skill{ID: "ultimate"}
+	r.Player.HP = 20
+	r.Player.Mana = 5
+	r.Practice.Hits = 2
+	r.Stats.DamageTaken = 30
+	r.Paused = true
+	r.SkillTimers = map[string]float64{"fire": 5, "builder": 6, "ultimate": 7, "jump": .8, "hazard-0": .7, "slowed": .6}
+	if err := r.PracticeTool("practice_health"); err != nil {
+		t.Fatal(err)
+	}
+	if r.Player.HP != r.Player.MaxHP || r.Player.Mana != 5 || r.Stats.Healing != 0 || r.Stats.DamageTaken != 30 || r.Practice.Hits != 2 || !r.Paused {
+		t.Fatal("health refill changed unrelated state")
+	}
+	if err := r.PracticeTool("practice_mana"); err != nil || r.Player.Mana != 100 {
+		t.Fatal("mana refill failed")
+	}
+	if err := r.PracticeTool("practice_cooldowns"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"fire", "builder", "ultimate"} {
+		if r.SkillTimers[id] != 0 {
+			t.Fatal("ability timer remained")
+		}
+	}
+	if r.SkillTimers["jump"] != .8 || r.SkillTimers["hazard-0"] != .7 || r.SkillTimers["slowed"] != .6 {
+		t.Fatal("recovery erased combat safety timers")
+	}
+	if err := testRun().PracticeTool("practice_health"); err == nil {
+		t.Fatal("campaign accepted practice recovery")
+	}
+	r.Status = "defeated"
+	if err := r.PracticeTool("practice_health"); err == nil {
+		t.Fatal("recovery revived ended drill")
+	}
+}

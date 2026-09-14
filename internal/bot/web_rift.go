@@ -286,7 +286,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "practice_reset":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns":
 		return true
 	}
 	return false
@@ -323,7 +323,7 @@ func validRiftModeAction(mode, kind string) bool {
 		return false
 	}
 	switch kind {
-	case "start", "step", "pause", "resume", "practice_reset":
+	case "start", "step", "pause", "resume", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns":
 		return true
 	}
 	return false
@@ -463,6 +463,10 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			return nil, errRiftConflict
 		}
 		switch req.Kind {
+		case "practice_health", "practice_mana", "practice_cooldowns":
+			if err := run.PracticeTool(req.Kind); err != nil {
+				return nil, errRiftConflict
+			}
 		case "practice_reset":
 			if err := run.ResetPractice(now); err != nil {
 				return nil, err

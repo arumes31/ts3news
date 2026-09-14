@@ -55,6 +55,30 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "practice-tools" && rift.ValidPracticeMode(r.URL.Query().Get("practice")) {
+			mode := r.URL.Query().Get("practice")
+			run, _ := rift.NewPracticeRun("practice-tools", selectedBuild, mode, time.Now())
+			run.Epoch = "fixture"
+			run.Paused = true
+			run.Player.HP = run.Player.MaxHP / 2
+			run.Player.Mana = 12
+			run.Practice.Hits = 2
+			run.Stats.DamageTaken = 30
+			for _, skill := range run.Build.Skills {
+				run.SkillTimers[skill.ID] = 8
+			}
+			for _, skill := range run.Build.Signatures {
+				run.SkillTimers[skill.ID] = 8
+			}
+			if run.Build.Ultimate != nil {
+				run.SkillTimers[run.Build.Ultimate.ID] = 8
+			}
+			run.SkillTimers["slowed"] = .6
+			run.SkillTimers["hazard-0"] = .7
+			mu.Lock()
+			runs[cookie.Value+":"+mode] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "history" {
 			mu.Lock()
 			run := rift.NewRunAtLevel("history", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 2)
@@ -170,6 +194,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				return
 			}
 			switch req.Kind {
+			case "practice_health", "practice_mana", "practice_cooldowns":
+				if err := run.PracticeTool(req.Kind); err != nil {
+					http.Error(w, err.Error(), 409)
+					return
+				}
 			case "practice_reset":
 				if err := run.ResetPractice(time.Now()); err != nil {
 					http.Error(w, err.Error(), 400)

@@ -52,3 +52,33 @@ test('hazard practice punishes missed warnings and rewards three evasions',async
  }
  await expect(page.locator('#rift-overlay-title')).toHaveText('Drill complete.');const run=await saved();expect(run.stats.damage_taken).toBe(0);expect(run.drops).toHaveLength(0);expect(errors).toEqual([]);
 });
+
+test('practice recovery controls preserve the drill and do not enter campaign storage',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.goto('/abyss/rift?practice=guard&scenario=practice-tools');await expect(page.locator('[data-practice-action="practice_health"]')).toBeEnabled();
+ const saved=async()=>(await(await page.request.get('/api/abyss/rift?practice=guard')).json()).run;
+ const initial=await saved();expect(initial.player.hp).toBeLessThan(initial.player.max_hp);expect(initial.player.mana).toBe(12);
+ await page.locator('[data-practice-action="practice_health"]').click();await expect.poll(async()=>(await saved()).player.hp).toBe(initial.player.max_hp);
+ await page.locator('[data-practice-action="practice_mana"]').click();await expect.poll(async()=>(await saved()).player.mana).toBe(100);
+ await page.locator('[data-practice-action="practice_cooldowns"]').click();await expect(page.locator('#rift-practice-tool-status')).toContainText('Reset skill cooldowns applied');
+ const after=await saved();for(const skill of [...after.build.skills,...after.build.signatures,after.build.ultimate])expect(after.skill_timers[skill.id]).toBe(0);
+ expect(after.skill_timers.slowed).toBe(.6);expect(after.skill_timers['hazard-0']).toBe(.7);expect(after.practice.hits).toBe(2);expect(after.paused).toBe(true);expect(after.stats).toEqual(initial.stats);expect(after.id).toBe(initial.id);
+ expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(campaign);
+});
+
+test('health refill pauses a running practice fight before recovery',async({page})=>{
+ await page.goto('/abyss/rift?practice=guard');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ const saved=async()=>(await(await page.request.get('/api/abyss/rift?practice=guard')).json()).run;
+ await expect.poll(async()=>(await saved()).stats.damage_taken).toBeGreaterThan(0);
+ await page.locator('[data-practice-action="practice_health"]').click();await expect(page.locator('#rift-practice-tool-status')).toContainText('Refill health applied');
+ const after=await saved();expect(after.paused).toBe(true);expect(after.player.hp).toBe(after.player.max_hp);expect(after.stats.damage_taken).toBeGreaterThan(0);await expect(page.locator('#rift-start')).toHaveText('Resume drill');
+});
+
+test('recovery pauses a restored drill that was not running in this page',async({page})=>{
+ await page.goto('/abyss/rift?practice=guard');await expect(page.locator('#rift-start')).toBeEnabled();
+ const response=await page.request.post('/api/abyss/rift?practice=guard',{data:{kind:'start',request_id:'restored-practice-tool',run_id:'',revision:1,input:{}}});expect(response.ok()).toBe(true);
+ await page.reload();await expect(page.locator('#rift-start')).toHaveText('Resume drill');
+ expect((await(await page.request.get('/api/abyss/rift?practice=guard')).json()).run.paused).toBe(false);
+ await page.locator('[data-practice-action="practice_mana"]').click();await expect(page.locator('#rift-practice-tool-status')).toContainText('Refill mana applied');
+ expect((await(await page.request.get('/api/abyss/rift?practice=guard')).json()).run.paused).toBe(true);
+});
