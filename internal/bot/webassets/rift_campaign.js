@@ -2,12 +2,13 @@
   'use strict';
   const $=id=>document.getElementById(id);
   const key='riftCampaignView';
-  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[]};
+  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[],scrollTop:0};
   let view={...defaults},levels=[],completed=new Set(),active=false,selected=1,initialized=false,overview=false,expandedRegion=null;
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')view={...view,...saved};}catch(_){}
   view.search=typeof view.search==='string'?view.search.slice(0,80):'';
   view.favorites=Array.isArray(view.favorites)?view.favorites.filter(n=>Number.isInteger(n)&&n>=1&&n<=100).slice(0,100):[];
   view.favoritesOnly=view.favoritesOnly===true;view.compact=view.compact===true;
+  if(typeof view.scrollTop!=='number'||!Number.isFinite(view.scrollTop)||view.scrollTop<0)view.scrollTop=0;
   if(!['all','complete','unfinished'].includes(view.completion))view.completion='all';
   if(!['all','Wayfarer','Veteran','Champion','Mythic'].includes(view.difficulty))view.difficulty='all';
   if(!['all',...Array.from({length:10},(_,i)=>String(i))].includes(view.region))view.region='all';
@@ -66,6 +67,13 @@
     if(!initialized){
       initialized=true;
       const grid=$('rift-levels'),hint=document.createElement('p');
+      const campaign=$('rift-campaign');
+      const rememberScroll=()=>{if(campaign.open&&!grid.hidden)view.scrollTop=grid.scrollTop;};
+      const restoreScroll=()=>requestAnimationFrame(()=>{if(campaign.open&&!grid.hidden)grid.scrollTop=view.scrollTop;});
+      grid.addEventListener('scroll',rememberScroll,{passive:true});
+      campaign.addEventListener('toggle',()=>{if(campaign.open)restoreScroll();else save();});
+      window.addEventListener('pagehide',()=>{rememberScroll();save();});
+      restoreScroll();
       hint.id='rift-grid-navigation';hint.className='rift-muted';
       hint.textContent='Mission cards: use arrow keys to browse, Home or End for the first or last result, and Enter to select.';
       grid.before(hint);grid.setAttribute('aria-describedby',hint.id);
@@ -81,7 +89,7 @@
         browse.addEventListener('click',()=>{view.region=String(region);overview=false;reflect();save();apply();$('rift-region').focus();});
         details.append(summary,description,browse);section.append(details);regions.append(section);
       }
-      toggle.addEventListener('click',()=>{overview=!overview;if(overview)expandedRegion=null;apply();});
+      toggle.addEventListener('click',()=>{rememberScroll();overview=!overview;if(overview)expandedRegion=null;apply();if(!overview)restoreScroll();});
       grid.addEventListener('keydown',event=>{
         if(active||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
         const cards=Array.from(grid.querySelectorAll('[data-level]')).filter(button=>!button.hidden&&!button.disabled);

@@ -1,5 +1,37 @@
 const {test,expect}=require('@playwright/test');
 
+test('mission scroll survives campaign closure, overview browsing and reload with saved filters',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  await page.locator('#rift-region').selectOption('8');
+  const grid=page.locator('#rift-levels');
+  await grid.evaluate(element=>{element.scrollTop=300;});
+  await expect.poll(()=>grid.evaluate(element=>element.scrollTop)).toBe(300);
+  // Wait for the browser scroll event before hiding the scroll container.
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.locator('#rift-campaign > summary').click();
+  await expect(page.locator('#rift-campaign')).not.toHaveAttribute('open','');
+  await page.locator('#rift-campaign > summary').click();
+  await expect.poll(()=>grid.evaluate(element=>element.scrollTop)).toBe(300);
+  await page.locator('#rift-overview-toggle').click();await expect(grid).toBeHidden();
+  await page.locator('#rift-overview-toggle').click();
+  await expect.poll(()=>grid.evaluate(element=>element.scrollTop)).toBe(300);
+  await page.reload();await expect(page.locator('#rift-region')).toHaveValue('8');
+  await expect.poll(()=>grid.evaluate(element=>element.scrollTop)).toBe(300);
+});
+
+test('invalid saved mission scroll is ignored and oversized positions are bounded by the grid',async({page})=>{
+  await page.addInitScript(()=>localStorage.setItem('riftCampaignView',JSON.stringify({scrollTop:'300'})));
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+  await expect.poll(()=>page.locator('#rift-levels').evaluate(element=>element.scrollTop)).toBe(0);
+  await page.evaluate(()=>localStorage.setItem('riftCampaignView',JSON.stringify({scrollTop:1e12})));
+  // A fresh navigation without the initial script uses a separate page in the same context.
+  const restored=await page.context().newPage();await restored.goto('/abyss/rift');
+  await expect(restored.locator('#rift-start')).toBeEnabled();
+  await expect.poll(()=>restored.locator('#rift-levels').evaluate(element=>element.scrollTop===element.scrollHeight-element.clientHeight)).toBe(true);
+  await restored.close();
+});
+
 test('region overview expands the selected region and preserves combined filters when browsing',async({page})=>{
   await page.goto('/abyss/rift?mission=87');await expect(page.locator('#rift-start')).toHaveText('Enter mission 87');
   await page.locator('#rift-mission-search').fill('impossible-mission');
