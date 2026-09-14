@@ -1,5 +1,40 @@
 const { test, expect } = require('@playwright/test');
 
+test('mouse attack and guard bindings apply only to the battlefield and persist',async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-controls-open').click();
+  await page.locator('#rift-mouse-attack').selectOption('0');await page.locator('#rift-mouse-guard').selectOption('0');
+  await expect(page.locator('#rift-binding-status')).toContainText('already assigned');await expect(page.locator('#rift-mouse-guard')).toHaveValue('-1');
+  await page.locator('#rift-mouse-guard').selectOption('2');await page.locator('#rift-controls-close').click();await page.reload();
+  await page.locator('#rift-controls-open').click();await expect(page.locator('#rift-mouse-guard')).toHaveValue('2');await page.locator('#rift-controls-close').click();
+  await page.locator('#rift-start').click();const canvas=page.locator('#rift-canvas'),read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+  await canvas.click({position:{x:300,y:300}});await expect.poll(async()=>(await read()).stats.attacks).toBeGreaterThan(0);
+  await canvas.hover({position:{x:300,y:300}});await page.mouse.down({button:'right'});
+  await expect.poll(async()=>(await read()).player.guard).toBe(true);await page.mouse.up({button:'right'});await expect.poll(async()=>(await read()).player.guard).toBe(false);
+  await page.keyboard.press('Escape');
+});
+
+test('toggle guard survives release and resets on pause for keyboard and touch actions',async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-controls-open').click();await page.locator('#rift-toggle-guard').check();await page.locator('#rift-controls-close').click();
+  await page.locator('#rift-start').click();const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+  await page.keyboard.press('l');await expect.poll(async()=>(await read()).player.guard).toBe(true);await page.waitForTimeout(250);expect((await read()).player.guard).toBe(true);
+  await expect(page.locator('[data-bind="guard"]')).toHaveAttribute('aria-pressed','true');
+  await page.locator('[data-bind="guard"]').click();await expect.poll(async()=>(await read()).player.guard).toBe(false);
+  await page.locator('[data-bind="guard"]').click();await expect.poll(async()=>(await read()).player.guard).toBe(true);
+  await page.keyboard.press('Escape');await expect(page.locator('[data-bind="guard"]')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#rift-start').click();await expect.poll(async()=>(await read()).player.guard).toBe(false);await page.keyboard.press('Escape');
+});
+
+test('basic guard and the equipped Iron Guard skill have separate actions',async({page})=>{
+  await page.goto('/abyss/rift');await page.locator('#rift-controls-open').click();await page.locator('#rift-toggle-guard').check();await page.locator('#rift-controls-close').click();
+  const inputs=[];page.on('request',request=>{if(request.method()==='POST'){const data=request.postDataJSON();if(data?.input)inputs.push(data.input);}});
+  await page.locator('#rift-start').click();await page.locator('[data-bind="guard"]').click();
+  await expect.poll(()=>inputs.some(input=>input.guard)).toBe(true);expect(inputs.some(input=>input.skill==='guard')).toBe(false);
+  await page.locator('[data-bind="guard"]').click();await expect(page.locator('[data-bind="guard"]')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#rift-skills [data-hold="guard"]').click();
+  await expect.poll(()=>inputs.some(input=>input.skill==='guard')).toBe(true);
+  await expect(page.locator('[data-bind="guard"]')).toHaveAttribute('aria-pressed','false');await page.keyboard.press('Escape');
+});
+
 test('opening controls during audio startup cancels the pending expedition',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   const starts=[];page.on('request',request=>{if(request.method()==='POST'&&request.postDataJSON()?.kind==='start')starts.push(request);});

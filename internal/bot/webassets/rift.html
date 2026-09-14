@@ -70,7 +70,9 @@
   <dialog id="rift-controls-dialog" class="rift-controls-dialog" aria-labelledby="rift-controls-title">
     <h2 id="rift-controls-title">Your controls</h2><p>Bindings follow physical key positions. Alternate keyboards use the same positions; labels show the key codes. Escape always pauses, or cancels editing. The game stays paused when you close this panel.</p>
     <label>Keyboard layout <select id="rift-key-preset"><option value="standard">Standard</option><option value="leftHanded">Left-handed actions</option><option value="oneHanded">Compact one-handed</option></select></label><p id="rift-key-preset-description"></p><button id="rift-apply-keys" type="button">Apply layout</button>
-    <div id="rift-key-bindings"></div><p id="rift-binding-status" role="status" aria-live="polite"></p>
+    <div id="rift-key-bindings"></div>
+    <div class="rift-pointer-settings"><label>Mouse attack <select id="rift-mouse-attack"><option value="-1">Unbound</option><option value="0">Left button</option><option value="1">Middle button</option><option value="2">Right button</option></select></label><label>Mouse guard <select id="rift-mouse-guard"><option value="-1">Unbound</option><option value="0">Left button</option><option value="1">Middle button</option><option value="2">Right button</option></select></label><label><input id="rift-toggle-guard" type="checkbox"> Toggle guard instead of holding</label></div>
+    <p>Mouse actions work on the battlefield. Toggle guard stays on until the next guard press; pausing clears it. Keyboard layouts and key reset keep these preferences.</p><p id="rift-binding-status" role="status" aria-live="polite"></p>
     <div class="rift-controls-footer"><button id="rift-reset-keys" type="button">Reset all keys</button><button id="rift-controls-close" type="button">Close controls</button></div>
   </dialog>
 </div>

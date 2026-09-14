@@ -1,7 +1,8 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
-  const keys = new Set(), touch = new Set(), taps = new Set();
+  const keys = new Set(), touch = new Set(), taps = new Set(), mouse = new Set();
+  let guardLatched=false,canvasMouse=false;
   const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
@@ -27,15 +28,17 @@
     } finally { clearTimeout(timeout); }
   }
   function input() {
-    const held = name => touch.has(name)||taps.has(name);
+    const held = name => touch.has(name)||taps.has(name)||mouse.has(name);
     const pressed = action => controls.codes(action).some(code=>keys.has(code)||taps.has(code));
     const value = {x:Number(pressed('right')||held('right'))-Number(pressed('left')||held('left')),
       y:Number(pressed('down')||held('down'))-Number(pressed('up')||held('up')),
-      attack:pressed('attack')||held('attack'),guard:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
-      skill:(run?.build.signatures||[]).find((s,i)=>pressed('signature'+i)||held(s.id))?.id || (run?.build.ultimate && (pressed('ultimate')||held(run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('skill'+i)||held(s.id))?.id||''};
+      attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
+      skill:(run?.build.signatures||[]).find((s,i)=>pressed('signature'+i)||held('skill:'+s.id))?.id || (run?.build.ultimate && (pressed('ultimate')||held('skill:'+run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('skill'+i)||held('skill:'+s.id))?.id||''};
     taps.clear();return value;
   }
-  function resetInput(){keys.clear();touch.clear();taps.clear();root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));}
+  function resetInput(){keys.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
+  function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
+  function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function update(value, replay) {
     if(!value)return;
     if(value.status !== 'cleared' || replay) clearedAt = 0;
@@ -59,12 +62,12 @@
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
     const signature=run.build.skills.map(s=>s.id).join(',');
     if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
-      currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-skills').append(btn);hold(btn,s.id);});
+      currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-skills').append(btn);hold(btn,'skill:'+s.id);});
     }
     [...$('rift-skills').children].forEach((btn,i)=>{const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
     const specials=[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])];
     const specialIDs=specials.map(s=>s.id).join(',');
-    if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,s.id);});}
+    if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);});}
     [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
     [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
     [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
@@ -213,12 +216,21 @@
   function hold(button,value){
     button.dataset.action=value;
     button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);button.classList.add('rift-held');});
-    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled)taps.add(value);});
-    const release=event=>{if(event.type!=='pointerup'&&touch.has(value))taps.delete(value);touch.delete(value);button.classList.remove('rift-held');};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
+    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled){if(value==='guard'&&controls.toggleGuard)toggleGuard();else taps.add(value);}});
+    const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value))taps.delete(value);touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open();});
   window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
+  $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
+  $('rift-canvas').addEventListener('mousedown',event=>{
+    const action=controls.pointer(event.button);if(!playing||controls.opened||!canvasMouse||!action||event.ctrlKey||event.metaKey||event.altKey)return;
+    event.preventDefault();$('rift-canvas').focus();
+    if(action==='guard'&&controls.toggleGuard)toggleGuard();else{mouse.add(action);taps.add(action);}
+  });
+  window.addEventListener('mouseup',event=>{const action=controls.pointer(event.button);if(action)mouse.delete(action);});
+  $('rift-canvas').addEventListener('lostpointercapture',()=>{for(const action of mouse)taps.delete(action);mouse.clear();});
+  $('rift-canvas').addEventListener('contextmenu',event=>{if(playing&&controls.pointer(2))event.preventDefault();});
   window.addEventListener('keydown',event=>{
     if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     const action=controls.action(event.code);
@@ -226,7 +238,7 @@
     if(event.target.matches('input,select,textarea'))return;
     if(['Space','Enter'].includes(event.code)&&event.target.closest('button,summary,a'))return;
     if(action==='pause'&&!event.repeat){event.preventDefault();if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
-    if(!playing||!action)return;event.preventDefault();keys.add(event.code);if(!event.repeat)taps.add(event.code);
+    if(!playing||!action)return;event.preventDefault();keys.add(event.code);if(!event.repeat){if(action==='guard'&&controls.toggleGuard)toggleGuard();else taps.add(event.code);}
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
