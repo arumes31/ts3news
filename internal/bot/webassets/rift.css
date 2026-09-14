@@ -92,3 +92,9 @@
 @media(max-width:600px){.rift-term-list {grid-template-columns:1fr;gap:.25rem}.rift-term-list dd {margin-bottom:.6rem}.rift-field-guide summary span {display:block;margin:.3rem 0 0}}
 
 #rift-monster-sounds {display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+
+#rift-compare {margin:1rem 0;padding:.8rem;border:1px solid #49664b;border-radius:8px}
+.rift-compare-pickers {display:flex;flex-wrap:wrap;gap:.7rem;align-items:end;margin-top:.8rem}.rift-compare-pickers label {flex:1 1 220px;min-width:0}.rift-compare-pickers select {display:block;width:100%;max-width:100%;margin-top:.3rem}
+#rift-monster-comparison {width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem}#rift-monster-comparison caption {text-align:left;margin:.5rem 0;color:#e5ce96}#rift-monster-comparison th,#rift-monster-comparison td {padding:.6rem .4rem;border-bottom:1px solid #49664b;vertical-align:top;text-align:left;overflow-wrap:anywhere}#rift-monster-comparison th {color:#e5ce96}.rift-compare-different {background:#b7cf8b10}
+
+#rift-monster-comparison thead th:first-child {width:36%}

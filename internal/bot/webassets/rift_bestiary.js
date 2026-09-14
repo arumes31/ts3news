@@ -47,12 +47,16 @@
       if(!selected)return;const record=records[selected.art_key];
       document.getElementById('rift-monster-record').textContent=practice?'Campaign records are shown in campaign mode. Practice does not add encounters or defeats.':record?'First recorded encounter: '+new Date(record.first_seen_ms).toLocaleString()+' · Defeats: '+record.defeats+'. Older fights may be missing.':'No recorded encounter. Older fights may be missing.';
     }
+    function statsFor(unit){
+      const values=[['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
+      if(unit.training)values.push(['Attack windup',new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s'],['Knockdown',unit.training.resists_knockdown?'Resistant':'Third basic strike can knock down'],['Interruptible',unit.training.interruptible?'Yes: third basic strike or ice':'No: resists basic-combo and ice interrupts']);
+      return values;
+    }
     function inspect(unit,button){
       window.RiftAudio.cancelPreview();selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
       const title=document.getElementById('rift-monster-title');title.textContent=unit.name;
       const stats=document.getElementById('rift-monster-stats');stats.replaceChildren();
-      const values=[['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
-      if(unit.training)values.push(['Attack windup',new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s'],['Knockdown',unit.training.resists_knockdown?'Resistant':'Third basic strike can knock down'],['Interruptible',unit.training.interruptible?'Yes: third basic strike or ice':'No: resists basic-combo and ice interrupts']);
+      const values=statsFor(unit);
       values.forEach(([label,value])=>{const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;row.append(dt,dd);stats.append(row);});
       document.getElementById('rift-monster-tip').textContent=unit.kind==='boss'?'Watch the marked slam area and jump or move clear. This boss alternates slams with aimed projectiles. Use the recovery after a slam to strike.':unit.kind==='archer'?'Change lanes to evade aimed shots, then close the gap during recovery.':unit.kind==='treasure'?'Flees when you approach. Drive it toward the arena edge to stop its retreat.':'Move out of its lane during the windup, then strike during recovery. A third basic strike can knock it down.';
       const sounds=document.getElementById('rift-monster-sounds'),soundStatus=document.getElementById('rift-monster-sound-status');sounds.replaceChildren();soundStatus.textContent='';
@@ -63,6 +67,20 @@
       }
       showRecord();animate();title.focus();
     }
+    const comparison=document.getElementById('rift-monster-comparison'),left=document.getElementById('rift-compare-left'),right=document.getElementById('rift-compare-right');
+    for(const select of [left,right]){const saved=select.value;select.replaceChildren(new Option('Choose a creature',''));for(const unit of roster)select.append(new Option(unit.name,unit.art_key));if(roster.some(unit=>unit.art_key===saved))select.value=saved;}
+    function compare(){
+      comparison.replaceChildren();const a=roster.find(unit=>unit.art_key===left.value),b=roster.find(unit=>unit.art_key===right.value),message=document.getElementById('rift-compare-status');
+      if(!a||!b||a.art_key===b.art_key){comparison.hidden=true;message.textContent=a&&b?'Choose two different creatures.':'Choose two creatures to compare their base stats.';return;}
+      comparison.hidden=false;message.textContent='Different values are highlighted. Mission difficulty and room scaling still apply.';
+      const caption=document.createElement('caption');caption.textContent=a.name+' compared with '+b.name;comparison.append(caption);
+      const head=document.createElement('thead'),header=document.createElement('tr');for(const label of ['Trait',a.name,b.name]){const cell=document.createElement('th');cell.scope='col';cell.textContent=label;header.append(cell);}head.append(header);comparison.append(head);
+      const body=document.createElement('tbody'),other=new Map(statsFor(b));for(const [label,value] of statsFor(a)){
+        const row=document.createElement('tr'),title=document.createElement('th');title.scope='row';title.textContent=label;row.append(title);const compared=other.get(label)||'Unavailable';
+        for(const text of [value,compared]){const cell=document.createElement('td');cell.textContent=text;row.append(cell);}if(value!==compared)row.className='rift-compare-different';body.append(row);
+      }comparison.append(body);
+    }
+    left.onchange=compare;right.onchange=compare;document.getElementById('rift-compare-clear').onclick=()=>{left.value='';right.value='';compare();left.focus();};compare();
     document.getElementById('rift-monster-count').textContent=roster.length+' monsters';
     list.replaceChildren();
     function buildCards(){
