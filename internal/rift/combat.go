@@ -318,7 +318,7 @@ func (r *Run) tick(in Input, dt float64) {
 			}
 		} else {
 			for i, e := range r.Enemies {
-				if e.HP > 0 && math.Abs(shot.X-e.X) < 35 && math.Abs(shot.Y-e.Y) < 30 {
+				if ref := shot.Skill.Reference(); e.HP > 0 && math.Abs(shot.X-e.X) < ref.Horizontal && math.Abs(shot.Y-e.Y) < ref.Depth {
 					r.skillHit(i, shot.Power, shot.Skill, shot.Charges, shot.Marked)
 					hit = true
 					break
@@ -424,15 +424,9 @@ func (r *Run) cast(id string) {
 				r.healPlayerBySkill(p.MaxHP*.15, skill.ID)
 			}
 		} else if skill.Kind == "slash" || skill.Kind == "quake" || skill.Kind == "ultimate" {
-			rangeX, rangeY := 155.0, 60.0
-			if skill.Kind == "quake" {
-				rangeX, rangeY = 260, 120
-			}
-			if skill.Kind == "ultimate" {
-				rangeX, rangeY = 450, 180
-			}
+			ref := skill.Reference()
 			for i, e := range r.Enemies {
-				if e.HP > 0 && math.Abs(e.X-p.X) < rangeX && math.Abs(e.Y-p.Y) < rangeY {
+				if e.HP > 0 && math.Abs(e.X-p.X) < ref.Horizontal && math.Abs(e.Y-p.Y) < ref.Depth {
 					r.skillHit(i, power, skill, charges, marked)
 				}
 			}
