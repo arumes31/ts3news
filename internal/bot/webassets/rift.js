@@ -29,15 +29,16 @@
     } finally { clearTimeout(timeout); }
   }
   function input() {
+    const pad=window.RiftGamepad.consume();
     const held = name => touch.has(name)||taps.has(name)||mouse.has(name);
-    const pressed = action => controls.codes(action).some(code=>keys.has(code)||taps.has(code));
+    const pressed = action => pad.actions.has(action)||controls.codes(action).some(code=>keys.has(code)||taps.has(code));
     const value = {x:Number(pressed('right')||held('right'))-Number(pressed('left')||held('left')),
       y:Number(pressed('down')||held('down'))-Number(pressed('up')||held('up')),
       attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
       skill:(run?.build.signatures||[]).find((s,i)=>pressed('signature'+i)||held('skill:'+s.id))?.id || (run?.build.ultimate && (pressed('ultimate')||held('skill:'+run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('skill'+i)||held('skill:'+s.id))?.id||''};
-    taps.clear();return value;
+    value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){keys.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
+  function resetInput(){window.RiftGamepad.reset();keys.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function update(value, replay) {
@@ -259,5 +260,6 @@
   $('rift-reduced').addEventListener('change',()=>{reducedOverride=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(reducedOverride));}catch(_){}motionPreference();});
   $('rift-system-motion').addEventListener('click',()=>{reducedOverride=null;try{localStorage.removeItem('riftReducedMotion');}catch(_){}motionPreference();});
   systemMotion.addEventListener('change',()=>{if(reducedOverride===null)motionPreference();});motionPreference();
+  window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
   load();
 })();

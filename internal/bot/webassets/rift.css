@@ -21,3 +21,5 @@
 .rift-sidebar>.rift-settings{grid-column:1/-1}.rift-audio-mix label{flex-wrap:wrap}.rift-audio-mix input[type=range]{max-width:100%}#rift-app .rift-audio-mix [data-audio-preview]{font:11px/1.4 ui-monospace,monospace;margin-top:6px;padding:8px 10px;min-height:36px}.rift-audio-mix h4{margin:12px 0}.rift-audio-mix #rift-reset-audio{margin-top:14px}
 
 #rift-captions{padding:9px 14px;border-top:1px solid var(--rift-line);background:#132b20;color:#f2ddb0;font:12px/1.5 ui-monospace,monospace}#rift-captions ul{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0;padding-left:18px}
+
+#rift-gamepad-panel{font:12px/1.6 ui-monospace,monospace;margin-top:16px;padding-top:12px;border-top:1px solid var(--rift-line)}#rift-gamepad-panel p{overflow-wrap:anywhere}#rift-gamepad-panel label{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#rift-gamepad-panel input{max-width:100%}#rift-gamepad-test{display:block;margin:12px 0;color:#e9bd70;font:12px/1.6 ui-monospace,monospace}

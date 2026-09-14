@@ -29,11 +29,11 @@
     }
   }catch(_){}
   const dialog=$('rift-controls-dialog'),list=$('rift-key-bindings'),buttons=new Map();
-  const label=id=>(bindings[id]||[]).map(keyName).join(' / ');
+  const label=id=>(!dialog.open&&window.RiftGamepad?.active&&window.RiftGamepad.label(id))||(bindings[id]||[]).map(keyName).join(' / ');
   const status=message=>$('rift-binding-status').textContent=message;
   function prompts(){
     document.querySelectorAll('[data-bind]').forEach(node=>{const kbd=node.querySelector('kbd'),text=label(node.dataset.bind);if(kbd&&kbd.textContent!==text)kbd.textContent=text;});
-    const movement=$('rift-movement-keys'),text=['up','left','down','right'].map(id=>keyName(bindings[id][0])).join(' ');if(movement&&movement.textContent!==text)movement.textContent=text;
+    const movement=$('rift-movement-keys'),text=window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join(' ');if(movement&&movement.textContent!==text)movement.textContent=text;
     const descriptionText='Battlefield. '+description();if($('rift-canvas').getAttribute('aria-label')!==descriptionText)$('rift-canvas').setAttribute('aria-label',descriptionText);
   }
   function refresh(){for(const [id,button] of buttons){button.textContent=capture===id?'Press a key…':label(id);button.setAttribute('aria-pressed',String(capture===id));}prompts();}
@@ -79,7 +79,7 @@
   const preset=$('rift-key-preset');preset.onchange=()=>{$('rift-key-preset-description').textContent=presets[preset.value].description;};preset.onchange();
   $('rift-apply-keys').onclick=()=>{capture=null;bindings=sanitize(presets[preset.value].keys);save();status('Layout applied. The expedition remains paused.');};
   $('rift-reset-keys').onclick=()=>{capture=null;bindings=sanitize(null);preset.value='standard';preset.onchange();save();status('Default keys restored.');};
-  function description(){return ['up','left','down','right'].map(id=>keyName(bindings[id][0])).join('/')+' moves · '+label('jump')+' jumps · '+label('attack')+' attacks · '+label('guard')+' guards · '+label('signature0')+'/'+label('signature1')+' class abilities · '+['skill0','skill1','skill2'].map(id=>label(id)).join('/')+' skills · '+label('ultimate')+' ultimate · '+label('pause')+' pauses. Escape always pauses.';}
+  function description(){return (window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join('/'))+' moves · '+label('jump')+' jumps · '+label('attack')+' attacks · '+label('guard')+' guards · '+label('signature0')+'/'+label('signature1')+' class abilities · '+['skill0','skill1','skill2'].map(id=>label(id)).join('/')+' skills · '+label('ultimate')+' ultimate · '+label('pause')+' pauses. Escape always pauses.';}
   window.RiftControls={codes:id=>bindings[id]||[],action:code=>definitions.find(([id])=>bindings[id].includes(code))?.[0],pointer:button=>['attack','guard'].find(id=>pointer[id]===button),get toggleGuard(){return toggleGuard;},label,description,prompts,get opened(){return dialog.open;},open(){capture=null;refresh();status('Choose an action to rebind. Changes are saved on this device.');dialog.showModal();}};
   refresh();
 })();
