@@ -2,9 +2,13 @@
   'use strict';
   const $=id=>document.getElementById(id);
   const key='riftCampaignView';
-  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[],scrollTop:0,sort:'mission'};
+  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[],scrollTop:0,sort:'mission',startCollapsed:false};
   let view={...defaults},levels=[],completed=new Set(),history={},active=false,selected=1,initialized=false,overview=false,expandedRegion=null,lastAttempt=null;
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')view={...view,...saved};}catch(_){}
+  view.startCollapsed=view.startCollapsed===true;
+  $('rift-campaign').open=!view.startCollapsed;
+  const collapseLabel=document.createElement('label'),collapse=document.createElement('input');collapse.type='checkbox';collapse.id='rift-campaign-start-collapsed';collapse.checked=view.startCollapsed;collapseLabel.append(collapse,document.createTextNode('Keep expedition picker collapsed on page load'));document.querySelector('.rift-settings').append(collapseLabel);
+  collapse.addEventListener('change',()=>{view.startCollapsed=collapse.checked;save();});
   view.search=typeof view.search==='string'?view.search.slice(0,80):'';
   view.favorites=Array.isArray(view.favorites)?view.favorites.filter(n=>Number.isInteger(n)&&n>=1&&n<=100).slice(0,100):[];
   view.favoritesOnly=view.favoritesOnly===true;view.compact=view.compact===true;
