@@ -80,6 +80,7 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 	if previous == nil || r.Level == nil {
 		return
 	}
+	r.PastExpeditions = previous.RecordedTotals()
 	current := r.History[r.Level.ID]
 	r.BestClearStreak = previous.BestClearStreak
 	if previous.Status == "complete" || previous.Status == "banked" {
@@ -121,4 +122,25 @@ func (r *Run) recordFlawlessRoom() {
 	h.FlawlessTiers = append(append([]int(nil), h.FlawlessTiers...), tier)
 	slices.Sort(h.FlawlessTiers)
 	r.History[r.Level.ID] = h
+}
+
+// CareerTotals combines recorded expeditions; missing older history is not inferred.
+type CareerTotals struct {
+	Enemies         int   `json:"enemies"`
+	Bosses          int   `json:"bosses"`
+	TreasureGoblins int   `json:"treasure_goblins"`
+	Gold            int64 `json:"gold"`
+	Gear            int   `json:"gear"`
+}
+
+// RecordedTotals adds the current expedition to its immutable earlier totals.
+// Only confirmed banking contributes rewards, even if the expedition is lost.
+func (r *Run) RecordedTotals() CareerTotals {
+	totals := r.PastExpeditions
+	totals.Enemies += r.Stats.Kills
+	totals.Bosses += r.Stats.Bosses
+	totals.TreasureGoblins += r.Stats.TreasureGoblins
+	totals.Gold += r.BankedGold
+	totals.Gear += len(r.BankedItems)
+	return totals
 }

@@ -322,6 +322,9 @@ func loadRift(ctx context.Context, database *sql.DB, uid string) (*rift.Run, err
 		run.Status = "expired"
 		run.Gold = 0
 		run.Drops = []rift.Drop{}
+		// Keep historical records when an economy reset expires spendable rewards.
+		run.PastExpeditions.Gold += run.BankedGold
+		run.PastExpeditions.Gear += len(run.BankedItems)
 		run.BankedGold = 0
 		run.BankedItems = []string{}
 	}

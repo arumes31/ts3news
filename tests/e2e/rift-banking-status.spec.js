@@ -11,6 +11,7 @@ for(const committed of [false,true])test('uncertain bank recovery reloads '+(com
  await expect(page.locator('#rift-start')).toHaveText('Recover expedition');await expect(page.locator('#rift-banking-status')).toContainText('delivery is unconfirmed');
  await page.locator('#rift-start').click();await expect(page.locator('#rift-banking-status')).toContainText('Saved reward state loaded');
  await expect(page.locator('#rift-banked')).toHaveText(committed?'30 gold · 1 item':'0 gold · 0 items');expect(calls).toBe(1);
+ const career=label=>page.locator('#rift-career-statistics dt').filter({hasText:label}).locator('xpath=following-sibling::dd[1]');await expect(career('Gold banked')).toHaveText(committed?'30':'0');await expect(career('Gear pieces banked')).toHaveText(committed?'1':'0');
  const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.banked_gold).toBe(committed?30:0);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -29,6 +29,7 @@
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
       (!value.level||level(value.level))&&optionalList(value.encounter_plan,room=>list(room,actor))&&
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&
+      (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
       ['clear_streak','best_clear_streak'].every(key=>value[key]===undefined||Number.isSafeInteger(value[key])&&value[key]>=0)&&
       (!value.stats||object(value.stats)&&Object.entries(value.stats).every(([key,count])=>['skill_uses','skill_hits'].includes(key)?object(count)&&Object.values(count).every(n=>Number.isSafeInteger(n)&&n>=0):['skill_mana','skill_healing','skill_barrier'].includes(key)?object(count)&&Object.values(count).every(nonnegative):nonnegative(count)));
   }

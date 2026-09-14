@@ -195,6 +195,10 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	old.Epoch = "2"
 	old.CompletedLevels = []int{1, 10}
 	old.BankedGold = 300
+	old.BankedItems = []string{"Sword"}
+	old.Stats.Kills = 7
+	old.Stats.Bosses = 1
+	old.Stats.TreasureGoblins = 2
 	old.History[10] = rift.MissionHistory{Attempts: 3, Completions: 2, BestSeconds: 45, LastOutcome: "completed"}
 	data, err := json.Marshal(old)
 	if err != nil {
@@ -212,6 +216,9 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	}
 	if run.Level.ID != 42 || len(run.CompletedLevels) != 2 || run.CompletedLevels[1] != 10 || run.BankedGold != 0 || run.ID == "old" {
 		t.Fatalf("incorrect new expedition: %+v", run)
+	}
+	if got := run.RecordedTotals(); got != (rift.CareerTotals{Enemies: 7, Bosses: 1, TreasureGoblins: 2, Gold: 300, Gear: 1}) {
+		t.Fatalf("career totals lost: %+v", got)
 	}
 	if run.History[10].Attempts != 3 || run.History[10].BestSeconds != 45 || run.History[42].Attempts != 1 {
 		t.Fatalf("history lost: %+v", run.History)
@@ -275,6 +282,10 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	run := rift.NewRun("old-run", rift.Build{HP: 200}, time.Now())
 	run.Epoch = "old"
 	run.Gold = 99
+	run.BankedGold = 80
+	run.BankedItems = []string{"Sword"}
+	run.Stats.Kills = 5
+	run.PastExpeditions = rift.CareerTotals{Enemies: 10, Gold: 20, Gear: 2}
 	encoded, err := json.Marshal(run)
 	if err != nil {
 		t.Fatal(err)
@@ -284,6 +295,9 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	got, err := loadRift(context.Background(), database, "owner")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if totals := got.RecordedTotals(); totals != (rift.CareerTotals{Enemies: 15, Gold: 100, Gear: 3}) {
+		t.Fatalf("economy reset erased career totals: %+v", totals)
 	}
 	if got.Status != "expired" || got.ID != "old-run" || got.Gold != 0 {
 		t.Fatalf("cannot recover expired expedition: %+v", got)

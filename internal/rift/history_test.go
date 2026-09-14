@@ -326,3 +326,59 @@ func TestMissionHistoryDefeatPauseLegacyAndExpired(t *testing.T) {
 		t.Fatal("expired attempt carry failed")
 	}
 }
+
+func TestCareerTotalsCarryEachExpeditionOnce(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	first := NewRunAtLevel("first", Build{HP: 100}, time.Unix(100, 0), catalog, 1)
+	first.Stats.Kills = 12
+	first.Stats.Bosses = 2
+	first.Stats.TreasureGoblins = 1
+	first.BankedGold = 123
+	first.BankedItems = []string{"Sword", "Sword"}
+	first.Gold = 900 // Unbanked rewards must never enter career totals.
+	first.Status = "defeated"
+	second := NewRunAtLevel("second", Build{HP: 100}, time.Unix(200, 0), catalog, 1)
+	second.InheritCampaignHistory(first)
+	second.InheritCampaignHistory(first) // Assignment must be idempotent.
+	want := CareerTotals{Enemies: 12, Bosses: 2, TreasureGoblins: 1, Gold: 123, Gear: 2}
+	if second.RecordedTotals() != want {
+		t.Fatalf("carry: %+v", second.RecordedTotals())
+	}
+	second.Stats.Kills = 4
+	second.Stats.Bosses = 1
+	second.BankedGold = 50
+	second.BankedItems = []string{"Shield"}
+	second.Status = "complete"
+	data, err := json.Marshal(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	third := NewRunAtLevel("third", Build{HP: 100}, time.Unix(300, 0), catalog, 2)
+	third.InheritCampaignHistory(&saved)
+	want = CareerTotals{Enemies: 16, Bosses: 3, TreasureGoblins: 1, Gold: 173, Gear: 3}
+	if third.RecordedTotals() != want {
+		t.Fatalf("subsequent carry: %+v", third.RecordedTotals())
+	}
+	if first.RecordedTotals().Enemies != 12 || second.Stats.Kills != 4 {
+		t.Fatal("history inheritance mutated expedition totals")
+	}
+}
+
+func TestTreasureGoblinRecordCountsOnlyConfirmedDefeats(t *testing.T) {
+	r := testRun()
+	r.Enemies = []Actor{{Kind: "treasure", HP: 20, MaxHP: 20}, {Kind: "goblin", HP: 20, MaxHP: 20}}
+	r.hurtEnemy(0, 5, "hit")
+	if r.Stats.TreasureGoblins != 0 {
+		t.Fatal("partial damage counted as capture")
+	}
+	r.hurtEnemy(0, 100, "hit")
+	r.hurtEnemy(0, 100, "hit")
+	r.hurtEnemy(1, 100, "hit")
+	if r.Stats.TreasureGoblins != 1 || r.Stats.Kills != 2 {
+		t.Fatalf("incorrect goblin record: %+v", r.Stats)
+	}
+}

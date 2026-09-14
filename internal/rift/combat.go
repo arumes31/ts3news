@@ -152,6 +152,7 @@ type Run struct {
 	SkillTimers         map[string]float64     `json:"skill_timers"`
 	Gold                int64                  `json:"gold"`
 	BankedAtMS          int64                  `json:"banked_at_ms,omitempty"`
+	PastExpeditions     CareerTotals           `json:"past_expeditions"`
 	BankedGold          int64                  `json:"banked_gold"`
 	BankedLoot          []BankedLoot           `json:"banked_loot,omitempty"`
 	BankedItems         []string               `json:"banked_items"`
@@ -479,6 +480,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.event(effect, e.X, e.Y-30, damage)
 	if e.HP == 0 {
 		r.Stats.Kills++
+		if e.Kind == "treasure" {
+			r.Stats.TreasureGoblins++
+		}
 		if e.Kind == "boss" {
 			r.Stats.Bosses++
 		}
