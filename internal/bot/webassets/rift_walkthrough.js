@@ -19,4 +19,19 @@
  review.onclick=()=>{step=0;panel.hidden=false;render();$('rift-walkthrough-next').focus();};
  window.addEventListener('riftbindingschange',render);
  render();panel.hidden=dismissed;
+
+ const guide=$('rift-checkpoint-guide'),learned={auto:false,manual:false};let guideMode=null,guideRun='';
+ try{const saved=JSON.parse(localStorage.getItem('riftCheckpointHelp'));if(saved?.version===1){learned.auto=saved.auto===true;learned.manual=saved.manual===true;}}catch(_){}
+ $('rift-checkpoint-guide-dismiss').onclick=()=>{if(guideMode){learned[guideMode]=true;try{localStorage.setItem('riftCheckpointHelp',JSON.stringify({version:1,...learned}));}catch(_){}}guideMode=null;guide.hidden=true;$('rift-controls-open').focus({preventScroll:true});};
+ function update(run){
+  const mode=$('rift-auto').checked?'auto':'manual';
+  if(guideRun!==run.id){guideRun=run.id;guideMode=null;}
+  if(guideMode!==mode)guideMode=null;
+  if(run.status==='cleared'&&!learned[mode])guideMode=mode;
+  guide.hidden=!guideMode||!['fighting','cleared'].includes(run.status);
+  if(guide.hidden)return;
+  const copy=mode==='auto'?'Seamless tiers: while playing, a cleared room banks after the countdown and continues automatically. The final tier continues to the next mission, through mission 100. Pause to stop the countdown, use Continue now to move sooner, or Bank & leave to stop. Only confirmed banking secures rewards.':'Manual checkpoints: the game waits after each clear. Bank & continue secures rewards and opens the next tier; at the final tier, Bank & finish expedition completes this mission. Bank & leave secures current rewards and ends the expedition. Only confirmed banking secures rewards.';
+  if($('rift-checkpoint-guide-copy').textContent!==copy)$('rift-checkpoint-guide-copy').textContent=copy;
+ }
+ window.RiftOnboarding={update};
 })();
