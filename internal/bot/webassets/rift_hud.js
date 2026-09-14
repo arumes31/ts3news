@@ -47,7 +47,7 @@
     meter('#rift-vitals .mana','Player mana',run.player.mana,100);
     if(boss)meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp);
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
-      [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);attr(button,'title',skill.name+' · '+why);attr(button,'aria-label',skill.name+' · '+why);});
+      [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
     const values=[['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
