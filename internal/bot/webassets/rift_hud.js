@@ -18,6 +18,7 @@
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
     $('rift-paused-badge').hidden=!['fighting','cleared'].includes(run.status)||(playing&&!run.paused);
     put($('rift-paused-badge'),run.paused?'Paused':'Not running');
+    put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
     put($('rift-combat-time'),duration(stats.seconds||0)+' combat');
     const continues=run.room<2||($('rift-auto').checked&&run.level?.id<100),health=Math.min(run.player.max_hp,run.player.hp+run.player.max_hp*.25);
