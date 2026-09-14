@@ -30,6 +30,8 @@
     $('rift-filter-empty').hidden=count>0;
     $('rift-favorite').setAttribute('aria-pressed',String(favorites.has(selected)));
     $('rift-favorite').textContent=favorites.has(selected)?'★ Saved favorite':'☆ Favorite mission';
+    const selectedLevel=levels.find(level=>level.id===selected);
+    $('rift-favorite').setAttribute('aria-label',(favorites.has(selected)?'Remove favorite':'Favorite mission')+' '+selected+': '+selectedLevel.name);
     $('rift-previous-mission').disabled=active||selected<=1;
     $('rift-next-mission').disabled=active||selected>=levels.length;
     $('rift-unfinished').disabled=active||levels.every(l=>completed.has(l.id));
@@ -50,6 +52,27 @@
     reflect();
     if(!initialized){
       initialized=true;
+      const grid=$('rift-levels'),hint=document.createElement('p');
+      hint.id='rift-grid-navigation';hint.className='rift-muted';
+      hint.textContent='Mission cards: use arrow keys to browse, Home or End for the first or last result, and Enter to select.';
+      grid.before(hint);grid.setAttribute('aria-describedby',hint.id);
+      grid.addEventListener('keydown',event=>{
+        if(active||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+        const cards=Array.from(grid.querySelectorAll('[data-level]')).filter(button=>!button.hidden&&!button.disabled);
+        const index=cards.indexOf(event.target);if(index<0)return;
+        let target;
+        if(event.key==='Home')target=cards[0];
+        else if(event.key==='End')target=cards[cards.length-1];
+        else if(event.key==='ArrowLeft')target=cards[Math.max(0,index-1)];
+        else if(event.key==='ArrowRight')target=cards[Math.min(cards.length-1,index+1)];
+        else if(event.key==='ArrowUp'||event.key==='ArrowDown'){
+          const origin=event.target.getBoundingClientRect(),direction=event.key==='ArrowDown'?1:-1;
+          const rows=cards.map(button=>({button,rect:button.getBoundingClientRect()})).filter(({rect})=>(rect.top-origin.top)*direction>1);
+          rows.sort((a,b)=>Math.abs(a.rect.top-origin.top)-Math.abs(b.rect.top-origin.top)||Math.abs(a.rect.left-origin.left)-Math.abs(b.rect.left-origin.left));
+          target=rows[0]?.button||event.target;
+        }else return;
+        event.preventDefault();target?.focus();
+      });
       for(const [id,field,event] of [['rift-mission-search','search','input'],['rift-region','region','change'],['rift-completion','completion','change'],['rift-difficulty','difficulty','change'],['rift-favorites-only','favoritesOnly','change'],['rift-compact','compact','change']]){
         $(id).addEventListener(event,()=>{view[field]=$(id).type==='checkbox'?$(id).checked:$(id).value;save();apply();});
       }
