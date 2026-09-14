@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
   const keys = new Set(), touch = new Set(), taps = new Set();
+  const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
@@ -27,11 +28,11 @@
   }
   function input() {
     const held = name => touch.has(name)||taps.has(name);
-    const pressed = code => keys.has(code)||taps.has(code);
-    const value = {x:Number(keys.has('KeyD')||keys.has('ArrowRight')||held('right'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')||held('left')),
-      y:Number(keys.has('KeyS')||keys.has('ArrowDown')||held('down'))-Number(keys.has('KeyW')||keys.has('ArrowUp')||held('up')),
-      attack:pressed('KeyJ')||held('attack'),guard:pressed('KeyL')||held('guard'),jump:pressed('KeyK')||pressed('Space')||held('jump'),
-      skill:(run?.build.signatures||[]).find((s,i)=>pressed(i?'KeyE':'KeyQ')||held(s.id))?.id || (run?.build.ultimate && (pressed('KeyR')||held(run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('Digit'+(i+1))||held(s.id))?.id||''};
+    const pressed = action => controls.codes(action).some(code=>keys.has(code)||taps.has(code));
+    const value = {x:Number(pressed('right')||held('right'))-Number(pressed('left')||held('left')),
+      y:Number(pressed('down')||held('down'))-Number(pressed('up')||held('up')),
+      attack:pressed('attack')||held('attack'),guard:pressed('guard')||held('guard'),jump:pressed('jump')||held('jump'),
+      skill:(run?.build.signatures||[]).find((s,i)=>pressed('signature'+i)||held(s.id))?.id || (run?.build.ultimate && (pressed('ultimate')||held(run.build.ultimate.id)) ? run.build.ultimate.id : '') || (run?.build.skills||[]).find((s,i)=>pressed('skill'+i)||held(s.id))?.id||''};
     taps.clear();return value;
   }
   function resetInput(){keys.clear();touch.clear();taps.clear();root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));}
@@ -65,12 +66,14 @@
     const specialIDs=specials.map(s=>s.id).join(',');
     if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,s.id);});}
     [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;btn.querySelector('small').textContent=remaining>0?remaining.toFixed(1)+'s':s.cost+' MP';btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
-    window.RiftHUD.update(run,playing);
+    [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
+    [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
+    controls.prompts();window.RiftHUD.update(run,playing);
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
     $('rift-clear-label').textContent=run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured';
     $('rift-next').textContent=$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →';
     $('rift-pause').disabled=!playing&&run.status!=='fighting'&&run.status!=='cleared';
-    $('rift-pause').textContent=playing?'Pause · Esc':'Resume · Esc';
+    $('rift-pause').textContent=(playing?'Pause · ':'Resume · ')+controls.label('pause');
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(['defeated','complete','banked','expired'].includes(run.status)){
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
@@ -126,10 +129,10 @@
     // Wait for the single pending input request, then persist the pause.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
     if(!run||!['fighting','cleared'].includes(run.status))return;
-    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · Esc';$('rift-room-actions').hidden=true;}
+    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · '+controls.label('pause');$('rift-room-actions').hidden=true;}
   }
   async function begin(){
-    if(busy||starting)return;
+    if(busy||starting||controls.opened)return;
     if($('rift-start').dataset.retry){
       if($('rift-start').dataset.artworkRetry==='true'){location.reload();return;}
       delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
@@ -144,7 +147,7 @@
       if(await send(resume?'resume':'start')){
         playing=true;
         if(intent!==startIntent||document.hidden){await pause();return;}
-        $('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;$('rift-pause').textContent='Pause · Esc';update(run,true);$('rift-canvas').focus();status('WASD moves · Space jumps · J attacks · L guards · Q / E class abilities · 1–3 skills · R ultimate.');clearTimeout(timer);loop();
+        $('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;update(run,true);$('rift-canvas').focus();status(controls.description());clearTimeout(timer);loop();
       }
     }finally{starting=false;}
   }
@@ -214,13 +217,16 @@
     const release=event=>{if(event.type!=='pointerup'&&touch.has(value))taps.delete(value);touch.delete(value);button.classList.remove('rift-held');};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
-  const controlKeys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyK','KeyL','KeyQ','KeyE','KeyR','Space','Digit1','Digit2','Digit3']);
+  $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open();});
+  window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
   window.addEventListener('keydown',event=>{
-    if(event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
+    if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
+    const action=controls.action(event.code);
     if(event.code==='Escape'&&!event.repeat){if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
     if(event.target.matches('input,select,textarea'))return;
-    if(event.code==='Space'&&event.target.closest('button[data-action]'))return;
-    if(!playing||!controlKeys.has(event.code))return;event.preventDefault();keys.add(event.code);if(!event.repeat)taps.add(event.code);
+    if(['Space','Enter'].includes(event.code)&&event.target.closest('button,summary,a'))return;
+    if(action==='pause'&&!event.repeat){event.preventDefault();if(playing)pause();else if(run&&['fighting','cleared'].includes(run.status))begin();return;}
+    if(!playing||!action)return;event.preventDefault();keys.add(event.code);if(!event.repeat)taps.add(event.code);
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});

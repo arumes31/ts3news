@@ -11,7 +11,7 @@
   </div>
   <div class="rift-layout">
     <section class="rift-game" aria-label="Rift Brawl adventure">
-      <div class="rift-stage-top"><span id="rift-room">Beyond the lantern</span><div><button id="rift-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-pause" type="button" disabled>Pause <kbd>Esc</kbd></button><button id="rift-fullscreen" type="button" aria-label="Fullscreen battlefield">⛶</button></div></div>
+      <div class="rift-stage-top"><span id="rift-room">Beyond the lantern</span><div><button id="rift-controls-open" type="button">Controls</button><button id="rift-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-pause" type="button" disabled>Pause <kbd>Esc</kbd></button><button id="rift-fullscreen" type="button" aria-label="Fullscreen battlefield">⛶</button></div></div>
       <div class="rift-combat-overview"><strong id="rift-objective">Choose an expedition</strong><span id="rift-enemy-count">No active enemies</span><span id="rift-combat-time">0:00 combat</span></div>
       <div class="rift-viewport" id="rift-viewport">
         <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. Space jumps, J attacks, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
@@ -27,7 +27,7 @@
         </div>
         <div class="rift-room-actions" id="rift-room-actions" hidden><strong id="rift-clear-label">Area secured</strong><span>All drops here will be collected and banked.<br><b id="rift-checkpoint-total"></b></span><div><button id="rift-next" class="rift-primary">Bank & continue →</button><button id="rift-exit">Bank & leave</button></div></div>
       </div>
-      <div class="rift-actionbar"><div class="rift-basics"><button data-hold="attack"><kbd>J</kbd><span>Attack</span></button><button data-hold="jump" title="Space to jump; K also works"><kbd>Space</kbd><span>Jump</span></button><button data-hold="guard"><kbd>L</kbd><span>Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint"><kbd>W A S D</kbd> move</span></div>
+      <div class="rift-actionbar"><div class="rift-basics"><button data-hold="attack" data-bind="attack"><kbd>J</kbd><span>Attack</span></button><button data-hold="jump" data-bind="jump"><kbd>Space</kbd><span>Jump</span></button><button data-hold="guard" data-bind="guard"><kbd>L</kbd><span>Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint"><kbd id="rift-movement-keys">W A S D</kbd> move</span></div>
       <div class="rift-classbar"><div><strong id="rift-style">Abyss class abilities</strong><span id="rift-resource">Choose your class in Abyss</span></div><div id="rift-signatures" class="rift-signatures"></div></div>
       <div class="rift-touch" aria-label="Touch movement"><button data-move="left" aria-label="Move left">←</button><div><button data-move="up" aria-label="Move up">↑</button><button data-move="down" aria-label="Move down">↓</button></div><button data-move="right" aria-label="Move right">→</button></div>
       <div class="rift-combat-signals"><span id="rift-jump-ready">Jump ready</span><span id="rift-combo-step">Strike 0/3</span><span id="rift-barrier-state">No barrier</span><span id="rift-slow-state">Normal speed</span><span id="rift-mark-state">No marked target</span><span id="rift-finisher-state">Build charges with Q</span></div>
@@ -67,6 +67,12 @@
     </section>
     <div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters. Clear filters or try another name.</p>
   </details>
+  <dialog id="rift-controls-dialog" class="rift-controls-dialog" aria-labelledby="rift-controls-title">
+    <h2 id="rift-controls-title">Your controls</h2><p>Bindings follow physical key positions. Alternate keyboards use the same positions; labels show the key codes. Escape always pauses, or cancels editing. The game stays paused when you close this panel.</p>
+    <label>Keyboard layout <select id="rift-key-preset"><option value="standard">Standard</option><option value="leftHanded">Left-handed actions</option><option value="oneHanded">Compact one-handed</option></select></label><p id="rift-key-preset-description"></p><button id="rift-apply-keys" type="button">Apply layout</button>
+    <div id="rift-key-bindings"></div><p id="rift-binding-status" role="status" aria-live="polite"></p>
+    <div class="rift-controls-footer"><button id="rift-reset-keys" type="button">Reset all keys</button><button id="rift-controls-close" type="button">Close controls</button></div>
+  </dialog>
 </div>
 <script defer src="{{asset "/static/abyss_combat_art.js"}}"></script>
 <script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
@@ -77,5 +83,6 @@
 <script defer src="{{asset "/static/rift_campaign.js"}}"></script>
 <script defer src="{{asset "/static/rift_hud.js"}}"></script>
 <script defer src="{{asset "/static/rift_protocol.js"}}"></script>
+<script defer src="{{asset "/static/rift_controls.js"}}"></script>
 <script defer src="{{asset "/static/rift.js"}}"></script>
 {{template "foot" .}}{{end}}
