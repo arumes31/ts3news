@@ -110,7 +110,7 @@
     } catch(error){
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       message('Your expedition is saved.',error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
-    } finally {busy=false;$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
+    } finally {busy=false;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
   }
   async function checkpoint(kind){
     if(checkpointPending||!playing||run?.status!=='cleared')return false;
@@ -211,6 +211,7 @@
       text('option','None',select).value='';build.skills.forEach(s=>{text('option',s.name,select).value=s.id;});select.value=run?(run.build.skills[i]?.id||''):build.skills[i].id;label.append(select);
       select.addEventListener('change',()=>{const others=[...root.querySelectorAll('#rift-loadout select')].filter(el=>el!==select);if(select.value&&others.some(el=>el.value===select.value)){select.value='';status('Choose each skill only once.');}});
     }
+    window.RiftLoadouts.init(build,()=>busy||starting||!!run&&['fighting','cleared'].includes(run.status));
   }
   async function load(){
     let artworkFailed=false;

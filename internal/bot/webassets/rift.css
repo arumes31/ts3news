@@ -35,3 +35,7 @@
 .rift-mission-history{display:block;font-size:.7rem;line-height:1.45;white-space:normal;color:#dedac3;margin-top:.35rem}.rift-mission-history[hidden]{display:none}#rift-last-attempt{display:block;margin:.65rem 0;max-width:100%;white-space:normal;text-align:left}#rift-last-attempt[hidden]{display:none}
 
 #rift-result-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-top:.65rem}#rift-result-actions[hidden],#rift-replay[hidden]{display:none}#rift-result-actions button{font-size:.8rem;padding:.5rem .7rem}
+
+#rift-loadout-presets label{display:block;margin:.6rem 0}#rift-loadout-presets select,#rift-loadout-presets input{display:block;width:100%;max-width:100%}#rift-loadout-presets button{font-size:.75rem;padding:.4rem;margin:.2rem 0}#rift-loadout-review,#rift-loadout-status{font-size:.8rem;line-height:1.5;overflow-wrap:anywhere}
+
+#rift-loadout-presets{border-top:1px solid #425441;margin-top:1rem;padding-top:.5rem;width:100%}#rift-loadout-presets select,#rift-loadout-presets input{background:#142b20;color:#e8e4cb;border:1px solid #536d59;padding:.5rem;font:inherit}
