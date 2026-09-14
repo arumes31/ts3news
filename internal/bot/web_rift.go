@@ -39,7 +39,12 @@ func (s *WebServer) handleRiftPage(w http.ResponseWriter, r *http.Request, uid s
 		http.Error(w, "GET only", http.StatusMethodNotAllowed)
 		return
 	}
-	s.render(w, "rift", map[string]any{"Title": "Rift Brawl", "Nav": "rift", "EnableAbyss": true, "AccountNav": true})
+	mode := r.URL.Query().Get("practice")
+	if mode != "" && !rift.ValidPracticeMode(mode) {
+		http.Error(w, "unknown practice drill", 400)
+		return
+	}
+	s.render(w, "rift", map[string]any{"Practice": mode, "Title": "Rift Brawl", "Nav": "rift", "EnableAbyss": true, "AccountNav": true})
 }
 
 func (b *Bot) riftBuild(ctx context.Context, uid string) (rift.Build, error) {

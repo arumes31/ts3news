@@ -9,7 +9,8 @@
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
-  const api = '/api/abyss/rift';
+  const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo'};
+  const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):'');
   const status = message => { $('rift-status').textContent = message; };
   function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
@@ -27,7 +28,7 @@
       if(response.status===409)throw new Error('The saved expedition changed. Recover it before continuing.');
       if(!response.ok)throw new Error('Connection interrupted. Recover the saved expedition before continuing.');
       let data;try{data=await response.json();}catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
-      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');return window.RiftProtocol.validate(data,method,body);
+      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');return result;
     } finally { clearTimeout(timeout); }
   }
   function input() {
@@ -85,6 +86,14 @@
     $('rift-pause').disabled=!playing&&run.status!=='fighting'&&run.status!=='cleared';
     put($('rift-pause'),(playing?'Pause · ':'Resume · ')+controls.label('pause'));
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
+    if(practice){
+      put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
+      for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=true;
+      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      $('rift-practice-reset').disabled=!ready||busy;
+      if(['complete','expired'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
+      return;
+    }
     if(['defeated','complete','banked','expired'].includes(run.status)){
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
       const lost=run.status==='defeated';
@@ -99,7 +108,7 @@
   }
   async function send(kind) {
     if(busy)return false;
-    busy=true;
+    busy=true;$('rift-practice-reset').disabled=true;
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
@@ -112,7 +121,7 @@
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
       message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
-    } finally {busy=false;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
+    } finally {busy=false;$('rift-practice-reset').disabled=!practice||!ready||!run;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
   }
   async function checkpoint(kind){
     if(checkpointPending||!playing||run?.status!=='cleared')return false;
@@ -160,7 +169,7 @@
       try{await audio.setActive(true,(run?.level?.region||0)*3+(run?.room||0));}catch(_){silence();}
       if(intent!==startIntent||document.hidden){silence();return;}
       const resume=run&&(run.status==='fighting'||run.status==='cleared');
-      if(await send(resume?'resume':'start')){
+      if(await send(resume?'resume':practice&&run&&run.status!=='expired'?'practice_reset':'start')){
         playing=true;
         if(intent!==startIntent||document.hidden){await pause();return;}
         $('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;update(run,true);$('rift-canvas').focus();status(controls.description());clearTimeout(timer);loop();
@@ -168,6 +177,7 @@
     }finally{starting=false;}
   }
   function updateCampaign(){
+    if(practice)return;
     const active=run&&['fighting','cleared'].includes(run.status), completed=run?.completed_levels||[];
     const key=[selectedLevel,active,completed.join(','),JSON.stringify(run?.mission_history||{})].join('|');
     if(campaignKey===key)return;campaignKey=key;
@@ -185,6 +195,7 @@
     window.RiftMission.update(level,run&&active?run.build:build,!!active);
   }
   function campaign(){
+    if(practice)return;
     $('rift-levels').replaceChildren();
     $('rift-region').querySelectorAll('option:not(:first-child)').forEach(n=>n.remove());
     levels.forEach(level=>{
@@ -224,9 +235,11 @@
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
+      if(practice)message(drillNames[practice],$('rift-practice-instructions').textContent,run&&['fighting','cleared'].includes(run.status)?'Resume drill':'Start drill','PRACTICE');
       window.RiftLoot.banking('reloaded');
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
+      if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status('Practice is ready. '+$('rift-practice-instructions').textContent);}
     }catch(error){ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
   }
   function hold(button,value){
@@ -296,5 +309,12 @@
   function focusBattlefield(){if(!playing||controls.opened)return;resetInput();$('rift-canvas').focus();}
   returnToBattlefield.addEventListener('click',()=>{if(!playing||controls.opened)return;settings.open=false;focusBattlefield();});
   settings.addEventListener('toggle',()=>{if(!settings.open)focusBattlefield();});
+  if(practice){
+    root.querySelector('.rift-tag').textContent='PRACTICE · '+drillNames[practice].toUpperCase();
+    $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
+    $('rift-practice-instructions').textContent=practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
+    for(const node of [$('rift-campaign'),$('rift-campaign-tools-extra'),root.querySelector('.rift-route')?.closest('section'),$('rift-loot')?.closest('section'),root.querySelector('.rift-run-statistics'),$('rift-walkthrough')])if(node)node.hidden=true;
+    $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||!run)return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
+  }
   load();
 })();

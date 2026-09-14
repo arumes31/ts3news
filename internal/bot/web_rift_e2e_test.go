@@ -99,7 +99,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
-		server.render(w, "rift", map[string]any{"Title": "Rift Brawl Playtest", "Nav": "rift", "EnableAbyss": true, "AccountNav": true, "Fixture": true})
+		server.render(w, "rift", map[string]any{"Title": "Rift Brawl Playtest", "Nav": "rift", "EnableAbyss": true, "AccountNav": true, "Fixture": true, "Practice": r.URL.Query().Get("practice")})
 	})
 	mux.HandleFunc("/api/abyss/rift", func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
@@ -109,14 +109,23 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			http.Error(w, "fixture session required", 401)
 			return
 		}
-		run := runs[cookie.Value]
+		mode := r.URL.Query().Get("practice")
+		key := cookie.Value
+		if mode != "" {
+			if !rift.ValidPracticeMode(mode) {
+				http.Error(w, "invalid practice", 400)
+				return
+			}
+			key += ":" + mode
+		}
+		run := runs[key]
 		build := builds[cookie.Value]
 		if r.Method == http.MethodGet {
 			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities()})
 			return
 		}
 		var req riftRequest
-		if r.Method != http.MethodPost || json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req) != nil || !validRiftRequest(req) {
+		if r.Method != http.MethodPost || json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req) != nil || !validRiftRequest(req) || !validRiftModeAction(mode, req.Kind) {
 			http.Error(w, "invalid controls", 400)
 			return
 		}
@@ -142,11 +151,15 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				selected.Skills = build.Skills
 			}
 			previous := run
-			run = rift.NewRunAtLevel(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()), req.LevelID)
-			run.InheritCampaignHistory(previous)
+			if mode != "" {
+				run, _ = rift.NewPracticeRun(req.RequestID, selected, mode, time.Now())
+			} else {
+				run = rift.NewRunAtLevel(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()), req.LevelID)
+				run.InheritCampaignHistory(previous)
+			}
 			run.StartKey = req.RequestID
 			run.Epoch = "fixture"
-			runs[cookie.Value] = run
+			runs[key] = run
 		} else {
 			if run == nil || run.ID != req.RunID || req.Revision > run.Revision+1 {
 				http.Error(w, "stale run", 409)
@@ -157,6 +170,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				return
 			}
 			switch req.Kind {
+			case "practice_reset":
+				if err := run.ResetPractice(time.Now()); err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
 			case "step":
 				run.Step(req.Input, time.Now())
 			case "pause":
@@ -189,7 +207,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		for i := range run.Drops {
 			drop := &run.Drops[i]
-			if drop.NeedsGear && drop.Gear == nil {
+			if run.Practice == nil && drop.NeedsGear && drop.Gear == nil {
 				gear, err := rollRiftGear(run.Room, time.Now())
 				if err != nil {
 					http.Error(w, "loot unavailable", 500)

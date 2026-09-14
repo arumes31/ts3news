@@ -26,6 +26,9 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	r := NewRunWithCatalog(id, build, now, nil)
 	r.Practice = &PracticeState{Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}}}
 	r.Enemies = []Actor{}
+	for i := range r.EncounterPlan {
+		r.EncounterPlan[i] = []Actor{}
+	}
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}

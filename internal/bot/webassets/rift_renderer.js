@@ -22,7 +22,7 @@
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
   renderer.snapshot = function (run, replay) {
     if (!run) return;
-    const changed = runID !== run.id;
+    const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
     if (changed) { runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
     else previous = snapshot;
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; transitionAt=animationTime; }
@@ -126,7 +126,10 @@
     }
     if (!snapshot) { const index=Math.max(0,styles.indexOf(foundations[previewStyle]||previewStyle));sprite(index%6,renderer.reduced?0:Math.floor(decorationTime/650)%2,630,400,113,-1,1,index<6?'heroesA':'heroesB');return; }
     const run=snapshot;
-    const arena=run.level?.rooms[run.room];
+    const arena=run.practice?.arena||run.level?.rooms[run.room];
+    if(run.practice&&run.practice.mode!=='combo'){
+      ctx.save();ctx.strokeStyle='#e3f9ac';ctx.lineWidth=4;ctx.setLineDash([10,7]);ctx.beginPath();ctx.moveTo(run.practice.goal_x-camera,250);ctx.lineTo(run.practice.goal_x-camera,535);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e3f9ac';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('FINISH',run.practice.goal_x-camera,240);ctx.restore();
+    }
     (arena?.hazards||[]).forEach(h=>{
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
       const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
@@ -161,7 +164,7 @@
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
       if(!unit.cover){actor(unit,wallNow);return;}
-      const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level.region],sw=img.width/4,sh=img.height/2;
+      const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level?.region||0],sw=img.width/4,sh=img.height/2;
       ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(o.x+o.w/2-camera,o.y+o.h-3,o.w*.58,9,0,0,Math.PI*2);ctx.fill();
       // Each sprite's base lies at 90% of its atlas cell. Align it with
       // the collision footprint so jumping and circling cover read clearly.
