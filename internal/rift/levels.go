@@ -124,6 +124,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 	level := Campaign()[id-1]
 	r.Level = &level
 	r.beginMissionHistory()
+	r.RoomSplits = [3]*float64{}
 	r.Room = 0
 	// The whole shared bestiary remains eligible, including future additions.
 	r.EncounterPlan = planEncounters(fmt.Sprintf("%s-level-%d", r.ID, id), catalog)

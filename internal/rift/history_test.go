@@ -524,3 +524,40 @@ func TestAttemptHistoryRecordsOutcomesAndRemainsBounded(t *testing.T) {
 		t.Fatal("legacy hit count invented")
 	}
 }
+
+func TestRoomSplitsExcludeCheckpointWaitingAndSurviveAdvance(t *testing.T) {
+	catalog := content.AbyssMobCatalog()
+	r := NewRunAtLevel("splits", Build{HP: 100}, time.Unix(100, 0), catalog, 1)
+	for room := 0; room < 3; room++ {
+		r.Enemies = nil
+		r.tick(Input{}, float64(room+1))
+		if r.RoomSplits[room] == nil || *r.RoomSplits[room] != float64(room+1) {
+			t.Fatalf("room %d split missing: %+v", room, r.RoomSplits)
+		}
+		r.tick(Input{}, 10)
+		if *r.RoomSplits[room] != float64(room+1) {
+			t.Fatal("checkpoint waiting changed split")
+		}
+		if room < 2 {
+			r.NextRoom()
+		}
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	saved.FinishCheckpoint("advance", catalog)
+	if saved.RoomSplits[0] != nil || saved.AttemptHistory[0].Splits[2] == nil || *saved.AttemptHistory[0].Splits[2] != 3 {
+		t.Fatal("advance lost completed splits or reused them")
+	}
+	saved.RoomStartSeconds = nil
+	saved.Enemies = nil
+	saved.tick(Input{}, 1)
+	if saved.RoomSplits[0] != nil {
+		t.Fatal("legacy split invented")
+	}
+}
