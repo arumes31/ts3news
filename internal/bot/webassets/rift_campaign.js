@@ -57,6 +57,13 @@
     $('rift-favorite').setAttribute('aria-pressed',String(favorites.has(selected)));
     $('rift-favorite').textContent=favorites.has(selected)?'★ Saved favorite':'☆ Favorite mission';
     const selectedLevel=levels.find(level=>level.id===selected);
+    const cleared=levels.filter(level=>completed.has(level.id)).length;
+    $('rift-progress').textContent=cleared+'/'+levels.length+' completed · '+Math.floor(cleared/levels.length*100)+'% · Mission '+selected;
+    const regional=levels.filter(level=>level.region===selectedLevel.region),regionalClears=regional.filter(level=>completed.has(level.id)).length;
+    const halfway=Math.ceil(regional.length/2),target=regionalClears<halfway?halfway:regional.length,remaining=target-regionalClears;
+    const milestone=selectedLevel.region_name+' · '+(regionalClears===regional.length?'Region complete · '+regionalClears+'/'+regional.length:'Next milestone: '+(target===halfway?'halfway':'region complete')+' · '+regionalClears+'/'+target+' · '+remaining+' more '+(remaining===1?'mission':'missions'));
+    if($('rift-regional-milestone').textContent!==milestone)$('rift-regional-milestone').textContent=milestone;
+    const firstRegion=levels.filter(level=>level.region===levels[0].region),badge=$('rift-region-badge');badge.hidden=!firstRegion.every(level=>completed.has(level.id));badge.textContent='✦ '+firstRegion[0].region_name+' · First region complete';badge.title='Cosmetic completion badge. No combat or loot bonus.';
     $('rift-favorite').setAttribute('aria-label',(favorites.has(selected)?'Remove favorite':'Favorite mission')+' '+selected+': '+selectedLevel.name);
     $('rift-previous-mission').disabled=active||selected<=1;
     $('rift-next-mission').disabled=active||selected>=levels.length;
