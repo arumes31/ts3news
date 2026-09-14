@@ -55,8 +55,9 @@
     }
     const count=callbacks.skillCount();selected=count?Math.min(selected,count-1):0;
     if(count&&(edges[6]||edges[7])){selected=(selected+(edges[7]?1:-1)+count)%count;window.RiftControls.prompts();}
-    x=buttons[14]||buttons[15]?Number(buttons[15])-Number(buttons[14]):sx;
+    const oldX=x,oldY=y;x=buttons[14]||buttons[15]?Number(buttons[15])-Number(buttons[14]):sx;
     y=buttons[12]||buttons[13]?Number(buttons[13])-Number(buttons[12]):sy;
+    if(x!==oldX||y!==oldY)callbacks.recognize(x!==0&&Math.abs(x)>=Math.abs(y)?x>0?'right':'left':y!==0?y>0?'down':'up':'stop');
     held.clear();for(const [i,action] of [[0,'jump'],[1,'guard'],[2,'attack'],[3,'skill'+selected],[4,'signature0'],[5,'signature1'],[8,'ultimate']]){
       if(buttons[i])held.add(action);if(edges[i]){taps.add(action);callbacks.ability(action);if(action==='guard')callbacks.guard();}
     }

@@ -232,7 +232,7 @@
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
   $('rift-canvas').addEventListener('mousedown',event=>{
     const action=controls.pointer(event.button);if(!playing||controls.opened||!canvasMouse||!action||event.ctrlKey||event.metaKey||event.altKey)return;
-    event.preventDefault();$('rift-canvas').focus();
+    event.preventDefault();$('rift-canvas').focus();window.RiftIntents.recognize(action);
     if(action==='guard'&&controls.toggleGuard)toggleGuard();else{mouse.add(action);taps.add(action);}
   });
   window.addEventListener('mouseup',event=>{const action=controls.pointer(event.button);if(action)mouse.delete(action);});
@@ -264,6 +264,6 @@
   $('rift-reduced').addEventListener('change',()=>{reducedOverride=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(reducedOverride));}catch(_){}motionPreference();});
   $('rift-system-motion').addEventListener('click',()=>{reducedOverride=null;try{localStorage.removeItem('riftReducedMotion');}catch(_){}motionPreference();});
   systemMotion.addEventListener('change',()=>{if(reducedOverride===null)motionPreference();});motionPreference();
-  window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,ability:action=>window.RiftIntents.press(action),guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
+  window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,recognize:action=>window.RiftIntents.recognize(action),ability:action=>window.RiftIntents.press(action),guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
   load();
 })();
