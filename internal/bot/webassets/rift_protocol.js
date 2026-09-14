@@ -28,7 +28,7 @@
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
       (!value.level||level(value.level))&&optionalList(value.encounter_plan,room=>list(room,actor))&&
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&
-      (!value.stats||object(value.stats)&&Object.values(value.stats).every(nonnegative));
+      (!value.stats||object(value.stats)&&Object.entries(value.stats).every(([key,count])=>key==='skill_uses'?object(count)&&Object.values(count).every(n=>Number.isSafeInteger(n)&&n>=0):nonnegative(count)));
   }
   function validate(data,method,request){
     let valid=object(data)&&data.ok===true;

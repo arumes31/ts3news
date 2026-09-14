@@ -84,11 +84,11 @@
   function reset(){view={...view,search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false};reflect();save();apply();}
   function init(catalog){
     levels=catalog;if(!levels.length)return;
+    $('rift-levels').querySelectorAll('[data-level]').forEach(button=>{if(button.querySelector('.rift-mission-history'))return;const note=document.createElement('span');note.className='rift-mission-history';note.id='rift-history-'+button.dataset.level;button.append(note);button.setAttribute('aria-describedby',note.id);});
     reflect();
     if(!initialized){
       initialized=true;
       const grid=$('rift-levels'),hint=document.createElement('p');
-      grid.querySelectorAll('[data-level]').forEach(button=>{const note=document.createElement('span');note.className='rift-mission-history';note.id='rift-history-'+button.dataset.level;button.append(note);button.setAttribute('aria-describedby',note.id);});
       const sortLabel=document.createElement('label'),sort=document.createElement('select'),last=document.createElement('button');
       sortLabel.textContent='Sort missions ';sort.id='rift-mission-sort';
       for(const [value,name] of [['mission','Mission number'],['best','Best clear time'],['recent','Recently played']]){const option=document.createElement('option');option.value=value;option.textContent=name;sort.append(option);}

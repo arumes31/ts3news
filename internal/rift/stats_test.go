@@ -26,6 +26,34 @@ func TestDropProvenanceSurvivesSaving(t *testing.T) {
 	}
 }
 
+func TestSkillUsageCountsOnlySuccessfulOwnedCasts(t *testing.T) {
+	r := testRun()
+	r.Build.Skills = []Skill{{ID: "one", Name: "One", Kind: "shield", Cost: 10, Cooldown: 2}, {ID: "two", Name: "Two", Kind: "shield", Cost: 10, Cooldown: 2}}
+	r.Player.Mana = 100
+	r.cast("missing")
+	r.cast("one")
+	r.cast("one")
+	r.Player.Cooldown = 0
+	r.Player.Mana = 0
+	r.cast("two")
+	if r.Stats.SkillsCast != 1 || r.Stats.SkillUses["one"] != 1 || len(r.Stats.SkillUses) != 1 {
+		t.Fatalf("rejected cast counted: %+v", r.Stats)
+	}
+	r.Player.Mana = 100
+	r.cast("two")
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err = json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.Stats.SkillUses["one"] != 1 || restored.Stats.SkillUses["two"] != 1 || restored.Stats.SkillsCast != 2 {
+		t.Fatalf("usage lost: %+v", restored.Stats)
+	}
+}
+
 func TestCombatStatsCountEffectiveDamageAndKillsOnce(t *testing.T) {
 	r := testRun()
 	r.Enemies = []Actor{{ID: "boss", Kind: "boss", HP: 20, MaxHP: 20}}

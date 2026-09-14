@@ -394,6 +394,10 @@ func (r *Run) cast(id string) {
 		p.Mana -= skill.Cost
 		r.Stats.ManaSpent += skill.Cost
 		r.Stats.SkillsCast++
+		if r.Stats.SkillUses == nil {
+			r.Stats.SkillUses = map[string]int{}
+		}
+		r.Stats.SkillUses[id]++
 		p.Cooldown = .35
 		p.Pose = "cast"
 		p.PoseTime = .4
