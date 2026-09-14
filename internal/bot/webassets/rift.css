@@ -45,3 +45,5 @@
 #rift-loadout-order{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}#rift-loadout-order button{font-size:.75rem;padding:.4rem}
 
 #rift-skill-glossary{margin-top:.8rem}#rift-glossary-entries article{border-top:1px solid #425441;padding:.65rem 0;overflow-wrap:anywhere}#rift-glossary-entries article[hidden]{display:none}#rift-glossary-entries p{margin:.3rem 0}#rift-glossary-entries small{color:#c6db9a}
+
+#rift-paused-badge{background:#e6c47d;color:#19291f;padding:.25rem .5rem;border-radius:3px;white-space:nowrap}#rift-paused-badge[hidden]{display:none}

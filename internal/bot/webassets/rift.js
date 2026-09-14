@@ -138,6 +138,7 @@
   async function pause(){
     if(!playing)return;
     playing=false;clearTimeout(timer);resetInput();silence();
+    if(run)window.RiftHUD.update(run,false);
     clearedAt=0;$('rift-transition').hidden=true;
     // Wait for the single pending input request, then persist the pause.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
