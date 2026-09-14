@@ -25,7 +25,7 @@
       Number.isInteger(value.room)&&value.room>=0&&value.room<3&&typeof value.paused==='boolean'&&
       build(value.build)&&actor(value.player)&&nonnegative(value.player.mana)&&list(value.enemies,actor)&&
       list(value.projectiles,projectile)&&list(value.drops,drop)&&optionalList(value.events,event)&&
-      list(value.banked_items,text)&&(value.banked_at_ms===undefined||Number.isSafeInteger(value.banked_at_ms)&&value.banked_at_ms>=0&&value.banked_at_ms<=8640000000000000)&&nonnegative(value.gold)&&nonnegative(value.banked_gold)&&nonnegative(value.clock)&&nonnegative(value.counter)&&
+      list(value.banked_items,text)&&optionalList(value.banked_loot,item=>object(item)&&text(item.name)&&Number.isSafeInteger(item.rarity)&&item.rarity>=0)&&(value.banked_at_ms===undefined||Number.isSafeInteger(value.banked_at_ms)&&value.banked_at_ms>=0&&value.banked_at_ms<=8640000000000000)&&nonnegative(value.gold)&&nonnegative(value.banked_gold)&&nonnegative(value.clock)&&nonnegative(value.counter)&&
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
       (!value.level||level(value.level))&&optionalList(value.encounter_plan,room=>list(room,actor))&&
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&

@@ -175,6 +175,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 						run.BankedGold += d.Gold
 						if d.Gear != nil {
 							run.BankedItems = append(run.BankedItems, d.Gear.Name)
+							run.BankedLoot = append(run.BankedLoot, rift.BankedLoot{Name: d.Gear.Name, Rarity: int(d.Gear.Rarity)})
 						}
 						d.Banked = true
 						d.Collected = true

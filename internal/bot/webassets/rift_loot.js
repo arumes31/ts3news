@@ -67,13 +67,16 @@
   }
   function receipt(){
     if(!run)return;
-    const groups=new Map();run.banked_items.forEach(name=>groups.set(name,(groups.get(name)||0)+1));
+    const rareOnly=$('rift-receipt-rarity').value==='rare',records=run.banked_loot||[];
+    const names=rareOnly?records.filter(item=>rarities.get(item.rarity)?.rare_or_better===true).map(item=>item.name):run.banked_items;
+    const unknown=Math.max(0,run.banked_items.length-records.length)+records.filter(item=>!rarities.has(item.rarity)).length;$('rift-receipt-unknown').hidden=!rareOnly||!unknown;put($('rift-receipt-unknown'),count(unknown,'item')+' without recognized rarity data. Choose All banked gear to include them.');
+    const groups=new Map();names.forEach(name=>groups.set(name,(groups.get(name)||0)+1));
     const query=normalize($('rift-receipt-search').value.trim());
     const matches=[...groups].filter(([name])=>normalize(name).includes(query)).sort(([a],[b])=>a.localeCompare(b));
     $('rift-receipt-list').replaceChildren();
     matches.slice(0,200).forEach(([name,n])=>create('li',name+(n>1?' × '+format.format(n):''),$('rift-receipt-list')));
     $('rift-receipt-empty').hidden=matches.length>0;
-    $('rift-receipt-empty').textContent=run.banked_items.length?'No banked items match this search.':'No gear was banked.';
+    $('rift-receipt-empty').textContent=run.banked_items.length?'No banked items match these filters.':'No gear was banked.';
     $('rift-receipt-limit').hidden=matches.length<=200;
     $('rift-receipt-limit').textContent='Showing 200 of '+format.format(matches.length)+' matching item names. Search to narrow the receipt.';
     put($('rift-receipt-total'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item')+' safely banked');
@@ -94,11 +97,11 @@
     put($('rift-nearest-drop'),nearest?'Nearest drop: '+(distance<1?'here':directions[(Math.round(Math.atan2(nearest.dy,nearest.dx)/(Math.PI/4))+8)%8]):'No uncollected drops');
     const key=run.id+':'+JSON.stringify(items.map(d=>[d.id,d.gear.ID]));if(key!==bagKey){bagKey=key;bag();}
     put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||run.banked_items.length?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
-    const next=JSON.stringify([run.id,run.banked_gold,run.banked_items]);
+    const next=JSON.stringify([run.id,run.banked_gold,run.banked_items,run.banked_loot]);
     $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);
     if(next!==receiptKey){receiptKey=next;receipt();$('rift-receipt-copy-status').textContent='';}
   }
-  $('rift-loot-sort').onchange=bag;$('rift-receipt-search').oninput=receipt;
+  $('rift-receipt-rarity').onchange=receipt;$('rift-loot-sort').onchange=bag;$('rift-receipt-search').oninput=receipt;
   $('rift-copy-receipt').onclick=async()=>{
     if(!run)return;
     const names=new Map();run.banked_items.forEach(name=>names.set(name,(names.get(name)||0)+1));

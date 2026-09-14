@@ -175,7 +175,7 @@ func riftSignatureKind(style, role, fallback string) string {
 func riftRarities() []map[string]any {
 	var values []map[string]any
 	for rarity := content.RarityCommon; rarity <= content.RarityEternal; rarity++ {
-		values = append(values, map[string]any{"value": int(rarity), "name": rarity.String(), "color": rarity.Color(), "legendary": rarity == content.RarityLegendary})
+		values = append(values, map[string]any{"value": int(rarity), "name": rarity.String(), "color": rarity.Color(), "legendary": rarity == content.RarityLegendary, "rare_or_better": rarity >= content.RarityRare})
 	}
 	return values
 }
@@ -477,6 +477,7 @@ func bankRift(ctx context.Context, tx *sql.Tx, uid, requestID string, run *rift.
 				return err
 			}
 			run.BankedItems = append(run.BankedItems, gear.Name)
+			run.BankedLoot = append(run.BankedLoot, rift.BankedLoot{Name: gear.Name, Rarity: int(gear.Rarity)})
 		}
 		drop.Banked = true
 		drop.Collected = true

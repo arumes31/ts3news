@@ -106,6 +106,11 @@ type Drop struct {
 	Banked    bool          `json:"banked"`
 }
 
+type BankedLoot struct {
+	Name   string `json:"name"`
+	Rarity int    `json:"rarity"`
+}
+
 type Event struct {
 	ID    int     `json:"id"`
 	Kind  string  `json:"kind"`
@@ -144,6 +149,7 @@ type Run struct {
 	Gold                int64                  `json:"gold"`
 	BankedAtMS          int64                  `json:"banked_at_ms,omitempty"`
 	BankedGold          int64                  `json:"banked_gold"`
+	BankedLoot          []BankedLoot           `json:"banked_loot,omitempty"`
 	BankedItems         []string               `json:"banked_items"`
 	Clock               float64                `json:"clock"`
 	LastMS              int64                  `json:"last_ms"`

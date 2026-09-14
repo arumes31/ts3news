@@ -63,7 +63,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			run.Status = "cleared"
 			run.Epoch = "2"
 			run.Revision = 4
-			run.Drops = []rift.Drop{{ID: "drop", Gold: 30, Collected: true, Gear: &content.Gear{ID: "ABYSS_TEST", Name: "Test Blade", MaxDurability: 80}}}
+			run.Drops = []rift.Drop{{ID: "drop", Gold: 30, Collected: true, Gear: &content.Gear{ID: "ABYSS_TEST", Name: "Test Blade", Rarity: content.RarityRare, MaxDurability: 80}}}
 			request := riftRequest{Kind: "exit", RunID: "run", Revision: 5, RequestID: "checkpoint-request-1"}
 			if advance {
 				request.Kind = "advance"
@@ -115,6 +115,11 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			if scenario == "success" || scenario == "duplicate" || scenario == "advance" || scenario == "advance duplicate" {
 				if err != nil || out.BankedGold != 30 {
 					t.Fatalf("bank failed: %v %+v", err, out)
+				}
+				if scenario == "success" || scenario == "advance" {
+					if len(out.BankedLoot) != 1 || out.BankedLoot[0].Name != "Test Blade" || out.BankedLoot[0].Rarity != int(content.RarityRare) {
+						t.Fatalf("receipt rarity missing: %+v", out.BankedLoot)
+					}
 				}
 				wantBankedAt := int64(101000)
 				if scenario == "duplicate" || scenario == "advance duplicate" {
