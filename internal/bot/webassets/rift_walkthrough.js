@@ -20,10 +20,15 @@
  window.addEventListener('riftbindingschange',render);
  render();panel.hidden=dismissed;
 
+ const defeatGuide=$('rift-defeat-guide');let defeatDismissed=false;
+ try{defeatDismissed=localStorage.getItem('riftDefeatHelpDismissed')==='true';}catch(_){}
+ $('rift-defeat-review').onclick=()=>$('rift-result-skills').click();$('rift-defeat-missions').onclick=()=>$('rift-result-region').click();
+ $('rift-defeat-dismiss').onclick=()=>{defeatDismissed=true;try{localStorage.setItem('riftDefeatHelpDismissed','true');}catch(_){}defeatGuide.hidden=true;$('rift-start').focus({preventScroll:true});};
  const guide=$('rift-checkpoint-guide'),learned={auto:false,manual:false};let guideMode=null,guideRun='';
  try{const saved=JSON.parse(localStorage.getItem('riftCheckpointHelp'));if(saved?.version===1){learned.auto=saved.auto===true;learned.manual=saved.manual===true;}}catch(_){}
  $('rift-checkpoint-guide-dismiss').onclick=()=>{if(guideMode){learned[guideMode]=true;try{localStorage.setItem('riftCheckpointHelp',JSON.stringify({version:1,...learned}));}catch(_){}}guideMode=null;guide.hidden=true;$('rift-controls-open').focus({preventScroll:true});};
  function update(run){
+  defeatGuide.hidden=run.status!=='defeated'||defeatDismissed;
   const mode=$('rift-auto').checked?'auto':'manual';
   if(guideRun!==run.id){guideRun=run.id;guideMode=null;}
   if(guideMode!==mode)guideMode=null;
