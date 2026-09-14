@@ -33,8 +33,8 @@
       paint();if(!window.RiftRenderer?.reduced)timer=setInterval(paint,180);
     }
     root.addEventListener('toggle',animate);document.addEventListener('visibilitychange',animate);
-    const reduced=document.getElementById('rift-reduced');reduced.addEventListener('change',animate);
-    render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',animate);document.removeEventListener('visibilitychange',animate);reduced.removeEventListener('change',animate);};
+    window.addEventListener('riftmotionchange',animate);
+    render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',animate);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
     poseSelect.onchange=()=>{tick=0;paint();};
     function close(){selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;

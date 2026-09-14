@@ -251,7 +251,11 @@
   function soundLabel(){$('rift-sound').textContent=audio.muted?'Sound off':'Sound on';$('rift-sound').setAttribute('aria-pressed',String(audio.muted));}
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{$(id).value=audio[key]*100;$(id).addEventListener('input',()=>audio.set(key,Number($(id).value)/100));});
-  try{const reduced=JSON.parse(localStorage.getItem('riftReducedMotion'));if(typeof reduced==='boolean')renderer.reduced=reduced;}catch(_){}
-  $('rift-reduced').checked=renderer.reduced;$('rift-reduced').addEventListener('change',()=>{renderer.reduced=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(renderer.reduced));}catch(_){} });
+  const systemMotion=window.matchMedia('(prefers-reduced-motion: reduce)');let reducedOverride=null;
+  try{const reduced=JSON.parse(localStorage.getItem('riftReducedMotion'));if(typeof reduced==='boolean')reducedOverride=reduced;}catch(_){}
+  function motionPreference(){renderer.reduced=reducedOverride??systemMotion.matches;$('rift-reduced').checked=renderer.reduced;window.dispatchEvent(new Event('riftmotionchange'));}
+  $('rift-reduced').addEventListener('change',()=>{reducedOverride=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(reducedOverride));}catch(_){}motionPreference();});
+  $('rift-system-motion').addEventListener('click',()=>{reducedOverride=null;try{localStorage.removeItem('riftReducedMotion');}catch(_){}motionPreference();});
+  systemMotion.addEventListener('change',()=>{if(reducedOverride===null)motionPreference();});motionPreference();
   load();
 })();

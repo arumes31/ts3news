@@ -50,10 +50,12 @@ test('remapped combat keys update prompts, persist and drive confirmed actions',
   await page.locator('[data-remap="attack"]').click();await page.keyboard.press('f');
   await expect(page.locator('[data-remap="attack"]')).toContainText('F');
   await page.locator('[data-remap="right"]').click();await page.keyboard.press('h');
+  await page.locator('[data-remap="signature0"]').click();await page.keyboard.press('t');
   await page.locator('#rift-controls-close').click();
   await expect(page.locator('#rift-controls-open')).toBeFocused();
   await page.reload();await page.locator('#rift-start').click();
   await expect(page.locator('[data-hold="attack"] kbd')).toHaveText('F');
+  await expect(page.locator('#rift-finisher-state')).toHaveText('Build charges with T');
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   let before=await read();await page.keyboard.down('h');
   await expect.poll(async()=>(await read()).player.x-before.player.x).toBeGreaterThan(10);await page.keyboard.up('h');

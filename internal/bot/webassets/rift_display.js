@@ -1,8 +1,8 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60};
-  const choices={enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60]};
+  const defaults={damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
+  const choices={enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
     const saved=JSON.parse(localStorage.getItem('riftDisplay'));
@@ -11,10 +11,11 @@
     }
   }catch(_){}
   const presets={
-    balanced:{label:'Balanced',description:'Standard text, all enemy names, health bars and damage numbers. Decoration, smooth camera and 60 FPS.',values:defaults},
-    minimal:{label:'Minimal distractions',description:'Standard text and health bars. Boss names only, no damage numbers or decoration. Compact HUD, smooth camera and 60 FPS.',values:{...defaults,enemyNames:'boss',damageNumbers:false,particles:false,lootMotion:false,compactHUD:true}},
-    accessible:{label:'Clearer battlefield',description:'Larger text (125%), all names, health bars and damage numbers. Strong hazard outlines, no decoration or camera smoothing, full HUD and 60 FPS.',values:{...defaults,textScale:1.25,hazardContrast:true,particles:false,lootMotion:false,cameraSmooth:false}},
-    lowPower:{label:'Lower power',description:'Standard text and health bars. Boss names only, no damage numbers or decoration. Compact HUD, direct camera and 30 FPS.',values:{...defaults,fps:30,particles:false,lootMotion:false,enemyNames:'boss',damageNumbers:false,compactHUD:true,cameraSmooth:false}}
+    balanced:{label:'Balanced',description:'Standard text, all enemy names, health bars, moving damage numbers and hazard labels. Full decoration, spell opacity and transitions, smooth camera and 60 FPS.',values:defaults},
+    minimal:{label:'Minimal distractions',description:'Standard text, health bars and hazard labels. Boss names only, no damage numbers, decoration or transition fade. Soft spell effects, compact HUD, smooth camera and 60 FPS.',values:{...defaults,enemyNames:'boss',damageNumbers:false,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,compactHUD:true}},
+    accessible:{label:'Clearer battlefield',description:'Larger text (125%), all names, health bars, static damage numbers and hazard labels. Strong hazard outlines, no decoration, fade or camera smoothing. Soft spell effects, full HUD and 60 FPS.',values:{...defaults,textScale:1.25,hazardContrast:true,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,cameraSmooth:false}},
+    lowPower:{label:'Lower power',description:'Standard text, health bars and hazard labels. Boss names only, no damage numbers, decoration or fade. Soft spell effects, compact HUD, direct camera and 30 FPS.',values:{...defaults,fps:30,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,enemyNames:'boss',damageNumbers:false,compactHUD:true,cameraSmooth:false}},
+    cinematic:{label:'Cinematic effects',description:'Full decoration, moving damage numbers, spell opacity and transition fades. Standard text, boss names, health bars and hazard labels. Compact HUD, smooth camera and 60 FPS; reduced motion still takes priority.',values:{...defaults,enemyNames:'boss',compactHUD:true}}
   };
   const section=document.createElement('div');section.className='rift-display-settings';
   const heading=document.createElement('h4');heading.textContent='Battlefield display';section.append(heading);
@@ -32,7 +33,12 @@
     ['textScale','rift-text-scale','HUD text size',[[1,'100%'],[1.15,'115%'],[1.25,'125%']]],
     ['enemyNames','rift-enemy-names','Enemy names',[['all','All'],['boss','Bosses only'],['none','Hidden']]],
     ['fps','rift-render-rate','Rendering limit',[[60,'60 FPS'],[30,'30 FPS']]],
+    ['particleIntensity','rift-particle-intensity','Background particle density',[[0,'Off'],[0.5,'Half'],[1,'Full']]],
+    ['motionIntensity','rift-motion-intensity','Decorative motion',[[0,'Still'],[0.5,'Gentle'],[1,'Full']]],
+    ['flashIntensity','rift-flash-intensity','Transition fade intensity',[[0,'Off'],[0.5,'Gentle'],[1,'Full']]],
+    ['effectIntensity','rift-effect-intensity','Spell effect opacity',[[0.35,'Soft'],[0.65,'Medium'],[1,'Full']]],
     ['healthBars','rift-enemy-health','Enemy health bars'],['damageNumbers','rift-damage-numbers','Damage numbers'],
+    ['damageMotion','rift-damage-motion','Moving damage numbers'],['hazardLabels','rift-hazard-labels','Hazard labels'],['lootSparkle','rift-loot-sparkle','Loot sparkle'],
     ['particles','rift-background-particles','Background particles'],['lootMotion','rift-loot-motion','Loot bobbing'],
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
     ['compactHUD','rift-compact-hud','Compact HUD']
