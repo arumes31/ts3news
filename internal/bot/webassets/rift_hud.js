@@ -18,6 +18,8 @@
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
     put($('rift-combat-time'),duration(stats.seconds||0)+' combat');
+    const continues=run.room<2||($('rift-auto').checked&&run.level?.id<100),health=Math.min(run.player.max_hp,run.player.hp+run.player.max_hp*.25);
+    put($('rift-recovery-preview'),continues?'Continue: +'+Math.max(0,health-run.player.hp).toFixed(1)+' HP → '+health.toFixed(1)+'/'+run.player.max_hp.toFixed(1)+' HP; mana refills to 100. Leaving gives no recovery.':'Final checkpoint: bank your rewards and finish. No next-tier recovery.');
     put($('rift-objective'),run.status==='fighting'?(boss?'Defeat '+boss.name+' and its defenders':'Clear the enemy patrol'):run.status==='cleared'?'Room secured · Loot ready to bank':run.status==='defeated'?'Expedition ended':'Rewards secured');
     put($('rift-jump-ready'),(run.skill_timers.jump||0)>0?'Jump '+run.skill_timers.jump.toFixed(1)+'s':'Jump ready');
     put($('rift-combo-step'),'Strike '+(run.combo||0)+'/3');

@@ -78,6 +78,10 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				run.Level.Rooms[2].Hazards = nil
 			}
 			run.Status = "cleared"
+			if r.URL.Query().Get("condition") == "wounded" {
+				run.Player.HP = run.Player.MaxHP / 2
+				run.Player.Mana = 30
+			}
 			run.Epoch = "fixture"
 			gear, lootErr := rollRiftGear(0, time.Now())
 			if lootErr != nil {
