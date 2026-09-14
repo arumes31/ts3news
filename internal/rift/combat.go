@@ -293,6 +293,7 @@ func (r *Run) tick(in Input, dt float64) {
 		p.Pose = "attack"
 		p.PoseTime = .32
 		r.Combo = r.Combo%3 + 1
+		r.Stats.HighestCombo = max(r.Stats.HighestCombo, r.Combo)
 		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
 		for i := range r.Enemies {
 			e := &r.Enemies[i]

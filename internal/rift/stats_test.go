@@ -304,3 +304,40 @@ func TestDamagingHitsExcludeFullAbsorptionAndRepeatedDeath(t *testing.T) {
 		t.Fatal("death counted more than once")
 	}
 }
+
+func TestHighestBasicComboPersistsAcrossWrapAndSave(t *testing.T) {
+	r := testRun()
+	r.Status = "cleared"
+	r.Enemies = nil
+	for want := 1; want <= 3; want++ {
+		r.Player.Cooldown = 0
+		r.tick(Input{Attack: true}, 0)
+		if r.Stats.HighestCombo != want {
+			t.Fatalf("highest combo = %d, want %d", r.Stats.HighestCombo, want)
+		}
+		r.tick(Input{Attack: true}, 0)
+		if r.Combo != want {
+			t.Fatal("cooldown advanced combo")
+		}
+	}
+	r.Player.Cooldown = 0
+	r.tick(Input{Attack: true}, 0)
+	if r.Combo != 1 || r.Stats.HighestCombo != 3 {
+		t.Fatal("combo wrap lost peak")
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Run
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	restored.NextRoom()
+	if restored.Stats.HighestCombo != 3 {
+		t.Fatal("save or tier transition lost peak")
+	}
+	if testRun().Stats.HighestCombo != 0 {
+		t.Fatal("new expedition inherited combo peak")
+	}
+}

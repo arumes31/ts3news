@@ -5,6 +5,7 @@ import "math"
 // CombatStats records confirmed action-mode outcomes, never client estimates.
 // It travels with the expedition snapshot and survives seamless room changes.
 type CombatStats struct {
+	HighestCombo     int                `json:"highest_combo"`
 	HitsTaken        int                `json:"hits_taken"`
 	SkillUses        map[string]int     `json:"skill_uses,omitempty"`
 	SkillMana        map[string]float64 `json:"skill_mana,omitempty"`
