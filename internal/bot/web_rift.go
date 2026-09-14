@@ -400,6 +400,7 @@ func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build
 				return nil, err
 			}
 			run.LastMS = max(run.LastMS, now.UnixMilli())
+			run.BankedAtMS = now.UnixMilli()
 			run.FinishCheckpoint(req.Kind, riftMobCatalog(now))
 		}
 		run.Revision = req.Revision

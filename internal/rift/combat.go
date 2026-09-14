@@ -142,6 +142,7 @@ type Run struct {
 	Events              []Event                `json:"events"`
 	SkillTimers         map[string]float64     `json:"skill_timers"`
 	Gold                int64                  `json:"gold"`
+	BankedAtMS          int64                  `json:"banked_at_ms,omitempty"`
 	BankedGold          int64                  `json:"banked_gold"`
 	BankedItems         []string               `json:"banked_items"`
 	Clock               float64                `json:"clock"`

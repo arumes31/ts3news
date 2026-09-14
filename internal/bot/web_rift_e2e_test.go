@@ -182,6 +182,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				}
 				run.Gold = 0
 				run.LastMS = time.Now().UnixMilli()
+				run.BankedAtMS = run.LastMS
 				run.FinishCheckpoint(req.Kind, riftMobCatalog(time.Now()))
 			}
 			run.Revision = req.Revision

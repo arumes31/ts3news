@@ -73,6 +73,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				run.Drops[0].Banked = true
 				run.Status = "banked"
 				run.BankedGold = 30
+				run.BankedAtMS = 100000
 				if advance {
 					run.Status = "cleared"
 					run.FinishCheckpoint("advance", riftMobCatalog(time.Unix(100, 0)))
@@ -114,6 +115,13 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			if scenario == "success" || scenario == "duplicate" || scenario == "advance" || scenario == "advance duplicate" {
 				if err != nil || out.BankedGold != 30 {
 					t.Fatalf("bank failed: %v %+v", err, out)
+				}
+				wantBankedAt := int64(101000)
+				if scenario == "duplicate" || scenario == "advance duplicate" {
+					wantBankedAt = 100000
+				}
+				if out.BankedAtMS != wantBankedAt {
+					t.Fatalf("bank timestamp changed or missing: %d", out.BankedAtMS)
 				}
 				if advance && (out.Level.ID != 11 || out.Room != 0 || out.Status != "fighting" || len(out.CompletedLevels) != 1 || out.CompletedLevels[0] != 10) {
 					t.Fatalf("advance lost persisted state: %+v", out)

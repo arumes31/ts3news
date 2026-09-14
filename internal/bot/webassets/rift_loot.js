@@ -93,6 +93,7 @@
     const directions=['→ right','↘ lower right','↓ down','↙ lower left','← left','↖ upper left','↑ up','↗ upper right'];
     put($('rift-nearest-drop'),nearest?'Nearest drop: '+(distance<1?'here':directions[(Math.round(Math.atan2(nearest.dy,nearest.dx)/(Math.PI/4))+8)%8]):'No uncollected drops');
     const key=run.id+':'+JSON.stringify(items.map(d=>[d.id,d.gear.ID]));if(key!==bagKey){bagKey=key;bag();}
+    put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||run.banked_items.length?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
     const next=JSON.stringify([run.id,run.banked_gold,run.banked_items]);
     $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);
     if(next!==receiptKey){receiptKey=next;receipt();$('rift-receipt-copy-status').textContent='';}
