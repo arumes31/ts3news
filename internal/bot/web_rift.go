@@ -55,7 +55,35 @@ func (b *Bot) riftBuild(ctx context.Context, uid string) (rift.Build, error) {
 		return rift.Build{}, err
 	}
 	b.applyAbyssClassBuild(&u, state)
-	return riftBuildFromUser(u, name.String, level), nil
+	build := riftBuildFromUser(u, name.String, level)
+	owned, err := b.riftOwnedUltimates(ctx, uid)
+	if err != nil {
+		return rift.Build{}, err
+	}
+	build.OwnedUltimates = &owned
+	return build, nil
+}
+
+func (b *Bot) riftOwnedUltimates(ctx context.Context, uid string) ([]string, error) {
+	rows, err := b.DB.QueryContext(ctx, "SELECT ultimate_id FROM user_ultimate_skills WHERE client_uid=$1 ORDER BY obtained, ultimate_id", uid)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	owned := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		if ultimate, ok := content.GetUltimateSkillByID(id); ok {
+			owned = append(owned, ultimate.Name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return owned, nil
 }
 
 func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {

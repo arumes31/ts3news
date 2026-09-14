@@ -27,23 +27,24 @@ type Skill struct {
 }
 
 type Build struct {
-	BaseClass  string   `json:"base_class"`
-	ClassName  string   `json:"class_name"`
-	Resource   string   `json:"resource"`
-	Sequence   string   `json:"sequence"`
-	Signatures []Skill  `json:"signatures"`
-	Ultimate   *Skill   `json:"ultimate,omitempty"`
-	Pets       int      `json:"pets"`
-	Relic      bool     `json:"relic"`
-	Name       string   `json:"name"`
-	Class      string   `json:"class"`
-	Level      int      `json:"level"`
-	HP         float64  `json:"hp"`
-	Damage     float64  `json:"damage"`
-	Armor      float64  `json:"armor"`
-	Weapon     string   `json:"weapon"`
-	Skills     []Skill  `json:"skills"`
-	Gear       []string `json:"gear"`
+	BaseClass      string    `json:"base_class"`
+	ClassName      string    `json:"class_name"`
+	Resource       string    `json:"resource"`
+	Sequence       string    `json:"sequence"`
+	Signatures     []Skill   `json:"signatures"`
+	Ultimate       *Skill    `json:"ultimate,omitempty"`
+	OwnedUltimates *[]string `json:"owned_ultimates,omitempty"`
+	Pets           int       `json:"pets"`
+	Relic          bool      `json:"relic"`
+	Name           string    `json:"name"`
+	Class          string    `json:"class"`
+	Level          int       `json:"level"`
+	HP             float64   `json:"hp"`
+	Damage         float64   `json:"damage"`
+	Armor          float64   `json:"armor"`
+	Weapon         string    `json:"weapon"`
+	Skills         []Skill   `json:"skills"`
+	Gear           []string  `json:"gear"`
 }
 
 type Actor struct {

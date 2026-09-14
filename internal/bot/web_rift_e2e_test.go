@@ -46,6 +46,8 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			selected.Skills = build.Skills
 			selected.Pets = 2
 			selected.Ultimate = &rift.Skill{ID: "fixture_ultimate", Name: "Rift Nova", Kind: "ultimate", Power: 5, Cost: 70, Cooldown: 18}
+			owned := []string{"Rift Nova"}
+			selected.OwnedUltimates = &owned
 			builds[cookie.Value] = selected
 			if r.URL.Query().Has("subclass") {
 				delete(runs, cookie.Value)

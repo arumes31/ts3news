@@ -45,6 +45,7 @@
     put($('rift-barrier-state'),run.barrier>0?'Barrier '+numbers.format(run.barrier):'No barrier');
     put($('rift-slow-state'),run.skill_timers.slowed>0?'Slowed '+run.skill_timers.slowed.toFixed(1)+'s':'Normal speed');
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
+    put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
     $('rift-health-cost').hidden=run.build.class!=='voidwalker'||!finisher;
