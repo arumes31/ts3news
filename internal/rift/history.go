@@ -101,6 +101,9 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 	r.inheritMonsterRecords(previous)
 	r.PastExpeditions = previous.RecordedTotals()
 	r.AttemptHistory = append([]AttemptRecord(nil), previous.AttemptHistory...)
+	if previous.LastEncounter != nil {
+		r.LastEncounter = previous.LastEncounter
+	}
 	if previous.HistoryActive && previous.Level != nil {
 		r.appendAttempt(previous.attemptSnapshot("expired", r.LastMS))
 	}

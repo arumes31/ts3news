@@ -128,6 +128,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			for i := range run.Enemies {
 				run.Enemies[i].HP = 0
 			}
+			run.RecordEncounterSummary("cleared")
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}

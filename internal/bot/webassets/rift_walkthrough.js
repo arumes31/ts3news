@@ -22,7 +22,15 @@
 
  const defeatGuide=$('rift-defeat-guide');let defeatDismissed=false;
  try{defeatDismissed=localStorage.getItem('riftDefeatHelpDismissed')==='true';}catch(_){}
- $('rift-defeat-review').onclick=()=>$('rift-result-skills').click();$('rift-defeat-missions').onclick=()=>$('rift-result-region').click();
+ $('rift-defeat-review').onclick=()=>{
+  $('rift-result-skills').click();
+  const enc=$('rift-last-encounter');
+  if(enc){
+    enc.scrollIntoView({block:'start'});
+    enc.focus();
+  }
+ };
+ $('rift-defeat-missions').onclick=()=>$('rift-result-region').click();
  $('rift-defeat-dismiss').onclick=()=>{defeatDismissed=true;try{localStorage.setItem('riftDefeatHelpDismissed','true');}catch(_){}defeatGuide.hidden=true;$('rift-start').focus({preventScroll:true});};
  const guide=$('rift-checkpoint-guide'),learned={auto:false,manual:false};let guideMode=null,guideRun='';
  try{const saved=JSON.parse(localStorage.getItem('riftCheckpointHelp'));if(saved?.version===1){learned.auto=saved.auto===true;learned.manual=saved.manual===true;}}catch(_){}

@@ -34,6 +34,8 @@
       (value.monster_records===undefined||object(value.monster_records)&&Object.values(value.monster_records).every(record=>object(record)&&Number.isSafeInteger(record.first_seen_ms)&&record.first_seen_ms>=0&&record.first_seen_ms<=8640000000000000&&Number.isSafeInteger(record.defeats)&&record.defeats>=0))&&
       (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
       (value.last_clear===undefined||object(value.last_clear)&&Number.isInteger(value.last_clear.mission)&&value.last_clear.mission>=1&&value.last_clear.mission<=100&&typeof value.last_clear.first==='boolean'&&list(value.last_clear.records,key=>['time','health','hits'].includes(key)))&&
+      (value.last_encounter===undefined||object(value.last_encounter)&&Number.isInteger(value.last_encounter.mission)&&value.last_encounter.mission>=1&&value.last_encounter.mission<=100&&text(value.last_encounter.room_name)&&['cleared','defeated','completed'].includes(value.last_encounter.outcome)&&nonnegative(value.last_encounter.seconds)&&nonnegative(value.last_encounter.player_hp)&&nonnegative(value.last_encounter.player_max_hp))&&
+      (value.room_baseline===undefined||object(value.room_baseline))&&
       (value.room_splits===undefined||splits(value.room_splits))&&
       (value.attempt_history===undefined||list(value.attempt_history,attempt)&&value.attempt_history.length<=50)&&
       ['clear_streak','best_clear_streak'].every(key=>value[key]===undefined||Number.isSafeInteger(value[key])&&value[key]>=0)&&

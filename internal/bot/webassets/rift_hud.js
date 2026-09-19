@@ -153,6 +153,112 @@
     }
     return null;
   }
+  function updateLastEncounter(run){
+    const container=$('rift-last-encounter');
+    if(!container)return;
+    const emptyNode=$('rift-last-encounter-empty');
+    const detailsNode=$('rift-last-encounter-details');
+    const badgeNode=$('rift-last-encounter-badge');
+    const headlineNode=$('rift-last-encounter-headline');
+    const statsNode=$('rift-last-encounter-stats');
+    if(!emptyNode||!detailsNode||!badgeNode||!headlineNode||!statsNode)return;
+
+    let encounter=run.last_encounter;
+    if(!encounter&&['cleared','defeated','complete','banked'].includes(run.status)){
+      const stats=run.stats||{};
+      const roomName=run.level?.rooms?.[run.room]?.name||('Tier '+((run.room||0)+1));
+      const enemiesCount=(run.encounter_plan&&run.encounter_plan[run.room])?run.encounter_plan[run.room].length:(stats.kills||0);
+      const boss=(run.enemies||[]).find(e=>e.kind==='boss');
+      encounter={
+        mission:run.level?.id||1,
+        mission_name:run.level?.name||'Mossbound Ruins',
+        room:run.room||0,
+        room_name:roomName,
+        outcome:run.status==='defeated'?'defeated':run.status==='complete'||run.status==='banked'?'completed':'cleared',
+        seconds:(run.room_splits&&run.room_splits[run.room]!=null)?run.room_splits[run.room]:(stats.seconds||0),
+        player_hp:run.player?.hp||0,
+        player_max_hp:run.player?.max_hp||100,
+        enemies:enemiesCount,
+        boss_encounter:Boolean(boss),
+        boss_name:boss?.name||'',
+        damage_dealt:stats.damage_dealt||0,
+        damage_taken:stats.damage_taken||0,
+        hits_taken:stats.hits_taken||0,
+        guard_blocked:stats.guard_blocked||0,
+        barrier_blocked:stats.barrier_blocked||0,
+        healing:stats.healing||0,
+        gold_gained:run.gold||0,
+        loot_items:(run.drops||[]).filter(d=>d.collected&&(d.gear||d.item)).length
+      };
+    }
+
+    if(!encounter){
+      emptyNode.hidden=false;
+      detailsNode.hidden=true;
+      put(badgeNode,'No encounter');
+      attr(badgeNode,'data-outcome','none');
+      return;
+    }
+
+    emptyNode.hidden=true;
+    detailsNode.hidden=false;
+
+    const isCleared=encounter.outcome==='cleared';
+    const isDefeated=encounter.outcome==='defeated';
+    const outcomeLabel=isCleared?(encounter.boss_encounter?'Boss defeated':'Room secured'):isDefeated?'Defeated':'Expedition complete';
+
+    put(badgeNode,outcomeLabel);
+    attr(badgeNode,'data-outcome',encounter.outcome);
+
+    const tierLabel='Tier '+(encounter.room+1)+': '+encounter.room_name;
+    const durationLabel=Number(encounter.seconds||0).toFixed(1)+'s';
+    const threshold=getHealthThreshold(encounter.player_hp,encounter.player_max_hp);
+    const hpLabel=Number(encounter.player_hp||0).toFixed(1)+'/'+Number(encounter.player_max_hp||0).toFixed(1)+' HP ('+threshold.symbol+' '+threshold.label+')';
+
+    let headline='';
+    if(isCleared){
+      headline=encounter.mission_name+' · '+tierLabel+' secured in '+durationLabel+' combat. Finished at '+hpLabel+'; dealt '+numbers.format(encounter.damage_dealt)+' damage and took '+numbers.format(encounter.damage_taken)+' damage across '+(encounter.hits_taken||0)+' hits.';
+    }else if(isDefeated){
+      headline='Defeated in '+encounter.mission_name+' · '+tierLabel+' after '+durationLabel+' combat. Dealt '+numbers.format(encounter.damage_dealt)+' damage and took '+numbers.format(encounter.damage_taken)+' damage.';
+    }else{
+      headline=encounter.mission_name+' completed in '+durationLabel+' combat. Final HP: '+hpLabel+'.';
+    }
+    put(headlineNode,headline);
+
+    const rows=[
+      ['Outcome',outcomeLabel],
+      ['Tier & location',encounter.mission_name+' · '+tierLabel],
+      ['Combat duration',durationLabel],
+      ['Ending health',hpLabel],
+      ['Enemies defeated',String(encounter.enemies||0)+(encounter.boss_name?' (Boss: '+encounter.boss_name+')':'')],
+      ['Damage dealt',numbers.format(encounter.damage_dealt||0)],
+      ['Damage taken',numbers.format(encounter.damage_taken||0)+' ('+(encounter.hits_taken||0)+' '+((encounter.hits_taken===1)?'hit':'hits')+')'],
+      ['Guarded damage',numbers.format(encounter.guard_blocked||0)],
+      ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
+    ];
+
+    if((encounter.healing||0)>0){
+      rows.push(['Healing received',numbers.format(encounter.healing)]);
+    }
+
+    if((encounter.gold_gained||0)>0||(encounter.loot_items||0)>0){
+      const lootText=numbers.format(encounter.gold_gained||0)+' gold'+((encounter.loot_items||0)>0?' · '+(encounter.loot_items)+' '+((encounter.loot_items===1)?'item':'items'):'');
+      rows.push([isDefeated?'Unbanked loot lost':'Loot collected',lootText]);
+    }
+
+    const key=JSON.stringify({encounter,rows});
+    if(statsNode.dataset.lastEncounterKey!==key){
+      statsNode.dataset.lastEncounterKey=key;
+      statsNode.replaceChildren();
+      for(const [dtText,ddText] of rows){
+        const dt=document.createElement('dt');
+        const dd=document.createElement('dd');
+        dt.textContent=dtText;
+        dd.textContent=ddText;
+        statsNode.append(dt,dd);
+      }
+    }
+  }
   function update(run,playing,replay=false){
     lastObservedRun=run;
     updateSkillRangeSignal(run);
@@ -187,7 +293,7 @@
       }
       lastObservedMana=currentMana;
     }
-    recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);
+    recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);updateLastEncounter(run);
     const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
     if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
@@ -311,5 +417,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
 })();

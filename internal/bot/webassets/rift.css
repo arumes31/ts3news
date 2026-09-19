@@ -70,12 +70,95 @@
 
 #rift-defeat-guide{padding:12px 16px;background:#312720;border-top:1px solid #8a6d4f;font-size:13px;line-height:1.6}#rift-defeat-guide h3{margin:0 0 6px;font-size:16px}#rift-defeat-guide ol{padding-left:20px}#rift-defeat-guide>div{display:flex;gap:8px;flex-wrap:wrap}#rift-defeat-guide button{background:#46382a;color:#f0e2c7;border:1px solid #907553;border-radius:4px;padding:7px 10px}#rift-defeat-guide[hidden]{display:none}
 
+.rift-last-encounter {
+  padding: 12px 16px;
+  background: #14221a;
+  border: 1px solid #3b5643;
+  border-radius: 6px;
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d6e5d8;
+  outline: none;
+}
+.rift-last-encounter:focus-visible {
+  outline: 2px solid #f7d691;
+  outline-offset: 2px;
+}
+.rift-encounter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.rift-encounter-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #f7e6b5;
+}
+.rift-encounter-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #1e3325;
+  color: #a8cfb4;
+  border: 1px solid #34523c;
+}
+.rift-encounter-badge[data-outcome="cleared"] {
+  background: #1b3d26;
+  color: #7ef5a3;
+  border-color: #387c4f;
+}
+.rift-encounter-badge[data-outcome="defeated"] {
+  background: #3e1b1b;
+  color: #ff9b9b;
+  border-color: #8c3b3b;
+}
+.rift-encounter-badge[data-outcome="completed"] {
+  background: #382e11;
+  color: #ffe082;
+  border-color: #8c7320;
+}
+.rift-last-encounter-headline {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e5f0e6;
+}
+.rift-last-encounter-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+  padding: 0;
+}
+.rift-last-encounter-stats dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8fa896;
+  margin: 0;
+}
+.rift-last-encounter-stats dd {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f5f8f5;
+  margin: 2px 0 0 0;
+}
+
 #rift-practice-links {display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1rem 0;color:var(--rift-muted,#acc1ae)}
 #rift-practice-links a {padding:.4rem .7rem;border:1px solid #45634e;border-radius:6px;color:#deedc9;text-decoration:none}
 #rift-practice-links a:hover,#rift-practice-links a:focus-visible {background:#284234;outline:2px solid #c2da9c;outline-offset:2px}
 #rift-practice-guide {padding:1rem 1.25rem;margin-bottom:1rem;border:1px solid #49664b;border-radius:8px;background:#14271f;color:#deedc9}
 #rift-practice-guide h2 {margin:0 0 .5rem}
-#rift-app[data-practice]:not([data-practice=""]) :is(#rift-defeat-guide,#rift-checkpoint-guide,#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,.rift-classbar,#rift-finisher-state,#rift-ultimate-state,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout) {display:none!important}
+#rift-app[data-practice]:not([data-practice=""]) :is(#rift-defeat-guide,#rift-checkpoint-guide,#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,.rift-classbar,#rift-finisher-state,#rift-ultimate-state,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout,#rift-last-encounter) {display:none!important}
 #rift-app[data-practice="movement"] .rift-basics,#rift-app[data-practice="jump"] [data-bind="attack"],#rift-app[data-practice="jump"] [data-bind="guard"],#rift-app[data-practice="combo"] [data-bind="jump"] {display:none}
 
 #rift-app[data-practice="guard"] :is([data-bind="attack"],[data-bind="jump"]) {display:none}
@@ -148,9 +231,20 @@
 }
 
 @media (forced-colors: active) {
-  #rift-app :is(.rift-settings, .rift-bestiary, .rift-campaign, .rift-field-guide, .rift-sidebar, .rift-sidebar section, .rift-controls-dialog, .rift-controls-reference, .rift-mission-planning, #rift-defeat-guide, #rift-checkpoint-guide, #rift-walkthrough, .rift-room-actions, #rift-pickup-notices, #rift-captions, #rift-input-readout, .rift-stage-top, .rift-actionbar, .rift-classbar, .rift-combat-overview, .rift-combat-signals, .rift-run-statistics, .rift-game, .rift-monster-detail, #rift-compare, #rift-region-overview section, #rift-attempt-history, .rift-display-settings, .rift-audio-mix, #rift-gamepad-panel) {
+  #rift-app :is(.rift-settings, .rift-bestiary, .rift-campaign, .rift-field-guide, .rift-sidebar, .rift-sidebar section, .rift-controls-dialog, .rift-controls-reference, .rift-mission-planning, #rift-defeat-guide, #rift-checkpoint-guide, #rift-last-encounter, #rift-walkthrough, .rift-room-actions, #rift-pickup-notices, #rift-captions, #rift-input-readout, .rift-stage-top, .rift-actionbar, .rift-classbar, .rift-combat-overview, .rift-combat-signals, .rift-run-statistics, .rift-game, .rift-monster-detail, #rift-compare, #rift-region-overview section, #rift-attempt-history, .rift-display-settings, .rift-audio-mix, #rift-gamepad-panel) {
     border-color: CanvasText;
     box-shadow: none !important;
+  }
+  .rift-encounter-badge {
+    border: 1px solid ButtonBorder !important;
+    color: CanvasText !important;
+    background: Canvas !important;
+  }
+  .rift-encounter-badge[data-outcome="cleared"],
+  .rift-encounter-badge[data-outcome="completed"] {
+    border: 2px solid Highlight !important;
+    color: HighlightText !important;
+    background: Highlight !important;
   }
 
   .rift-controls-dialog {
@@ -285,7 +379,7 @@
 }
 
 /* Custom system font resilience and warning readability (Proposal 0154) */
-:is(.rift-at-risk, #rift-paused-badge, .rift-hp-threshold, #rift-boss-threshold, #rift-area-effects, #rift-boss-attack, #rift-defeat-guide, #rift-checkpoint-guide, #rift-binding-status, #rift-catchup, .rift-latency, #rift-captions, #rift-pending-hud) {
+:is(.rift-at-risk, #rift-paused-badge, .rift-hp-threshold, #rift-boss-threshold, #rift-area-effects, #rift-boss-attack, #rift-defeat-guide, #rift-checkpoint-guide, #rift-last-encounter, #rift-binding-status, #rift-catchup, .rift-latency, #rift-captions, #rift-pending-hud) {
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.4;

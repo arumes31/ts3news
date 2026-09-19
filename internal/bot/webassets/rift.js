@@ -433,6 +433,17 @@
     window.RiftCampaignTools.showRegion(run.level.region);
   });
   $('rift-result-skills').addEventListener('click',()=>{if(busy||starting||!run||!['complete','banked','defeated'].includes(run.status))return;const details=root.querySelector('.rift-run-statistics');details.open=true;details.querySelector('summary').focus();details.scrollIntoView({block:'start'});});
+  const resultEncounterBtn=$('rift-result-encounter');
+  if(resultEncounterBtn){
+    resultEncounterBtn.addEventListener('click',()=>{
+      if(busy||starting||!run||!['complete','banked','defeated','cleared'].includes(run.status))return;
+      const enc=$('rift-last-encounter');
+      if(enc){
+        enc.scrollIntoView({behavior:'smooth',block:'start'});
+        enc.focus();
+      }
+    });
+  }
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));

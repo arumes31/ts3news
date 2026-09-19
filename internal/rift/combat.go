@@ -2,6 +2,7 @@
 package rift
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -120,6 +121,43 @@ type Event struct {
 	Value float64 `json:"value,omitempty"`
 }
 
+// EncounterSummary preserves an accessible structured summary of the last encounter.
+type EncounterSummary struct {
+	Mission        int     `json:"mission"`
+	MissionName    string  `json:"mission_name"`
+	Room           int     `json:"room"`
+	RoomName       string  `json:"room_name"`
+	Outcome        string  `json:"outcome"` // "cleared", "defeated", "completed"
+	Seconds        float64 `json:"seconds"`
+	PlayerHP       float64 `json:"player_hp"`
+	PlayerMaxHP    float64 `json:"player_max_hp"`
+	Enemies        int     `json:"enemies"`
+	BossEncounter  bool    `json:"boss_encounter"`
+	BossName       string  `json:"boss_name,omitempty"`
+	DamageDealt    float64 `json:"damage_dealt"`
+	DamageTaken    float64 `json:"damage_taken"`
+	HitsTaken      int     `json:"hits_taken"`
+	GuardBlocked   float64 `json:"guard_blocked"`
+	BarrierBlocked float64 `json:"barrier_blocked"`
+	Healing        float64 `json:"healing"`
+	GoldGained     int64   `json:"gold_gained"`
+	LootItems      int     `json:"loot_items"`
+}
+
+// RoomBaseline tracks starting metrics at the beginning of each room to calculate encounter deltas.
+type RoomBaseline struct {
+	Seconds        float64 `json:"seconds"`
+	DamageDealt    float64 `json:"damage_dealt"`
+	DamageTaken    float64 `json:"damage_taken"`
+	HitsTaken      int     `json:"hits_taken"`
+	GuardBlocked   float64 `json:"guard_blocked"`
+	BarrierBlocked float64 `json:"barrier_blocked"`
+	Healing        float64 `json:"healing"`
+	Kills          int     `json:"kills"`
+	Bosses         int     `json:"bosses"`
+	Gold           int64   `json:"gold"`
+}
+
 type Run struct {
 	MonsterRecords      map[string]MonsterRecord `json:"monster_records,omitempty"`
 	Practice            *PracticeState           `json:"practice,omitempty"`
@@ -129,6 +167,8 @@ type Run struct {
 	PauseStartedMS      *int64                   `json:"pause_started_ms,omitempty"`
 	RoomStartSeconds    *float64                 `json:"room_start_seconds,omitempty"`
 	RoomStartHits       *int                     `json:"room_start_hits,omitempty"`
+	RoomBaseline        *RoomBaseline            `json:"room_baseline,omitempty"`
+	LastEncounter       *EncounterSummary        `json:"last_encounter,omitempty"`
 	MissionStartHits    *int                     `json:"mission_start_hits,omitempty"`
 	History             map[int]MissionHistory   `json:"mission_history,omitempty"`
 	MissionStartSeconds float64                  `json:"mission_start_seconds,omitempty"`
@@ -195,6 +235,18 @@ func (r *Run) spawnRoom() {
 	r.RoomStartHits = &hits
 	seconds := r.Stats.Seconds
 	r.RoomStartSeconds = &seconds
+	r.RoomBaseline = &RoomBaseline{
+		Seconds:        r.Stats.Seconds,
+		DamageDealt:    r.Stats.DamageDealt,
+		DamageTaken:    r.Stats.DamageTaken,
+		HitsTaken:      r.Stats.HitsTaken,
+		GuardBlocked:   r.Stats.GuardBlocked,
+		BarrierBlocked: r.Stats.BarrierBlocked,
+		Healing:        r.Stats.Healing,
+		Kills:          r.Stats.Kills,
+		Bosses:         r.Stats.Bosses,
+		Gold:           r.Gold,
+	}
 	r.Marked = ""
 	for key := range r.SkillTimers {
 		if strings.HasPrefix(key, "hazard-") || key == "slowed" {
@@ -212,6 +264,96 @@ func (r *Run) spawnRoom() {
 	r.Player.X = 160
 	r.Player.Y = 410
 	r.event("area", r.Player.X, r.Player.Y, float64(r.Room))
+}
+
+func (r *Run) RecordEncounterSummary(outcome string) {
+	missionID := 1
+	missionName := "Mossbound Ruins"
+	if r.Level != nil {
+		missionID = r.Level.ID
+		if r.Level.Name != "" {
+			missionName = r.Level.Name
+		}
+	}
+	roomName := fmt.Sprintf("Tier %d", r.Room+1)
+	if r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
+		roomName = r.Level.Rooms[r.Room].Name
+	} else if r.Room >= 0 && r.Room < len(Rooms) {
+		roomName = Rooms[r.Room]
+	}
+
+	bossEncounter := false
+	bossName := ""
+	if r.Room >= 0 && r.Room < len(r.EncounterPlan) {
+		for _, a := range r.EncounterPlan[r.Room] {
+			if a.Kind == "boss" {
+				bossEncounter = true
+				bossName = a.Name
+				break
+			}
+		}
+	}
+
+	seconds := 0.0
+	if r.RoomStartSeconds != nil {
+		seconds = max(0, r.Stats.Seconds-*r.RoomStartSeconds)
+	}
+	damageDealt := r.Stats.DamageDealt
+	damageTaken := r.Stats.DamageTaken
+	hitsTaken := r.Stats.HitsTaken
+	guardBlocked := r.Stats.GuardBlocked
+	barrierBlocked := r.Stats.BarrierBlocked
+	healing := r.Stats.Healing
+	kills := r.Stats.Kills
+	goldGained := r.Gold
+
+	if r.RoomBaseline != nil {
+		damageDealt = max(0, damageDealt-r.RoomBaseline.DamageDealt)
+		damageTaken = max(0, damageTaken-r.RoomBaseline.DamageTaken)
+		hitsTaken = max(0, hitsTaken-r.RoomBaseline.HitsTaken)
+		guardBlocked = max(0, guardBlocked-r.RoomBaseline.GuardBlocked)
+		barrierBlocked = max(0, barrierBlocked-r.RoomBaseline.BarrierBlocked)
+		healing = max(0, healing-r.RoomBaseline.Healing)
+		kills = max(0, kills-r.RoomBaseline.Kills)
+		goldGained = max(0, goldGained-r.RoomBaseline.Gold)
+	}
+
+	lootItems := 0
+	for _, d := range r.Drops {
+		if d.Collected && d.Gear != nil {
+			lootItems++
+		}
+	}
+
+	enemiesCount := 0
+	if r.Room >= 0 && r.Room < len(r.EncounterPlan) {
+		enemiesCount = len(r.EncounterPlan[r.Room])
+	}
+	if kills > enemiesCount && enemiesCount > 0 {
+		enemiesCount = kills
+	}
+
+	r.LastEncounter = &EncounterSummary{
+		Mission:        missionID,
+		MissionName:    missionName,
+		Room:           r.Room,
+		RoomName:       roomName,
+		Outcome:        outcome,
+		Seconds:        seconds,
+		PlayerHP:       r.Player.HP,
+		PlayerMaxHP:    r.Player.MaxHP,
+		Enemies:        enemiesCount,
+		BossEncounter:  bossEncounter,
+		BossName:       bossName,
+		DamageDealt:    damageDealt,
+		DamageTaken:    damageTaken,
+		HitsTaken:      hitsTaken,
+		GuardBlocked:   guardBlocked,
+		BarrierBlocked: barrierBlocked,
+		Healing:        healing,
+		GoldGained:     goldGained,
+		LootItems:      lootItems,
+	}
 }
 
 func (r *Run) NextRoom() bool {
@@ -376,6 +518,7 @@ func (r *Run) tick(in Input, dt float64) {
 	if p.HP <= 0 {
 		r.Status = "defeated"
 		r.finishMissionHistory("defeated")
+		r.RecordEncounterSummary("defeated")
 		r.Gold = 0
 		r.Drops = []Drop{}
 		r.Projectiles = []Projectile{}
@@ -412,6 +555,7 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 		r.Status = "cleared"
 		r.Projectiles = []Projectile{}
+		r.RecordEncounterSummary("cleared")
 		r.event("clear", p.X, p.Y, 0)
 	}
 }
