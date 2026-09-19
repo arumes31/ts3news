@@ -38,6 +38,16 @@
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
     put($('rift-guard-reduction'),run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
+    const cam=Math.max(0,Math.min(640,run.player.x-350));
+    const offLeft=living.filter(e=>e.x<cam),offRight=living.filter(e=>e.x>cam+960),offTotal=offLeft.length+offRight.length;
+    let offText='No off-screen threats';
+    if(run.status==='fighting'&&offTotal>0){
+      const parts=[];
+      if(offLeft.length)parts.push('← '+offLeft.length+(offLeft.some(e=>e.kind==='boss')?' (Boss)':''));
+      if(offRight.length)parts.push(offRight.length+(offRight.some(e=>e.kind==='boss')?' (Boss)':'')+' →');
+      offText='Off-screen threats: '+parts.join(' · ');
+    }
+    put($('rift-offscreen-enemies'),offText);
     put($('rift-combat-time'),duration(stats.seconds||0)+' combat');
     const continues=run.room<2||($('rift-auto').checked&&run.level?.id<100),health=Math.min(run.player.max_hp,run.player.hp+run.player.max_hp*.25);
     put($('rift-recovery-preview'),continues?'Continue: +'+Math.max(0,health-run.player.hp).toFixed(1)+' HP → '+health.toFixed(1)+'/'+run.player.max_hp.toFixed(1)+' HP; mana refills to 100. Leaving gives no recovery.':'Final checkpoint: bank your rewards and finish. No next-tier recovery.');

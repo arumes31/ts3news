@@ -150,6 +150,42 @@
         ctx.fillStyle='#ffe2b0';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillText('JUMP OR MOVE',e.target_x-camera,e.target_y+4);
       }
     });
+    if(display.enemyIndicators && !display.cleanScreenshot && run.status==='fighting'){
+      const offscreen=run.enemies.filter(e=>e.hp>0&&(e.x-camera<0||e.x-camera>960));
+      renderer.lastOffscreen=offscreen;
+      offscreen.forEach(e=>{
+        const left=e.x-camera<0,isBoss=e.kind==='boss';
+        const ix=left?22:938,iy=Math.max(50,Math.min(490,e.y));
+        const color=isBoss?'#ffbe60':'#ff6b6b',edgeColor=isBoss?'#ffe89e':'#ffa3a3';
+        ctx.save();
+        ctx.fillStyle='#071813e0';ctx.strokeStyle=edgeColor;ctx.lineWidth=2;
+        ctx.beginPath();
+        if(left){
+          ctx.moveTo(ix+14,iy-12);ctx.lineTo(ix-10,iy);ctx.lineTo(ix+14,iy+12);ctx.closePath();
+        }else{
+          ctx.moveTo(ix-14,iy-12);ctx.lineTo(ix+10,iy);ctx.lineTo(ix-14,iy+12);ctx.closePath();
+        }
+        ctx.fill();ctx.stroke();
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        if(left){
+          ctx.moveTo(ix+11,iy-8);ctx.lineTo(ix-5,iy);ctx.lineTo(ix+11,iy+8);ctx.closePath();
+        }else{
+          ctx.moveTo(ix-11,iy-8);ctx.lineTo(ix+5,iy);ctx.lineTo(ix-11,iy+8);ctx.closePath();
+        }
+        ctx.fill();
+        if(isBoss){
+          ctx.font='bold 9px monospace';ctx.textAlign=left?'left':'right';ctx.fillStyle='#ffe599';ctx.strokeStyle='#071813';ctx.lineWidth=3;
+          ctx.strokeText('BOSS',left?ix+18:ix-18,iy+3);ctx.fillText('BOSS',left?ix+18:ix-18,iy+3);
+        }else if(e.windup>0){
+          ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#fff0aa';ctx.strokeStyle='#071813';ctx.lineWidth=3;
+          ctx.strokeText('!',left?ix+4:ix-4,iy+4);ctx.fillText('!',left?ix+4:ix-4,iy+4);
+        }
+        ctx.restore();
+      });
+    }else{
+      renderer.lastOffscreen=[];
+    }
     (run.drops||[]).forEach(drop => {
       if(drop.collected||drop.banked)return;
       const y=drop.y-8+(renderer.reduced||!display.lootMotion?0:Math.sin(decorationTime/200)*3*motion),x=drop.x-camera;

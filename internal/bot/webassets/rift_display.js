@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,enemyIndicators:true};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -53,7 +53,8 @@
     ['particles','rift-background-particles','Background particles'],['lootMotion','rift-loot-motion','Loot bobbing'],
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
     ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD'],
-    ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)']
+    ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)'],
+    ['enemyIndicators','rift-enemy-indicators','Off-screen enemy direction indicators']
   ];
   function save(){try{localStorage.setItem('riftDisplay',JSON.stringify({version:1,...values}));}catch(_){} }
   function refresh(){
