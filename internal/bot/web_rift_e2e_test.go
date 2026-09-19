@@ -131,6 +131,27 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "boss-windup" {
+			mu.Lock()
+			run := rift.NewRunAtLevel("boss-windup", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
+			run.Room = 2
+			run.Status = "fighting"
+			run.Paused = true
+			run.Epoch = "fixture"
+			if len(run.EncounterPlan) > 2 {
+				run.Enemies = append([]rift.Actor{}, run.EncounterPlan[2]...)
+			}
+			for i := range run.Enemies {
+				if run.Enemies[i].Kind == "boss" {
+					run.Enemies[i].Windup = 20.0
+					run.Enemies[i].AttackName = "Mossbound Slam"
+					run.Enemies[i].TargetX = run.Player.X
+					run.Enemies[i].TargetY = run.Player.Y
+				}
+			}
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		server.render(w, "rift", map[string]any{"Title": "Rift Brawl Playtest", "Nav": "rift", "EnableAbyss": true, "AccountNav": true, "Fixture": true, "Practice": r.URL.Query().Get("practice")})
 	})
 	mux.HandleFunc("/api/abyss/rift", func(w http.ResponseWriter, r *http.Request) {

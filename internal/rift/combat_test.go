@@ -119,3 +119,36 @@ func TestClearCollectsFloorDropsBeforeCheckpoint(t *testing.T) {
 		t.Fatal("checkpoint receipt differs from expedition bag")
 	}
 }
+
+func TestBossAttackNameDuringWindup(t *testing.T) {
+	r := testRun()
+	r.Enemies = []Actor{{
+		ID:       "boss1",
+		Kind:     "boss",
+		X:        r.Player.X + 80,
+		Y:        r.Player.Y,
+		HP:       1000,
+		MaxHP:    1000,
+		Cooldown: 0,
+	}}
+	// Trigger windup
+	r.Step(Input{}, time.Unix(100, 100_000_000))
+	if r.Enemies[0].Windup <= 0 {
+		t.Fatalf("expected boss to be winding up, got %v", r.Enemies[0].Windup)
+	}
+	if r.Enemies[0].AttackName != "Mossbound Slam" {
+		t.Fatalf("expected Mossbound Slam, got %q", r.Enemies[0].AttackName)
+	}
+
+	// Test alternating ranged attack
+	r.Enemies[0].Attacks = 1
+	r.Enemies[0].ArtKey = "boss_dragon"
+	r.Enemies[0].Shot = "fire"
+	r.Enemies[0].Windup = 0
+	r.Enemies[0].Cooldown = 0
+	r.Step(Input{}, time.Unix(100, 200_000_000))
+	if r.Enemies[0].AttackName != "Cinder Volley" {
+		t.Fatalf("expected Cinder Volley, got %q", r.Enemies[0].AttackName)
+	}
+}
+

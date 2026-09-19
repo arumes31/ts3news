@@ -60,8 +60,9 @@ type Actor struct {
 	Shot      string  `json:"shot,omitempty"`
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
-	Kind      string  `json:"kind"`
-	X         float64 `json:"x"`
+	Kind       string  `json:"kind"`
+	AttackName string  `json:"attack_name,omitempty"`
+	X          float64 `json:"x"`
 	Y         float64 `json:"y"`
 	HP        float64 `json:"hp"`
 	MaxHP     float64 `json:"max_hp"`
@@ -457,20 +458,21 @@ func (r *Run) cast(id string) {
 		if skill.Heal > 0 {
 			r.healPlayerBySkill(p.MaxHP*skill.Heal, skill.ID)
 		}
-		if skill.Kind == "shield" {
+		switch skill.Kind {
+		case "shield":
 			r.addBarrier(25+r.Build.Armor*4, skill.ID)
-		} else if skill.Kind == "heal" {
+		case "heal":
 			if skill.Heal == 0 {
 				r.healPlayerBySkill(p.MaxHP*.15, skill.ID)
 			}
-		} else if skill.Kind == "slash" || skill.Kind == "quake" || skill.Kind == "ultimate" {
+		case "slash", "quake", "ultimate":
 			ref := skill.Reference()
 			for i, e := range r.Enemies {
 				if e.HP > 0 && math.Abs(e.X-p.X) < ref.Horizontal && math.Abs(e.Y-p.Y) < ref.Depth {
 					r.skillHit(i, power, skill, charges, marked)
 				}
 			}
-		} else {
+		default:
 			r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: p.X + p.Facing*35, Y: p.Y, VX: p.Facing * 530, Power: power, Life: 2.5, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
 		}
 		return
@@ -592,6 +594,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.Windup > 0 {
 		e.Windup = math.Max(0, e.Windup-dt)
 		if e.Windup == 0 {
+			e.AttackName = ""
 			e.Attacks++
 			e.Pose = "attack"
 			e.PoseTime = .4
@@ -654,9 +657,60 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.TargetY = p.Y
 		if e.Kind == "boss" {
 			r.event("boss_roar", e.X, e.Y, 0)
+			e.AttackName = r.bossAttackName(e)
 		}
 	} else if e.PoseTime == 0 {
 		e.Pose = "idle"
+	}
+}
+
+func (r *Run) bossAttackName(e *Actor) string {
+	if e.Kind != "boss" {
+		return ""
+	}
+	if e.ArtKey != "" && (e.Attacks+1)%2 == 0 {
+		switch e.Shot {
+		case "fire":
+			return "Cinder Volley"
+		case "ice":
+			return "Glacial Shards"
+		case "void":
+			return "Void Rift"
+		case "radiant":
+			return "Solar Flare"
+		case "poison":
+			return "Toxic Spores"
+		default:
+			return "Aimed Volley"
+		}
+	}
+	region := 0
+	if r.Level != nil {
+		region = r.Level.Region
+	}
+	switch region {
+	case 0:
+		return "Mossbound Slam"
+	case 1:
+		return "Molten Slam"
+	case 2:
+		return "Glacial Slam"
+	case 3:
+		return "Thunder Slam"
+	case 4:
+		return "Venom Slam"
+	case 5:
+		return "Abyssal Wave"
+	case 6:
+		return "Brutal Cleave"
+	case 7:
+		return "Spectral Slam"
+	case 8:
+		return "Void Cataclysm"
+	case 9:
+		return "Obsidian Slam"
+	default:
+		return "Ground Slam"
 	}
 }
 

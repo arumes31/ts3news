@@ -67,7 +67,19 @@
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     meter('#rift-vitals .hp','Player health',run.player.hp,run.player.max_hp);
     meter('#rift-vitals .mana','Player mana',run.player.mana,100);
-    if(boss)meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp);
+    if(boss){
+      meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp);
+      const bossAttackNode=$('rift-boss-attack');
+      if(bossAttackNode){
+        if(boss.windup>0){
+          const attack=boss.attack_name||(boss.art_key&&(boss.attacks+1)%2===0?'Aimed Volley':'Ground Slam');
+          put(bossAttackNode,'⚡ '+attack+' · '+boss.windup.toFixed(1)+'s windup');
+          bossAttackNode.hidden=false;
+        }else{
+          bossAttackNode.hidden=true;
+        }
+      }
+    }else if($('rift-boss-attack'))$('rift-boss-attack').hidden=true;
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
