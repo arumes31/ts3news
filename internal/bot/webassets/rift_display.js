@@ -68,8 +68,31 @@
     controls.set(key,control);control.onchange=()=>{values[key]=control.type==='checkbox'?control.checked:typeof defaults[key]==='number'?Number(control.value):control.value;save();refresh();};
   });
   apply.onclick=()=>{Object.assign(values,presets[preset.value].values);save();refresh();};
-  const reset=document.createElement('button');reset.id='rift-reset-display';reset.type='button';reset.textContent='Reset display';reset.onclick=()=>{Object.assign(values,defaults);preset.value='balanced';description.textContent=presets.balanced.description;save();refresh();};section.append(reset);
-  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Screen shake defaults to off; reduced visual effects and Still decorative motion disable it. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(note);
+  function resetDisplay(){Object.assign(values,defaults);preset.value='balanced';description.textContent=presets.balanced.description;save();refresh();}
+  const reset=document.createElement('button');reset.id='rift-reset-display';reset.type='button';reset.textContent='Reset display';reset.onclick=resetDisplay;
+  const masterReset=document.createElement('button');masterReset.id='rift-reset-preferences';masterReset.type='button';masterReset.textContent='Reset all preferences';
+  const masterStatus=document.createElement('p');masterStatus.id='rift-preferences-status';masterStatus.className='rift-fine';masterStatus.setAttribute('role','status');
+  masterReset.onclick=()=>{
+    resetDisplay();
+    if(window.RiftAudio?.resetMix)window.RiftAudio.resetMix();
+    const reduced=document.getElementById('rift-reduced');
+    if(reduced&&reduced.checked){reduced.checked=false;try{localStorage.removeItem('riftReducedMotion');}catch(_){}reduced.dispatchEvent(new Event('change'));}
+    const confirmBoss=document.getElementById('rift-confirm-boss');
+    if(confirmBoss&&confirmBoss.checked){confirmBoss.checked=false;try{localStorage.removeItem('riftConfirmBoss');}catch(_){}confirmBoss.dispatchEvent(new Event('change'));}
+    const transitionDelay=document.getElementById('rift-transition-delay');
+    if(transitionDelay&&transitionDelay.value!=='1.2'){transitionDelay.value='1.2';try{localStorage.removeItem('riftTransitionDelay');}catch(_){}transitionDelay.dispatchEvent(new Event('change'));}
+    const collapse=document.getElementById('rift-campaign-start-collapsed');
+    if(collapse&&collapse.checked){collapse.checked=false;try{const saved=JSON.parse(localStorage.getItem('riftCampaignView')||'{}');if(saved&&typeof saved==='object'){saved.startCollapsed=false;localStorage.setItem('riftCampaignView',JSON.stringify(saved));}}catch(_){}collapse.dispatchEvent(new Event('change'));}
+    const readout=document.getElementById('rift-input-readout-enabled');
+    if(readout&&readout.checked){readout.checked=false;try{localStorage.removeItem('riftInputReadout');}catch(_){}readout.dispatchEvent(new Event('change'));}
+    const captions=document.getElementById('rift-captions');
+    if(captions&&captions.checked){captions.checked=false;try{localStorage.removeItem('riftCaptions');}catch(_){}captions.dispatchEvent(new Event('change'));}
+    const previewAuto=document.getElementById('rift-mission-preview-auto');
+    if(previewAuto&&previewAuto.checked){previewAuto.checked=false;try{localStorage.removeItem('riftPreviewOpen');}catch(_){}previewAuto.dispatchEvent(new Event('change'));}
+    masterStatus.textContent='All sound, display, and workflow preferences restored to defaults.';
+    refreshSummary();
+  };
+  const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Screen shake defaults to off; reduced visual effects and Still decorative motion disable it. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(reset,masterReset,masterStatus,note);
   document.querySelector('.rift-settings').append(section);
-  refresh();window.RiftDisplay=values;
+  refresh();window.RiftDisplay=Object.assign(values,{reset:resetDisplay});
 })();
