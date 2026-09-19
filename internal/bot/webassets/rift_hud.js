@@ -269,6 +269,7 @@
         put(bossThresholdNode,bossThreshold.symbol+' '+bossThreshold.label);
         attr(bossThresholdNode,'data-threshold',bossThreshold.state);
       }
+      if($('rift-boss-name'))$('rift-boss-name').title=boss.name;
       meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp,bossThreshold);
       const bossAttackNode=$('rift-boss-attack');
       if(bossAttackNode){

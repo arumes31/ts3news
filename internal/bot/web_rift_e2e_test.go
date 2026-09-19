@@ -152,6 +152,28 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "long-boss-name" {
+			mu.Lock()
+			run := rift.NewRunAtLevel("long-boss-name", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
+			run.Room = 2
+			run.Status = "fighting"
+			run.Paused = true
+			run.Epoch = "fixture"
+			if len(run.EncounterPlan) > 2 {
+				run.Enemies = append([]rift.Actor{}, run.EncounterPlan[2]...)
+			}
+			for i := range run.Enemies {
+				if run.Enemies[i].Kind == "boss" {
+					run.Enemies[i].Name = "Ancient Mossbound Colossus of the Verdant Abyss and Eternal Primordial Shadows"
+					run.Enemies[i].Windup = 15.0
+					run.Enemies[i].AttackName = "Verdant Overgrowth Obliteration Slam"
+					run.Enemies[i].TargetX = run.Player.X
+					run.Enemies[i].TargetY = run.Player.Y
+				}
+			}
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "server-catchup" {
 			mu.Lock()
 			run := rift.NewRunAtLevel("server-catchup", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
