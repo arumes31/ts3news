@@ -102,6 +102,9 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if r.URL.Query().Get("room") == "final" {
 				run.Room = 2
 				run.Level.Rooms[2].Hazards = nil
+			} else if r.URL.Query().Get("room") == "court" || r.URL.Query().Get("room") == "preboss" {
+				run.Room = 1
+				run.Level.Rooms[1].Hazards = nil
 			}
 			run.Status = "cleared"
 			if r.URL.Query().Get("condition") == "wounded" {

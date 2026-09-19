@@ -29,6 +29,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
 
   // 3. Mutate workflow options
   await page.locator('#rift-confirm-boss').check();
+  await page.locator('#rift-pause-boss-room').check();
   await page.locator('#rift-transition-delay').selectOption('5');
   await expect(page.locator('#rift-campaign-start-collapsed')).toBeChecked();
 
@@ -45,6 +46,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-mono-audio')).toBeChecked();
   await expect(page.locator('#rift-steady-ambience')).toBeChecked();
   await expect(page.locator('#rift-confirm-boss')).toBeChecked();
+  await expect(page.locator('#rift-pause-boss-room')).toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('5');
   await expect(page.locator('#rift-campaign-start-collapsed')).toBeChecked();
 
@@ -65,6 +67,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-mono-audio')).not.toBeChecked();
   await expect(page.locator('#rift-steady-ambience')).not.toBeChecked();
   await expect(page.locator('#rift-confirm-boss')).not.toBeChecked();
+  await expect(page.locator('#rift-pause-boss-room')).not.toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('1.2');
   await expect(page.locator('#rift-campaign-start-collapsed')).not.toBeChecked();
 
@@ -81,6 +84,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-mono-audio')).not.toBeChecked();
   await expect(page.locator('#rift-steady-ambience')).not.toBeChecked();
   await expect(page.locator('#rift-confirm-boss')).not.toBeChecked();
+  await expect(page.locator('#rift-pause-boss-room')).not.toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('1.2');
   await expect(page.locator('#rift-campaign-start-collapsed')).not.toBeChecked();
 

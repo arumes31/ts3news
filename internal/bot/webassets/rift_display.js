@@ -79,6 +79,8 @@
     if(reduced&&reduced.checked){reduced.checked=false;try{localStorage.removeItem('riftReducedMotion');}catch(_){}reduced.dispatchEvent(new Event('change'));}
     const confirmBoss=document.getElementById('rift-confirm-boss');
     if(confirmBoss&&confirmBoss.checked){confirmBoss.checked=false;try{localStorage.removeItem('riftConfirmBoss');}catch(_){}confirmBoss.dispatchEvent(new Event('change'));}
+    const pauseBoss=document.getElementById('rift-pause-boss-room');
+    if(pauseBoss&&pauseBoss.checked){pauseBoss.checked=false;try{localStorage.removeItem('riftPauseBossRoom');}catch(_){}pauseBoss.dispatchEvent(new Event('change'));}
     const transitionDelay=document.getElementById('rift-transition-delay');
     if(transitionDelay&&transitionDelay.value!=='1.2'){transitionDelay.value='1.2';try{localStorage.removeItem('riftTransitionDelay');}catch(_){}transitionDelay.dispatchEvent(new Event('change'));}
     const collapse=document.getElementById('rift-campaign-start-collapsed');
