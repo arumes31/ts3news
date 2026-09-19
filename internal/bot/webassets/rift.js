@@ -31,7 +31,41 @@
   const status = message => { $('rift-status').textContent = message; };
   function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
-  function put(node,value){if(node.textContent!==String(value))node.textContent=value;}
+  function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
+  function setSafeDisabled(node, disabled) {
+    if(!node)return;
+    const isFocused=document.activeElement===node;
+    if(disabled){
+      node.setAttribute('aria-disabled','true');
+      if(isFocused){
+        node.disabled=false;
+        const onBlur=()=>{
+          if(node.getAttribute('aria-disabled')==='true')node.disabled=true;
+          node.removeEventListener('blur',onBlur);
+        };
+        node.addEventListener('blur',onBlur);
+      }else{
+        node.disabled=true;
+      }
+    }else{
+      node.removeAttribute('aria-disabled');
+      node.disabled=false;
+    }
+  }
+  function replacePreservingFocus(container, builder) {
+    const active = document.activeElement;
+    const isInside = container && active && container.contains(active);
+    const activeBind = isInside ? active.dataset?.bind : null;
+    const activeHold = isInside ? active.dataset?.hold : null;
+    container.replaceChildren();
+    builder();
+    if(isInside){
+      const target = (activeBind && container.querySelector(`[data-bind="${activeBind}"]`))
+        || (activeHold && container.querySelector(`[data-hold="${activeHold}"]`))
+        || container.querySelector('button');
+      if(target) target.focus();
+    }
+  }
   function message(title, copy, button, kicker) {
     $('rift-result-actions').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
@@ -67,7 +101,7 @@
   function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
-  function practiceToolButtons(){root.querySelectorAll('[data-practice-action]').forEach(button=>button.disabled=!practice||!ready||busy||practiceToolPending||run?.status!=='fighting');}
+  function practiceToolButtons(){root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||busy||practiceToolPending||run?.status!=='fighting'));}
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
@@ -75,7 +109,7 @@
     else if(!clearedAt) clearedAt = performance.now();
     run=value;window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
-    $('rift-settings-return').disabled=!controlsEnabled;
+    setSafeDisabled($('rift-settings-return'),!controlsEnabled);
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();
     $('rift-transition').hidden=run.status!=='cleared'||!playing||!$('rift-auto').checked;
@@ -93,13 +127,33 @@
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
     const signature=run.build.skills.map(s=>s.id).join(',');
     if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
-      currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);});
+      currentSkillIDs=signature;
+      replacePreservingFocus($('rift-skills'),()=>{
+        run.build.skills.forEach((s,i)=>{
+          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
+        });
+      });
     }
-    [...$('rift-skills').children].forEach((btn,i)=>{const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
+    [...$('rift-skills').children].forEach((btn,i)=>{
+      const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;
+      put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');
+      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost);
+    });
     const specials=[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])];
     const specialIDs=specials.map(s=>s.id).join(',');
-    if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);});}
-    [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
+    if($('rift-signatures').dataset.ids!==specialIDs){
+      $('rift-signatures').dataset.ids=specialIDs;
+      replacePreservingFocus($('rift-signatures'),()=>{
+        specials.forEach((s,i)=>{
+          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
+        });
+      });
+    }
+    [...$('rift-signatures').children].forEach((btn,i)=>{
+      const s=specials[i],remaining=run.skill_timers[s.id]||0;
+      put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');
+      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost);
+    });
     [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
     [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
     controls.prompts();window.RiftHUD.update(run,playing,replay);
@@ -109,14 +163,14 @@
     else if(awaitingBossConfirmation())put($('rift-transition'),'Boss tier cleared · Confirm to bank rewards and continue.');
     if(awaitingBossRoomPause())put($('rift-transition'),'Boss room ahead · Prepare and confirm when ready.');
     put($('rift-next'),awaitingNewRegionPause()?'Enter next region →':awaitingBossConfirmation()?'Confirm & continue →':awaitingBossRoomPause()?'Enter boss room →':$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →');
-    $('rift-pause').disabled=!playing&&run.status!=='fighting'&&run.status!=='cleared';
+    setSafeDisabled($('rift-pause'),!playing&&run.status!=='fighting'&&run.status!=='cleared');
     put($('rift-pause'),(playing?'Pause · ':'Resume · ')+controls.label('pause'));
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(practice){
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
       for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=true;
       put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
-      $('rift-practice-reset').disabled=!ready||busy||practiceToolPending;practiceToolButtons();
+      setSafeDisabled($('rift-practice-reset'),!ready||busy||practiceToolPending);practiceToolButtons();
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
     }
@@ -134,11 +188,11 @@
   }
   async function send(kind) {
     if(busy)return false;
-    busy=true;$('rift-practice-reset').disabled=true;practiceToolButtons();
+    busy=true;setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
-    root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>btn.disabled=true);
+    root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>setSafeDisabled(btn,true));
     try {
       const data=await request('POST',body);update(data.run,false);
       if(banking){audio.play('bank',0);window.RiftLoot.banking('confirmed');}
@@ -147,17 +201,17 @@
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
       message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
-    } finally {busy=false;practiceToolButtons();$('rift-practice-reset').disabled=!practice||!ready||!run;window.RiftLoadouts.refresh();$('rift-start').disabled=!ready;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready||checkpointPending);}
+    } finally {busy=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!practice||!ready||!run);window.RiftLoadouts.refresh();setSafeDisabled($('rift-start'),!ready);root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,!ready||checkpointPending));}
   }
   async function checkpoint(kind){
     if(checkpointPending||!playing||run?.status!=='cleared')return false;
     const identity=run.id,room=run.room,mission=run.level?.id;
-    checkpointPending=true;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=true);
+    checkpointPending=true;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,true));
     try{
       while(busy)await new Promise(resolve=>setTimeout(resolve,20));
       if(!playing||document.hidden||run?.id!==identity||run.status!=='cleared'||run.room!==room||run.level?.id!==mission)return false;
       return await send(kind);
-    }finally{checkpointPending=false;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>btn.disabled=!ready);}
+    }finally{checkpointPending=false;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,!ready));}
   }
   async function loop(){
     if(!playing)return;
@@ -271,8 +325,8 @@
   }
   function hold(button,value){
     button.dataset.action=value;
-    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled)return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);window.RiftIntents.press(value);button.classList.add('rift-held');});
-    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled){if(value==='guard'&&controls.toggleGuard)toggleGuard();else{taps.add(value);window.RiftIntents.press(value);}}});
+    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);window.RiftIntents.press(value);button.classList.add('rift-held');});
+    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'){if(value==='guard'&&controls.toggleGuard)toggleGuard();else{taps.add(value);window.RiftIntents.press(value);}}});
     const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
@@ -393,7 +447,7 @@
       const bar=$('rift-actionbar');
       if(bar){
         bar.scrollIntoView({block:'nearest'});
-        const btn=bar.querySelector('button:not(:disabled)');
+        const btn=bar.querySelector('button:not(:disabled):not([aria-disabled="true"])')||bar.querySelector('button:not(:disabled)');
         if(btn)btn.focus();
         else bar.focus();
       }
@@ -419,14 +473,14 @@
     $('rift-practice-instructions').textContent=practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
     for(const node of [$('rift-campaign'),$('rift-campaign-tools-extra'),root.querySelector('.rift-route')?.closest('section'),$('rift-loot')?.closest('section'),root.querySelector('.rift-run-statistics'),$('rift-walkthrough')])if(node)node.hidden=true;
     root.querySelectorAll('[data-practice-action]').forEach(button=>button.addEventListener('click',async()=>{
-      if(!ready||busy||starting||practiceToolPending||run?.status!=='fighting')return;
-      practiceToolPending=true;practiceToolButtons();$('rift-practice-reset').disabled=true;
+      if(!ready||busy||starting||practiceToolPending||run?.status!=='fighting'||button.getAttribute('aria-disabled')==='true')return;
+      practiceToolPending=true;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),true);
       try{await pause();if(run?.status==='fighting'&&!run.paused&&!await send('pause'))return;if(run?.status==='fighting'&&run.paused&&await send(button.dataset.practiceAction)){
         $('rift-practice-tool-status').textContent=button.textContent+' applied. Drill progress is unchanged.';
         message(drillNames[practice],$('rift-practice-instructions').textContent,'Resume drill','PRACTICE PAUSED');
-      }}finally{practiceToolPending=false;practiceToolButtons();$('rift-practice-reset').disabled=!ready||busy||!run;}
+      }}finally{practiceToolPending=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!ready||busy||!run);}
     }));
-    $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||practiceToolPending||!run)return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
+    $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||busy||starting||practiceToolPending||!run||$('rift-practice-reset').getAttribute('aria-disabled')==='true')return;await pause();if(busy)return;if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}});
   }
   load();
 })();
