@@ -262,6 +262,28 @@
         ctx.restore();
       }
     }
+    const activeAreaEffect = window.RiftHUD?.detectPlayerAreaEffects ? window.RiftHUD.detectPlayerAreaEffects(run) : null;
+    if (!display.cleanScreenshot && activeAreaEffect && run.player && ['fighting','cleared'].includes(run.status)) {
+      const p = run.player, px = p.x - camera, py = p.y - (p.jump || 0) * 120;
+      ctx.save();
+      const color = activeAreaEffect.state === 'active' ? '#ff7a45' : activeAreaEffect.state === 'warning' ? '#ffd066' : activeAreaEffect.state === 'evading' ? '#99f6e4' : '#d8b4fe';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = activeAreaEffect.state === 'active' ? 3 : 2;
+      if (activeAreaEffect.state === 'warning') ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.ellipse(px, py, 36, 16, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = 'bold ' + (10 * display.textScale) + 'px monospace';
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#071813';
+      ctx.lineWidth = 3;
+      ctx.textAlign = 'center';
+      const label = activeAreaEffect.name.toUpperCase() + (activeAreaEffect.state === 'evading' ? ' (EVADING)' : '');
+      ctx.strokeText(label, px, py + 20);
+      ctx.fillText(label, px, py + 20);
+      ctx.restore();
+    }
     if(display.enemyIndicators && !display.cleanScreenshot && run.status==='fighting'){
       const offscreen=run.enemies.filter(e=>e.hp>0&&(e.x-camera<0||e.x-camera>960));
       renderer.lastOffscreen=offscreen;

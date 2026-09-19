@@ -73,6 +73,63 @@
   function getRequestedRange(){
     return requestedRangeSkill;
   }
+  function detectPlayerAreaEffects(run){
+    if(!run||!run.player||!['fighting','cleared'].includes(run.status))return null;
+    const p=run.player;
+    const arena=run.practice?.arena||run.level?.rooms?.[run.room];
+    if(arena&&Array.isArray(arena.hazards)){
+      for(let i=0;i<arena.hazards.length;i++){
+        const h=arena.hazards[i];
+        const inside=p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h;
+        if(inside){
+          const phase=(run.clock+h.offset)%h.period;
+          const warning=phase<1.2;
+          const active=phase>=1.2&&phase<1.2+h.duration;
+          const kindName=h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
+          if(active){
+            const evading=(p.jump||0)>0.1;
+            return{
+              kind:h.kind,
+              state:evading?'evading':'active',
+              name:kindName+' hazard',
+              label:evading?'Area effect: '+kindName+' (Evading via jump)':'In area effect: '+kindName+' hazard (Active)',
+            };
+          }else if(warning){
+            return{
+              kind:h.kind,
+              state:'warning',
+              name:kindName+' hazard',
+              label:'Area hazard warning: '+kindName+' zone',
+            };
+          }
+        }
+      }
+    }
+    for(const e of run.enemies||[]){
+      if(e.hp>0&&e.windup>0&&e.kind==='boss'){
+        const dx=(p.x-e.target_x)/125,dy=(p.y-e.target_y)/62;
+        if(dx*dx+dy*dy<=1){
+          const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam');
+          const evading=(p.jump||0)>0.1;
+          return{
+            kind:'boss_area',
+            state:evading?'evading':'active',
+            name:'Boss '+attackName,
+            label:evading?'Area effect: '+attackName+' (Evading)':'In area effect: '+attackName+' blast zone',
+          };
+        }
+      }
+    }
+    if((run.skill_timers?.slowed||0)>0){
+      return{
+        kind:'slowed',
+        state:'debuff',
+        name:'Slowed',
+        label:'Area effect: Slowed ('+run.skill_timers.slowed.toFixed(1)+'s)',
+      };
+    }
+    return null;
+  }
   function update(run,playing,replay=false){
     lastObservedRun=run;
     updateSkillRangeSignal(run);
@@ -121,6 +178,19 @@
     put($('rift-combo-step'),'Strike '+(run.combo||0)+'/3');
     put($('rift-barrier-state'),run.barrier>0?'Barrier '+numbers.format(run.barrier):'No barrier');
     put($('rift-slow-state'),run.skill_timers.slowed>0?'Slowed '+run.skill_timers.slowed.toFixed(1)+'s':'Normal speed');
+    const areaNode=$('rift-area-effects');
+    if(areaNode){
+      const effect=detectPlayerAreaEffects(run);
+      if(effect){
+        put(areaNode,effect.label);
+        attr(areaNode,'data-effect-state',effect.state);
+        attr(areaNode,'data-effect-kind',effect.kind);
+      }else{
+        put(areaNode,'No active area effects');
+        attr(areaNode,'data-effect-state','none');
+        attr(areaNode,'data-effect-kind','none');
+      }
+    }
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
     put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
@@ -169,5 +239,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects};
 })();
