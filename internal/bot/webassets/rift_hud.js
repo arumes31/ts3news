@@ -87,6 +87,19 @@
       const isCatchingUp=Boolean(run?.catchup);
       catchupNode.hidden=!isCatchingUp||!['fighting','cleared'].includes(run.status);
     }
+    const savedNode=$('rift-saved-at');
+    if(savedNode){
+      const ms=run.saved_at_ms;
+      if(ms&&ms>0){
+        const d=new Date(ms),h=d.getHours(),m=d.getMinutes(),s=d.getSeconds();
+        const stamp=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+        put(savedNode,'Save: '+stamp);
+        attr(savedNode,'aria-label','Last confirmed save time: '+d.toLocaleString());
+      }else{
+        put(savedNode,'Save: --');
+        attr(savedNode,'aria-label','Last confirmed save time: unavailable');
+      }
+    }
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
     put($('rift-guard-reduction'),run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');

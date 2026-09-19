@@ -501,6 +501,7 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			drop.Gear.FoundBoss = riftGearOrigin(run)
 		}
 	}
+	run.SavedAtMS = now.UnixMilli()
 	data, err := json.Marshal(run)
 	if err != nil {
 		return nil, err

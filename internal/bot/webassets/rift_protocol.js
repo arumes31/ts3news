@@ -38,6 +38,7 @@
       (value.attempt_history===undefined||list(value.attempt_history,attempt)&&value.attempt_history.length<=50)&&
       ['clear_streak','best_clear_streak'].every(key=>value[key]===undefined||Number.isSafeInteger(value[key])&&value[key]>=0)&&
       (value.catchup===undefined||typeof value.catchup==='boolean')&&
+      (value.saved_at_ms===undefined||Number.isSafeInteger(value.saved_at_ms)&&value.saved_at_ms>=0&&value.saved_at_ms<=8640000000000000)&&
       (!value.stats||object(value.stats)&&Object.entries(value.stats).every(([key,count])=>['skill_uses','skill_hits'].includes(key)?object(count)&&Object.values(count).every(n=>Number.isSafeInteger(n)&&n>=0):['skill_mana','skill_healing','skill_barrier'].includes(key)?object(count)&&Object.values(count).every(nonnegative):nonnegative(count)));
   }
   function validate(data,method,request){

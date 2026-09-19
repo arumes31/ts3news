@@ -176,3 +176,27 @@ func TestRunCatchupAfterStall(t *testing.T) {
 	}
 }
 
+func TestRunSavedAtMS(t *testing.T) {
+	r := testRun()
+	now := time.Now()
+	r.LastMS = now.UnixMilli()
+
+	if r.SavedAtMS == 0 {
+		t.Fatalf("expected SavedAtMS to be set at creation, got 0")
+	}
+
+	// Step updates SavedAtMS
+	step := now.Add(100 * time.Millisecond)
+	r.Step(Input{}, step)
+	if r.SavedAtMS != step.UnixMilli() {
+		t.Fatalf("expected SavedAtMS=%d after Step, got %d", step.UnixMilli(), r.SavedAtMS)
+	}
+
+	// Pause updates SavedAtMS
+	pauseTime := now.Add(200 * time.Millisecond)
+	r.SetPaused(true, pauseTime)
+	expected := max(r.LastMS, pauseTime.UnixMilli())
+	if r.SavedAtMS != expected {
+		t.Fatalf("expected SavedAtMS=%d after SetPaused, got %d", expected, r.SavedAtMS)
+	}
+}

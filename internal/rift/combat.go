@@ -159,6 +159,7 @@ type Run struct {
 	SkillTimers         map[string]float64       `json:"skill_timers"`
 	Gold                int64                    `json:"gold"`
 	BankedAtMS          int64                    `json:"banked_at_ms,omitempty"`
+	SavedAtMS           int64                    `json:"saved_at_ms,omitempty"`
 	AttemptHistory      []AttemptRecord          `json:"attempt_history,omitempty"`
 	LastClear           *ClearResult             `json:"last_clear,omitempty"`
 	PastExpeditions     CareerTotals             `json:"past_expeditions"`
@@ -243,6 +244,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
 	r.Catchup = dt > 1.0/15
 	r.LastMS = max(r.LastMS, now.UnixMilli())
+	r.SavedAtMS = now.UnixMilli()
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
 		return
 	}

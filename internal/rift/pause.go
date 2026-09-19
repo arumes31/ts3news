@@ -19,4 +19,5 @@ func (r *Run) SetPaused(paused bool, now time.Time) {
 	}
 	r.Paused = paused
 	r.LastMS = stamp
+	r.SavedAtMS = stamp
 }
