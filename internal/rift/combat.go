@@ -141,6 +141,7 @@ type Run struct {
 	Marked              string                   `json:"marked"`
 	Barrier             float64                  `json:"barrier"`
 	BarrierSources      map[string]float64       `json:"barrier_sources,omitempty"`
+	Catchup             bool                     `json:"catchup,omitempty"`
 	Schema              int                      `json:"schema"`
 	ID                  string                   `json:"id"`
 	StartKey            string                   `json:"start_key"`
@@ -240,6 +241,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	}
 	in = r.practiceInput(in)
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
+	r.Catchup = dt > 1.0/15
 	r.LastMS = max(r.LastMS, now.UnixMilli())
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
 		return

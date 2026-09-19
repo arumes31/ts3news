@@ -152,3 +152,27 @@ func TestBossAttackNameDuringWindup(t *testing.T) {
 	}
 }
 
+func TestRunCatchupAfterStall(t *testing.T) {
+	r := testRun()
+	now := time.Now()
+	r.LastMS = now.UnixMilli()
+
+	// Normal step within 30ms: not catching up
+	r.Step(Input{}, now.Add(30*time.Millisecond))
+	if r.Catchup {
+		t.Fatalf("expected Catchup to be false for 30ms step, got true")
+	}
+
+	// Step after 150ms stall: catching up
+	r.Step(Input{}, now.Add(180*time.Millisecond))
+	if !r.Catchup {
+		t.Fatalf("expected Catchup to be true after 150ms stall, got false")
+	}
+
+	// Normal step again: catchup cleared
+	r.Step(Input{}, now.Add(210*time.Millisecond))
+	if r.Catchup {
+		t.Fatalf("expected Catchup to be false on subsequent normal step, got true")
+	}
+}
+

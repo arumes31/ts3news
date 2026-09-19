@@ -152,6 +152,16 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "server-catchup" {
+			mu.Lock()
+			run := rift.NewRunAtLevel("server-catchup", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
+			run.Status = "fighting"
+			run.Paused = true
+			run.Epoch = "fixture"
+			run.Catchup = true
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		server.render(w, "rift", map[string]any{"Title": "Rift Brawl Playtest", "Nav": "rift", "EnableAbyss": true, "AccountNav": true, "Fixture": true, "Practice": r.URL.Query().Get("practice")})
 	})
 	mux.HandleFunc("/api/abyss/rift", func(w http.ResponseWriter, r *http.Request) {
