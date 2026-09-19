@@ -489,9 +489,14 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 		hit := false
 		if shot.Enemy {
-			if math.Abs(shot.X-p.X) < 25 && math.Abs(shot.Y-p.Y) < 23 && p.Jump < .1 {
-				r.hurtPlayer(shot.Power, shot.X, shot.Y)
-				hit = true
+			if math.Abs(shot.X-p.X) < 25 && math.Abs(shot.Y-p.Y) < 23 {
+				if p.Jump < .1 {
+					r.hurtPlayer(shot.Power, shot.X, shot.Y)
+					hit = true
+				} else {
+					r.event("dodge", p.X, p.Y, 0)
+					hit = true
+				}
 			}
 		} else {
 			for i, e := range r.Enemies {
@@ -762,18 +767,26 @@ func (r *Run) enemyTick(i int, dt float64) {
 				r.event(shot, e.X, e.Y-30, 0)
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
-				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 && p.Jump < .1 {
-					r.hurtPlayer(max(32, e.Damage*1.4), e.X, e.Y)
+				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 {
+					if p.Jump < .1 {
+						r.hurtPlayer(max(32, e.Damage*1.4), e.X, e.Y)
+					} else {
+						r.event("dodge", p.X, p.Y, 0)
+					}
 				}
 				e.Cooldown = 2.3
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
-				if math.Abs(dx) < 85 && math.Abs(dy) < 33 && p.Jump < .25 {
-					power := e.Damage
-					if power <= 0 {
-						power = 19 + float64(r.Room)*4
+				if math.Abs(dx) < 85 && math.Abs(dy) < 33 {
+					if p.Jump < .25 {
+						power := e.Damage
+						if power <= 0 {
+							power = 19 + float64(r.Room)*4
+						}
+						r.hurtPlayer(power, e.X, e.Y)
+					} else {
+						r.event("dodge", p.X, p.Y, 0)
 					}
-					r.hurtPlayer(power, e.X, e.Y)
 				}
 			}
 		}

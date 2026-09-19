@@ -121,6 +121,7 @@
       case 'finisher_ready': t(330,494,.16,.05,'triangle');t(494,660,.18,.05,'triangle',.14);break;
       case 'empty_mana': t(150,75,.15,.08,'triangle'); h(.08,.045,450,pan); break;
       case 'cooldown_rejection': t(480,240,.08,.055,'sine'); t(240,120,.09,.04,'triangle',.03); break;
+      case 'dodge': t(280,560,.12,.06,'triangle'); h(.06,.035,3500,pan); break;
       default: break;
     }
   };
