@@ -40,6 +40,145 @@
   updateAtlasProgress(0, criticalAtlasKeys.length);
   renderer.atlasProgress = atlasProgress;
   renderer.getCriticalAtlasKeys = () => criticalAtlasKeys.slice();
+  const hazardPatternProfiles = {
+    fire: { kind: 'fire', pattern: 'diagonal-stripes', label: 'Diagonal stripes' },
+    ice: { kind: 'ice', pattern: 'diamond-grid', label: 'Diamond cross-hatch' },
+    poison: { kind: 'poison', pattern: 'polka-dots', label: 'Bubble stippling' },
+    thorns: { kind: 'thorns', pattern: 'chevrons', label: 'Chevron teeth' },
+    rune: { kind: 'rune', pattern: 'concentric-diamonds', label: 'Concentric diamonds' },
+    radiant: { kind: 'radiant', pattern: 'vertical-beams', label: 'Vertical beam stripes' },
+    void: { kind: 'void', pattern: 'dashed-scanlines', label: 'Horizontal dashed scanlines' },
+  };
+  function getHazardPatternInfo(kind) {
+    return hazardPatternProfiles[kind] || { kind, pattern: 'diagonal-stripes', label: 'Diagonal stripes' };
+  }
+  renderer.getHazardPatternInfo = getHazardPatternInfo;
+  renderer.getHazardKindsWithPatterns = () => Object.keys(hazardPatternProfiles);
+  renderer.drawHazardPattern = drawHazardPattern;
+
+  function drawHazardPattern(ctx, kind, x, y, w, h, active, color) {
+    ctx.save();
+    ctx.globalAlpha = active ? 0.75 : 0.4;
+    switch (kind) {
+      case 'fire': {
+        ctx.lineWidth = active ? 2.5 : 1.5;
+        ctx.strokeStyle = active ? '#fff0b0' : color;
+        ctx.beginPath();
+        const step = 12;
+        const start = Math.floor((x - h) / step) * step;
+        const end = x + w + h;
+        for (let px = start; px < end; px += step) {
+          ctx.moveTo(px, y + h);
+          ctx.lineTo(px + h, y);
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'ice': {
+        ctx.lineWidth = active ? 2 : 1;
+        ctx.strokeStyle = active ? '#e6f8ff' : color;
+        ctx.beginPath();
+        const step = 14;
+        const start = Math.floor((x - h) / step) * step;
+        const end = x + w + h;
+        for (let px = start; px < end; px += step) {
+          ctx.moveTo(px, y + h);
+          ctx.lineTo(px + h, y);
+          ctx.moveTo(px, y);
+          ctx.lineTo(px + h, y + h);
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'poison': {
+        ctx.fillStyle = active ? '#f0ffd0' : color;
+        const r = active ? 3 : 2;
+        const stepX = 14, stepY = 10;
+        for (let py = y + 5; py < y + h; py += stepY) {
+          const shift = Math.floor((py - y) / stepY) % 2 === 0 ? 0 : stepX / 2;
+          for (let px = x + 5 + shift; px < x + w; px += stepX) {
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      }
+      case 'thorns': {
+        ctx.lineWidth = active ? 2.5 : 1.5;
+        ctx.strokeStyle = active ? '#f4ffd4' : color;
+        ctx.beginPath();
+        const toothW = 10, toothH = 6;
+        for (let py = y + 6; py < y + h; py += 12) {
+          for (let px = x; px < x + w + toothW; px += toothW) {
+            ctx.moveTo(px, py + toothH);
+            ctx.lineTo(px + toothW / 2, py);
+            ctx.lineTo(px + toothW, py + toothH);
+          }
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'rune': {
+        ctx.lineWidth = active ? 2 : 1;
+        ctx.strokeStyle = active ? '#f6ebff' : color;
+        const sz = 8;
+        const stepX = 18, stepY = 14;
+        for (let py = y + 8; py < y + h; py += stepY) {
+          for (let px = x + 10; px < x + w; px += stepX) {
+            ctx.strokeRect(px - sz / 2, py - sz / 2, sz, sz);
+            ctx.beginPath();
+            ctx.moveTo(px, py - sz);
+            ctx.lineTo(px + sz, py);
+            ctx.lineTo(px, py + sz);
+            ctx.lineTo(px - sz, py);
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+        break;
+      }
+      case 'radiant': {
+        ctx.lineWidth = active ? 3 : 1.5;
+        ctx.strokeStyle = active ? '#ffffff' : color;
+        ctx.beginPath();
+        const step = 10;
+        for (let px = x + 5; px < x + w; px += step) {
+          ctx.moveTo(px, y);
+          ctx.lineTo(px, y + h);
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'void': {
+        ctx.lineWidth = active ? 2.5 : 1.5;
+        ctx.strokeStyle = active ? '#f2e8ff' : color;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        const stepY = 8;
+        for (let py = y + 5; py < y + h; py += stepY) {
+          ctx.moveTo(x, py);
+          ctx.lineTo(x + w, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+      }
+      default: {
+        ctx.lineWidth = active ? 2 : 1;
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        const step = 12;
+        for (let px = x; px < x + w + h; px += step) {
+          ctx.moveTo(px, y + h);
+          ctx.lineTo(px + h, y);
+        }
+        ctx.stroke();
+        break;
+      }
+    }
+    ctx.restore();
+  }
   const baseImages = Promise.all(criticalAtlasKeys.map(key => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -188,6 +327,7 @@
       const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
+      if(display.hazardPatterns!==false&&(warning||active)){ctx.save();ctx.beginPath();ctx.rect(x,h.y,h.w,h.h);ctx.clip();drawHazardPattern(ctx,h.kind,x,h.y,h.w,h.h,active,color);ctx.restore();}
       if(display.hazardContrast&&(warning||active)){ctx.globalAlpha=1;ctx.strokeStyle='#fff8d8';ctx.lineWidth=3;ctx.setLineDash(active?[]:[8,4]);ctx.strokeRect(x-2,h.y-2,h.w+4,h.h+4);ctx.setLineDash([]);}
       if(!display.cleanScreenshot&&display.hazardLabels&&(warning||active)){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(active?'JUMP':h.kind.toUpperCase(),x+h.w/2,h.y-5);}
       if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
