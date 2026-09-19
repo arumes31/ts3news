@@ -203,7 +203,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities()})
+		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": riftChallenge(time.Now())})
 		return
 	}
 	if r.Method != http.MethodPost {

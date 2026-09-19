@@ -7,7 +7,7 @@
   const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
-  let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
+  let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0, challenge = null;
   try{$('rift-confirm-boss').checked=localStorage.getItem('riftConfirmBoss')==='true';}catch(_){}
   try{$('rift-pause-boss-room').checked=localStorage.getItem('riftPauseBossRoom')==='true';}catch(_){}
   try{$('rift-pause-new-region').checked=localStorage.getItem('riftPauseNewRegion')==='true';}catch(_){}
@@ -26,7 +26,8 @@
   $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
   const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
-  const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):'');
+  const challengeParam=new URLSearchParams(location.search).get('challenge');
+  const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
   function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
@@ -201,7 +202,7 @@
   function updateCampaign(){
     if(practice)return;
     const active=run&&['fighting','cleared'].includes(run.status), completed=run?.completed_levels||[];
-    const key=[selectedLevel,active,completed.join(','),JSON.stringify(run?.mission_history||{})].join('|');
+    const key=[selectedLevel,active,completed.join(','),JSON.stringify(run?.mission_history||{}),challenge?.key].join('|');
     if(campaignKey===key)return;campaignKey=key;
     const level=run?.level?.id===selectedLevel?run.level:levels.find(l=>l.id===selectedLevel);
     if(!level)return;
@@ -214,7 +215,7 @@
       button.classList.toggle('completed',completed.includes(id));button.querySelector('small').textContent=completed.includes(id)?'Completed ✓':levels[id-1].difficulty;
     });
     window.RiftCampaignTools.update(run,selectedLevel);
-    window.RiftMission.update(level,run&&active?run.build:build,!!active);
+    window.RiftMission.update(level,run&&active?run.build:build,!!active,challenge);
   }
   function campaign(){
     if(practice)return;
@@ -230,7 +231,7 @@
       button.addEventListener('click',()=>{selectedLevel=level.id;updateCampaign();renderer.preview(level);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);});
     });
     $('rift-campaign').insertBefore($('rift-campaign-tools-extra'),$('rift-level-description'));
-    window.RiftCampaignTools.init(levels);
+    window.RiftCampaignTools.init(levels,challenge);
     const preferred=window.RiftMission.preferred(window.RiftCampaignTools.preferred(),levels);
     selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:preferred;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
@@ -253,7 +254,7 @@
     let artworkFailed=false;
     try{
       const [,data]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),request('GET')]);
-      build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);ready=true;
+      build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}

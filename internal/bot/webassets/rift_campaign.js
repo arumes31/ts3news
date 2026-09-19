@@ -2,8 +2,8 @@
   'use strict';
   const $=id=>document.getElementById(id);
   const key='riftCampaignView';
-  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,compact:false,selected:1,favorites:[],scrollTop:0,sort:'mission',startCollapsed:false};
-  let view={...defaults},levels=[],completed=new Set(),history={},active=false,selected=1,initialized=false,overview=false,expandedRegion=null,lastAttempt=null;
+  const defaults={search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,challengeOnly:false,compact:false,selected:1,favorites:[],scrollTop:0,sort:'mission',startCollapsed:false};
+  let view={...defaults},levels=[],completed=new Set(),history={},active=false,selected=1,initialized=false,overview=false,expandedRegion=null,lastAttempt=null,challenge=null;
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')view={...view,...saved};}catch(_){}
   view.startCollapsed=view.startCollapsed===true;
   $('rift-campaign').open=!view.startCollapsed;
@@ -11,7 +11,7 @@
   collapse.addEventListener('change',()=>{view.startCollapsed=collapse.checked;save();});
   view.search=typeof view.search==='string'?view.search.slice(0,80):'';
   view.favorites=Array.isArray(view.favorites)?view.favorites.filter(n=>Number.isInteger(n)&&n>=1&&n<=100).slice(0,100):[];
-  view.favoritesOnly=view.favoritesOnly===true;view.compact=view.compact===true;
+  view.favoritesOnly=view.favoritesOnly===true;view.challengeOnly=view.challengeOnly===true;view.compact=view.compact===true;
   if(typeof view.scrollTop!=='number'||!Number.isFinite(view.scrollTop)||view.scrollTop<0)view.scrollTop=0;
   if(!['all','complete','unfinished'].includes(view.completion))view.completion='all';
   if(!['all','Wayfarer','Veteran','Champion','Mythic'].includes(view.difficulty))view.difficulty='all';
@@ -23,18 +23,37 @@
   const best=id=>Number.isFinite(record(id)?.best_seconds)&&record(id).best_seconds>0?record(id).best_seconds:Infinity;
   const recent=id=>Number.isFinite(record(id)?.last_started_ms)?record(id).last_started_ms:0;
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  function isChallengeCompatible(level,ch){
+    if(!level||!ch)return false;
+    const totalHazards=(level.rooms||[]).reduce((sum,r)=>sum+(r.hazards?r.hazards.length:0),0);
+    const totalEnemies=(level.rooms||[]).reduce((sum,r)=>sum+(r.encounter?r.encounter.enemies:0),0);
+    if(Number.isInteger(ch.min_hazards)&&totalHazards<ch.min_hazards)return false;
+    if(Number.isInteger(ch.min_enemies)&&totalEnemies<ch.min_enemies)return false;
+    if(Array.isArray(ch.difficulties)&&ch.difficulties.length&&!ch.difficulties.includes(level.difficulty))return false;
+    return true;
+  }
   function save(){try{localStorage.setItem(key,JSON.stringify(view));}catch(_){} }
   function choose(id){if(!active)$('rift-levels').querySelector('[data-level="'+id+'"]').click();}
   function apply(){
     const query=normalize(view.search.trim()),favorites=new Set(view.favorites);let count=0;
     $('rift-levels').querySelectorAll('[data-level]').forEach(button=>{
       const id=Number(button.dataset.level),level=levels.find(l=>l.id===id);
+      const compatible=challenge?isChallengeCompatible(level,challenge):false;
       const matches=normalize(id+' '+String(id).padStart(3,'0')+' '+level.name+' '+level.tactic).includes(query)
         &&(view.region==='all'||String(level.region)===view.region)
         &&(view.difficulty==='all'||level.difficulty===view.difficulty)
         &&(view.completion==='all'||completed.has(id)===(view.completion==='complete'))
-        &&(!view.favoritesOnly||favorites.has(id));
-      button.hidden=!matches;button.classList.toggle('favorite',favorites.has(id));if(matches)count++;
+        &&(!view.favoritesOnly||favorites.has(id))
+        &&(!view.challengeOnly||compatible);
+      button.hidden=!matches;button.classList.toggle('favorite',favorites.has(id));button.classList.toggle('challenge-compatible',compatible);
+      let badge=button.querySelector('.rift-challenge-badge');
+      if(challenge&&compatible){
+        if(!badge){badge=document.createElement('span');badge.className='rift-challenge-badge';badge.textContent='Challenge';button.append(badge);}
+        badge.hidden=false;
+      }else if(badge){
+        badge.hidden=true;
+      }
+      if(matches)count++;
       const entry=record(id),note=button.querySelector('.rift-mission-history');
       note.hidden=!entry&&!completed.has(id);
       const classClears=Object.entries(entry?.completed_by_class||{}).filter(([name,count])=>name&&Number.isSafeInteger(count)&&count>0).sort(([a],[b])=>a.localeCompare(b)).map(([name,count])=>name.charAt(0).toUpperCase()+name.slice(1)+' ×'+count).join(', ');
@@ -99,12 +118,16 @@
   function reflect(){
     $('rift-mission-search').value=view.search;$('rift-region').value=view.region;
     $('rift-completion').value=view.completion;$('rift-difficulty').value=view.difficulty;
-    $('rift-favorites-only').checked=view.favoritesOnly;$('rift-compact').checked=view.compact;
+    $('rift-favorites-only').checked=view.favoritesOnly;
+    if($('rift-challenge-only'))$('rift-challenge-only').checked=view.challengeOnly;
+    $('rift-compact').checked=view.compact;
     if($('rift-mission-sort'))$('rift-mission-sort').value=view.sort;
   }
-  function reset(){view={...view,search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false};reflect();save();apply();}
-  function init(catalog){
-    levels=catalog;if(!levels.length)return;
+  function reset(){view={...view,search:'',region:'all',completion:'all',difficulty:'all',favoritesOnly:false,challengeOnly:false};reflect();save();apply();}
+  function init(catalog,activeChallenge){
+    levels=catalog;
+    if(activeChallenge!==undefined)challenge=activeChallenge;
+    if(!levels.length)return;
     $('rift-levels').querySelectorAll('[data-level]').forEach(button=>{if(button.querySelector('.rift-mission-history'))return;const note=document.createElement('span');note.className='rift-mission-history';note.id='rift-history-'+button.dataset.level;button.append(note);button.setAttribute('aria-describedby',note.id);});
     reflect();
     if(!initialized){
@@ -156,8 +179,9 @@
         }else return;
         event.preventDefault();target?.focus();
       });
-      for(const [id,field,event] of [['rift-mission-search','search','input'],['rift-region','region','change'],['rift-completion','completion','change'],['rift-difficulty','difficulty','change'],['rift-favorites-only','favoritesOnly','change'],['rift-compact','compact','change']]){
-        $(id).addEventListener(event,()=>{view[field]=$(id).type==='checkbox'?$(id).checked:$(id).value;save();apply();});
+      for(const [id,field,event] of [['rift-mission-search','search','input'],['rift-region','region','change'],['rift-completion','completion','change'],['rift-difficulty','difficulty','change'],['rift-favorites-only','favoritesOnly','change'],['rift-challenge-only','challengeOnly','change'],['rift-compact','compact','change']]){
+        const el=$(id);
+        if(el)el.addEventListener(event,()=>{view[field]=el.type==='checkbox'?el.checked:el.value;save();apply();});
       }
       $('rift-clear-filters').addEventListener('click',reset);
       $('rift-favorite').addEventListener('click',()=>{view.favorites=view.favorites.includes(selected)?view.favorites.filter(id=>id!==selected):[...view.favorites,selected];save();apply();});
@@ -167,7 +191,7 @@
       $('rift-show-selected').addEventListener('click',()=>{reset();$('rift-levels').querySelector('[data-level="'+selected+'"]').scrollIntoView({block:'nearest'});});
     }
   }
-  window.RiftCampaignTools={init,preferred:()=>Number.isInteger(view.selected)&&view.selected>=1&&view.selected<=100?view.selected:1,
+  window.RiftCampaignTools={init,isChallengeCompatible,setChallenge(ch){challenge=ch;apply();},preferred:()=>Number.isInteger(view.selected)&&view.selected>=1&&view.selected<=100?view.selected:1,
     showRegion(region){if(!levels.some(level=>level.region===region))return;overview=true;apply();$('rift-campaign').open=true;const section=$('rift-region-overview').querySelector('[data-overview-region="'+region+'"]');section.querySelector('details').open=true;section.querySelector('summary').focus();section.scrollIntoView({block:'center'});},
     update(run,id){if(!levels.length)return;selected=id;history=run?.mission_history||{};active=!!run&&['fighting','cleared'].includes(run.status);completed=new Set(run?.completed_levels||[]);view.selected=id;save();apply();}};
 })();
