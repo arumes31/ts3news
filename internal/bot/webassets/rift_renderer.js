@@ -18,8 +18,44 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   renderer.preview = level => { previewLevel = level; };
-  const baseImages = Promise.all(['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
-    const img = new Image(); img.onload = () => { images[key] = img; resolve(); }; img.onerror = () => reject(new Error('Could not load '+key+' artwork. Reload to try again.')); img.src = key==='props'?document.getElementById('rift-props-asset').href:root.dataset[key];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'];
+  const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
+  function updateAtlasProgress(loaded, total, status) {
+    const el = document.getElementById('rift-atlas-progress');
+    if (el) {
+      el.dataset.loaded = String(loaded);
+      el.dataset.total = String(total);
+      if (status === 'error') {
+        el.textContent = 'Critical atlases stalled (' + loaded + '/' + total + ')';
+      } else if (loaded >= total) {
+        el.textContent = 'Critical atlases loaded (' + loaded + '/' + total + ')';
+      } else {
+        el.textContent = 'Loading critical atlases: ' + loaded + '/' + total;
+      }
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('riftatlasprogress', { detail: { loaded, total, status: status || (loaded >= total ? 'ready' : 'loading') } }));
+    } catch (_) {}
+  }
+  updateAtlasProgress(0, criticalAtlasKeys.length);
+  renderer.atlasProgress = atlasProgress;
+  renderer.getCriticalAtlasKeys = () => criticalAtlasKeys.slice();
+  const baseImages = Promise.all(criticalAtlasKeys.map(key => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      images[key] = img;
+      atlasProgress.loaded++;
+      if (atlasProgress.loaded >= atlasProgress.total) {
+        atlasProgress.ready = true;
+      }
+      updateAtlasProgress(atlasProgress.loaded, atlasProgress.total);
+      resolve();
+    };
+    img.onerror = () => {
+      updateAtlasProgress(atlasProgress.loaded, atlasProgress.total, 'error');
+      reject(new Error('Could not load ' + key + ' artwork. Reload to try again.'));
+    };
+    img.src = key === 'props' ? document.getElementById('rift-props-asset').href : root.dataset[key];
   })));
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
   renderer.snapshot = function (run, replay) {
