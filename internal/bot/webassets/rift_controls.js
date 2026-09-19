@@ -29,6 +29,7 @@
     }
   }catch(_){}
   const dialog=$('rift-controls-dialog'),list=$('rift-key-bindings'),buttons=new Map();
+  let dialogOpener=null;
   const label=id=>(!dialog.open&&window.RiftGamepad?.active&&window.RiftGamepad.label(id))||(bindings[id]||[]).map(keyName).join(' / ');
   const status=message=>$('rift-binding-status').textContent=message;
   function prompts(){
@@ -36,7 +37,51 @@
     const movement=$('rift-movement-keys'),text=window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join(' ');if(movement&&movement.textContent!==text)movement.textContent=text;
     const descriptionText='Battlefield. '+description();if($('rift-canvas').getAttribute('aria-label')!==descriptionText)$('rift-canvas').setAttribute('aria-label',descriptionText);
   }
-  function refresh(){for(const [id,button] of buttons){button.textContent=capture===id?'Press a key…':label(id);button.setAttribute('aria-pressed',String(capture===id));}prompts();}
+  function plainTextReference(){
+    const mouseLabel=id=>{
+      const btn=pointer[id];
+      return btn===0?'Left button':btn===1?'Middle button':btn===2?'Right button':'Unbound';
+    };
+    const lines=[
+      'RIFT BRAWL COMBAT CONTROLS REFERENCE',
+      '====================================',
+      '',
+      'Movement:',
+      '  Move up:            '+(bindings.up||[]).map(keyName).join(' / '),
+      '  Move left:          '+(bindings.left||[]).map(keyName).join(' / '),
+      '  Move down:          '+(bindings.down||[]).map(keyName).join(' / '),
+      '  Move right:         '+(bindings.right||[]).map(keyName).join(' / '),
+      '',
+      'Combat Actions:',
+      '  Attack:             '+(bindings.attack||[]).map(keyName).join(' / ')+(pointer.attack!==-1?' (Mouse: '+mouseLabel('attack')+')':''),
+      '  Jump:               '+(bindings.jump||[]).map(keyName).join(' / '),
+      '  Guard:              '+(bindings.guard||[]).map(keyName).join(' / ')+(pointer.guard!==-1?' (Mouse: '+mouseLabel('guard')+')':'')+' ['+(toggleGuard?'Toggle mode':'Hold mode')+']',
+      '  Class builder:      '+(bindings.signature0||[]).map(keyName).join(' / '),
+      '  Class finisher:     '+(bindings.signature1||[]).map(keyName).join(' / '),
+      '  Equipped skill 1:   '+(bindings.skill0||[]).map(keyName).join(' / '),
+      '  Equipped skill 2:   '+(bindings.skill1||[]).map(keyName).join(' / '),
+      '  Equipped skill 3:   '+(bindings.skill2||[]).map(keyName).join(' / '),
+      '  Ultimate:           '+(bindings.ultimate||[]).map(keyName).join(' / '),
+      '  Pause / resume:     Escape',
+      '',
+      'Combat Shortcuts:',
+      '  Clean screenshot:   F4 or Alt+Shift+H',
+      '  Skill range preview: Alt+Shift+R',
+      '  Pin skill range:    Shift+1 / Shift+2 / Shift+3',
+      '  Loadout reference:  Alt+Shift+L',
+      '  Quick pause:        Escape'
+    ];
+    return lines.join('\n');
+  }
+  function refresh(){
+    for(const [id,button] of buttons){
+      button.textContent=capture===id?'Press a key…':label(id);
+      button.setAttribute('aria-pressed',String(capture===id));
+    }
+    const refText=$('rift-controls-reference-text');
+    if(refText)refText.textContent=plainTextReference();
+    prompts();
+  }
   function save(){try{localStorage.setItem('riftBindings',JSON.stringify({version:1,bindings,pointer,toggleGuard}));}catch(_){}refresh();window.dispatchEvent(new Event('riftbindingschange'));}
   for(const id of ['attack','guard']){
     const select=$('rift-mouse-'+id);select.value=pointer[id];
@@ -52,6 +97,31 @@
     title.textContent=name;title.htmlFor='rift-remap-'+id;
     button.id='rift-remap-'+id;button.type='button';button.dataset.remap=id;button.setAttribute('aria-label','Rebind '+name);button.setAttribute('aria-describedby','rift-binding-status');
     button.onclick=()=>{capture=id;refresh();status('Press a physical key for '+name+'. Escape cancels.');};row.append(title,button);list.append(row);buttons.set(id,button);
+  }
+  const copyBtn=$('rift-copy-controls-reference'),copyStatus=$('rift-copy-controls-status');
+  if(copyBtn){
+    copyBtn.onclick=async()=>{
+      const text=plainTextReference();
+      let copied=false;
+      try{
+        if(navigator.clipboard?.writeText){
+          await navigator.clipboard.writeText(text);
+          copied=true;
+        }
+      }catch(_){}
+      if(!copied){
+        const pre=$('rift-controls-reference-text');
+        if(pre){
+          const range=document.createRange();
+          range.selectNodeContents(pre);
+          const sel=window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          copied=true;
+        }
+      }
+      if(copyStatus)copyStatus.textContent=copied?'Controls reference copied to clipboard.':'Could not copy controls reference.';
+    };
   }
   function cancelCapture(){capture=null;refresh();status('Binding unchanged.');}
   dialog.addEventListener('keydown',event=>{
@@ -71,7 +141,7 @@
     const id=capture;bindings[id]=[event.code];capture=null;save();status(definitions.find(([name])=>name===id)[1]+' uses physical '+keyName(event.code)+'.');
   });
   dialog.addEventListener('cancel',event=>{if(capture){event.preventDefault();cancelCapture();}});
-  dialog.addEventListener('close',()=>{capture=null;refresh();$('rift-controls-open').focus();});
+  dialog.addEventListener('close',()=>{capture=null;refresh();(dialogOpener||$('rift-controls-open')).focus();dialogOpener=null;});
   $('rift-controls-close').onclick=()=>dialog.close();
   const presets={
     standard:{keys:defaults,description:'WASD or arrows move. J attacks, Space jumps, L guards, Q/E use class abilities, 1–3 use skills and R uses the ultimate.'},
@@ -82,6 +152,21 @@
   $('rift-apply-keys').onclick=()=>{capture=null;bindings=sanitize(presets[preset.value].keys);save();status('Layout applied. The expedition remains paused.');};
   $('rift-reset-keys').onclick=()=>{capture=null;bindings=sanitize(null);preset.value='standard';preset.onchange();save();status('Default keys restored.');};
   function description(){return (window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join('/'))+' moves · '+label('jump')+' jumps · '+label('attack')+' attacks · '+label('guard')+' guards · '+label('signature0')+'/'+label('signature1')+' class abilities · '+['skill0','skill1','skill2'].map(id=>label(id)).join('/')+' skills · '+label('ultimate')+' ultimate · '+label('pause')+' pauses. Escape always pauses.';}
-  window.RiftControls={codes:id=>bindings[id]||[],action:code=>definitions.find(([id])=>bindings[id].includes(code))?.[0],pointer:button=>['attack','guard'].find(id=>pointer[id]===button),get toggleGuard(){return toggleGuard;},label,description,prompts,get opened(){return dialog.open;},open(){capture=null;refresh();status('Choose an action to rebind. Changes are saved on this device.');dialog.showModal();}};
+  function open(opener,openReference=false){
+    capture=null;
+    dialogOpener=opener||document.activeElement||$('rift-controls-open');
+    refresh();
+    status('Choose an action to rebind. Changes are saved on this device.');
+    dialog.showModal();
+    if(openReference){
+      const details=$('rift-controls-reference');
+      if(details){
+        details.open=true;
+        const pre=$('rift-controls-reference-text');
+        if(pre)pre.focus();
+      }
+    }
+  }
+  window.RiftControls={codes:id=>bindings[id]||[],action:code=>definitions.find(([id])=>bindings[id].includes(code))?.[0],pointer:button=>['attack','guard'].find(id=>pointer[id]===button),get toggleGuard(){return toggleGuard;},label,description,prompts,plainTextReference,get opened(){return dialog.open;},open};
   refresh();
 })();

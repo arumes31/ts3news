@@ -330,7 +330,9 @@
     const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
-  $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open();});
+  $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open($('rift-controls-open'));});
+  const openRefBtn=$('rift-open-controls-reference');
+  if(openRefBtn){openRefBtn.addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open(openRefBtn,true);});}
   window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
   window.addEventListener('riftintentchange',resetInput);
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
