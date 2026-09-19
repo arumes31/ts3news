@@ -284,6 +284,7 @@
   $('rift-canvas').addEventListener('lostpointercapture',()=>{for(const action of mouse)taps.delete(action);mouse.clear();});
   $('rift-canvas').addEventListener('contextmenu',event=>{if(playing&&controls.pointer(2))event.preventDefault();});
   window.addEventListener('keydown',event=>{
+    if((event.code==='F4'||(event.code==='KeyH'&&event.altKey&&event.shiftKey))&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();const active=window.RiftDisplay?.toggleScreenshot?.();status(active?'Clean screenshot mode enabled. HUD hidden.':'HUD restored.');return;}
     if(event.code==='KeyL'&&event.altKey&&event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();openLoadoutReference();return;}
     if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     const action=controls.action(event.code);
@@ -324,6 +325,10 @@
       status('Fullscreen is unavailable in this browser.');
     }
   }
+  $('rift-screenshot-toggle')?.addEventListener('click',()=>{
+    const active=window.RiftDisplay?.toggleScreenshot?.();
+    status(active?'Clean screenshot mode enabled. HUD hidden.':'HUD restored.');
+  });
   $('rift-fullscreen').addEventListener('click',async()=>{
     if(document.fullscreenElement){
       try{await document.exitFullscreen();}catch(_){}

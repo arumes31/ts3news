@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -26,7 +26,7 @@
     const audio=window.RiftAudio,reduced=document.getElementById('rift-reduced').checked;
     const shake=reduced||values.motionIntensity===0?'Off':values.shakeIntensity===1?'Full':values.shakeIntensity===0.5?'Gentle':'Off';
     const mix=[['effects','Effects'],['ambience','Ambience'],['music','Music'],['voice','Voices'],['interface','Interface']].map(([key,label])=>key==='interface'&&audio.interfaceMuted?'Interface muted ('+Math.round(audio[key]*100)+'%)':label+' '+Math.round(audio[key]*100)+'%').join(' · ');
-    summary.textContent=(values.compactHUD?'Compact':'Full')+' HUD · Text '+Math.round(values.textScale*100)+'% · '+values.fps+' FPS · '+(reduced?'Reduced effects':'Motion '+(values.motionIntensity===0?'Still':values.motionIntensity===0.5?'Gentle':'Full'))+' · Shake '+shake+' — '+(audio.muted?'Sound muted':'Sound enabled')+' · '+(audio.mono?'Mono':'Stereo')+' · '+mix;
+    summary.textContent=(values.cleanScreenshot?'Clean screenshot':values.compactHUD?'Compact':'Full')+' HUD · Text '+Math.round(values.textScale*100)+'% · '+values.fps+' FPS · '+(reduced?'Reduced effects':'Motion '+(values.motionIntensity===0?'Still':values.motionIntensity===0.5?'Gentle':'Full'))+' · Shake '+shake+' — '+(audio.muted?'Sound muted':'Sound enabled')+' · '+(audio.mono?'Mono':'Stereo')+' · '+mix;
   }
   window.addEventListener('riftaudiochange',refreshSummary);window.addEventListener('riftmotionchange',refreshSummary);
   function selectControl(id,label,options){
@@ -52,13 +52,17 @@
     ['damageMotion','rift-damage-motion','Moving damage numbers'],['hazardLabels','rift-hazard-labels','Hazard labels'],['lootSparkle','rift-loot-sparkle','Loot sparkle'],
     ['particles','rift-background-particles','Background particles'],['lootMotion','rift-loot-motion','Loot bobbing'],
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
-    ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD']
+    ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD'],
+    ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)']
   ];
   function save(){try{localStorage.setItem('riftDisplay',JSON.stringify({version:1,...values}));}catch(_){} }
   function refresh(){
     refreshSummary();
     root.classList.toggle('rift-hide-records',!values.personalRecords);
     root.style.setProperty('--rift-hud-scale',values.textScale);root.classList.toggle('rift-compact-hud',values.compactHUD);
+    root.classList.toggle('rift-clean-screenshot',values.cleanScreenshot);
+    const screenshotBtn=document.getElementById('rift-screenshot-toggle');
+    if(screenshotBtn)screenshotBtn.setAttribute('aria-pressed',String(values.cleanScreenshot));
     for(const [key,control] of controls)if(control.type==='checkbox')control.checked=values[key];else control.value=values[key];
   }
   definitions.forEach(([key,id,label,options])=>{
@@ -100,5 +104,5 @@
   };
   const note=document.createElement('p');note.className='rift-fine';note.textContent='Display choices are saved on this device and apply immediately. Screen shake defaults to off; reduced visual effects and Still decorative motion disable it. Player and boss vitals stay visible. Reduced visual effects overrides decorative motion. Presets change only the display settings listed here and restore personal records. Hiding HUD records keeps mission-card history and combat breakdowns available.';section.append(reset,masterReset,masterStatus,note);
   document.querySelector('.rift-settings').append(section);
-  refresh();window.RiftDisplay=Object.assign(values,{reset:resetDisplay});
+  refresh();window.RiftDisplay=Object.assign(values,{reset:resetDisplay,toggleScreenshot(){values.cleanScreenshot=!values.cleanScreenshot;save();refresh();return values.cleanScreenshot;}});
 })();
