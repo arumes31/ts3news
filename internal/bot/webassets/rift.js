@@ -38,6 +38,7 @@
     $('rift-overlay-kicker').textContent = kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
   async function request(method, body) {
+    const started = performance.now();
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,signal:controller.signal});
@@ -45,7 +46,10 @@
       if(response.status===409)throw new Error('The saved expedition changed. Recover it before continuing.');
       if(!response.ok)throw new Error('Connection interrupted. Recover the saved expedition before continuing.');
       let data;try{data=await response.json();}catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
-      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');return result;
+      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');
+      const duration = performance.now() - started;
+      if(window.RiftHUD?.updateLatency)window.RiftHUD.updateLatency(duration);
+      return result;
     } finally { clearTimeout(timeout); }
   }
   function input() {

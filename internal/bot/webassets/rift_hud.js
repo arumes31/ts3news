@@ -28,6 +28,18 @@
     if(run.player.mana<skill.cost)return Math.ceil(skill.cost-run.player.mana)+' more mana needed';
     return 'Ready · '+skill.cost+' mana';
   }
+  let latencySamples=[];
+  function updateLatency(ms){
+    const node=$('rift-latency');
+    if(!node)return;
+    latencySamples.push(Math.max(0,Number(ms)||0));
+    if(latencySamples.length>5)latencySamples.shift();
+    const average=Math.round(latencySamples.reduce((sum,v)=>sum+v,0)/latencySamples.length);
+    const state=average<=600?'normal':average<=1200?'elevated':'slow';
+    put(node,average+' ms');
+    attr(node,'data-state',state);
+    attr(node,'aria-label','Connection latency: '+average+' ms ('+state+')');
+  }
   let requestedRangeSkill=null,lastObservedRun=null;
   function updateSkillRangeSignal(run){
     const signal=$('rift-skill-range');
@@ -139,5 +151,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency};
 })();
