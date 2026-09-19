@@ -27,7 +27,7 @@
     options(tier,roster.map(unit=>unit.tier));options(element,roster.map(elementName));options(style,roster.map(attackStyle));
     if(render.cleanup)render.cleanup();
     document.getElementById('rift-monster-stat-details').open=!window.matchMedia('(max-width:600px)').matches;
-    let selected=null,opener=null,timer=null,tick=0,built=false;
+    let selected=null,opener=null,timer=null,tick=0,built=false,announceTimer=null,lastMatchesText='',lastMatchesLabel='';
     panel.hidden=true;
     function paint(){
       if(!selected)return;
@@ -42,7 +42,7 @@
     function onToggle(){if(root.open)buildCards();animate();}
     root.addEventListener('toggle',onToggle);document.addEventListener('visibilitychange',animate);
     window.addEventListener('riftmotionchange',animate);
-    render.cleanup=()=>{clearInterval(timer);root.removeEventListener('toggle',onToggle);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
+    render.cleanup=()=>{clearInterval(timer);clearTimeout(announceTimer);root.removeEventListener('toggle',onToggle);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
     poseSelect.onchange=()=>{tick=0;paint();};
     function close(){window.RiftAudio.cancelPreview();selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;
@@ -102,12 +102,24 @@
       });
       filter();
     }
-    function filter(){let visible=0;for(const item of list.children){item.hidden=(bookmarked.checked&&!bookmarks.has(item.dataset.artKey))||(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=bookmarked.checked?'No practice bookmarks match these filters. Inspect a creature to save it for practice.':encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
-    encountered.onchange=filter;
-    render.refreshRecords=()=>{encountered.disabled=practice;if(practice)encountered.checked=false;showRecord();if(built)filter();};
+    function announceMonsterResults(node,text,label,immediate){
+      if(!node)return;
+      if(text===lastMatchesText&&label===lastMatchesLabel)return;
+      clearTimeout(announceTimer);
+      const applyText=()=>{
+        lastMatchesText=text;lastMatchesLabel=label;
+        if(node.textContent!==text)node.textContent=text;
+        if(node.getAttribute('aria-label')!==label)node.setAttribute('aria-label',label);
+      };
+      if(immediate)applyText();
+      else announceTimer=setTimeout(applyText,200);
+    }
+    function filter(immediate=true){let visible=0;for(const item of list.children){item.hidden=(bookmarked.checked&&!bookmarks.has(item.dataset.artKey))||(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=bookmarked.checked?'No practice bookmarks match these filters. Inspect a creature to save it for practice.':encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';const matchText=visible+' of '+roster.length+' monsters';const matchLabel=visible===0?'No monsters match current filters. 0 of '+roster.length+' monsters.':visible===roster.length?'Showing all '+roster.length+' monsters.':visible+' of '+roster.length+' monsters matching filters.';announceMonsterResults(document.getElementById('rift-monster-matches'),matchText,matchLabel,immediate);}
+    encountered.onchange=()=>filter(true);
+    render.refreshRecords=()=>{encountered.disabled=practice;if(practice)encountered.checked=false;showRecord();if(built)filter(true);};
     update(run);render.refreshRecords();
-    search.oninput=filter;[tier,element,style].forEach(select=>select.onchange=filter);
-    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter();search.focus();};onToggle();
+    search.oninput=()=>filter(false);[tier,element,style].forEach(select=>select.onchange=()=>filter(true));
+    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter(true);search.focus();};onToggle();
   }
   window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets};
 })();

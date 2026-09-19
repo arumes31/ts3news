@@ -34,7 +34,20 @@
   }
   function save(){try{localStorage.setItem(key,JSON.stringify(view));}catch(_){} }
   function choose(id){if(!active)$('rift-levels').querySelector('[data-level="'+id+'"]').click();}
-  function apply(){
+  let filterAnnounceTimer=null,lastFilterText='',lastFilterLabel='';
+  function announceFilterResults(node,text,label,immediate){
+    if(!node)return;
+    if(text===lastFilterText&&label===lastFilterLabel)return;
+    clearTimeout(filterAnnounceTimer);
+    const applyText=()=>{
+      lastFilterText=text;lastFilterLabel=label;
+      if(node.textContent!==text)node.textContent=text;
+      if(node.getAttribute('aria-label')!==label)node.setAttribute('aria-label',label);
+    };
+    if(immediate)applyText();
+    else filterAnnounceTimer=setTimeout(applyText,200);
+  }
+  function apply(immediate=true){
     const query=normalize(view.search.trim()),favorites=new Set(view.favorites);let count=0;
     $('rift-levels').querySelectorAll('[data-level]').forEach(button=>{
       const id=Number(button.dataset.level),level=levels.find(l=>l.id===id);
@@ -76,7 +89,9 @@
     $('rift-last-attempt').textContent=lastAttempt?'Last attempted: Mission '+lastAttempt.id+' · '+lastAttempt.name:'';
     $('rift-last-attempt').disabled=active;
     $('rift-levels').classList.toggle('compact',view.compact);
-    $('rift-filter-count').textContent=count+' of '+levels.length+' missions';
+    const countText=count+' of '+levels.length+' missions';
+    const countLabel=count===0?'No missions match current filters. 0 of '+levels.length+' missions.':count===levels.length?'Showing all '+levels.length+' missions.':count+' of '+levels.length+' missions matching filters.';
+    announceFilterResults($('rift-filter-count'),countText,countLabel,immediate);
     $('rift-filter-empty').hidden=count>0;
     $('rift-favorite').setAttribute('aria-pressed',String(favorites.has(selected)));
     $('rift-favorite').textContent=favorites.has(selected)?'★ Saved favorite':'☆ Favorite mission';
@@ -181,7 +196,7 @@
       });
       for(const [id,field,event] of [['rift-mission-search','search','input'],['rift-region','region','change'],['rift-completion','completion','change'],['rift-difficulty','difficulty','change'],['rift-favorites-only','favoritesOnly','change'],['rift-challenge-only','challengeOnly','change'],['rift-compact','compact','change']]){
         const el=$(id);
-        if(el)el.addEventListener(event,()=>{view[field]=el.type==='checkbox'?el.checked:el.value;save();apply();});
+        if(el)el.addEventListener(event,()=>{view[field]=el.type==='checkbox'?el.checked:el.value;save();apply(event!=='input');});
       }
       $('rift-clear-filters').addEventListener('click',reset);
       $('rift-favorite').addEventListener('click',()=>{view.favorites=view.favorites.includes(selected)?view.favorites.filter(id=>id!==selected):[...view.favorites,selected];save();apply();});
