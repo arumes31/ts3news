@@ -28,7 +28,42 @@
     if(run.player.mana<skill.cost)return Math.ceil(skill.cost-run.player.mana)+' more mana needed';
     return 'Ready · '+skill.cost+' mana';
   }
+  let requestedRangeSkill=null,lastObservedRun=null;
+  function updateSkillRangeSignal(run){
+    const signal=$('rift-skill-range');
+    if(!signal)return;
+    const skill=requestedRangeSkill||(window.RiftDisplay?.skillRange&&run?.build?.skills?.[0]?run.build.skills[0]:null);
+    if(!skill){
+      put(signal,'Skill range: None requested');
+      return;
+    }
+    const ref=skill.reference;
+    if(!ref){
+      put(signal,'Range: '+skill.name+' · Details unavailable');
+      return;
+    }
+    if(ref.target==='self'){
+      put(signal,'Range: '+skill.name+' · Self ('+(ref.barrier?'Barrier':'Healing')+')');
+    }else if(ref.target==='area'){
+      put(signal,'Range: '+skill.name+' · Area ('+ref.horizontal+'h × '+ref.depth+'d)');
+    }else{
+      const facing=(run?.player?.facing??1)<0?'←':'→';
+      put(signal,'Range: '+skill.name+' · Projectile (lane ±'+ref.depth+'d, facing '+facing+')');
+    }
+  }
+  function setRequestedRange(skill){
+    requestedRangeSkill=skill;
+    if(window.RiftRenderer?.setRangeSkill)window.RiftRenderer.setRangeSkill(skill);
+    const rangeToggle=$('rift-range-toggle');
+    if(rangeToggle)rangeToggle.setAttribute('aria-pressed',skill?'true':'false');
+    updateSkillRangeSignal(lastObservedRun);
+  }
+  function getRequestedRange(){
+    return requestedRangeSkill;
+  }
   function update(run,playing,replay=false){
+    lastObservedRun=run;
+    updateSkillRangeSignal(run);
     recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);
     const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
     if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
@@ -104,5 +139,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange};
 })();

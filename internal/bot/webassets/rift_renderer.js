@@ -13,7 +13,9 @@
   // each panel to keep neighboring regions out of the battlefield.
   const regionRows = [0,.179,.363,.559,.755,1];
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
-  const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0 };
+  const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0, rangeSkill: null };
+  renderer.setRangeSkill = function(skill){ renderer.rangeSkill = skill; };
+  renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   renderer.preview = level => { previewLevel = level; };
   const baseImages = Promise.all(['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'].map(key => new Promise((resolve, reject) => {
@@ -152,6 +154,78 @@
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,e.target_y+4);
       }
     });
+    const activeRangeSkill = renderer.rangeSkill || (display.skillRange && run.build?.skills?.[0] ? run.build.skills[0] : null);
+    if (!display.cleanScreenshot && activeRangeSkill && run.player && ['fighting','cleared'].includes(run.status)) {
+      const p = run.player, px = p.x - camera, py = p.y, ref = activeRangeSkill.reference;
+      if (ref) {
+        ctx.save();
+        if (ref.target === 'area') {
+          ctx.fillStyle = '#2dd4bf24';
+          ctx.strokeStyle = '#2dd4bf';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.ellipse(px, py, ref.horizontal, ref.depth, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = 'bold ' + (11 * display.textScale) + 'px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#99f6e4';
+          ctx.strokeStyle = '#071813';
+          ctx.lineWidth = 3;
+          const label = activeRangeSkill.name.toUpperCase() + ' · AREA (' + ref.horizontal + 'h × ' + ref.depth + 'd)';
+          ctx.strokeText(label, px, py - ref.depth - 6);
+          ctx.fillText(label, px, py - ref.depth - 6);
+        } else if (ref.target === 'projectile') {
+          const reach = 530;
+          const left = p.facing < 0 ? Math.max(0, px - reach) : px;
+          const width = p.facing < 0 ? px - left : Math.min(960 - px, reach);
+          const top = py - ref.depth, height = ref.depth * 2;
+          ctx.fillStyle = '#38bdf822';
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.fillRect(left, top, width, height);
+          ctx.strokeRect(left, top, width, height);
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#38bdf8aa';
+          ctx.beginPath();
+          const arrowX = p.facing < 0 ? left + 18 : left + width - 18;
+          ctx.moveTo(arrowX, py - 8);
+          ctx.lineTo(arrowX + (p.facing < 0 ? -12 : 12), py);
+          ctx.lineTo(arrowX, py + 8);
+          ctx.fill();
+          ctx.font = 'bold ' + (11 * display.textScale) + 'px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#bae6fd';
+          ctx.strokeStyle = '#071813';
+          ctx.lineWidth = 3;
+          const label = activeRangeSkill.name.toUpperCase() + ' · PROJECTILE LANE (±' + ref.depth + 'd)';
+          ctx.strokeText(label, left + width / 2, top - 6);
+          ctx.fillText(label, left + width / 2, top - 6);
+        } else if (ref.target === 'self') {
+          ctx.fillStyle = '#c084fc28';
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.ellipse(px, py - 20, 48, 48, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = 'bold ' + (11 * display.textScale) + 'px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#e9d5ff';
+          ctx.strokeStyle = '#071813';
+          ctx.lineWidth = 3;
+          const label = activeRangeSkill.name.toUpperCase() + ' · SELF (' + (ref.barrier ? 'BARRIER' : 'HEAL') + ')';
+          ctx.strokeText(label, px, py - 72);
+          ctx.fillText(label, px, py - 72);
+        }
+        ctx.restore();
+      }
+    }
     if(display.enemyIndicators && !display.cleanScreenshot && run.status==='fighting'){
       const offscreen=run.enemies.filter(e=>e.hp>0&&(e.x-camera<0||e.x-camera>960));
       renderer.lastOffscreen=offscreen;

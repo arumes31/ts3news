@@ -89,12 +89,12 @@
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
     const signature=run.build.skills.map(s=>s.id).join(',');
     if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
-      currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-skills').append(btn);hold(btn,'skill:'+s.id);});
+      currentSkillIDs=signature;$('rift-skills').replaceChildren();run.build.skills.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);});
     }
     [...$('rift-skills').children].forEach((btn,i)=>{const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
     const specials=[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])];
     const specialIDs=specials.map(s=>s.id).join(',');
-    if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);});}
+    if($('rift-signatures').dataset.ids!==specialIDs){$('rift-signatures').dataset.ids=specialIDs;$('rift-signatures').replaceChildren();specials.forEach((s,i)=>{const btn=document.createElement('button');btn.type='button';btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);});}
     [...$('rift-signatures').children].forEach((btn,i)=>{const s=specials[i],remaining=run.skill_timers[s.id]||0;put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');btn.disabled=!controlsEnabled||remaining>0||run.player.mana<s.cost;});
     [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
     [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
@@ -286,6 +286,11 @@
   $('rift-canvas').addEventListener('contextmenu',event=>{if(playing&&controls.pointer(2))event.preventDefault();});
   window.addEventListener('keydown',event=>{
     if((event.code==='F4'||(event.code==='KeyH'&&event.altKey&&event.shiftKey))&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();const active=window.RiftDisplay?.toggleScreenshot?.();status(active?'Clean screenshot mode enabled. HUD hidden.':'HUD restored.');return;}
+    if(event.code==='KeyR'&&event.altKey&&event.shiftKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();cycleRange();return;}
+    if(event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&['Digit1','Digit2','Digit3'].includes(event.code)&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){
+      const idx=Number(event.code.replace('Digit',''))-1,s=run?.build?.skills?.[idx];
+      if(s){event.preventDefault();pinnedRangeIndex=idx;pinnedRangeSkill=s;window.RiftHUD.setRequestedRange(s);status('Showing range for '+s.name);return;}
+    }
     if(event.code==='KeyL'&&event.altKey&&event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();openLoadoutReference();return;}
     if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
     const action=controls.action(event.code);
@@ -298,6 +303,15 @@
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
   window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
+  let pinnedRangeSkill=null,pinnedRangeIndex=-1;
+  function cycleRange(){
+    const skills=run?.build?.skills||[];if(!skills.length)return;
+    pinnedRangeIndex=(pinnedRangeIndex+1)%(skills.length+1);
+    if(pinnedRangeIndex===skills.length){pinnedRangeIndex=-1;pinnedRangeSkill=null;window.RiftHUD.setRequestedRange(null);status('Equipped skill range preview hidden.');}
+    else{pinnedRangeSkill=skills[pinnedRangeIndex];window.RiftHUD.setRequestedRange(pinnedRangeSkill);status('Showing range for '+pinnedRangeSkill.name);}
+  }
+  const rangeToggle=$('rift-range-toggle');
+  if(rangeToggle)rangeToggle.addEventListener('click',cycleRange);
   $('rift-start').addEventListener('click',begin);$('rift-pause').addEventListener('click',()=>playing?pause():begin());
   async function openLoadoutReference(){
     if(!ready||starting||controls.opened)return;
