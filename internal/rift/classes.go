@@ -15,7 +15,11 @@ func (r *Run) abilities() []Skill {
 // recovery expressed as 1.5 seconds in this action mode.
 func (r *Run) classCast(skill Skill) (int, string) {
 	if skill.Role == "builder" {
+		before := r.Resource
 		r.Resource = min(3, r.Resource+1)
+		if r.Resource > before {
+			r.event("resource", r.Player.X, r.Player.Y-35, float64(r.Resource-before))
+		}
 		return 0, ""
 	}
 	if skill.Role != "finisher" {

@@ -364,7 +364,20 @@
     effects.forEach(e=>{
       const age=(now-e.started)/750;
       if(effectRows[e.kind]!==undefined && (!renderer.reduced || e.kind==='pickup') && (e.kind!=='pickup'||display.lootSparkle))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
-      if(!display.cleanScreenshot && e.value>0 && e.kind!=='area' && (e.kind==='pickup'?display.optionalCombatText:display.damageNumbers)){ctx.font='bold '+(14*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=e.kind==='hurt'?'#ffb2a0':'#fff0bb';ctx.strokeStyle='#14221d';ctx.lineWidth=3;const label=e.kind==='pickup'?'+'+Math.round(e.value)+' gold':String(Math.round(e.value));ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));}
+      if(!display.cleanScreenshot && e.value>0 && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+        ctx.font='bold '+(13*display.textScale)+'px monospace';
+        ctx.textAlign='center';
+        let color='#fff0bb';
+        let label=String(Math.round(e.value));
+        if(e.kind==='hurt'){color='#ffb2a0';}
+        else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
+        else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
+        else if(e.kind==='heal'){color='#a8f0b0';label='+'+Math.round(e.value)+' HP';}
+        else if(e.kind==='barrier'){color='#c6a8f8';label='+'+Math.round(e.value)+' Barrier';}
+        ctx.fillStyle=color;ctx.strokeStyle='#14221d';ctx.lineWidth=3;
+        ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));
+        ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));
+      }
     });
     if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();

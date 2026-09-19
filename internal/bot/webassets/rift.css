@@ -115,3 +115,12 @@
 .rift-meter.hp[data-threshold="wounded"] span{background:repeating-linear-gradient(90deg,#d4a742,#d4a742 4px,#b88b28 4px,#b88b28 8px)!important}
 .rift-meter.hp[data-threshold="critical"] span{background:repeating-linear-gradient(45deg,#e05252,#e05252 6px,#a32424 6px,#a32424 12px)!important}
 .rift-meter.hp[data-threshold="critical"]{outline:1px dashed #ffd79e;outline-offset:1px}
+
+.rift-transient-counter{display:inline-block;padding:1px 5px;border-radius:2px;font:9px ui-monospace,monospace;font-weight:700;letter-spacing:.3px;margin-left:4px;vertical-align:middle;animation:rift-transient-pop 1.2s ease-out forwards;pointer-events:none}
+@keyframes rift-transient-pop{0%{opacity:0;transform:translateY(3px) scale(0.9)}15%{opacity:1;transform:translateY(0) scale(1)}70%{opacity:1;transform:translateY(-2px) scale(1)}100%{opacity:0;transform:translateY(-5px) scale(0.95)}}
+.rift-transient-counter[data-kind="resource"]{background:#13382c;color:#7ef5d0;border:1px solid #2d7a62}
+.rift-transient-counter[data-kind="health"]{background:#183820;color:#a8f0b0;border:1px solid #367844}
+.rift-transient-counter[data-kind="mana"]{background:#152e3b;color:#8fd8ec;border:1px solid #2c6882}
+.rift-transient-counter[data-kind="barrier"]{background:#2a1c3b;color:#d5b8ff;border:1px solid #63438a}
+.rift-clean-screenshot .rift-transient-counter{display:none!important}
+@media(prefers-reduced-motion:reduce){.rift-transient-counter{animation:none!important;transition:opacity .3s}}

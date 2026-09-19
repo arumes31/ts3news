@@ -38,7 +38,11 @@ type CombatStats struct {
 func (r *Run) healPlayer(amount float64) {
 	before := r.Player.HP
 	r.Player.HP = math.Min(r.Player.MaxHP, r.Player.HP+math.Max(0, amount))
-	r.Stats.Healing += math.Max(0, r.Player.HP-before)
+	healed := math.Max(0, r.Player.HP-before)
+	r.Stats.Healing += healed
+	if healed > 0 {
+		r.event("heal", r.Player.X, r.Player.Y-35, healed)
+	}
 }
 
 func (r *Run) healPlayerBySkill(amount float64, skillID string) {
@@ -55,11 +59,15 @@ func (r *Run) healPlayerBySkill(amount float64, skillID string) {
 func (r *Run) addBarrier(amount float64, skillID string) {
 	before := r.Barrier
 	r.Barrier = math.Min(r.Player.MaxHP*.5, r.Barrier+math.Max(0, amount))
-	if added := r.Barrier - before; added > 0 && skillID != "" {
-		if r.BarrierSources == nil {
-			r.BarrierSources = map[string]float64{}
+	added := math.Max(0, r.Barrier-before)
+	if added > 0 {
+		if skillID != "" {
+			if r.BarrierSources == nil {
+				r.BarrierSources = map[string]float64{}
+			}
+			r.BarrierSources[skillID] += added
 		}
-		r.BarrierSources[skillID] += added
+		r.event("barrier", r.Player.X, r.Player.Y-35, added)
 	}
 }
 

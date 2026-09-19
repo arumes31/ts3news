@@ -25,6 +25,23 @@
     return{state:'critical',label:'Critical',symbol:'⚠'};
   }
   function meter(selector,label,current,max,threshold){const node=document.querySelector(selector);attr(node,'role','meter');attr(node,'aria-label',label);attr(node,'aria-valuemin',0);attr(node,'aria-valuemax',Math.max(1,max));attr(node,'aria-valuenow',Math.min(max,Math.max(0,current)));if(threshold){attr(node,'data-threshold',threshold.state);attr(node,'aria-valuetext',Math.max(0,current).toFixed(0)+' of '+Math.max(1,max).toFixed(0)+' HP, '+threshold.label);}}
+  const transientTimers=new Map();
+  function triggerTransientCounter(node,text,kind){
+    if(!node)return;
+    clearTimeout(transientTimers.get(node));
+    node.textContent=text;
+    if(kind)node.setAttribute('data-kind',kind);
+    node.hidden=false;
+    node.style.animation='none';
+    void node.offsetHeight;
+    node.style.animation='';
+    const timer=setTimeout(()=>{
+      node.hidden=true;
+      node.textContent='';
+    },1200);
+    transientTimers.set(node,timer);
+  }
+  let lastResourceRunId='',lastObservedResource=null,lastObservedHp=null,lastObservedMana=null;
   function duration(seconds){seconds=Math.max(0,Math.floor(seconds));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
   function reason(skill,run,playing){
     if(!['fighting','cleared'].includes(run.status))return 'Expedition ended';
@@ -139,6 +156,37 @@
   function update(run,playing,replay=false){
     lastObservedRun=run;
     updateSkillRangeSignal(run);
+    const runIdentity=[run.id,run.level?.id,run.room].join(':');
+    const isLive=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
+    const currentResource=run.resource||0;
+    const currentHp=run.player?.hp||0;
+    const currentMana=run.player?.mana||0;
+
+    if(runIdentity!==lastResourceRunId||replay||!isLive){
+      lastResourceRunId=runIdentity;
+      lastObservedResource=currentResource;
+      lastObservedHp=currentHp;
+      lastObservedMana=currentMana;
+    }else{
+      if(lastObservedResource!==null&&currentResource>lastObservedResource){
+        const diff=currentResource-lastObservedResource;
+        const resName=run.build?.resource||'Charge';
+        triggerTransientCounter($('rift-resource-gain'),'+'+diff+' '+(diff===1?resName:resName+'s'),'resource');
+      }
+      lastObservedResource=currentResource;
+
+      if(lastObservedHp!==null&&currentHp>lastObservedHp+0.5){
+        const diff=Math.round(currentHp-lastObservedHp);
+        triggerTransientCounter($('rift-hp-gain'),'+'+diff+' HP','health');
+      }
+      lastObservedHp=currentHp;
+
+      if(lastObservedMana!==null&&currentMana>lastObservedMana+4.5){
+        const diff=Math.round(currentMana-lastObservedMana);
+        triggerTransientCounter($('rift-mana-gain'),'+'+diff+' MP','mana');
+      }
+      lastObservedMana=currentMana;
+    }
     recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);
     const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
     if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
@@ -257,5 +305,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter};
 })();
