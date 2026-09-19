@@ -36,14 +36,20 @@
         if(!entry){queue.shift();continue;}
         const skill=entry.skill,available=run.player.mana>=skill.cost&&!(run.skill_timers[skill.id]>0);
         if(guard||!available){
-          if(!guard&&run.player.mana<skill.cost)window.RiftAudio?.playEmptyMana?.();
+          if(!guard){
+            if(run.player.mana<skill.cost)window.RiftAudio?.playEmptyMana?.();
+            else if(run.skill_timers[skill.id]>0)window.RiftAudio?.playCooldownRejection?.();
+          }
           return result('',false,skill.name+': '+(guard?'Release guard':run.player.mana<skill.cost?'Not enough mana':'Cooldown '+run.skill_timers[skill.id].toFixed(1)+'s'));
         }
         if(run.player.cooldown>0)return result('',true,skill.name+': Casting recovery');
         queue.shift();return result(skill.id,false,'Requested: '+skill.name);
       }
       const skill=mode==='hold'?skills.find(entry=>held(entry.action)||held('skill:'+entry.skill.id))?.skill:null;
-      if(skill&&!guard&&run?.player?.mana<skill.cost)window.RiftAudio?.playEmptyMana?.();
+      if(skill&&!guard){
+        if(run?.player?.mana<skill.cost)window.RiftAudio?.playEmptyMana?.();
+        else if(run?.skill_timers?.[skill.id]>0)window.RiftAudio?.playCooldownRejection?.();
+      }
       return result(skill?.id||'');
     }
   };
