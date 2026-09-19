@@ -349,3 +349,66 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+.rift-legend-guide {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid #49664b;
+}
+.rift-legend-guide h3 {
+  margin: 0 0 .5rem;
+  color: #f2d797;
+}
+.rift-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.rift-legend-card {
+  background: #0f1f18;
+  border: 1px solid #3c5443;
+  border-radius: 6px;
+  padding: 14px;
+}
+.rift-legend-card h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #f4d087;
+  border-bottom: 1px solid #2e4435;
+  padding-bottom: 6px;
+}
+.rift-legend-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  margin: 0;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.rift-legend-card dt {
+  margin: 0;
+}
+.rift-legend-card dd {
+  margin: 0;
+  color: #cdd9c7;
+}
+.rift-legend-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font: 11px ui-monospace, monospace;
+  font-weight: 600;
+  background: #0a1712;
+}
+@media (forced-colors: active) {
+  .rift-legend-guide,
+  .rift-legend-card,
+  .rift-legend-sample {
+    border-color: CanvasText !important;
+  }
+}

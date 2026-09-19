@@ -335,6 +335,21 @@
   $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open($('rift-controls-open'));});
   const openRefBtn=$('rift-open-controls-reference');
   if(openRefBtn){openRefBtn.addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open(openRefBtn,true);});}
+  const openLegendBtn=$('rift-open-legend-reference');
+  if(openLegendBtn){
+    openLegendBtn.addEventListener('click',()=>{
+      const fieldGuide=$('rift-field-guide');
+      if(fieldGuide){
+        fieldGuide.open=true;
+        const legendSection=$('rift-legend-guide');
+        if(legendSection){
+          legendSection.scrollIntoView({behavior:'smooth',block:'start'});
+          const title=legendSection.querySelector('h3');
+          if(title){title.setAttribute('tabindex','-1');title.focus();}
+        }
+      }
+    });
+  }
   window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
   window.addEventListener('riftintentchange',resetInput);
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});

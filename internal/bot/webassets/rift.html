@@ -25,6 +25,67 @@
     <h3>Depth and melee range</h3>
     <p>Moving up or down changes your depth on the battlefield. Jumping changes height instead. For a basic melee strike, face the enemy, close the horizontal gap and line up at roughly the same depth. An enemy just above or below you can look close enough but still be outside the strike's narrow depth range.</p>
     <p>Try moving up or down to align your fighter's feet with the target, then attack. Spells have their own ranges; use the skill reference for each ability.</p>
+    <section id="rift-legend-guide" class="rift-legend-guide" aria-labelledby="rift-legend-guide-title">
+      <h3 id="rift-legend-guide-title">Color and symbol legends</h3>
+      <p>Rift Brawl uses standardized colors, glyphs, and shapes across combat, the HUD, and menus to provide unambiguous feedback.</p>
+      <div class="rift-legend-grid">
+        <article class="rift-legend-card">
+          <h4>Combat floating text &amp; hits</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #7fd7ff; border-color: #7fd7ff;">🛡️ Cyan</span></dt>
+            <dd><strong>Guarded hit:</strong> Attack blocked or mitigated by 82% via active guard.</dd>
+            <dt><span class="rift-legend-sample" style="color: #fff0bb; border-color: #fff0bb;">Yellow</span></dt>
+            <dd><strong>Damage dealt:</strong> Outgoing attack or spell damage connecting with an enemy.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffb2a0; border-color: #ffb2a0;">Salmon</span></dt>
+            <dd><strong>Damage taken:</strong> Incoming unmitigated strike reducing your health.</dd>
+            <dt><span class="rift-legend-sample" style="color: #a8f0b0; border-color: #a8f0b0;">Green</span></dt>
+            <dd><strong>Healing:</strong> Health restored via ability, passive, or life-drain.</dd>
+            <dt><span class="rift-legend-sample" style="color: #c6a8f8; border-color: #c6a8f8;">Purple</span></dt>
+            <dd><strong>Barrier:</strong> Damage absorbed by your temporary barrier shield.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffe082; border-color: #ffe082;">✓ Gold</span></dt>
+            <dd><strong>Pickup confirmed:</strong> Gold or gear collected from the battlefield.</dd>
+          </dl>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Health thresholds &amp; danger</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #a8e0b0; border-color: #3d784c;">✓ Healthy</span></dt>
+            <dd><strong>Above 50% HP:</strong> Solid green meter; standard combat baseline.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffd782; border-color: #786428;">⚡ Wounded</span></dt>
+            <dd><strong>25%–50% HP:</strong> Amber striped meter; defensive caution recommended.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ff9e9e; border-color: #e05252;">⚠ Critical</span></dt>
+            <dd><strong>Below 25% HP:</strong> Red diagonal-striped meter with dashed border; imminent defeat.</dd>
+          </dl>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Battlefield shapes &amp; hazards</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #ffd066; border-color: #f3bf72;">◆ Diamond / Red</span></dt>
+            <dd><strong>Hostile projectile:</strong> Enemy ranged spell or missile. Evade or jump.</dd>
+            <dt><span class="rift-legend-sample" style="color: #99f6e4; border-color: #2dd4bf;">● Circle / Cyan</span></dt>
+            <dd><strong>Friendly projectile:</strong> Player-cast spell traveling across the arena.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ff8a50; border-color: #ff8a50;">Striped zone</span></dt>
+            <dd><strong>Hazard area:</strong> Ground telegraph damaging or slowing on contact.</dd>
+          </dl>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Navigation, risk &amp; loot</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #e4b78b; border-color: #765239;">AT RISK</span></dt>
+            <dd><strong>Unbanked loot:</strong> Gear and gold in the expedition bag, lost on defeat.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffd38a; border-color: #b9a06a;">★ Star</span></dt>
+            <dd><strong>Favorite mission:</strong> Pinned expedition in campaign picker.</dd>
+            <dt><span class="rift-legend-sample" style="color: #d9ee88; border-color: #d9ee88;">✓ Checkmark</span></dt>
+            <dd><strong>Cleared mission:</strong> Tier or expedition completed and recorded.</dd>
+            <dt><span class="rift-legend-sample" style="color: #f2ddb0; border-color: #f2ddb0;">← / → Arrows</span></dt>
+            <dd><strong>Directional cues:</strong> Spatial audio caption indicating off-screen threat direction.</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
   </details>
   <nav id="rift-practice-links" aria-label="Practice drills"><a href="/abyss/rift?practice=movement">Movement practice</a> · <a href="/abyss/rift?practice=jump">Jump practice</a> · <a href="/abyss/rift?practice=combo">Combo practice</a> · <a href="/abyss/rift?practice=guard">Guard practice</a> · <a href="/abyss/rift?practice=hazard">Hazard practice</a></nav>
   <section id="rift-practice-guide" hidden aria-label="Practice drill"><h2 id="rift-practice-title"></h2><p id="rift-practice-instructions"></p><p id="rift-practice-progress" role="status"></p><button id="rift-practice-reset" type="button" disabled>Reset drill</button> <a href="/abyss/rift">Return to campaign</a><div id="rift-practice-tools"><button type="button" data-practice-action="practice_health" disabled>Refill health</button><button type="button" data-practice-action="practice_mana" disabled>Refill mana</button><button type="button" data-practice-action="practice_cooldowns" disabled>Reset skill cooldowns</button><p class="rift-fine">These controls pause the drill and preserve its progress. Resume when ready. Cooldown reset affects learned abilities only.</p><p id="rift-practice-tool-status" role="status"></p></div><p>No loot or campaign records are earned here. Your campaign save is kept separately.</p></section>
@@ -79,7 +140,7 @@
         <p id="rift-banking-status" class="rift-fine" role="status"></p><details id="rift-receipt" class="rift-receipt" hidden><summary>Banked loot receipt</summary><p id="rift-receipt-total" class="rift-fine"></p><p id="rift-banked-at" class="rift-fine"></p><label for="rift-receipt-rarity">Receipt rarity<select id="rift-receipt-rarity"><option value="all">All banked gear</option><option value="rare">Rare or better</option></select></label><p id="rift-receipt-unknown" hidden></p><label for="rift-receipt-search">Find banked gear<input id="rift-receipt-search" type="search" maxlength="100"></label><ul id="rift-receipt-list"></ul><p id="rift-receipt-empty" hidden></p><p id="rift-receipt-limit" hidden></p><button id="rift-copy-receipt" type="button">Copy receipt</button><p id="rift-receipt-copy-status" role="status"></p><a href="/inventory">Open inventory ↗</a></details>
       </section>
       <section><h3>Your build</h3><p id="rift-build" class="rift-fine">Connecting to your Abyss character…</p><p id="rift-sequence" class="rift-fine"></p><div id="rift-loadout" class="rift-loadout"></div><details><summary>Equipped gear</summary><ul id="rift-gear" class="rift-fine"></ul></details><a class="rift-build-link" href="/abyss">Manage class & build in Abyss ↗</a><p class="rift-fine">Your selected class, subclass, permanent stats and equipped skills carry over with action-mode tuning. The loadout is fixed for this expedition.</p></section>
-      <details class="rift-settings"><summary>Sound & display</summary><label for="rift-effects-volume">Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label for="rift-ambience-volume">Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label for="rift-reduced"><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><label for="rift-confirm-boss"><input id="rift-confirm-boss" type="checkbox"> Require confirmation after a boss tier clear</label><label for="rift-pause-boss-room"><input id="rift-pause-boss-room" type="checkbox"> Pause before entering boss rooms</label><label for="rift-pause-new-region"><input id="rift-pause-new-region" type="checkbox"> Pause before entering a new region</label><label for="rift-fullscreen-controls"><input id="rift-fullscreen-controls" type="checkbox"> Show controls before entering fullscreen</label><label for="rift-transition-delay">Automatic transition delay <select id="rift-transition-delay" aria-describedby="rift-transition-delay-note"><option value="1.2">1.2 seconds (default)</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label><p id="rift-transition-delay-note" class="rift-fine">Applies with Seamless tiers enabled. Continue now skips the wait. Changing this setting restarts the current countdown.</p><button id="rift-open-controls-reference" type="button">Combat controls reference</button><button id="rift-system-motion" type="button">Use system motion setting</button><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
+      <details class="rift-settings"><summary>Sound & display</summary><label for="rift-effects-volume">Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label for="rift-ambience-volume">Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label for="rift-reduced"><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><label for="rift-confirm-boss"><input id="rift-confirm-boss" type="checkbox"> Require confirmation after a boss tier clear</label><label for="rift-pause-boss-room"><input id="rift-pause-boss-room" type="checkbox"> Pause before entering boss rooms</label><label for="rift-pause-new-region"><input id="rift-pause-new-region" type="checkbox"> Pause before entering a new region</label><label for="rift-fullscreen-controls"><input id="rift-fullscreen-controls" type="checkbox"> Show controls before entering fullscreen</label><label for="rift-transition-delay">Automatic transition delay <select id="rift-transition-delay" aria-describedby="rift-transition-delay-note"><option value="1.2">1.2 seconds (default)</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label><p id="rift-transition-delay-note" class="rift-fine">Applies with Seamless tiers enabled. Continue now skips the wait. Changing this setting restarts the current countdown.</p><button id="rift-open-controls-reference" type="button">Combat controls reference</button><button id="rift-open-legend-reference" type="button">Color &amp; symbol legend</button><button id="rift-system-motion" type="button">Use system motion setting</button><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
     </aside>
   </div>
   <details class="rift-bestiary">
