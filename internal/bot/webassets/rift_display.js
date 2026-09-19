@@ -97,8 +97,10 @@
     if(collapse&&collapse.checked){collapse.checked=false;try{const saved=JSON.parse(localStorage.getItem('riftCampaignView')||'{}');if(saved&&typeof saved==='object'){saved.startCollapsed=false;localStorage.setItem('riftCampaignView',JSON.stringify(saved));}}catch(_){}collapse.dispatchEvent(new Event('change'));}
     const readout=document.getElementById('rift-input-readout-enabled');
     if(readout&&readout.checked){readout.checked=false;try{localStorage.removeItem('riftInputReadout');}catch(_){}readout.dispatchEvent(new Event('change'));}
-    const captions=document.getElementById('rift-captions');
-    if(captions&&captions.checked){captions.checked=false;try{localStorage.removeItem('riftCaptions');}catch(_){}captions.dispatchEvent(new Event('change'));}
+    const combatCaptions=document.getElementById('rift-combat-captions');
+    if(combatCaptions&&combatCaptions.checked){combatCaptions.checked=false;try{localStorage.removeItem('riftCaptions');}catch(_){}combatCaptions.dispatchEvent(new Event('change'));}
+    const dirCaptions=document.getElementById('rift-directional-threat-captions');
+    if(dirCaptions&&dirCaptions.checked){dirCaptions.checked=false;try{localStorage.removeItem('riftDirectionalCaptions');}catch(_){}dirCaptions.dispatchEvent(new Event('change'));}
     const previewAuto=document.getElementById('rift-mission-preview-auto');
     if(previewAuto&&previewAuto.checked){previewAuto.checked=false;try{localStorage.removeItem('riftPreviewOpen');}catch(_){}previewAuto.dispatchEvent(new Event('change'));}
     masterStatus.textContent='All sound, display, and workflow preferences restored to defaults.';
