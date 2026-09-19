@@ -18,6 +18,17 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   renderer.preview = level => { previewLevel = level; };
+  function combatTextProperties(e) {
+    let color='#fff0bb',label=String(Math.round(e.value||0));
+    if(e.kind==='hurt'){color='#ffb2a0';}
+    else if(e.kind==='block'){color='#7fd7ff';label='🛡️ Guarded'+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
+    else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
+    else if(e.kind==='heal'){color='#a8f0b0';label='+'+Math.round(e.value)+' HP';}
+    else if(e.kind==='barrier'){color='#c6a8f8';label='+'+Math.round(e.value)+' Barrier';}
+    return {color,label};
+  }
+  renderer.combatText = combatTextProperties;
   const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
@@ -307,12 +318,13 @@
     if (unit.pose === 'windup') col = 8;
     if (unit.guard) col = 7;
     if (unit.jump > 0) col = 6;
-    if (unit.pose === 'hit') col = 12;
+    if (unit.pose === 'hit' && !unit.guard) col = 12;
     if (unit.knockdown > 0) col = 13;
     if (unit.id === 'player' && snapshot.status === 'cleared' && unit.pose !== 'run') col = 15;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     if(shared)catalogActor(unit,unit.pose,x-camera,y-jump,size,1);else sprite(row,col,x-camera,y-jump,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
+    if (unit.guard && unit.pose === 'hit') fx(3,2,x-camera,y-size*.4,105,.85);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
       if(!display.cleanScreenshot&&display.healthBars){
         ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
@@ -578,16 +590,10 @@
     effects.forEach(e=>{
       const age=(now-e.started)/750;
       if(effectRows[e.kind]!==undefined && (!renderer.reduced || e.kind==='pickup') && (e.kind!=='pickup'||display.lootSparkle))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
-      if(!display.cleanScreenshot && e.value>0 && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block') && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
-        let color='#fff0bb';
-        let label=String(Math.round(e.value));
-        if(e.kind==='hurt'){color='#ffb2a0';}
-        else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
-        else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
-        else if(e.kind==='heal'){color='#a8f0b0';label='+'+Math.round(e.value)+' HP';}
-        else if(e.kind==='barrier'){color='#c6a8f8';label='+'+Math.round(e.value)+' Barrier';}
+        const {color,label}=combatTextProperties(e);
         ctx.fillStyle=color;ctx.strokeStyle='#14221d';ctx.lineWidth=3;
         ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));
         ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));

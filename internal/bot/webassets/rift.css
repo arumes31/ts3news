@@ -127,3 +127,5 @@
 .rift-clean-screenshot .rift-transient-counter{display:none!important}
 @media(prefers-reduced-motion:reduce){.rift-transient-counter{animation:none!important;transition:opacity .3s}}
 #rift-app[data-paused] .rift-transient-counter,#rift-app[data-paused] .rift-cooldown-ring{animation-play-state:paused!important}
+#rift-guard-reduction[data-guarded-hit],.rift-basics button[data-bind="guard"][data-guarded-hit]{border-color:#7fd7ff!important;color:#7fd7ff!important;box-shadow:0 0 10px rgba(127,215,255,0.6)!important}
+

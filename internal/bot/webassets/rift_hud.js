@@ -212,7 +212,12 @@
       }
     }
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
-    put($('rift-guard-reduction'),run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
+    const guardNode=$('rift-guard-reduction');
+    put(guardNode,run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
+    const recentGuard=(run.events||[]).some(e=>e.kind==='block'&&(run.counter-e.id)<6);
+    if(recentGuard)guardNode.dataset.guardedHit='';else delete guardNode.dataset.guardedHit;
+    const guardBtn=document.querySelector('.rift-basics button[data-bind="guard"]');
+    if(guardBtn){if(recentGuard)guardBtn.dataset.guardedHit='';else delete guardBtn.dataset.guardedHit;}
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
     const cam=Math.max(0,Math.min(640,run.player.x-350));
     const offLeft=living.filter(e=>e.x<cam),offRight=living.filter(e=>e.x>cam+960),offTotal=offLeft.length+offRight.length;

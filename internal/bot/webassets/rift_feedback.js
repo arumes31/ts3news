@@ -7,7 +7,7 @@
   const dirLabel=document.createElement('label'),dirCheckbox=document.createElement('input');dirCheckbox.type='checkbox';dirCheckbox.id='rift-directional-threat-captions';dirLabel.htmlFor='rift-directional-threat-captions';dirLabel.append(dirCheckbox,document.createTextNode('Directional captions for off-screen threats'));document.querySelector('.rift-settings').append(dirLabel);
   try{const savedDir=JSON.parse(localStorage.getItem('riftDirectionalCaptions'));dirCheckbox.checked=savedDir?.version===1&&savedDir.enabled===true;}catch(_){}
   let previous=null,seen=0,lastLow=-Infinity,ultimateArmed=false,finisherArmed=false,items=[],expiry=0,lastThreatLeftTime=0,lastThreatLeftCount=0,lastThreatRightTime=0,lastThreatRightCount=0;
-  const labels={boss_roar:'Boss roar',slam:'Ground slam',boss_death:'Boss defeated',clear:'Room secured',defeat:'Expedition ended',pickup:'Loot collected',ultimate:'Ultimate unleashed'};
+  const labels={boss_roar:'Boss roar',slam:'Ground slam',boss_death:'Boss defeated',clear:'Room secured',defeat:'Expedition ended',pickup:'Loot collected',ultimate:'Ultimate unleashed',block:'Attack guarded'};
   function paint(){
     clearTimeout(expiry);const now=performance.now();items=items.filter(item=>item.until>now);list.replaceChildren();
     for(const item of items){const li=document.createElement('li');li.textContent=item.text;list.append(li);}
