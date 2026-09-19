@@ -83,6 +83,8 @@
     if(pauseBoss&&pauseBoss.checked){pauseBoss.checked=false;try{localStorage.removeItem('riftPauseBossRoom');}catch(_){}pauseBoss.dispatchEvent(new Event('change'));}
     const pauseRegion=document.getElementById('rift-pause-new-region');
     if(pauseRegion&&pauseRegion.checked){pauseRegion.checked=false;try{localStorage.removeItem('riftPauseNewRegion');}catch(_){}pauseRegion.dispatchEvent(new Event('change'));}
+    const fsControls=document.getElementById('rift-fullscreen-controls');
+    if(fsControls&&fsControls.checked){fsControls.checked=false;try{localStorage.removeItem('riftFullscreenControls');}catch(_){}fsControls.dispatchEvent(new Event('change'));}
     const transitionDelay=document.getElementById('rift-transition-delay');
     if(transitionDelay&&transitionDelay.value!=='1.2'){transitionDelay.value='1.2';try{localStorage.removeItem('riftTransitionDelay');}catch(_){}transitionDelay.dispatchEvent(new Event('change'));}
     const collapse=document.getElementById('rift-campaign-start-collapsed');

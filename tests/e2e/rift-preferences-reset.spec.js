@@ -31,6 +31,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await page.locator('#rift-confirm-boss').check();
   await page.locator('#rift-pause-boss-room').check();
   await page.locator('#rift-pause-new-region').check();
+  await page.locator('#rift-fullscreen-controls').check();
   await page.locator('#rift-transition-delay').selectOption('5');
   await expect(page.locator('#rift-campaign-start-collapsed')).toBeChecked();
 
@@ -49,6 +50,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-confirm-boss')).toBeChecked();
   await expect(page.locator('#rift-pause-boss-room')).toBeChecked();
   await expect(page.locator('#rift-pause-new-region')).toBeChecked();
+  await expect(page.locator('#rift-fullscreen-controls')).toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('5');
   await expect(page.locator('#rift-campaign-start-collapsed')).toBeChecked();
 
@@ -71,6 +73,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-confirm-boss')).not.toBeChecked();
   await expect(page.locator('#rift-pause-boss-room')).not.toBeChecked();
   await expect(page.locator('#rift-pause-new-region')).not.toBeChecked();
+  await expect(page.locator('#rift-fullscreen-controls')).not.toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('1.2');
   await expect(page.locator('#rift-campaign-start-collapsed')).not.toBeChecked();
 
@@ -89,6 +92,7 @@ test('master reset restores display, audio, and workflow preferences to defaults
   await expect(page.locator('#rift-confirm-boss')).not.toBeChecked();
   await expect(page.locator('#rift-pause-boss-room')).not.toBeChecked();
   await expect(page.locator('#rift-pause-new-region')).not.toBeChecked();
+  await expect(page.locator('#rift-fullscreen-controls')).not.toBeChecked();
   await expect(page.locator('#rift-transition-delay')).toHaveValue('1.2');
   await expect(page.locator('#rift-campaign-start-collapsed')).not.toBeChecked();
 

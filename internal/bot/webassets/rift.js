@@ -11,6 +11,7 @@
   try{$('rift-confirm-boss').checked=localStorage.getItem('riftConfirmBoss')==='true';}catch(_){}
   try{$('rift-pause-boss-room').checked=localStorage.getItem('riftPauseBossRoom')==='true';}catch(_){}
   try{$('rift-pause-new-region').checked=localStorage.getItem('riftPauseNewRegion')==='true';}catch(_){}
+  try{$('rift-fullscreen-controls').checked=localStorage.getItem('riftFullscreenControls')==='true';}catch(_){}
   function awaitingBossConfirmation(){return $('rift-auto').checked&&$('rift-confirm-boss').checked&&run?.room===2;}
   function awaitingBossRoomPause(){return $('rift-auto').checked&&$('rift-pause-boss-room').checked&&run?.room===1&&run?.status==='cleared';}
   function nextRegionEntering(){if(run?.room!==2)return null;const next=levels.find(l=>l.id===(run.level?.id||0)+1);return next&&next.region!==run.level?.region?next:null;}
@@ -18,6 +19,7 @@
   $('rift-confirm-boss').addEventListener('change',()=>{try{localStorage.setItem('riftConfirmBoss',String($('rift-confirm-boss').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-pause-boss-room').addEventListener('change',()=>{try{localStorage.setItem('riftPauseBossRoom',String($('rift-pause-boss-room').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-pause-new-region').addEventListener('change',()=>{try{localStorage.setItem('riftPauseNewRegion',String($('rift-pause-new-region').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
+  $('rift-fullscreen-controls').addEventListener('change',()=>{try{localStorage.setItem('riftFullscreenControls',String($('rift-fullscreen-controls').checked));}catch(_){}});
   let transitionDelay=1.2;
   try{const saved=Number(localStorage.getItem('riftTransitionDelay'));if([1.2,3,5,10].includes(saved))transitionDelay=saved;}catch(_){}
   $('rift-transition-delay').value=String(transitionDelay);
@@ -314,7 +316,38 @@
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));
-  $('rift-fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('rift-viewport').requestFullscreen();}catch(_){status('Fullscreen is unavailable in this browser.');}});
+  async function toggleFullscreen(){
+    try{
+      if(document.fullscreenElement)await document.exitFullscreen();
+      else await $('rift-viewport').requestFullscreen();
+    }catch(_){
+      status('Fullscreen is unavailable in this browser.');
+    }
+  }
+  $('rift-fullscreen').addEventListener('click',async()=>{
+    if(document.fullscreenElement){
+      try{await document.exitFullscreen();}catch(_){}
+      return;
+    }
+    if($('rift-fullscreen-controls').checked){
+      startIntent++;
+      if(playing)await pause();
+      resetInput();
+      if(!controls.opened)controls.open();
+      status('Review your controls before entering fullscreen.');
+      return;
+    }
+    await toggleFullscreen();
+  });
+  $('rift-controls-fullscreen').addEventListener('click',async()=>{
+    if(controls.opened)$('rift-controls-dialog').close();
+    await toggleFullscreen();
+  });
+  document.addEventListener('fullscreenchange',()=>{
+    const inFs=!!document.fullscreenElement;
+    $('rift-fullscreen').setAttribute('aria-pressed',String(inFs));
+    $('rift-controls-fullscreen').textContent=inFs?'Exit fullscreen':'Enter fullscreen';
+  });
   function soundLabel(){$('rift-sound').textContent=audio.muted?'Sound off':'Sound on';$('rift-sound').setAttribute('aria-pressed',String(audio.muted));}
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{$(id).value=audio[key]*100;$(id).addEventListener('input',()=>audio.set(key,Number($(id).value)/100));});
