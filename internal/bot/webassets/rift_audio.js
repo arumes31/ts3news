@@ -175,6 +175,7 @@
     if (!bossMusicNodes) {
       audio.bossMusicActive = false;
       audio.bossCrossfading = false;
+      audio.bossFadingOut = false;
       return;
     }
     const nodes = bossMusicNodes;
@@ -192,11 +193,30 @@
       setTimeout(() => {
         nodes.sources.forEach(s => { try { s.disconnect(); } catch (_) {} });
         nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+        audio.bossFadingOut = false;
       }, (fade + 0.1) * 1000);
     } else {
+      audio.bossFadingOut = false;
       nodes.sources.forEach(s => { try { s.stop(); } catch (_) {} s.disconnect(); });
       nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
     }
+  };
+  audio.bossFadingOut = false;
+  audio.fadeBossMusic = function (customFade) {
+    if (!audio.bossMusicActive && !bossMusicNodes) return false;
+    const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : 1.8;
+    audio.bossFadingOut = true;
+    const c = audio.context;
+    if (c && c.state === 'running' && activeAmbience?.gains?.length) {
+      activeAmbience.gains.slice(1).forEach(g => {
+        try {
+          g.gain.setValueAtTime(g.gain.value, c.currentTime);
+          g.gain.linearRampToValueAtTime(0.017, c.currentTime + fade);
+        } catch (_) {}
+      });
+    }
+    audio.stopBossMusic(fade);
+    return true;
   };
   audio.area = function (index, customFade) {
     if (room === index && activeAmbience?.sources?.length) return;

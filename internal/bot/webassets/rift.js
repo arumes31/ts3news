@@ -152,7 +152,7 @@
     $('rift-hp-fill').style.width=Math.max(0,100*run.player.hp/run.player.max_hp)+'%';
     put($('rift-mana'),Math.floor(run.player.mana)+' MP');$('rift-mana-fill').style.width=run.player.mana+'%';
     put($('rift-room'),'Mission '+(run.level?.id||1)+' · Tier '+(run.room+1)+'/3 · '+(rooms[run.room]||'Mossbound Ruins'));
-    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';put($('rift-boss-name'),boss.name);$('rift-boss-name').title=boss.name;if(playing&&['fighting'].includes(run.status)&&!run.paused&&!audio.bossMusicActive)audio.startBossMusic?.();}
+    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';put($('rift-boss-name'),boss.name);$('rift-boss-name').title=boss.name;if(playing&&['fighting'].includes(run.status)&&!run.paused&&!audio.bossMusicActive)audio.startBossMusic?.();}else if(audio.bossMusicActive){audio.fadeBossMusic?.(1.8);}
     const finalBoss=run.encounter_plan?.[2]?.find(e=>e.kind==='boss')||run.enemies.find(e=>e.kind==='boss');
     put($('rift-route-boss'),finalBoss?'Defeat '+finalBoss.name:'Defeat an Abyss boss');
     window.RiftLoot.update(run,replay);
@@ -208,6 +208,7 @@
     }
     if(['defeated','complete','banked','expired'].includes(run.status)){
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
+      if(audio.bossMusicActive)audio.fadeBossMusic?.(1.8);
       const lost=run.status==='defeated';
       message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
