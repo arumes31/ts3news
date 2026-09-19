@@ -35,13 +35,14 @@
     const fresh=identity!==pickupIdentity;
     const picked=value.drops.filter(d=>d.collected&&!d.banked&&!collected.has(d.id));
     collected=new Set(value.drops.filter(d=>d.collected).map(d=>d.id));pickupIdentity=identity;
-    if(fresh||replay||!['fighting','cleared'].includes(value.status)){clearTimeout(pickupTimer);notices.replaceChildren();notices.hidden=true;return;}
+    if(fresh||replay||!['fighting','cleared'].includes(value.status)){clearTimeout(pickupTimer);delete notices.dataset.confirmed;notices.replaceChildren();notices.hidden=true;return;}
     if(!picked.length)return;
     const gold=picked.reduce((sum,d)=>sum+d.gold,0),gear=picked.filter(d=>d.gear).map(d=>d.gear.Name);
     notices.replaceChildren();
-    if(gold>0)create('p','Gold picked up: +'+format.format(gold)+' · unbanked',notices);
-    if(gear.length)create('p','Gear picked up: '+gear.slice(0,3).join(', ')+(gear.length>3?' and '+(gear.length-3)+' more':'')+' · unbanked',notices);
-    notices.hidden=!notices.childElementCount;clearTimeout(pickupTimer);pickupTimer=setTimeout(()=>{notices.hidden=true;notices.replaceChildren();},4000);
+    if(gold>0)create('p','✓ Gold picked up: +'+format.format(gold)+' · unbanked',notices);
+    if(gear.length)create('p','✓ Gear picked up: '+gear.slice(0,3).join(', ')+(gear.length>3?' and '+(gear.length-3)+' more':'')+' · unbanked',notices);
+    notices.dataset.confirmed='true';
+    notices.hidden=!notices.childElementCount;clearTimeout(pickupTimer);pickupTimer=setTimeout(()=>{notices.hidden=true;delete notices.dataset.confirmed;notices.replaceChildren();},4000);
   }
   function bag(){
     if(!run)return;

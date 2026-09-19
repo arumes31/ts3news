@@ -29,6 +29,22 @@
     return {color,label};
   }
   renderer.combatText = combatTextProperties;
+  function drawStaticPickup(targetCtx, x, y) {
+    targetCtx.save();
+    targetCtx.strokeStyle = '#ffe082';
+    targetCtx.fillStyle = '#ffe08233';
+    targetCtx.lineWidth = 2;
+    targetCtx.beginPath();
+    targetCtx.arc(x, y, 16, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.stroke();
+    targetCtx.font = 'bold 11px monospace';
+    targetCtx.fillStyle = '#ffe082';
+    targetCtx.textAlign = 'center';
+    targetCtx.fillText('✓', x, y + 4);
+    targetCtx.restore();
+  }
+  renderer.drawStaticPickup = drawStaticPickup;
   const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
@@ -589,14 +605,16 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
-      if(effectRows[e.kind]!==undefined && (!renderer.reduced || e.kind==='pickup') && (e.kind!=='pickup'||display.lootSparkle))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(effectRows[e.kind]!==undefined && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
       if(!display.cleanScreenshot && (e.value>0 || e.kind==='block') && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);
         ctx.fillStyle=color;ctx.strokeStyle='#14221d';ctx.lineWidth=3;
-        ctx.strokeText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));
-        ctx.fillText(label,e.x-camera,e.y-(display.damageMotion?age*38*motion:0));
+        const drift = (renderer.reduced || !display.damageMotion) ? 0 : age*38*motion;
+        ctx.strokeText(label,e.x-camera,e.y-drift);
+        ctx.fillText(label,e.x-camera,e.y-drift);
       }
     });
     if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}

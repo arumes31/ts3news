@@ -54,7 +54,7 @@
 
 #rift-class-coaching{padding:12px 16px;border-top:1px solid var(--rift-line)}#rift-class-coaching p{font-size:12px;line-height:1.5}
 
-#rift-pickup-notices{padding:8px 16px;border-top:1px solid var(--rift-line);font:11px/1.5 ui-monospace,monospace;color:#e8d9b0}#rift-pickup-notices p{margin:3px 0;overflow-wrap:anywhere}
+#rift-pickup-notices{padding:8px 16px;border-top:1px solid var(--rift-line);border-left:3px solid #ffe082;background:#102217;font:11px/1.5 ui-monospace,monospace;color:#e8d9b0}#rift-pickup-notices[data-confirmed]{border-left-color:#ffe082}#rift-pickup-notices p{margin:3px 0;overflow-wrap:anywhere}
 
 .rift-region-badge{display:inline-block;max-width:100%;box-sizing:border-box;padding:7px 12px;margin:0 0 10px;border:1px solid #8c7946;border-radius:4px;background:#302c1b;color:#f2d797;font-size:12px;line-height:1.5}.rift-region-badge[hidden]{display:none}
 
