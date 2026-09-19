@@ -108,20 +108,74 @@
     }
   };
   function stopVoices(){for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
-  function stopAmbience() { ambientNodes.forEach(node => { try { node.stop(); } catch (_) {} node.disconnect(); }); ambientNodes = []; }
-  audio.area = function (index) {
-    if (room === index && ambientNodes.length) return;
-    room = index; stopAmbience();
+  let activeAmbience = null; const outgoingAmbience = new Set();
+  audio.crossfading = false;
+  audio.currentRegion = -1;
+  function stopAmbience() {
+    if(activeAmbience){activeAmbience.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});activeAmbience.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
+    for(const group of outgoingAmbience){group.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});group.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
+    outgoingAmbience.clear();activeAmbience=null;ambientNodes=[];audio.crossfading=false;
+  }
+  audio.area = function (index, customFade) {
+    if (room === index && activeAmbience?.sources?.length) return;
+    const prevRoom = room;
+    room = index;
     const c = audio.context; if (!c||!active) return;
-    const wind = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
+    const prevRegion = prevRoom >= 0 ? Math.floor(prevRoom / 3) : -1;
     const region=Math.floor(index/3), tier=index%3;
-    wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = [460,780,1100,640,350,260,500,390,180,220][region]||460; gain.gain.value = .14;
-    wind.connect(filter); filter.connect(gain); gain.connect(ambient); wind.onended = () => { filter.disconnect(); gain.disconnect(); }; wind.start(); ambientNodes.push(wind);
+    audio.currentRegion = region;
+    const hasPrevious = Boolean(activeAmbience?.sources?.length);
+    const isRegionTransition = hasPrevious && prevRegion >= 0 && prevRegion !== region;
+    const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : isRegionTransition ? 1.5 : hasPrevious ? 0.6 : 0;
+    if (hasPrevious) {
+      const old = activeAmbience;
+      outgoingAmbience.add(old);
+      const stopTime = c.currentTime + fade;
+      old.gains.forEach(g => {
+        try { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0.0001, stopTime); } catch (_) {}
+      });
+      old.sources.forEach(s => { try { s.stop(stopTime + 0.05); } catch (_) {} });
+      if (fade > 0) {
+        audio.crossfading = true;
+        setTimeout(() => {
+          old.sources.forEach(s => { try { s.disconnect(); } catch (_) {} });
+          old.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+          outgoingAmbience.delete(old);
+          if (outgoingAmbience.size === 0) audio.crossfading = false;
+        }, (fade + 0.1) * 1000);
+      } else {
+        old.sources.forEach(s => { try { s.stop(); } catch (_) {} s.disconnect(); });
+        old.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+        outgoingAmbience.delete(old);
+      }
+    }
+    const currentSources = [], currentGains = [];
+    const wind = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
+    wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = [460,780,1100,640,350,260,500,390,180,220][region]||460;
+    if (fade > 0 && hasPrevious) {
+      gain.gain.setValueAtTime(0.0001, c.currentTime);
+      gain.gain.linearRampToValueAtTime(.14, c.currentTime + fade);
+    } else {
+      gain.gain.value = .14;
+    }
+    wind.connect(filter); filter.connect(gain); gain.connect(ambient);
+    wind.onended = () => { filter.disconnect(); gain.disconnect(); };
+    wind.start();
+    currentSources.push(wind); currentGains.push(gain);
     const root=[130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region]||130.81;
     [root,root*1.5,root*2].map(f=>f*(tier===2?.75:tier===1?.9:1)).forEach(f => {
-      const osc = c.createOscillator(), level = c.createGain(); osc.type = 'sine'; osc.frequency.value = f; level.gain.value = .017;
-      osc.connect(level); level.connect(music); osc.onended = () => level.disconnect(); osc.start(); ambientNodes.push(osc);
+      const osc = c.createOscillator(), level = c.createGain(); osc.type = 'sine'; osc.frequency.value = f;
+      if (fade > 0 && hasPrevious) {
+        level.gain.setValueAtTime(0.0001, c.currentTime);
+        level.gain.linearRampToValueAtTime(.017, c.currentTime + fade);
+      } else {
+        level.gain.value = .017;
+      }
+      osc.connect(level); level.connect(music); osc.onended = () => level.disconnect(); osc.start();
+      currentSources.push(osc); currentGains.push(level);
     });
+    activeAmbience = { sources: currentSources, gains: currentGains };
+    ambientNodes = currentSources;
     nextBird = c.currentTime + 2;
   };
   audio.tick = function () {

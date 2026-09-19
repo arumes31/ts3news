@@ -29,7 +29,8 @@
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
-  function silence(){try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
+  let lastAudioArea = -1;
+  function silence(){lastAudioArea=-1;try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
   function setSafeDisabled(node, disabled) {
@@ -134,7 +135,14 @@
     const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
     if(gamePaused)root.dataset.paused='';else delete root.dataset.paused;
     setSafeDisabled($('rift-settings-return'),!controlsEnabled);
-    if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
+    if(run.level){
+      if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;
+      rooms=run.level.rooms.map(room=>room.name);
+      if(playing&&['fighting','cleared'].includes(run.status)&&!run.paused){
+        const areaIdx=(run.level?.region||0)*3+(run.room||0);
+        if(areaIdx!==lastAudioArea){lastAudioArea=areaIdx;audio.area(areaIdx);}
+      }
+    }
     updateCampaign();
     $('rift-transition').hidden=run.status!=='cleared'||!playing||!$('rift-auto').checked;
     $('rift-vitals').hidden=false;put($('rift-name'),run.build.name);put($('rift-class'),run.build.class);
@@ -239,6 +247,7 @@
   }
   async function loop(){
     if(!playing)return;
+    audio.tick?.();
     if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
         if(awaitingBossConfirmation()||awaitingBossRoomPause()||awaitingNewRegionPause()){timer=setTimeout(loop,85);return;}
@@ -285,7 +294,8 @@
     if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;await load();return;}
     starting=true;const intent=++startIntent;
     try{
-      try{await audio.setActive(true,(run?.level?.region||0)*3+(run?.room||0));}catch(_){silence();}
+      const areaIdx=(run?.level?.region||0)*3+(run?.room||0);lastAudioArea=areaIdx;
+      try{await audio.setActive(true,areaIdx);}catch(_){silence();}
       if(intent!==startIntent||document.hidden){silence();return;}
       const resume=run&&(run.status==='fighting'||run.status==='cleared');
       if(await send(resume?'resume':practice&&run&&run.status!=='expired'?'practice_reset':'start')){
