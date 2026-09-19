@@ -33,8 +33,23 @@
   const label=id=>(!dialog.open&&window.RiftGamepad?.active&&window.RiftGamepad.label(id))||(bindings[id]||[]).map(keyName).join(' / ');
   const status=message=>$('rift-binding-status').textContent=message;
   function prompts(){
-    document.querySelectorAll('[data-bind]').forEach(node=>{const kbd=node.querySelector('kbd'),text=label(node.dataset.bind);if(kbd&&kbd.textContent!==text)kbd.textContent=text;});
-    const movement=$('rift-movement-keys'),text=window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join(' ');if(movement&&movement.textContent!==text)movement.textContent=text;
+    document.querySelectorAll('[data-bind]').forEach(node=>{
+      const kbd=node.querySelector('kbd'),text=label(node.dataset.bind);
+      if(kbd){
+        kbd.setAttribute('aria-hidden','true');
+        if(kbd.textContent!==text)kbd.textContent=text;
+      }
+      if(text&&node.dataset.bind){
+        node.setAttribute('aria-keyshortcuts',text);
+      }
+    });
+    const movement=$('rift-movement-keys'),text=window.RiftGamepad?.active?'Stick / D-pad':['up','left','down','right'].map(id=>keyName(bindings[id][0])).join(' ');
+    if(movement){
+      movement.setAttribute('aria-hidden','true');
+      if(movement.textContent!==text)movement.textContent=text;
+      const hint=movement.closest('.rift-move-hint');
+      if(hint)hint.setAttribute('aria-label','Movement: '+text);
+    }
     const descriptionText='Battlefield. '+description();if($('rift-canvas').getAttribute('aria-label')!==descriptionText)$('rift-canvas').setAttribute('aria-label',descriptionText);
   }
   function plainTextReference(){

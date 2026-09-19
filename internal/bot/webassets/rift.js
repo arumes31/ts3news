@@ -71,6 +71,28 @@
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
+  function updatePauseButton(isPlaying){
+    const btn=$('rift-pause');
+    if(!btn)return;
+    const action=isPlaying?'Pause':'Resume';
+    const key=controls?.label('pause')||'Esc';
+    let labelSpan=btn.querySelector('.rift-action-label');
+    if(!labelSpan){
+      labelSpan=document.createElement('span');
+      labelSpan.className='rift-action-label';
+      btn.replaceChildren(labelSpan);
+    }
+    labelSpan.textContent=action;
+    let kbd=btn.querySelector('kbd');
+    if(!kbd){
+      kbd=document.createElement('kbd');
+      btn.append(document.createTextNode(' '),kbd);
+    }
+    kbd.textContent=key;
+    kbd.setAttribute('aria-hidden','true');
+    btn.setAttribute('aria-label',action+' expedition');
+    btn.setAttribute('aria-keyshortcuts',key);
+  }
   async function request(method, body) {
     const started = performance.now();
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
@@ -132,7 +154,7 @@
       currentSkillIDs=signature;
       replacePreservingFocus($('rift-skills'),()=>{
         run.build.skills.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.title=s.name+' · '+s.cost+' MP · '+s.cooldown+'s cooldown';btn.setAttribute('aria-label',s.name);text('span','',btn,'rift-skill-icon');text('kbd',String(i+1),btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',String(i+1));text('span','',btn,'rift-skill-icon');const kbd=text('kbd',String(i+1),btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -147,7 +169,7 @@
       $('rift-signatures').dataset.ids=specialIDs;
       replacePreservingFocus($('rift-signatures'),()=>{
         specials.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;const defaultKey=s===run.build.ultimate?'R':i?'E':'Q';btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',defaultKey);const kbd=text('kbd',defaultKey,btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -166,7 +188,7 @@
     if(awaitingBossRoomPause())put($('rift-transition'),'Boss room ahead · Prepare and confirm when ready.');
     put($('rift-next'),awaitingNewRegionPause()?'Enter next region →':awaitingBossConfirmation()?'Confirm & continue →':awaitingBossRoomPause()?'Enter boss room →':$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →');
     setSafeDisabled($('rift-pause'),!playing&&run.status!=='fighting'&&run.status!=='cleared');
-    put($('rift-pause'),(playing?'Pause · ':'Resume · ')+controls.label('pause'));
+    updatePauseButton(playing);
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(practice){
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
@@ -251,7 +273,7 @@
     // Wait for the single pending input request, then persist the pause.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
     if(!run||!['fighting','cleared'].includes(run.status))return;
-    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');$('rift-pause').textContent='Resume · '+controls.label('pause');$('rift-room-actions').hidden=true;}
+    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');updatePauseButton(false);$('rift-room-actions').hidden=true;}
   }
   async function begin(){
     if(busy||starting||practiceToolPending||controls.opened)return;

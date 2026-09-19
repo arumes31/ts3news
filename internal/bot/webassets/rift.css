@@ -543,3 +543,29 @@
   }
 }
 
+.rift-action-label {
+  display: inline-block;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+.rift-move-label {
+  display: inline-block;
+  text-transform: capitalize;
+}
+#rift-app .rift-stage-top #rift-pause {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#rift-app .rift-stage-top #rift-pause kbd {
+  margin-left: 2px;
+}
+.rift-no-keycaps kbd,
+#rift-app.rift-no-keycaps kbd,
+.rift-actionbar.rift-no-keycaps kbd,
+.rift-classbar.rift-no-keycaps kbd {
+  display: none !important;
+}
+
+

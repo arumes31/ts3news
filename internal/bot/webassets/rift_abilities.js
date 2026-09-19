@@ -24,15 +24,17 @@
     const role=ultimate?'ultimate':skill.role,identity=roles[role];
     let ring=button.querySelector('.rift-cooldown-ring');
     if(!ring){ring=document.createElement('span');ring.className='rift-cooldown-ring';ring.setAttribute('aria-hidden','true');button.append(ring);}
+    const kbd=button.querySelector('kbd');
+    if(kbd)kbd.setAttribute('aria-hidden','true');
     let marker=button.querySelector('.rift-role-mark');
-    if(identity&&!marker){marker=document.createElement('span');marker.className='rift-role-mark';marker.setAttribute('aria-hidden','true');button.querySelector('kbd').after(marker);}
+    if(identity&&!marker){marker=document.createElement('span');marker.className='rift-role-mark';marker.setAttribute('aria-hidden','true');if(kbd)kbd.after(marker);else button.prepend(marker);}
     if(marker){marker.textContent=identity?.[0]||'';marker.hidden=!identity;}
     const remaining=Math.max(0,run.skill_timers[skill.id]||0),duration=Math.max(0,skill.cooldown),cooling=remaining>0;
     ring.style.setProperty('--cooldown-progress',(duration?Math.min(1,remaining/duration)*100:0)+'%');
     ring.hidden=!cooling;
     const cost=healthCost(run,skill),name=skill.name+(identity?' · '+identity[1]:'')+(cost>0?' · Spends '+cost.toFixed(1)+' HP':'');
     button.setAttribute('aria-label',name+' · '+reason);
-    button.title=name+' · '+skill.cost+' MP · '+skill.cooldown+'s cooldown · '+reason;
+    button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
   }
   window.RiftAbilities={update,healthCost,describe};
