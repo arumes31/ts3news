@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
-  let announced='',summaryKey='';
+  let announced='',summaryKey='',lastAnnouncedBossAttack='';
   let coachingDismissed=false;
   try{coachingDismissed=localStorage.getItem('riftClassCoachingDismissed')==='true';}catch(_){}
   const coaching=document.createElement('div');coaching.id='rift-class-coaching';coaching.hidden=true;coaching.innerHTML='<p role="status"></p><button type="button">Dismiss class coaching</button>';document.querySelector('.rift-run-statistics').before(coaching);
@@ -388,11 +388,22 @@
           const attack=boss.attack_name||(boss.art_key&&(boss.attacks+1)%2===0?'Aimed Volley':'Ground Slam');
           put(bossAttackNode,'⚡ '+attack+' · '+boss.windup.toFixed(1)+'s windup');
           bossAttackNode.hidden=false;
+          if(playing&&!run.paused){
+            const attackKey=(boss.attacks||0)+':'+attack;
+            if(lastAnnouncedBossAttack!==attackKey){
+              lastAnnouncedBossAttack=attackKey;
+              put($('rift-announcer'),'Boss preparing '+attack+' · '+Math.ceil(boss.windup)+'s windup.');
+            }
+          }
         }else{
           bossAttackNode.hidden=true;
+          lastAnnouncedBossAttack='';
         }
       }
-    }else if($('rift-boss-attack'))$('rift-boss-attack').hidden=true;
+    }else{
+      if($('rift-boss-attack'))$('rift-boss-attack').hidden=true;
+      lastAnnouncedBossAttack='';
+    }
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }

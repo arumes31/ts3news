@@ -7,7 +7,7 @@
   const controls=window.RiftControls;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
-  let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0, challenge = null;
+  let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0, challenge = null, countdownAnnounced = -1;
   try{$('rift-confirm-boss').checked=localStorage.getItem('riftConfirmBoss')==='true';}catch(_){}
   try{$('rift-pause-boss-room').checked=localStorage.getItem('riftPauseBossRoom')==='true';}catch(_){}
   try{$('rift-pause-new-region').checked=localStorage.getItem('riftPauseNewRegion')==='true';}catch(_){}
@@ -16,14 +16,14 @@
   function awaitingBossRoomPause(){return $('rift-auto').checked&&$('rift-pause-boss-room').checked&&run?.room===1&&run?.status==='cleared';}
   function nextRegionEntering(){if(run?.room!==2)return null;const next=levels.find(l=>l.id===(run.level?.id||0)+1);return next&&next.region!==run.level?.region?next:null;}
   function awaitingNewRegionPause(){return $('rift-auto').checked&&$('rift-pause-new-region').checked&&run?.room===2&&run?.status==='cleared'&&!!nextRegionEntering();}
-  $('rift-confirm-boss').addEventListener('change',()=>{try{localStorage.setItem('riftConfirmBoss',String($('rift-confirm-boss').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
-  $('rift-pause-boss-room').addEventListener('change',()=>{try{localStorage.setItem('riftPauseBossRoom',String($('rift-pause-boss-room').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
-  $('rift-pause-new-region').addEventListener('change',()=>{try{localStorage.setItem('riftPauseNewRegion',String($('rift-pause-new-region').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
+  $('rift-confirm-boss').addEventListener('change',()=>{try{localStorage.setItem('riftConfirmBoss',String($('rift-confirm-boss').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
+  $('rift-pause-boss-room').addEventListener('change',()=>{try{localStorage.setItem('riftPauseBossRoom',String($('rift-pause-boss-room').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
+  $('rift-pause-new-region').addEventListener('change',()=>{try{localStorage.setItem('riftPauseNewRegion',String($('rift-pause-new-region').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
   $('rift-fullscreen-controls').addEventListener('change',()=>{try{localStorage.setItem('riftFullscreenControls',String($('rift-fullscreen-controls').checked));}catch(_){}});
   let transitionDelay=1.2;
   try{const saved=Number(localStorage.getItem('riftTransitionDelay'));if([1.2,3,5,10].includes(saved))transitionDelay=saved;}catch(_){}
   $('rift-transition-delay').value=String(transitionDelay);
-  $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
+  $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;countdownAnnounced=-1;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
   const practice=root.dataset.practice||'', drillNames={movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const challengeParam=new URLSearchParams(location.search).get('challenge');
@@ -105,8 +105,8 @@
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
-    if(value.status !== 'cleared' || replay) clearedAt = 0;
-    else if(!clearedAt) clearedAt = performance.now();
+    if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
+    else if(!clearedAt) { clearedAt = performance.now(); countdownAnnounced = -1; }
     run=value;window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
@@ -220,12 +220,26 @@
     if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
         if(awaitingBossConfirmation()||awaitingBossRoomPause()||awaitingNewRegionPause()){timer=setTimeout(loop,85);return;}
-        if(!clearedAt)clearedAt=performance.now();
+        if(!clearedAt){clearedAt=performance.now();countdownAnnounced=-1;}
         const remaining=Math.max(0,transitionDelay-(performance.now()-clearedAt)/1000);
         const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
-        $('rift-transition').textContent=remaining>0?'Next: '+(next||'campaign complete')+' · '+remaining.toFixed(1)+'s':'Banking rewards…';
+        const nextLabel=next||'campaign complete';
+        $('rift-transition').textContent=remaining>0?'Next: '+nextLabel+' · '+remaining.toFixed(1)+'s':'Banking rewards…';
+        if(countdownAnnounced===-1){
+          countdownAnnounced=Math.ceil(remaining);
+          put($('rift-announcer'),'Next tier: '+(next||'next chamber')+' in '+Math.ceil(transitionDelay)+' seconds. Automatic transition enabled.');
+        }else if(remaining===0&&countdownAnnounced!==0){
+          countdownAnnounced=0;
+          put($('rift-announcer'),'Banking rewards and advancing to '+(next||'next tier')+'…');
+        }else if(transitionDelay>=5){
+          const sec=Math.ceil(remaining);
+          if((sec===3||sec===1)&&sec<countdownAnnounced){
+            countdownAnnounced=sec;
+            put($('rift-announcer'),sec+' seconds until next tier.');
+          }
+        }
         if(remaining===0)await send('advance');
-      }else await send('step');
+      }else{countdownAnnounced=-1;await send('step');}
     }
     if(playing)timer=setTimeout(loop,85);
   }
@@ -233,7 +247,7 @@
     if(!playing)return;
     playing=false;clearTimeout(timer);resetInput();silence();
     if(run)window.RiftHUD.update(run,false);
-    clearedAt=0;$('rift-transition').hidden=true;
+    clearedAt=0;countdownAnnounced=-1;$('rift-transition').hidden=true;
     // Wait for the single pending input request, then persist the pause.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
     if(!run||!['fighting','cleared'].includes(run.status))return;
@@ -445,7 +459,7 @@
     });
   }
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
-  $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
+  $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));
   async function toggleFullscreen(){
     try{
