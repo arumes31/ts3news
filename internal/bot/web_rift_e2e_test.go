@@ -5,6 +5,7 @@ package bot
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -98,7 +99,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		if r.URL.Query().Get("scenario") == "checkpoint" {
 			mu.Lock()
-			run := rift.NewRunAtLevel("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
+			levelID := 1
+			if l, err := strconv.Atoi(r.URL.Query().Get("level")); err == nil && l > 0 {
+				levelID = l
+			}
+			run := rift.NewRunAtLevel("checkpoint", selectedBuild, time.Now(), riftMobCatalog(time.Now()), levelID)
 			if r.URL.Query().Get("room") == "final" {
 				run.Room = 2
 				run.Level.Rooms[2].Hazards = nil
@@ -118,7 +123,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				http.Error(w, lootErr.Error(), 500)
 				return
 			}
-			run.Drops = []rift.Drop{{Mission: 1, Tier: run.Room + 1, ID: "fixture-drop", Gold: 30, Collected: true, Gear: &gear}}
+			run.Drops = []rift.Drop{{Mission: run.Level.ID, Tier: run.Room + 1, ID: "fixture-drop", Gold: 30, Collected: true, Gear: &gear}}
 			run.Gold = 30
 			for i := range run.Enemies {
 				run.Enemies[i].HP = 0

@@ -10,10 +10,14 @@
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0;
   try{$('rift-confirm-boss').checked=localStorage.getItem('riftConfirmBoss')==='true';}catch(_){}
   try{$('rift-pause-boss-room').checked=localStorage.getItem('riftPauseBossRoom')==='true';}catch(_){}
+  try{$('rift-pause-new-region').checked=localStorage.getItem('riftPauseNewRegion')==='true';}catch(_){}
   function awaitingBossConfirmation(){return $('rift-auto').checked&&$('rift-confirm-boss').checked&&run?.room===2;}
   function awaitingBossRoomPause(){return $('rift-auto').checked&&$('rift-pause-boss-room').checked&&run?.room===1&&run?.status==='cleared';}
+  function nextRegionEntering(){if(run?.room!==2)return null;const next=levels.find(l=>l.id===(run.level?.id||0)+1);return next&&next.region!==run.level?.region?next:null;}
+  function awaitingNewRegionPause(){return $('rift-auto').checked&&$('rift-pause-new-region').checked&&run?.room===2&&run?.status==='cleared'&&!!nextRegionEntering();}
   $('rift-confirm-boss').addEventListener('change',()=>{try{localStorage.setItem('riftConfirmBoss',String($('rift-confirm-boss').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   $('rift-pause-boss-room').addEventListener('change',()=>{try{localStorage.setItem('riftPauseBossRoom',String($('rift-pause-boss-room').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
+  $('rift-pause-new-region').addEventListener('change',()=>{try{localStorage.setItem('riftPauseNewRegion',String($('rift-pause-new-region').checked));}catch(_){}clearedAt=0;if(run)update(run,true);});
   let transitionDelay=1.2;
   try{const saved=Number(localStorage.getItem('riftTransitionDelay'));if([1.2,3,5,10].includes(saved))transitionDelay=saved;}catch(_){}
   $('rift-transition-delay').value=String(transitionDelay);
@@ -94,9 +98,10 @@
     controls.prompts();window.RiftHUD.update(run,playing,replay);
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
     put($('rift-clear-label'),run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured');
-    if(awaitingBossConfirmation())put($('rift-transition'),'Boss tier cleared · Confirm to bank rewards and continue.');
+    if(awaitingNewRegionPause()){const nextReg=nextRegionEntering();put($('rift-transition'),'Approaching '+(nextReg?.region_name||'new region')+' · Prepare and confirm when ready.');}
+    else if(awaitingBossConfirmation())put($('rift-transition'),'Boss tier cleared · Confirm to bank rewards and continue.');
     if(awaitingBossRoomPause())put($('rift-transition'),'Boss room ahead · Prepare and confirm when ready.');
-    put($('rift-next'),awaitingBossConfirmation()?'Confirm & continue →':awaitingBossRoomPause()?'Enter boss room →':$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →');
+    put($('rift-next'),awaitingNewRegionPause()?'Enter next region →':awaitingBossConfirmation()?'Confirm & continue →':awaitingBossRoomPause()?'Enter boss room →':$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →');
     $('rift-pause').disabled=!playing&&run.status!=='fighting'&&run.status!=='cleared';
     put($('rift-pause'),(playing?'Pause · ':'Resume · ')+controls.label('pause'));
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
@@ -151,7 +156,7 @@
     if(!playing)return;
     if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
-        if(awaitingBossConfirmation()||awaitingBossRoomPause()){timer=setTimeout(loop,85);return;}
+        if(awaitingBossConfirmation()||awaitingBossRoomPause()||awaitingNewRegionPause()){timer=setTimeout(loop,85);return;}
         if(!clearedAt)clearedAt=performance.now();
         const remaining=Math.max(0,transitionDelay-(performance.now()-clearedAt)/1000);
         const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
