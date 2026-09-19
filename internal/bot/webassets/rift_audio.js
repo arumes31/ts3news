@@ -109,13 +109,95 @@
   };
   function stopVoices(){for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
   let activeAmbience = null; const outgoingAmbience = new Set();
+  let bossMusicNodes = null;
   audio.crossfading = false;
+  audio.bossMusicActive = false;
+  audio.bossCrossfading = false;
   audio.currentRegion = -1;
   function stopAmbience() {
+    audio.stopBossMusic?.(0);
     if(activeAmbience){activeAmbience.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});activeAmbience.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
     for(const group of outgoingAmbience){group.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});group.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
     outgoingAmbience.clear();activeAmbience=null;ambientNodes=[];audio.crossfading=false;
   }
+  audio.startBossMusic = function (customFade) {
+    const c = audio.context;
+    if (!c || !active || audio.bossMusicActive || c.state !== 'running') return false;
+    const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : 1.5;
+    audio.bossMusicActive = true;
+    audio.bossCrossfading = true;
+    if (activeAmbience?.gains?.length) {
+      activeAmbience.gains.slice(1).forEach(g => {
+        try { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0.005, c.currentTime + fade); } catch (_) {}
+      });
+    }
+    const region = audio.currentRegion >= 0 ? audio.currentRegion : 0;
+    const root = [130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region] || 130.81;
+    const sources = [], gains = [];
+    const bass = c.createOscillator(), bassFilter = c.createBiquadFilter(), bassGain = c.createGain();
+    bass.type = 'sawtooth';
+    bass.frequency.value = Math.max(30, root * 0.5);
+    bassFilter.type = 'lowpass';
+    bassFilter.frequency.value = 260;
+    if (fade > 0) {
+      bassGain.gain.setValueAtTime(0.0001, c.currentTime);
+      bassGain.gain.linearRampToValueAtTime(0.024, c.currentTime + fade);
+    } else {
+      bassGain.gain.value = 0.024;
+    }
+    bass.connect(bassFilter); bassFilter.connect(bassGain); bassGain.connect(music);
+    bass.start(); sources.push(bass); gains.push(bassGain);
+    [root * 0.75, root * 1.2, root * 1.414, root * 1.8].forEach((f, i) => {
+      const osc = c.createOscillator(), level = c.createGain();
+      osc.type = i === 1 ? 'triangle' : 'sine';
+      osc.frequency.value = f;
+      const targetGain = [0.018, 0.016, 0.014, 0.012][i];
+      if (fade > 0) {
+        level.gain.setValueAtTime(0.0001, c.currentTime);
+        level.gain.linearRampToValueAtTime(targetGain, c.currentTime + fade);
+      } else {
+        level.gain.value = targetGain;
+      }
+      osc.connect(level); level.connect(music);
+      osc.start(); sources.push(osc); gains.push(level);
+    });
+    bossMusicNodes = { sources, gains };
+    if (fade > 0) {
+      setTimeout(() => {
+        if (audio.bossMusicActive) audio.bossCrossfading = false;
+      }, (fade + 0.05) * 1000);
+    } else {
+      audio.bossCrossfading = false;
+    }
+    return true;
+  };
+  audio.stopBossMusic = function (customFade) {
+    if (!bossMusicNodes) {
+      audio.bossMusicActive = false;
+      audio.bossCrossfading = false;
+      return;
+    }
+    const nodes = bossMusicNodes;
+    bossMusicNodes = null;
+    audio.bossMusicActive = false;
+    audio.bossCrossfading = false;
+    const c = audio.context;
+    const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : 0;
+    if (fade > 0 && c && c.state === 'running') {
+      const stopTime = c.currentTime + fade;
+      nodes.gains.forEach(g => {
+        try { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0.0001, stopTime); } catch (_) {}
+      });
+      nodes.sources.forEach(s => { try { s.stop(stopTime + 0.05); } catch (_) {} });
+      setTimeout(() => {
+        nodes.sources.forEach(s => { try { s.disconnect(); } catch (_) {} });
+        nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+      }, (fade + 0.1) * 1000);
+    } else {
+      nodes.sources.forEach(s => { try { s.stop(); } catch (_) {} s.disconnect(); });
+      nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+    }
+  };
   audio.area = function (index, customFade) {
     if (room === index && activeAmbience?.sources?.length) return;
     const prevRoom = room;

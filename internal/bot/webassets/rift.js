@@ -30,7 +30,7 @@
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
   let lastAudioArea = -1;
-  function silence(){lastAudioArea=-1;try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
+  function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
   function setSafeDisabled(node, disabled) {
@@ -152,7 +152,7 @@
     $('rift-hp-fill').style.width=Math.max(0,100*run.player.hp/run.player.max_hp)+'%';
     put($('rift-mana'),Math.floor(run.player.mana)+' MP');$('rift-mana-fill').style.width=run.player.mana+'%';
     put($('rift-room'),'Mission '+(run.level?.id||1)+' · Tier '+(run.room+1)+'/3 · '+(rooms[run.room]||'Mossbound Ruins'));
-    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';put($('rift-boss-name'),boss.name);$('rift-boss-name').title=boss.name;}
+    const boss=run.enemies.find(e=>e.kind==='boss'&&e.hp>0);$('rift-boss').hidden=!boss;if(boss){$('rift-boss-fill').style.width=100*boss.hp/boss.max_hp+'%';put($('rift-boss-name'),boss.name);$('rift-boss-name').title=boss.name;if(playing&&['fighting'].includes(run.status)&&!run.paused&&!audio.bossMusicActive)audio.startBossMusic?.();}
     const finalBoss=run.encounter_plan?.[2]?.find(e=>e.kind==='boss')||run.enemies.find(e=>e.kind==='boss');
     put($('rift-route-boss'),finalBoss?'Defeat '+finalBoss.name:'Defeat an Abyss boss');
     window.RiftLoot.update(run,replay);
@@ -296,6 +296,8 @@
     try{
       const areaIdx=(run?.level?.region||0)*3+(run?.room||0);lastAudioArea=areaIdx;
       try{await audio.setActive(true,areaIdx);}catch(_){silence();}
+      const bossAlive=run?.enemies?.some(e=>e.kind==='boss'&&e.hp>0)||run?.room===2;
+      if(bossAlive&&!audio.bossMusicActive)audio.startBossMusic?.();
       if(intent!==startIntent||document.hidden){silence();return;}
       const resume=run&&(run.status==='fighting'||run.status==='cleared');
       if(await send(resume?'resume':practice&&run&&run.status!=='expired'?'practice_reset':'start')){
