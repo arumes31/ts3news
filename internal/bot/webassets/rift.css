@@ -507,6 +507,67 @@
   }
 }
 
+.rift-accessibility-guide {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid #49664b;
+}
+.rift-accessibility-guide h3 {
+  margin: 0 0 .5rem;
+  color: #f2d797;
+}
+.rift-accessibility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.rift-accessibility-card {
+  background: #0f1f18;
+  border: 1px solid #3c5443;
+  border-radius: 6px;
+  padding: 14px;
+}
+.rift-accessibility-card h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #f4d087;
+  border-bottom: 1px solid #2e4435;
+  padding-bottom: 6px;
+}
+.rift-accessibility-card ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #cdd9c7;
+}
+.rift-accessibility-card li {
+  margin-bottom: 8px;
+}
+.rift-accessibility-card li:last-child {
+  margin-bottom: 0;
+}
+.rift-accessibility-card strong {
+  color: #e8f0e4;
+}
+.rift-accessibility-card code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: #0a1712;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid #2e4435;
+}
+@media (forced-colors: active) {
+  .rift-accessibility-guide,
+  .rift-accessibility-card,
+  .rift-accessibility-card code {
+    border-color: CanvasText !important;
+  }
+}
+
+
 /* Touch controls and action buttons pressed states (Proposal 0156) */
 .rift-touch button {
   min-width: 48px;

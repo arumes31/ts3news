@@ -413,6 +413,21 @@
       }
     });
   }
+  const openAccessBtn=$('rift-open-accessibility-reference');
+  if(openAccessBtn){
+    openAccessBtn.addEventListener('click',()=>{
+      const fieldGuide=$('rift-field-guide');
+      if(fieldGuide){
+        fieldGuide.open=true;
+        const accessSection=$('rift-accessibility-guide');
+        if(accessSection){
+          accessSection.scrollIntoView({behavior:'smooth',block:'start'});
+          const title=accessSection.querySelector('h3');
+          if(title){title.setAttribute('tabindex','-1');title.focus();}
+        }
+      }
+    });
+  }
   window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
   window.addEventListener('riftintentchange',resetInput);
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
