@@ -177,7 +177,7 @@
           rows.sort((a,b)=>Math.abs(a.rect.top-origin.top)-Math.abs(b.rect.top-origin.top)||Math.abs(a.rect.left-origin.left)-Math.abs(b.rect.left-origin.left));
           target=rows[0]?.button||event.target;
         }else return;
-        event.preventDefault();target?.focus();
+        event.preventDefault();target?.focus();if(target)target.scrollIntoView({block:'nearest',inline:'nearest'});
       });
       for(const [id,field,event] of [['rift-mission-search','search','input'],['rift-region','region','change'],['rift-completion','completion','change'],['rift-difficulty','difficulty','change'],['rift-favorites-only','favoritesOnly','change'],['rift-challenge-only','challengeOnly','change'],['rift-compact','compact','change']]){
         const el=$(id);
