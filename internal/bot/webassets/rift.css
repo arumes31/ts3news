@@ -412,3 +412,40 @@
     border-color: CanvasText !important;
   }
 }
+
+/* Touch controls and action buttons pressed states (Proposal 0156) */
+.rift-touch button {
+  min-width: 48px;
+  min-height: 48px;
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #536050;
+  border-radius: 4px;
+  background: #1e3029;
+  color: var(--rift-text);
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.08s ease, background 0.08s ease, box-shadow 0.08s ease;
+}
+#rift-app :is(.rift-touch button, .rift-actionbar button, .rift-signatures button):is(.rift-held, [data-pressed="true"], [aria-pressed="true"]) {
+  background: #34523c !important;
+  border-color: #f7d691 !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(247, 214, 145, 0.5) !important;
+  transform: translateY(2px) scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  #rift-app :is(.rift-touch button, .rift-actionbar button, .rift-signatures button):is(.rift-held, [data-pressed="true"], [aria-pressed="true"]) {
+    transform: none !important;
+  }
+}
+@media (forced-colors: active) {
+  #rift-app :is(.rift-touch button, .rift-actionbar button, .rift-signatures button):is(.rift-held, [data-pressed="true"], [aria-pressed="true"]) {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+}
+

@@ -98,8 +98,8 @@
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held').forEach(n=>n.classList.remove('rift-held'));guardDisplay();}
-  function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');button.setAttribute('aria-pressed',String(controls.toggleGuard&&guardLatched));button.title=controls.toggleGuard?'Toggle guard · '+(guardLatched?'On':'Off'):'Hold to guard';if(controls.toggleGuard)button.classList.toggle('rift-held',guardLatched);}
+  function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
+  function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');if(!button)return;const isGuarding=Boolean((controls.toggleGuard&&guardLatched)||touch.has('guard'));button.setAttribute('aria-pressed',String(isGuarding));button.classList.toggle('rift-held',isGuarding);if(isGuarding)button.dataset.pressed='true';else delete button.dataset.pressed;}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function practiceToolButtons(){root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||busy||practiceToolPending||run?.status!=='fighting'));}
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
@@ -147,7 +147,7 @@
       $('rift-signatures').dataset.ids=specialIDs;
       replacePreservingFocus($('rift-signatures'),()=>{
         specials.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;btn.title=s.name+' · '+s.cost+' MP';text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;text('kbd',s===run.build.ultimate?'R':i?'E':'Q',btn);text('span',s.name,btn);text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -325,11 +325,38 @@
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status('Practice is ready. '+$('rift-practice-instructions').textContent);}
     }catch(error){ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
   }
+  const moveLabels = {
+    left: ['Move left', 'Moving left (holding)'],
+    right: ['Move right', 'Moving right (holding)'],
+    up: ['Move up', 'Moving up (holding)'],
+    down: ['Move down', 'Moving down (holding)']
+  };
   function hold(button,value){
     button.dataset.action=value;
-    button.addEventListener('pointerdown',event=>{if(!playing||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);window.RiftIntents.press(value);button.classList.add('rift-held');});
-    button.addEventListener('click',event=>{if(event.detail===0&&playing&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'){if(value==='guard'&&controls.toggleGuard)toggleGuard();else{taps.add(value);window.RiftIntents.press(value);}}});
-    const release=event=>{if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}touch.delete(value);button.classList.remove('rift-held');if(value==='guard')guardDisplay();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
+    if(!button.hasAttribute('aria-pressed'))button.setAttribute('aria-pressed','false');
+    const moveKey=button.dataset.move;
+    if(moveKey&&moveLabels[moveKey]){button.setAttribute('aria-label',moveLabels[moveKey][0]);button.title=moveLabels[moveKey][0];}
+    button.addEventListener('pointerdown',event=>{
+      if(!playing||button.disabled||button.getAttribute('aria-disabled')==='true')return;
+      event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);window.RiftIntents.press(value);
+      button.classList.add('rift-held');button.setAttribute('aria-pressed','true');button.dataset.pressed='true';
+      if(moveKey&&moveLabels[moveKey])button.setAttribute('aria-label',moveLabels[moveKey][1]);
+    });
+    button.addEventListener('click',event=>{
+      if(event.detail===0&&playing&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'){
+        if(value==='guard'&&controls.toggleGuard)toggleGuard();
+        else{taps.add(value);window.RiftIntents.press(value);}
+      }
+    });
+    const release=event=>{
+      if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();
+      if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}
+      touch.delete(value);button.classList.remove('rift-held');
+      if(value!=='guard'||!controls.toggleGuard){button.setAttribute('aria-pressed','false');delete button.dataset.pressed;}
+      if(moveKey&&moveLabels[moveKey])button.setAttribute('aria-label',moveLabels[moveKey][0]);
+      if(value==='guard')guardDisplay();
+    };
+    ['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open($('rift-controls-open'));});
