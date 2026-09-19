@@ -56,6 +56,7 @@ test.describe('Make guarded hits distinguishable without audio (Proposal 0150)',
 
     // Start expedition and pause to inject combat simulation
     await page.locator('#rift-start').click();
+    await expect(page.locator('#rift-pause')).toBeEnabled();
     await page.keyboard.press('Escape');
 
     // Trigger a block event in RiftFeedback

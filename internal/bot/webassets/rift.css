@@ -283,3 +283,69 @@
     color: HighlightText !important;
   }
 }
+
+/* Custom system font resilience and warning readability (Proposal 0154) */
+:is(.rift-at-risk, #rift-paused-badge, .rift-hp-threshold, #rift-boss-threshold, #rift-area-effects, #rift-boss-attack, #rift-defeat-guide, #rift-checkpoint-guide, #rift-binding-status, #rift-catchup, .rift-latency, #rift-captions, #rift-pending-hud) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+.rift-at-risk {
+  font-size: clamp(10px, 0.85rem, 12px);
+  line-height: 1.4;
+  letter-spacing: normal;
+  display: inline-flex;
+  align-items: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+#rift-paused-badge {
+  font-size: clamp(10px, 0.85rem, 12px);
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rift-hp-threshold {
+  font-size: clamp(10px, 0.85rem, 12px);
+  line-height: 1.4;
+  letter-spacing: normal;
+  min-height: 1.4em;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+#rift-binding-status {
+  min-height: 3.2em;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+#rift-defeat-guide :is(h3, p, ol, li, div),
+#rift-checkpoint-guide :is(p, button) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.rift-combat-overview {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: auto;
+}
+.rift-stage-top {
+  min-height: 46px;
+  height: auto;
+  flex-wrap: wrap;
+}
+.rift-combat-signals span {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+#rift-captions li {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
