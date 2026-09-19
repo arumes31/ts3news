@@ -7,7 +7,7 @@
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')view={...view,...saved};}catch(_){}
   view.startCollapsed=view.startCollapsed===true;
   $('rift-campaign').open=!view.startCollapsed;
-  const collapseLabel=document.createElement('label'),collapse=document.createElement('input');collapse.type='checkbox';collapse.id='rift-campaign-start-collapsed';collapse.checked=view.startCollapsed;collapseLabel.append(collapse,document.createTextNode('Keep expedition picker collapsed on page load'));document.querySelector('.rift-settings').append(collapseLabel);
+  const collapseLabel=document.createElement('label'),collapse=document.createElement('input');collapse.type='checkbox';collapse.id='rift-campaign-start-collapsed';collapseLabel.htmlFor=collapse.id;collapse.checked=view.startCollapsed;collapseLabel.append(collapse,document.createTextNode('Keep expedition picker collapsed on page load'));document.querySelector('.rift-settings').append(collapseLabel);
   collapse.addEventListener('change',()=>{view.startCollapsed=collapse.checked;save();});
   view.search=typeof view.search==='string'?view.search.slice(0,80):'';
   view.favorites=Array.isArray(view.favorites)?view.favorites.filter(n=>Number.isInteger(n)&&n>=1&&n<=100).slice(0,100):[];

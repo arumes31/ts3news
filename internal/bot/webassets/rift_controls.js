@@ -48,7 +48,9 @@
   }
   $('rift-toggle-guard').checked=toggleGuard;$('rift-toggle-guard').onchange=()=>{toggleGuard=$('rift-toggle-guard').checked;save();status(toggleGuard?'Guard toggles on each press. Pausing clears it.':'Hold the guard control to defend.');};
   for(const [id,name] of definitions){
-    const row=document.createElement('div'),title=document.createElement('span'),button=document.createElement('button');title.textContent=name;button.type='button';button.dataset.remap=id;button.setAttribute('aria-label','Rebind '+name);button.setAttribute('aria-describedby','rift-binding-status');
+    const row=document.createElement('div'),title=document.createElement('label'),button=document.createElement('button');
+    title.textContent=name;title.htmlFor='rift-remap-'+id;
+    button.id='rift-remap-'+id;button.type='button';button.dataset.remap=id;button.setAttribute('aria-label','Rebind '+name);button.setAttribute('aria-describedby','rift-binding-status');
     button.onclick=()=>{capture=id;refresh();status('Press a physical key for '+name+'. Escape cancels.');};row.append(title,button);list.append(row);buttons.set(id,button);
   }
   function cancelCapture(){capture=null;refresh();status('Binding unchanged.');}

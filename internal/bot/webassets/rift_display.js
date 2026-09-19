@@ -30,7 +30,7 @@
   }
   window.addEventListener('riftaudiochange',refreshSummary);window.addEventListener('riftmotionchange',refreshSummary);
   function selectControl(id,label,options){
-    const wrapper=document.createElement('label'),select=document.createElement('select');wrapper.textContent=label;select.id=id;
+    const wrapper=document.createElement('label'),select=document.createElement('select');wrapper.textContent=label;select.id=id;wrapper.htmlFor=id;
     options.forEach(([value,text])=>{const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);});
     wrapper.append(select);section.append(wrapper);return select;
   }
@@ -64,7 +64,7 @@
   definitions.forEach(([key,id,label,options])=>{
     let control;
     if(options)control=selectControl(id,label,options);
-    else{const wrapper=document.createElement('label');wrapper.textContent=label;control=document.createElement('input');control.type='checkbox';control.id=id;wrapper.append(control);section.append(wrapper);}
+    else{const wrapper=document.createElement('label');wrapper.textContent=label;control=document.createElement('input');control.type='checkbox';control.id=id;wrapper.htmlFor=id;wrapper.append(control);section.append(wrapper);}
     controls.set(key,control);control.onchange=()=>{values[key]=control.type==='checkbox'?control.checked:typeof defaults[key]==='number'?Number(control.value):control.value;save();refresh();};
   });
   apply.onclick=()=>{Object.assign(values,presets[preset.value].values);save();refresh();};

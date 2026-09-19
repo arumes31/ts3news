@@ -7,9 +7,9 @@
   add('p','rift-mission-difficulty');
   add('p','rift-mission-loot');
   const controls=add('div','','',section);controls.className='rift-mission-link-tools';
-  const label=add('label','','Mission link',controls),link=add('input','rift-mission-link','',label);link.readOnly=true;link.type='text';
+  const label=add('label','','Mission link',controls),link=add('input','rift-mission-link','',label);link.readOnly=true;link.type='text';label.htmlFor=link.id;
   const copy=add('button','rift-copy-mission','Copy mission link',controls);copy.type='button';
-  const preference=add('label','','',controls),automatic=add('input','rift-preview-default','',preference);automatic.type='checkbox';preference.append(document.createTextNode('Open route previews by default'));
+  const preference=add('label','','',controls),automatic=add('input','rift-preview-default','',preference);automatic.type='checkbox';preference.htmlFor=automatic.id;preference.append(document.createTextNode('Open route previews by default'));
   const status=add('p','rift-mission-link-status');status.setAttribute('role','status');
   const details=add('details','rift-mission-preview');add('summary','','Three-room route and terrain',details);
   add('p','','Top-down terrain: solid blocks are low cover; outlined zones are hazards. Walk above or below cover, or jump it. Hazard timing continues during combat.',details);
