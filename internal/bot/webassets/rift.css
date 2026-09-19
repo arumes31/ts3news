@@ -147,3 +147,139 @@
   #rift-app.rift-large-action-bar .rift-actionbar button{min-width:48px;min-height:48px;padding:6px 4px;font-size:10px!important}
 }
 
+@media (forced-colors: active) {
+  #rift-app :is(.rift-settings, .rift-bestiary, .rift-campaign, .rift-field-guide, .rift-sidebar, .rift-sidebar section, .rift-controls-dialog, .rift-controls-reference, .rift-mission-planning, #rift-defeat-guide, #rift-checkpoint-guide, #rift-walkthrough, .rift-room-actions, #rift-pickup-notices, #rift-captions, #rift-input-readout, .rift-stage-top, .rift-actionbar, .rift-classbar, .rift-combat-overview, .rift-combat-signals, .rift-run-statistics, .rift-game, .rift-monster-detail, #rift-compare, #rift-region-overview section, #rift-attempt-history, .rift-display-settings, .rift-audio-mix, #rift-gamepad-panel) {
+    border-color: CanvasText;
+    box-shadow: none !important;
+  }
+
+  .rift-controls-dialog {
+    border: 2px solid CanvasText !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    box-shadow: none !important;
+  }
+  .rift-controls-dialog::backdrop {
+    background: Canvas;
+    opacity: 0.85;
+  }
+
+  #rift-app :is(input[type="text"], input[type="search"], select, textarea) {
+    border: 1px solid ButtonBorder;
+    background: Field;
+    color: FieldText;
+  }
+  #rift-app input[type="range"],
+  #rift-app input[type="checkbox"],
+  .rift-settings input[type="range"] {
+    accent-color: Highlight !important;
+  }
+
+  #rift-app button {
+    border: 1px solid ButtonBorder;
+  }
+  #rift-app button:focus-visible,
+  #rift-app a:focus-visible,
+  #rift-app canvas:focus-visible,
+  #rift-app summary:focus-visible,
+  #rift-app :is(input, select, textarea):focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  #rift-app .rift-primary {
+    border: 2px solid Highlight !important;
+    outline: 1px solid Highlight !important;
+  }
+
+  #rift-app button[aria-pressed="true"],
+  #rift-app .rift-stage-top button[aria-pressed="true"],
+  #rift-app #rift-favorite[aria-pressed="true"],
+  #rift-app #rift-monster-bookmark[aria-pressed="true"],
+  #rift-app #rift-key-bindings button[aria-pressed="true"] {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  #rift-app button:disabled,
+  #rift-app button[aria-disabled="true"],
+  #rift-app :is(input, select):disabled {
+    color: GrayText !important;
+    border-color: GrayText !important;
+    opacity: 1 !important;
+  }
+
+  #rift-app .rift-levels button {
+    border: 1px solid CanvasText;
+  }
+  #rift-app .rift-levels button[aria-current="true"],
+  #rift-app .rift-levels button.selected,
+  #rift-app .rift-levels button[aria-pressed="true"] {
+    border-color: Highlight !important;
+    outline: 2px solid Highlight !important;
+    outline-offset: 1px !important;
+  }
+
+  .rift-route li > span {
+    border: 1px solid CanvasText;
+  }
+  .rift-route li.current > span {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+  .rift-route li.done > span {
+    border-color: CanvasText;
+  }
+
+  .rift-monsters article {
+    border: 1px solid CanvasText;
+  }
+  .rift-monster-detail {
+    border: 2px solid CanvasText;
+  }
+  #rift-monster-comparison th,
+  #rift-monster-comparison td {
+    border-bottom: 1px solid CanvasText;
+  }
+  .rift-compare-different {
+    outline: 1px solid Highlight;
+  }
+
+  #rift-key-bindings > div {
+    border-bottom: 1px dotted CanvasText;
+  }
+  #rift-binding-status {
+    color: Highlight !important;
+  }
+
+  .rift-controls-reference-text {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  #rift-app kbd {
+    border: 1px solid ButtonText !important;
+    color: ButtonText !important;
+  }
+  .rift-tag,
+  .rift-at-risk,
+  .rift-region-badge,
+  .rift-challenge-badge {
+    border: 1px solid CanvasText !important;
+    color: CanvasText !important;
+  }
+
+  .rift-skip-link {
+    border: 2px solid Highlight !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+  .rift-skip-link:focus {
+    outline: 3px solid Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
