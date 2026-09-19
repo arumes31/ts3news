@@ -89,13 +89,13 @@
       <label>Tier<select id="rift-monster-tier"><option value="">All tiers</option></select></label>
       <label>Element<select id="rift-monster-element"><option value="">All elements</option></select></label>
       <label>Attack style<select id="rift-monster-style"><option value="">All styles</option></select></label>
-      <label><input type="checkbox" id="rift-monster-seen"> Recorded encounters only</label><button type="button" id="rift-monster-clear">Clear filters</button>
+      <label><input type="checkbox" id="rift-monster-bookmarked"> Practice bookmarks only</label><label><input type="checkbox" id="rift-monster-seen"> Recorded encounters only</label><button type="button" id="rift-monster-clear">Clear filters</button>
     </div>
     <p id="rift-monster-matches" role="status"></p><p class="rift-fine" id="rift-catalog-help">The roster and encounter pools follow shared Abyss content. Each mission keeps its planned encounters; new missions use the current catalog.</p>
     <details id="rift-compare"><summary>Compare two creatures</summary><div class="rift-compare-pickers"><label>First creature<select id="rift-compare-left"><option value="">Choose a creature</option></select></label><label>Second creature<select id="rift-compare-right"><option value="">Choose a creature</option></select></label><button id="rift-compare-clear" type="button">Clear comparison</button></div><p id="rift-compare-status" class="rift-fine" role="status">Choose two creatures to compare their base stats.</p><table id="rift-monster-comparison" hidden></table></details>
     <section id="rift-monster-detail" class="rift-monster-detail" aria-labelledby="rift-monster-title" hidden>
       <div><h3 id="rift-monster-title" tabindex="-1"></h3><button type="button" id="rift-monster-close">Close monster details</button></div>
-      <p id="rift-monster-quick-summary"></p>
+      <button id="rift-monster-bookmark" type="button" aria-pressed="false">Save for practice</button><p id="rift-monster-quick-summary"></p>
       <span id="rift-monster-preview" class="rift-monster-art" aria-hidden="true"></span>
       <label>Preview animation<select id="rift-monster-pose"><option value="idle">Idle</option><option value="run">Run</option><option value="attack">Attack</option><option value="hurt">Hurt</option><option value="defeat">Defeat</option></select></label>
       <div id="rift-monster-sounds" aria-label="Creature sound previews"></div><p id="rift-monster-sound-status" class="rift-fine" role="status"></p><p class="rift-fine">Preview the shared Brawl combat cues for this creature. Uses your current mute and sound mix settings.</p>

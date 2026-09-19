@@ -4,11 +4,14 @@
   const assetURL=path=>path+(window.__ASSET_VER__?'?v='+encodeURIComponent(window.__ASSET_VER__):'');
   function profile(unit){return art.actorProfile({...unit,role:unit.kind==='boss'?'boss':unit.kind});}
   function frame(unit,pose,index){return art.actorFrame({...unit,role:unit.kind==='boss'?'boss':unit.kind},pose,index);}
+  const bookmarks=new Set();
+  try{const saved=JSON.parse(localStorage.getItem('riftMonsterBookmarks'));if(saved?.version===1&&Array.isArray(saved.keys))for(const key of saved.keys.slice(0,1000))if(typeof key==='string'&&key.length<=512)bookmarks.add(key);}catch(_){}
   let records={},practice=false,recordKey='';
   function update(run){const next=run?.monster_records||{},isPractice=!!run?.practice||!!document.getElementById("rift-app").dataset.practice,key=JSON.stringify([next,isPractice]);if(key===recordKey)return;recordKey=key;records=next;practice=isPractice;if(render.refreshRecords)render.refreshRecords();}
   function render(roster,run){
     const list=document.getElementById('rift-monsters'),search=document.getElementById('rift-monster-search');
     const root=list.closest('details'),panel=document.getElementById('rift-monster-detail');
+    const bookmarked=document.getElementById('rift-monster-bookmarked'),bookmark=document.getElementById('rift-monster-bookmark');
     const encountered=document.getElementById('rift-monster-seen');
     const tier=document.getElementById('rift-monster-tier'),element=document.getElementById('rift-monster-element'),style=document.getElementById('rift-monster-style');
     const poseSelect=document.getElementById('rift-monster-pose'),preview=document.getElementById('rift-monster-preview');
@@ -53,6 +56,9 @@
       if(unit.training)values.push(['Attack windup',new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s'],['Knockdown',unit.training.resists_knockdown?'Resistant':'Third basic strike can knock down'],['Interruptible',unit.training.interruptible?'Yes: third basic strike or ice':'No: resists basic-combo and ice interrupts']);
       return values;
     }
+    function refreshBookmark(){if(!selected)return;const saved=bookmarks.has(selected.art_key);bookmark.setAttribute('aria-pressed',String(saved));bookmark.textContent=saved?'Remove practice bookmark':'Save for practice';}
+    bookmark.onclick=()=>{if(!selected)return;const key=selected.art_key;if(bookmarks.has(key))bookmarks.delete(key);else bookmarks.add(key);try{localStorage.setItem('riftMonsterBookmarks',JSON.stringify({version:1,keys:[...bookmarks]}));}catch(_){}refreshBookmark();filter();};
+    bookmarked.onchange=()=>filter();
     function inspect(unit,button){
       window.RiftAudio.cancelPreview();selected=unit;opener=button;tick=0;poseSelect.value='idle';panel.hidden=false;
       const title=document.getElementById('rift-monster-title');title.textContent=unit.name;
@@ -67,7 +73,7 @@
         previewButton.onclick=async()=>{previewButton.disabled=true;try{const played=await window.RiftAudio.previewCue(cue);if(selected===unit&&!panel.hidden)soundStatus.textContent=played?'Previewing '+label+' for '+unit.name+'.':window.RiftAudio.muted?'Sound is muted. Unmute to preview.':'Audio is unavailable or blocked by the browser.';}finally{previewButton.disabled=false;}};
         sounds.append(previewButton);
       }
-      showRecord();animate();title.focus();
+      refreshBookmark();showRecord();animate();title.focus();
     }
     const comparison=document.getElementById('rift-monster-comparison'),left=document.getElementById('rift-compare-left'),right=document.getElementById('rift-compare-right');
     for(const select of [left,right]){const saved=select.value;select.replaceChildren(new Option('Choose a creature',''));for(const unit of roster)select.append(new Option(unit.name,unit.art_key));if(roster.some(unit=>unit.art_key===saved))select.value=saved;}
@@ -96,12 +102,12 @@
       });
       filter();
     }
-    function filter(){let visible=0;for(const item of list.children){item.hidden=(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
+    function filter(){let visible=0;for(const item of list.children){item.hidden=(bookmarked.checked&&!bookmarks.has(item.dataset.artKey))||(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=bookmarked.checked?'No practice bookmarks match these filters. Inspect a creature to save it for practice.':encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';document.getElementById('rift-monster-matches').textContent=visible+' of '+roster.length+' monsters';}
     encountered.onchange=filter;
     render.refreshRecords=()=>{encountered.disabled=practice;if(practice)encountered.checked=false;showRecord();if(built)filter();};
     update(run);render.refreshRecords();
     search.oninput=filter;[tier,element,style].forEach(select=>select.onchange=filter);
-    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;filter();search.focus();};onToggle();
+    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter();search.focus();};onToggle();
   }
   window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets};
 })();
