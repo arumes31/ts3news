@@ -128,4 +128,22 @@
 @media(prefers-reduced-motion:reduce){.rift-transient-counter{animation:none!important;transition:opacity .3s}}
 #rift-app[data-paused] .rift-transient-counter,#rift-app[data-paused] .rift-cooldown-ring{animation-play-state:paused!important}
 #rift-guard-reduction[data-guarded-hit],.rift-basics button[data-bind="guard"][data-guarded-hit]{border-color:#7fd7ff!important;color:#7fd7ff!important;box-shadow:0 0 10px rgba(127,215,255,0.6)!important}
+#rift-app.rift-large-action-bar .rift-actionbar{padding:16px 14px;gap:14px}
+#rift-app.rift-large-action-bar .rift-basics,#rift-app.rift-large-action-bar .rift-skills{gap:10px}
+#rift-app.rift-large-action-bar .rift-actionbar button{min-width:64px;min-height:64px;padding:12px 14px;font-size:13px!important;gap:8px}
+#rift-app.rift-large-action-bar .rift-actionbar kbd{font-size:12px;padding:3px 7px}
+#rift-app.rift-large-action-bar .rift-skills button{max-width:180px;min-height:64px;padding:12px 10px}
+#rift-app.rift-large-action-bar .rift-classbar{padding:12px 14px;gap:12px}
+#rift-app.rift-large-action-bar .rift-signatures{gap:10px}
+#rift-app.rift-large-action-bar .rift-signatures button{min-width:64px;min-height:58px;padding:10px 14px;font-size:13px!important}
+#rift-app.rift-large-action-bar .rift-signatures button kbd{font-size:12px;padding:3px 7px}
+#rift-app.rift-large-action-bar .rift-cooldown-ring{width:16px;height:16px}
+@media(max-width:480px){
+  #rift-app.rift-large-action-bar .rift-actionbar button{min-width:52px;min-height:52px;padding:8px 6px;font-size:11px!important}
+  #rift-app.rift-large-action-bar .rift-skills button{min-width:52px;min-height:52px}
+  #rift-app.rift-large-action-bar .rift-signatures button{min-width:52px;min-height:50px}
+}
+@media(max-width:400px){
+  #rift-app.rift-large-action-bar .rift-actionbar button{min-width:48px;min-height:48px;padding:6px 4px;font-size:10px!important}
+}
 

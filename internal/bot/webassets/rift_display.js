@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,enemyIndicators:true,skillRange:false};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,enemyIndicators:true,skillRange:false,largeActionBar:false};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -13,7 +13,7 @@
   const presets={
     balanced:{label:'Balanced',description:'Standard text, all enemy names, health bars, moving damage numbers and hazard labels. Full decoration, spell opacity and transitions, smooth camera and 60 FPS.',values:defaults},
     minimal:{label:'Minimal distractions',description:'Standard text, health bars and hazard labels. Boss names only, no damage numbers, decoration or transition fade. Soft spell effects, compact HUD, smooth camera and 60 FPS.',values:{...defaults,enemyNames:'boss',damageNumbers:false,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,compactHUD:true}},
-    accessible:{label:'Clearer battlefield',description:'Larger text (125%), all names, health bars, static damage numbers, hazard labels, tactile fill patterns and shaped projectiles. Strong hazard outlines, no decoration, fade or camera smoothing. Soft spell effects, full HUD and 60 FPS.',values:{...defaults,textScale:1.25,hazardContrast:true,hazardPatterns:true,projectileShapes:true,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,cameraSmooth:false}},
+    accessible:{label:'Clearer battlefield',description:'Larger text (125%), all names, health bars, static damage numbers, hazard labels, tactile fill patterns and shaped projectiles. Strong hazard outlines, no decoration, fade or camera smoothing. Soft spell effects, full HUD and 60 FPS.',values:{...defaults,textScale:1.25,hazardContrast:true,hazardPatterns:true,projectileShapes:true,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,cameraSmooth:false,largeActionBar:true}},
     lowPower:{label:'Lower power',description:'Standard text, health bars and hazard labels. Boss names only, no damage numbers, decoration or fade. Soft spell effects, compact HUD, direct camera and 30 FPS.',values:{...defaults,fps:30,particles:false,lootMotion:false,lootSparkle:false,particleIntensity:0,motionIntensity:0,flashIntensity:0,effectIntensity:0.35,damageMotion:false,enemyNames:'boss',damageNumbers:false,compactHUD:true,cameraSmooth:false}},
     cinematic:{label:'Cinematic effects',description:'Full decoration, moving damage numbers, spell opacity and transition fades. Standard text, boss names, health bars and hazard labels. Compact HUD, smooth camera and 60 FPS; reduced motion still takes priority.',values:{...defaults,enemyNames:'boss',compactHUD:true}}
   };
@@ -54,6 +54,7 @@
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['hazardPatterns','rift-hazard-patterns','Hazard fill patterns'],['projectileShapes','rift-projectile-shapes','Hostile vs friendly projectile shapes'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
     ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD'],
     ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)'],
+    ['largeActionBar','rift-large-action-bar','Large-target action bar'],
     ['enemyIndicators','rift-enemy-indicators','Off-screen enemy direction indicators'],
     ['skillRange','rift-show-skill-range','Equipped skill range indicators']
   ];
@@ -63,6 +64,7 @@
     root.classList.toggle('rift-hide-records',!values.personalRecords);
     root.style.setProperty('--rift-hud-scale',values.textScale);root.classList.toggle('rift-compact-hud',values.compactHUD);
     root.classList.toggle('rift-clean-screenshot',values.cleanScreenshot);
+    root.classList.toggle('rift-large-action-bar',Boolean(values.largeActionBar));
     const screenshotBtn=document.getElementById('rift-screenshot-toggle');
     if(screenshotBtn)screenshotBtn.setAttribute('aria-pressed',String(values.cleanScreenshot));
     for(const [key,control] of controls)if(control.type==='checkbox')control.checked=values[key];else control.value=values[key];
