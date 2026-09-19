@@ -399,6 +399,20 @@
       }
     });
   }
+  const skipMission=$('rift-skip-mission');
+  if(skipMission){
+    skipMission.addEventListener('click',event=>{
+      event.preventDefault();
+      const campaign=$('rift-campaign');
+      if(campaign){
+        if(!campaign.open)campaign.open=true;
+        campaign.scrollIntoView({block:'nearest'});
+        const selected=$('rift-levels')?.querySelector('button[aria-pressed="true"]:not([hidden]), button[data-level]:not([hidden])')||campaign.querySelector('summary');
+        if(selected)selected.focus();
+        else campaign.focus();
+      }
+    });
+  }
   if(practice){
     root.querySelector('.rift-tag').textContent='PRACTICE · '+drillNames[practice].toUpperCase();
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];

@@ -20,7 +20,7 @@
 {{template "item-stats-tools" .}}
 </head>
 <body{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards") (eq .Nav "arcade")}} class="delver-shell"{{end}}>
-{{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if eq .Nav "rift"}}<a class="rift-skip-link" id="rift-skip-controls" href="#rift-actionbar">Skip to battlefield controls</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
+{{if eq .Nav "abyss"}}<a class="ab-skip-link" href="#abyssControls">Skip to run controls</a>{{end}}{{if eq .Nav "rift"}}<a class="rift-skip-link" id="rift-skip-controls" href="#rift-actionbar">Skip to battlefield controls</a><a class="rift-skip-link" id="rift-skip-mission" href="#rift-campaign">Skip to mission picker</a>{{end}}{{if or (eq .Nav "armory") (eq .Nav "inventory") (eq .Nav "shop") (eq .Nav "ah") (eq .Nav "leaderboards")}}<a class="portal-skip" href="#portalMain">Skip to main content</a>{{end}}
 <header class="topbar">
   <div class="brand"><img src="{{asset "/static/favicon.svg"}}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">TS3 RPG</div>
   {{if or .U .AccountNav}}
