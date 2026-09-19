@@ -55,6 +55,68 @@
   renderer.getHazardPatternInfo = getHazardPatternInfo;
   renderer.getHazardKindsWithPatterns = () => Object.keys(hazardPatternProfiles);
   renderer.drawHazardPattern = drawHazardPattern;
+  const projectileShapeProfiles = {
+    hostile: { hostility: 'hostile', shape: 'barbed-wedge', label: 'Barbed wedge with rear spurs' },
+    friendly: { hostility: 'friendly', shape: 'diamond-crest', label: 'Diamond crest with swept wings' },
+  };
+  function getProjectileShapeInfo(isEnemy) {
+    return isEnemy ? projectileShapeProfiles.hostile : projectileShapeProfiles.friendly;
+  }
+  renderer.getProjectileShapeInfo = getProjectileShapeInfo;
+
+  function drawProjectileShape(ctx, x, y, isEnemy, vx, vy, kind) {
+    const angle = Math.atan2(vy || 0, vx || (isEnemy ? -1 : 1));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    if (isEnemy) {
+      // Sharp barbed wedge with jagged backward spurs
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(-6, -7);
+      ctx.lineTo(-3, -3);
+      ctx.lineTo(-12, -5);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-12, 5);
+      ctx.lineTo(-3, 3);
+      ctx.lineTo(-6, 7);
+      ctx.closePath();
+      ctx.fillStyle = '#ff6f4f';
+      ctx.fill();
+      ctx.strokeStyle = '#ffe4d6';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff29c';
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Smooth aerodynamic diamond crest with swept wings
+      ctx.beginPath();
+      ctx.moveTo(15, 0);
+      ctx.lineTo(3, -6);
+      ctx.lineTo(-10, -8);
+      ctx.lineTo(-5, 0);
+      ctx.lineTo(-10, 8);
+      ctx.lineTo(3, 6);
+      ctx.closePath();
+      ctx.fillStyle = '#5eead4';
+      ctx.fill();
+      ctx.strokeStyle = '#e6fffa';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(5, 0);
+      ctx.lineTo(0, -3);
+      ctx.lineTo(-5, 0);
+      ctx.lineTo(0, 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  renderer.drawProjectileShape = drawProjectileShape;
 
   function drawHazardPattern(ctx, kind, x, y, w, h, active, color) {
     ctx.save();
@@ -496,9 +558,21 @@
       ctx.drawImage(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
     });
     run.projectiles.forEach(p=>{
-      if(p.kind==='arrow'){ctx.fillStyle='#d8b3e9';ctx.fillRect(p.x-camera-12,p.y-30,25,3);}
-      else if(p.kind==='pack')sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
-      else fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
+      if(display.projectileShapes!==false){
+        if(p.kind==='arrow'){
+          drawProjectileShape(ctx,p.x-camera,p.y-30,Boolean(p.enemy),p.vx,p.vy,p.kind);
+        }else if(p.kind==='pack'){
+          sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
+          drawProjectileShape(ctx,p.x-camera,p.y-28,Boolean(p.enemy),p.vx,p.vy,p.kind);
+        }else{
+          fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
+          drawProjectileShape(ctx,p.x-camera,p.y-28,Boolean(p.enemy),p.vx,p.vy,p.kind);
+        }
+      }else{
+        if(p.kind==='arrow'){ctx.fillStyle='#d8b3e9';ctx.fillRect(p.x-camera-12,p.y-30,25,3);}
+        else if(p.kind==='pack')sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
+        else fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
+      }
     });
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
