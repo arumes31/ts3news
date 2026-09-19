@@ -386,6 +386,19 @@
   function focusBattlefield(){if(!playing||controls.opened)return;resetInput();$('rift-canvas').focus();}
   returnToBattlefield.addEventListener('click',()=>{if(!playing||controls.opened)return;settings.open=false;focusBattlefield();});
   settings.addEventListener('toggle',()=>{if(!settings.open)focusBattlefield();});
+  const skipControls=$('rift-skip-controls');
+  if(skipControls){
+    skipControls.addEventListener('click',event=>{
+      event.preventDefault();
+      const bar=$('rift-actionbar');
+      if(bar){
+        bar.scrollIntoView({block:'nearest'});
+        const btn=bar.querySelector('button:not(:disabled)');
+        if(btn)btn.focus();
+        else bar.focus();
+      }
+    });
+  }
   if(practice){
     root.querySelector('.rift-tag').textContent='PRACTICE · '+drillNames[practice].toUpperCase();
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
