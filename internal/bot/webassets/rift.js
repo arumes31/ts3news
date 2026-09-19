@@ -109,6 +109,8 @@
     else if(!clearedAt) clearedAt = performance.now();
     run=value;window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
+    const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
+    if(gamePaused)root.dataset.paused='';else delete root.dataset.paused;
     setSafeDisabled($('rift-settings-return'),!controlsEnabled);
     if(run.level){if(['fighting','cleared'].includes(run.status))selectedLevel=run.level.id;rooms=run.level.rooms.map(room=>room.name);}
     updateCampaign();
