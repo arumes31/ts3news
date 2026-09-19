@@ -18,7 +18,13 @@
   }
   const put=(node,value)=>{if(node&&node.textContent!==String(value))node.textContent=value;};
   const attr=(node,key,value)=>{if(node&&node.getAttribute(key)!==String(value))node.setAttribute(key,String(value));};
-  function meter(selector,label,current,max){const node=document.querySelector(selector);attr(node,'role','meter');attr(node,'aria-label',label);attr(node,'aria-valuemin',0);attr(node,'aria-valuemax',Math.max(1,max));attr(node,'aria-valuenow',Math.min(max,Math.max(0,current)));}
+  function getHealthThreshold(current,max){
+    const ratio=max>0?(current/max):0;
+    if(ratio>0.5)return{state:'healthy',label:'Healthy',symbol:'✓'};
+    if(ratio>0.25)return{state:'wounded',label:'Wounded',symbol:'◆'};
+    return{state:'critical',label:'Critical',symbol:'⚠'};
+  }
+  function meter(selector,label,current,max,threshold){const node=document.querySelector(selector);attr(node,'role','meter');attr(node,'aria-label',label);attr(node,'aria-valuemin',0);attr(node,'aria-valuemax',Math.max(1,max));attr(node,'aria-valuenow',Math.min(max,Math.max(0,current)));if(threshold){attr(node,'data-threshold',threshold.state);attr(node,'aria-valuetext',Math.max(0,current).toFixed(0)+' of '+Math.max(1,max).toFixed(0)+' HP, '+threshold.label);}}
   function duration(seconds){seconds=Math.max(0,Math.floor(seconds));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
   function reason(skill,run,playing){
     if(!['fighting','cleared'].includes(run.status))return 'Expedition ended';
@@ -200,10 +206,22 @@
     const builder=run.build.signatures?.find(s=>s.role==='builder');
     coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
-    meter('#rift-vitals .hp','Player health',run.player.hp,run.player.max_hp);
+    const playerThreshold=getHealthThreshold(run.player.hp,run.player.max_hp);
+    const hpThresholdNode=$('rift-hp-threshold');
+    if(hpThresholdNode){
+      put(hpThresholdNode,playerThreshold.symbol+' '+playerThreshold.label);
+      attr(hpThresholdNode,'data-threshold',playerThreshold.state);
+    }
+    meter('#rift-vitals .hp','Player health',run.player.hp,run.player.max_hp,playerThreshold);
     meter('#rift-vitals .mana','Player mana',run.player.mana,100);
     if(boss){
-      meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp);
+      const bossThreshold=getHealthThreshold(boss.hp,boss.max_hp);
+      const bossThresholdNode=$('rift-boss-threshold');
+      if(bossThresholdNode){
+        put(bossThresholdNode,bossThreshold.symbol+' '+bossThreshold.label);
+        attr(bossThresholdNode,'data-threshold',bossThreshold.state);
+      }
+      meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp,bossThreshold);
       const bossAttackNode=$('rift-boss-attack');
       if(bossAttackNode){
         if(boss.windup>0){
@@ -239,5 +257,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects};
+  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold};
 })();
