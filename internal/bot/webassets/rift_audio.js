@@ -10,10 +10,15 @@
   audio.nightMode=setting('nightMode',false)===true;
   audio.dynamicRange=setting('dynamicRange',audio.nightMode?'night':'standard');
   if(audio.dynamicRange==='night')audio.nightMode=true;
-  const channelLevel=key=>key==='interface'&&audio.interfaceMuted?0:audio[key];
+  audio.streamerMusic=setting('streamerMusic',false)===true;
+  audio.musicPreset=setting('musicPreset',audio.streamerMusic?'streamer':'standard');
+  if(audio.musicPreset==='streamer')audio.streamerMusic=true;
+  const channelLevel=key=>(key==='interface'&&audio.interfaceMuted)||(key==='music'&&(audio.streamerMusic||audio.musicPreset==='streamer'))?0:audio[key];
+  audio.channelLevel = channelLevel;
   let master, sfx, ambient, music, voice, interfaceBus, limiter, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
   Object.defineProperty(audio, 'active', { get() { return active; }, configurable: true });
   Object.defineProperty(audio, 'limiter', { get() { return limiter; }, configurable: true });
+  Object.defineProperty(audio, 'musicBus', { get() { return music; }, configurable: true });
   audio.isActive = function () { return active; };
   const panners=new Map(),sources=new Map();let previewRequested=false;
   const buses=()=>({effects:sfx,ambience:ambient,music,voice,interface:interfaceBus});
@@ -625,7 +630,7 @@
     }
   };
   audio.set = function (key, value) {
-    if(!['muted','mono','interfaceMuted','steadyAmbience','nightMode','dynamicRange',...Object.keys(buses())].includes(key))return;
+    if(!['muted','mono','interfaceMuted','steadyAmbience','nightMode','dynamicRange','streamerMusic','musicPreset',...Object.keys(buses())].includes(key))return;
     if (key === 'nightMode') {
       audio.nightMode = !!value;
       audio.dynamicRange = audio.nightMode ? 'night' : 'standard';
@@ -638,6 +643,16 @@
       save('dynamicRange', audio.dynamicRange);
       save('nightMode', audio.nightMode);
       applyDynamicRange();
+    } else if (key === 'streamerMusic') {
+      audio.streamerMusic = !!value;
+      audio.musicPreset = audio.streamerMusic ? 'streamer' : 'standard';
+      save('streamerMusic', audio.streamerMusic);
+      save('musicPreset', audio.musicPreset);
+    } else if (key === 'musicPreset') {
+      audio.musicPreset = value === 'streamer' ? 'streamer' : 'standard';
+      audio.streamerMusic = audio.musicPreset === 'streamer';
+      save('musicPreset', audio.musicPreset);
+      save('streamerMusic', audio.streamerMusic);
     } else {
       audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);save(key,audio[key]);
     }
@@ -648,7 +663,11 @@
     audio.set('dynamicRange', preset);
     return audio.dynamicRange;
   };
-  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false,nightMode:false,dynamicRange:'standard'}))audio.set(key,value);};
+  audio.applyMusicPreset = function (preset) {
+    audio.set('musicPreset', preset);
+    return audio.musicPreset;
+  };
+  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false,nightMode:false,dynamicRange:'standard',streamerMusic:false,musicPreset:'standard'}))audio.set(key,value);};
   const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_hurt','knight_hurt','archer_hurt','treasure_hurt','boss_hurt','wolf_hurt','spore_hurt','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','wolf_death','spore_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
@@ -656,7 +675,7 @@
     if(!Object.hasOwn(buses(),channel))return false;
     const intent=++previewIntent;previewRequested=true;clearTimeout(previewTimer);if(!active){stopAmbience();stopVoices();}
     const ready=await audio.unlock();if(intent!==previewIntent||document.hidden){if(document.hidden)previewRequested=false;if(!active&&!previewRequested&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
-    if(!ready||audio.muted||channel==='interface'&&audio.interfaceMuted){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
+    if(!ready||audio.muted||channel==='interface'&&audio.interfaceMuted||channel==='music'&&(audio.streamerMusic||audio.musicPreset==='streamer')){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
     const bus=buses()[channel];
     if(cueKind)playCue(cueKind,0);
     else if(channel==='ambience')hiss(.45,.1,900,0,0,bus);
