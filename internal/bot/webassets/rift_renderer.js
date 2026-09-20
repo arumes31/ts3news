@@ -303,7 +303,7 @@
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
-      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
+      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||event.kind==='boss_phase'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
@@ -409,13 +409,20 @@
       ctx.restore();
     }
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
+      if (unit.kind === 'boss') {
+        renderer.lastBossPhaseDraw = { unitId: unit.id, phase: unit.phase || 1 };
+      }
       if(!display.cleanScreenshot&&display.healthBars){
         ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
         ctx.fillStyle=unit.kind==='boss'?'#e9a35c':'#bc7055'; ctx.fillRect(x-camera-23,y-size*.9-7,46*unit.hp/unit.max_hp,3);
         ctx.fillStyle='rgba(255,255,255,0.45)';
         ctx.fillRect(Math.round(x-camera-23+46*0.25),Math.round(y-size*.9-7),1,3);
         ctx.fillRect(Math.round(x-camera-23+46*0.50),Math.round(y-size*.9-7),1,3);
-        if(unit.hp/unit.max_hp<=0.25){
+        if(unit.kind==='boss'&&unit.phase>=2){
+          ctx.strokeStyle = unit.phase>=3 ? '#ff6575' : '#ffb84d';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x-camera-25,y-size*.9-9,50,7);
+        } else if(unit.hp/unit.max_hp<=0.25){
           ctx.strokeStyle='#ffd79e'; ctx.lineWidth=1;
           ctx.strokeRect(x-camera-24.5,y-size*.9-8.5,49,6);
         }
@@ -1015,9 +1022,89 @@
           ctx.restore();
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='boss_phase'){
+        const phase = Math.round(e.value) || 2;
+        renderer.lastBossPhaseEvent = { x: e.x, y: e.y, phase, age, started: e.started, reduced: !!renderer.reduced };
+        const screenX = e.x - camera, screenY = e.y;
+        const fade = Math.max(0, 1 - age * 2.0);
+        if(fade > 0){
+          ctx.save();
+          const isCritical = phase >= 3;
+          const primaryColor = isCritical ? 'rgba(255, 65, 85, ' : 'rgba(255, 175, 55, ';
+          const secondaryColor = isCritical ? 'rgba(195, 75, 255, ' : 'rgba(255, 235, 120, ';
+
+          // Outward expanding blast ring
+          const blastR = 24 + age * (isCritical ? 140 : 110);
+          ctx.strokeStyle = primaryColor + (fade * 0.9) + ')';
+          ctx.lineWidth = Math.max(1, (isCritical ? 4.5 : 3.5) * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY + 15, blastR, blastR * 0.48, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Inner crisp energy ring
+          const innerR = 12 + age * (isCritical ? 85 : 70);
+          ctx.strokeStyle = secondaryColor + (fade * 0.95) + ')';
+          ctx.lineWidth = Math.max(1, 2.5 * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY + 15, innerR, innerR * 0.48, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Phase text banner overhead
+          const bannerY = screenY - 50 - (renderer.reduced ? 0 : age * 16);
+          const bannerFade = Math.max(0, 1 - age * 1.8);
+          if(bannerFade > 0){
+            const label = isCritical ? '⚡ PHASE III — CRITICAL' : '⚡ PHASE II — ENRAGED';
+            ctx.font = 'bold ' + Math.round(12 * display.textScale) + 'px monospace';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#0a1715';
+            ctx.lineWidth = 3.5;
+            ctx.strokeText(label, screenX, bannerY);
+            ctx.fillStyle = isCritical ? '#ff6b81' : '#ffd060';
+            ctx.fillText(label, screenX, bannerY);
+          }
+
+          if(!renderer.reduced){
+            // Corona flare spikes
+            const spikes = isCritical ? 12 : 8;
+            for(let s = 0; s < spikes; s++){
+              const ang = s * (Math.PI * 2 / spikes) + age * 2.5;
+              const innerDist = 18 + age * 28;
+              const outerDist = innerDist + 16 * (1 - age * 0.8);
+              const sx1 = screenX + Math.cos(ang) * innerDist;
+              const sy1 = (screenY + 15) + Math.sin(ang) * (innerDist * 0.48);
+              const sx2 = screenX + Math.cos(ang) * outerDist;
+              const sy2 = (screenY + 15) + Math.sin(ang) * (outerDist * 0.48);
+              ctx.strokeStyle = (s % 2 === 0 ? primaryColor : secondaryColor) + (fade * 0.85) + ')';
+              ctx.lineWidth = Math.max(1, 2 * fade);
+              ctx.beginPath();
+              ctx.moveTo(sx1, sy1);
+              ctx.lineTo(sx2, sy2);
+              ctx.stroke();
+            }
+
+            // Erupting fiery / abyssal spark motes
+            const sparks = isCritical ? 10 : 6;
+            for(let m = 0; m < sparks; m++){
+              const progress = (age * 3.4 + m / sparks) % 1;
+              const sparkAngle = m * 1.6 + age * 4;
+              const sparkDist = 15 + progress * (isCritical ? 75 : 55);
+              const mx = screenX + Math.cos(sparkAngle) * sparkDist;
+              const my = (screenY + 15) + Math.sin(sparkAngle) * (sparkDist * 0.45) - progress * 32;
+              const mFade = fade * Math.sin(progress * Math.PI);
+              if(mFade > 0){
+                ctx.fillStyle = (m % 2 === 0 ? primaryColor : secondaryColor) + mFade + ')';
+                ctx.beginPath();
+                ctx.arc(mx, my, 2.2 * (1 - progress * 0.4), 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          }
+          ctx.restore();
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

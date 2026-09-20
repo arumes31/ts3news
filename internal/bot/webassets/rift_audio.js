@@ -399,6 +399,13 @@
         [340, 480].forEach((f, i) => t(f, f * 0.9, .22, .06, 'triangle', i * .04));
         break;
       }
+      case 'boss_phase': {
+        h(.55, .22, 1200, pan);
+        t(75, 30, .75, .22, 'sawtooth');
+        t(110, 48, .65, .16, 'triangle', .03);
+        [220, 330, 440].forEach((f, i) => t(f, f * 1.15, .45, .08, 'sawtooth', i * .05));
+        break;
+      }
       case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
       case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
       case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;

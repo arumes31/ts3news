@@ -79,6 +79,7 @@ type Actor struct {
 	RecoilX   float64 `json:"recoil_x,omitempty"`
 	TargetX   float64 `json:"target_x"`
 	TargetY   float64 `json:"target_y"`
+	Phase     int     `json:"phase,omitempty"`
 }
 
 // HurtCue returns the creature-family hurt audio cue identifier.
@@ -778,6 +779,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
 	damage = math.Min(e.HP, math.Max(0, damage))
+	prevHP := e.HP
 	e.HP = math.Max(0, e.HP-damage)
 	r.Stats.DamageDealt += damage
 	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
@@ -800,6 +802,18 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.event(effect, e.X, e.Y-30, damage)
 	if damage > 0 {
 		r.event(e.HurtCue(), e.X, e.Y-30, damage)
+	}
+	if e.Kind == "boss" && e.HP > 0 && e.MaxHP > 0 {
+		if e.Phase < 1 {
+			e.Phase = 1
+		}
+		if e.Phase < 3 && e.HP <= e.MaxHP*0.25 && prevHP > e.MaxHP*0.25 {
+			e.Phase = 3
+			r.event("boss_phase", e.X, e.Y-30, 3)
+		} else if e.Phase < 2 && e.HP <= e.MaxHP*0.5 && prevHP > e.MaxHP*0.5 {
+			e.Phase = 2
+			r.event("boss_phase", e.X, e.Y-30, 2)
+		}
 	}
 	if r.Practice != nil {
 		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {

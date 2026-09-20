@@ -14,7 +14,7 @@ import (
 // AdaptMonster reads identity and relative strengths from the canonical Abyss
 // template. Only the conversion to action-combat units belongs to Brawl.
 func AdaptMonster(m content.Mob) Actor {
-	a := Actor{Name: m.Name, ArtKey: "monster:" + m.Name, Tier: string(m.Type), Element: strings.ToLower(string(m.Element)), Kind: "goblin", Facing: -1}
+	a := Actor{Name: m.Name, ArtKey: "monster:" + m.Name, Tier: string(m.Type), Element: strings.ToLower(string(m.Element)), Kind: "goblin", Facing: -1, Phase: 1}
 	a.HP = 55 + math.Log2(1+float64(max(0, m.Stats.HP)))*4
 	a.Damage = 12 + math.Log2(1+float64(max(0, max(m.Stats.STR, m.Stats.INT))))*2
 	a.Armor = math.Min(.45, math.Log2(1+float64(max(0, m.Stats.DEF)))*.035)
@@ -123,6 +123,7 @@ func planEncounters(id string, catalog []content.Mob) [][]Actor {
 			if room == len(Rooms)-1 && index == 0 {
 				a = bosses[rng.IntN(len(bosses))]
 				a.Kind = "boss"
+				a.Phase = 1
 			}
 			a.ID = fmt.Sprintf("r%d-e%d", room, index)
 			a.X = 580 + float64(index)*240

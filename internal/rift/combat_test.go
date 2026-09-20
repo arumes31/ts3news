@@ -1585,6 +1585,98 @@ func TestBossStaggerPoseAndEvent(t *testing.T) {
 	})
 }
 
+func TestBossPhaseTransitionEvent(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	findPhaseEvents := func(events []Event) []Event {
+		var list []Event
+		for _, ev := range events {
+			if ev.Kind == "boss_phase" {
+				list = append(list, ev)
+			}
+		}
+		return list
+	}
+
+	t.Run("transitions to phase 2 at 50% HP and phase 3 at 25% HP", func(t *testing.T) {
+		r := NewRun("test-boss-phase", build, now)
+		r.Status = "fighting"
+		// Boss with 1000 HP, Armor 0 (art_key set to avoid fallback armor)
+		r.Enemies = []Actor{
+			{ID: "boss-1", Kind: "boss", ArtKey: "boss_titan", HP: 1000, MaxHP: 1000, X: 400, Y: 350, Phase: 1},
+		}
+
+		// Hit boss down to 600 HP (> 50%) -> no phase change
+		r.hurtEnemy(0, 400, "hit")
+		if r.Enemies[0].Phase != 1 {
+			t.Fatalf("expected phase 1, got %d", r.Enemies[0].Phase)
+		}
+		if len(findPhaseEvents(r.Events)) != 0 {
+			t.Fatalf("expected 0 boss_phase events, got %d", len(findPhaseEvents(r.Events)))
+		}
+
+		// Hit boss down to 450 HP (crossing 50% threshold) -> transitions to phase 2
+		r.hurtEnemy(0, 150, "hit")
+		if r.Enemies[0].Phase != 2 {
+			t.Fatalf("expected phase 2, got %d", r.Enemies[0].Phase)
+		}
+		evs := findPhaseEvents(r.Events)
+		if len(evs) != 1 {
+			t.Fatalf("expected 1 boss_phase event, got %d", len(evs))
+		}
+		if evs[0].Value != 2 {
+			t.Fatalf("expected boss_phase value 2, got %f", evs[0].Value)
+		}
+
+		// Subsequent hit while remaining in phase 2 (e.g. 450 -> 350 HP) does not re-emit
+		r.hurtEnemy(0, 100, "hit")
+		if r.Enemies[0].Phase != 2 {
+			t.Fatalf("expected phase 2, got %d", r.Enemies[0].Phase)
+		}
+		if len(findPhaseEvents(r.Events)) != 1 {
+			t.Fatalf("expected still 1 boss_phase event, got %d", len(findPhaseEvents(r.Events)))
+		}
+
+		// Hit boss down to 200 HP (crossing 25% threshold) -> transitions to phase 3
+		r.hurtEnemy(0, 150, "hit")
+		if r.Enemies[0].Phase != 3 {
+			t.Fatalf("expected phase 3, got %d", r.Enemies[0].Phase)
+		}
+		evs = findPhaseEvents(r.Events)
+		if len(evs) != 2 {
+			t.Fatalf("expected 2 boss_phase events, got %d", len(evs))
+		}
+		if evs[1].Value != 3 {
+			t.Fatalf("expected boss_phase value 3, got %f", evs[1].Value)
+		}
+
+		// Fatal blow drops HP to 0 -> should not emit another boss_phase event
+		r.hurtEnemy(0, 200, "hit")
+		if r.Enemies[0].HP != 0 {
+			t.Fatalf("expected boss defeated, HP: %f", r.Enemies[0].HP)
+		}
+		if len(findPhaseEvents(r.Events)) != 2 {
+			t.Fatalf("expected still 2 boss_phase events after defeat, got %d", len(findPhaseEvents(r.Events)))
+		}
+	})
+
+	t.Run("non_boss_monsters_do_not_emit_boss_phase", func(t *testing.T) {
+		r := NewRun("test-mob-phase", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "knight-1", Kind: "knight", ArtKey: "knight_elite", HP: 1000, MaxHP: 1000, X: 400, Y: 350, Phase: 1},
+		}
+
+		// Drop knight to 400 HP (<= 50%) and then 200 HP (<= 25%)
+		r.hurtEnemy(0, 600, "hit")
+		r.hurtEnemy(0, 200, "hit")
+		if len(findPhaseEvents(r.Events)) != 0 {
+			t.Fatalf("expected 0 boss_phase events for non-boss mob, got %d", len(findPhaseEvents(r.Events)))
+		}
+	})
+}
+
 
 
 
