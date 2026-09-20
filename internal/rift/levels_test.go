@@ -214,6 +214,49 @@ func TestHazardWarningEventEmittedOncePerCycle(t *testing.T) {
 	}
 }
 
+func TestHazardDeactivationEventEmittedWhenActivePhaseEnds(t *testing.T) {
+	r := NewRunAtLevel("hazard-deact-test", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "ice", Period: 5, Duration: 1}}
+
+	// Active phase (1.2 to 2.2)
+	r.Clock = 1.5
+	r.hazardTick()
+
+	// Ensure no deactivation during active phase
+	for _, e := range r.Events {
+		if e.Kind == "hazard_deactivation" {
+			t.Fatal("deactivation event emitted while hazard was still active")
+		}
+	}
+
+	// Deactivation phase (>= 2.2)
+	r.Clock = 2.3
+	r.hazardTick()
+
+	deactCount := 0
+	for _, e := range r.Events {
+		if e.Kind == "hazard_deactivation" {
+			deactCount++
+		}
+	}
+	if deactCount != 1 {
+		t.Fatalf("expected exactly 1 hazard_deactivation event, got %d", deactCount)
+	}
+
+	// Subsequent tick in same safe phase must not emit another deactivation event
+	r.Clock = 2.8
+	r.hazardTick()
+	deactCount = 0
+	for _, e := range r.Events {
+		if e.Kind == "hazard_deactivation" {
+			deactCount++
+		}
+	}
+	if deactCount != 1 {
+		t.Fatalf("deactivation event repeated within safe phase: %d", deactCount)
+	}
+}
+
 func TestSeamlessCampaignAdvanceKeepsReceiptAndCompletion(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	r := NewRunAtLevel("campaign", Build{HP: 200}, time.Now(), catalog, 10)

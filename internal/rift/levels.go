@@ -290,10 +290,18 @@ func (r *Run) hazardTick() {
 	for i, h := range r.Arena().Hazards {
 		phase := h.Phase(r.Clock)
 		warnKey := fmt.Sprintf("hazard-warn-%d", i)
+		activeKey := fmt.Sprintf("hazard-active-%d", i)
 		if phase < 1.2 {
 			if r.SkillTimers[warnKey] <= 0 {
 				r.SkillTimers[warnKey] = math.Max(1.5, h.Period-phase+.05)
 				r.event("hazard_warning", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
+		} else if phase >= 1.2 && phase < 1.2+h.Duration {
+			r.SkillTimers[activeKey] = 1
+		} else if phase >= 1.2+h.Duration {
+			if r.SkillTimers[activeKey] > 0 {
+				r.SkillTimers[activeKey] = 0
+				r.event("hazard_deactivation", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		}
 		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) || r.Player.Jump > .1 {
