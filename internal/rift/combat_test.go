@@ -351,3 +351,95 @@ func TestRareItemDiscoveryEventEmittedOnCollection(t *testing.T) {
 	}
 }
 
+func TestLandingEventVariesByJumpIntensity(t *testing.T) {
+	now := time.Unix(100, 0)
+	r := NewRun("test-jump-landing", testRun().Build, now)
+	r.Status = "fighting"
+
+	// 1. Stationary hop (no directional movement): emits light landing (intensity <= 0.4)
+	r.Step(Input{Jump: true}, now.Add(50*time.Millisecond))
+	if r.Player.Jump == 0 {
+		t.Fatal("expected player to be jumping")
+	}
+	currentTime := now.Add(50 * time.Millisecond)
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{}, currentTime)
+	}
+	if r.Player.Jump != 0 {
+		t.Fatalf("expected player to land, got Jump=%v", r.Player.Jump)
+	}
+
+	var stationaryLand *Event
+	for i := len(r.Events) - 1; i >= 0; i-- {
+		if r.Events[i].Kind == "land" {
+			stationaryLand = &r.Events[i]
+			break
+		}
+	}
+	if stationaryLand == nil {
+		t.Fatalf("expected 'land' event for stationary hop, events=%+v", r.Events)
+	}
+	if stationaryLand.Value > 0.4 {
+		t.Fatalf("expected stationary hop landing intensity <= 0.4, got %v", stationaryLand.Value)
+	}
+
+	// Wait for jump cooldown
+	currentTime = currentTime.Add(time.Second)
+	r.SkillTimers["jump"] = 0
+
+	// 2. Moving running leap (held directional movement): emits higher intensity (>= 0.6)
+	currentTime = currentTime.Add(50 * time.Millisecond)
+	r.Step(Input{Jump: true, X: 1}, currentTime)
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{X: 1}, currentTime)
+	}
+	if r.Player.Jump != 0 {
+		t.Fatalf("expected moving leap player to land, got Jump=%v", r.Player.Jump)
+	}
+
+	var movingLand *Event
+	for i := len(r.Events) - 1; i >= 0; i-- {
+		if r.Events[i].Kind == "land" {
+			movingLand = &r.Events[i]
+			break
+		}
+	}
+	if movingLand == nil {
+		t.Fatalf("expected 'land' event for moving leap, events=%+v", r.Events)
+	}
+	if movingLand.Value < 0.6 {
+		t.Fatalf("expected moving leap landing intensity >= 0.6, got %v", movingLand.Value)
+	}
+
+	// 3. Knockdown landing (swatted out of air or slammed down): emits heavy landing (intensity = 1.0)
+	currentTime = currentTime.Add(time.Second)
+	r.SkillTimers["jump"] = 0
+	currentTime = currentTime.Add(50 * time.Millisecond)
+	r.Step(Input{Jump: true}, currentTime)
+	r.Player.Knockdown = 0.5
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{}, currentTime)
+	}
+	var knockdownLand *Event
+	for i := len(r.Events) - 1; i >= 0; i-- {
+		if r.Events[i].Kind == "land" {
+			knockdownLand = &r.Events[i]
+			break
+		}
+	}
+	if knockdownLand == nil || knockdownLand.Value < 0.85 {
+		t.Fatalf("expected heavy landing intensity >= 0.85 on knockdown, got %+v", knockdownLand)
+	}
+
+	// 4. Direct Land helper
+	r.Land(0.92)
+	last := r.Events[len(r.Events)-1]
+	if last.Kind != "land" || last.Value != 0.92 {
+		t.Fatalf("expected direct Land event with value 0.92, got %+v", last)
+	}
+}
+
+

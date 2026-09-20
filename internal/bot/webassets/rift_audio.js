@@ -72,9 +72,10 @@
     audio.play('cooldown_rejection', pan);
     return true;
   };
-  audio.play = function (kind, pan, extra) {
+  audio.play = function (kind, pan, extra, extra2) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
+    if (kind === 'land') { audio.land(extra, pan, extra2); return; }
     playCue(kind,pan);
   };
   audio.step = function (material, pan) {
@@ -82,6 +83,38 @@
     const mat = String(material || 'stone').toLowerCase();
     const cue = ['metal','wood','water','mud','ice','grass','dirt','stone'].includes(mat) ? 'step_' + mat : 'step';
     playCue(cue, pan || 0);
+  };
+  audio.land = function (intensity = 0.5, pan = 0, material) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    let numeric = 0.5;
+    if (typeof intensity === 'string') {
+      const lowered = intensity.toLowerCase();
+      numeric = lowered === 'heavy' ? 0.9 : lowered === 'light' ? 0.3 : 0.6;
+    } else if (typeof intensity === 'number' && Number.isFinite(intensity)) {
+      numeric = intensity;
+    }
+    const cue = numeric < 0.45 ? 'land_light' : numeric >= 0.75 ? 'land_heavy' : 'land';
+    playCue(cue, pan || 0);
+
+    const mat = String(material || '').toLowerCase();
+    if (mat && mat !== 'stone') {
+      const vol = numeric < 0.45 ? 0.6 : numeric >= 0.75 ? 1.4 : 1.0;
+      if (mat === 'metal') {
+        hiss(.08, .05 * vol, 2900, pan || 0, 0, sfx);
+        tone(640, 400, .08, .06 * vol, 'triangle', 0, pan || 0, sfx);
+      } else if (mat === 'water') {
+        hiss(.13, .08 * vol, 1500, pan || 0, 0, sfx);
+        tone(260, 95, .11, .06 * vol, 'sine', 0, pan || 0, sfx);
+      } else if (mat === 'wood') {
+        tone(200, 80, .09, .08 * vol, 'triangle', 0, pan || 0, sfx);
+      } else if (mat === 'ice') {
+        hiss(.10, .07 * vol, 4500, pan || 0, 0, sfx);
+        tone(800, 580, .06, .04 * vol, 'sine', 0, pan || 0, sfx);
+      } else if (mat === 'mud') {
+        hiss(.11, .07 * vol, 950, pan || 0, 0, sfx);
+        tone(160, 70, .09, .05 * vol, 'triangle', 0, pan || 0, sfx);
+      }
+    }
   };
   function playCue(kind,pan){
     audio.played++;
@@ -97,6 +130,9 @@
       case 'step_ice': h(.08, .075, 4500, pan); t(880, 720, .05, .03, 'sine'); break;
       case 'step_grass': case 'step_dirt': h(.07, .06, 380, pan); t(90, 50, .06, .035, 'triangle'); break;
       case 'jump': t(160, 480, .15, .09, 'triangle'); h(.09, .04, 1200, pan); break;
+      case 'land_light': h(.06, .05, 800, pan); t(140, 80, .05, .05, 'triangle'); break;
+      case 'land': case 'land_medium': h(.10, .09, 650, pan); t(110, 50, .09, .08, 'triangle'); break;
+      case 'land_heavy': h(.16, .14, 520, pan); t(90, 32, .18, .15, 'triangle'); t(70, 25, .22, .12, 'sine', .01); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
       case 'hit': h(.1, .2, 1700, pan); t(110, 48, .15, .18, 'triangle'); break;
       case 'hurt': t(170, 65, .2, .1, 'sawtooth'); h(.12, .12, 950, pan); break;

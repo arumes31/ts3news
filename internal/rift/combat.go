@@ -211,6 +211,8 @@ type Run struct {
 	Counter             int                      `json:"counter"`
 	Combo               int                      `json:"combo"`
 	Floor               string                   `json:"floor,omitempty"`
+	jumpAir             float64
+	jumpDist            float64
 }
 
 type Input struct {
@@ -379,6 +381,11 @@ func (r *Run) event(kind string, x, y, value float64) {
 	}
 }
 
+// Land emits a landing event with the specified intensity.
+func (r *Run) Land(intensity float64) {
+	r.event("land", r.Player.X, r.Player.Y, intensity)
+}
+
 // Step uses elapsed server time, capped to avoid catch-up damage after a disconnect.
 func (r *Run) Step(in Input, now time.Time) {
 	if !in.ValidMovement() {
@@ -411,6 +418,7 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	p := &r.Player
 	p.Cooldown = math.Max(0, p.Cooldown-dt)
+	wasJumping := p.Jump > 0
 	p.Jump = math.Max(0, p.Jump-dt)
 	p.PoseTime = math.Max(0, p.PoseTime-dt)
 	p.Mana = math.Min(100, p.Mana+dt*6)
@@ -440,6 +448,21 @@ func (r *Run) tick(in Input, dt float64) {
 		x /= length
 		y /= length
 	}
+	if wasJumping {
+		r.jumpAir += dt
+		r.jumpDist += length * dt
+		if p.Jump == 0 {
+			intensity := 0.35
+			if p.Knockdown > 0 {
+				intensity = 1.0
+			} else if r.jumpDist >= 0.45 {
+				intensity = 0.85
+			} else if r.jumpDist >= 0.15 {
+				intensity = 0.65
+			}
+			r.event("land", p.X, p.Y, intensity)
+		}
+	}
 	r.moveActor(p, x*speed*dt, y*speed*.6*dt, false)
 	if x != 0 {
 		p.Facing = math.Copysign(1, x)
@@ -457,6 +480,8 @@ func (r *Run) tick(in Input, dt float64) {
 		r.Stats.Jumps++
 		p.Jump = .65
 		r.SkillTimers["jump"] = 1.05
+		r.jumpAir = 0
+		r.jumpDist = 0
 		r.event("jump", p.X, p.Y, 0)
 	}
 	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard {

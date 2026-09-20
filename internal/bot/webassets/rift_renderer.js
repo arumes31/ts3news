@@ -301,7 +301,8 @@
       seen = event.id;
       if(!replay&&(event.kind==='slam'||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
-      window.RiftAudio.play(event.kind, (event.x - run.player.x) / 700);
+      const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
+      window.RiftAudio.play(event.kind, (event.x - run.player.x) / 700, event.value, floorMat);
     });
     if (effects.length > 40) effects = effects.slice(-40);
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
