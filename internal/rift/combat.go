@@ -497,7 +497,11 @@ func (r *Run) tick(in Input, dt float64) {
 			p.Pose = "run"
 		}
 		if p.Guard {
-			p.Pose = "guard"
+			if length > 0 {
+				p.Pose = "guard_walk"
+			} else {
+				p.Pose = "guard"
+			}
 		}
 	}
 	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 {

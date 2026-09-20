@@ -688,3 +688,44 @@ func TestPlayerLandingPose(t *testing.T) {
 	}
 }
 
+func TestPlayerGuardedWalkingPose(t *testing.T) {
+	now := time.Unix(100, 0)
+	r := NewRun("test-guarded-walking-pose", testRun().Build, now)
+	r.Status = "fighting"
+	r.Enemies = nil
+
+	// 1. Stationary guard
+	r.Step(Input{Guard: true}, now.Add(50*time.Millisecond))
+	if !r.Player.Guard {
+		t.Fatal("expected player to be guarding")
+	}
+	if r.Player.Pose != "guard" {
+		t.Fatalf("expected stationary guarded player to have pose 'guard', got %q", r.Player.Pose)
+	}
+
+	// 2. Moving while guarding: transitions to guard_walk
+	r.Step(Input{Guard: true, X: 1}, now.Add(100*time.Millisecond))
+	if !r.Player.Guard {
+		t.Fatal("expected player to remain guarding")
+	}
+	if r.Player.Pose != "guard_walk" {
+		t.Fatalf("expected moving guarded player to have pose 'guard_walk', got %q", r.Player.Pose)
+	}
+
+	// 3. Releasing movement while continuing guard returns to guard
+	r.Step(Input{Guard: true}, now.Add(150*time.Millisecond))
+	if r.Player.Pose != "guard" {
+		t.Fatalf("expected stationary guarded player to return to pose 'guard', got %q", r.Player.Pose)
+	}
+
+	// 4. Releasing guard while moving transitions to run
+	r.Step(Input{X: 1}, now.Add(200*time.Millisecond))
+	if r.Player.Guard {
+		t.Fatal("expected player to stop guarding")
+	}
+	if r.Player.Pose != "run" {
+		t.Fatalf("expected moving player to transition to pose 'run', got %q", r.Player.Pose)
+	}
+}
+
+

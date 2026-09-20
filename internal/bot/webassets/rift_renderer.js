@@ -340,6 +340,7 @@
     if (unit.pose === 'cast') col = 11;
     if (unit.pose === 'windup') col = 8;
     if (unit.guard) col = 7;
+    if (unit.pose === 'guard_walk') col = Math.floor(animationTime/160)%2 === 0 ? 7 : 3;
     if (unit.pose === 'land') col = 10;
     if (unit.jump > 0) col = 6;
     if (unit.pose === 'hit' && !unit.guard) col = 12;
@@ -347,7 +348,8 @@
     if (unit.id === 'player' && snapshot.status === 'cleared' && unit.pose !== 'run') col = 15;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
-    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump+landSquash,size,1);else sprite(row,col,x-camera,y-jump+landSquash,size,unit.facing,1,atlas);
+    const guardStride = unit.pose === 'guard_walk' && !renderer.reduced ? Math.sin(animationTime/80)*2*motion : 0;
+    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump+landSquash+guardStride,size,1);else sprite(row,col,x-camera,y-jump+landSquash+guardStride,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,x-camera,y-size*.4,105,.85);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
@@ -372,18 +374,19 @@
     // Keep the expanded Brawl animations for matching existing species. All
     // other anatomy comes directly from Abyss's shared actor-frame provider.
     const localRow={goblin:0,wolf:4,knight:2}[profile.rig];
-    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'?'idle':pose;
+    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'||pose==='guard_walk'?'idle':pose;
     if(localRow!==undefined){
       let col=renderer.reduced?0:Math.floor(decorationTime/650)%2;
       if(pose==='run')col=2+Math.floor(animationTime/105)%4;
       if(pose==='attack')col=unit.pose_time>.25?8:unit.pose_time>.12?9:10;
       if(pose==='windup')col=8;if(pose==='cast')col=11;if(pose==='hit')col=12;if(pose==='knockdown')col=13;if(pose==='defeat')col=14;
+      if(pose==='guard_walk')col=Math.floor(animationTime/160)%2===0?7:3;
       if(pose==='land')col=10;
       sprite(localRow,col,x,y,size,unit.facing,alpha,'mobs');
     }else{
       const frame=bestiary.frame(unit,mapped,Math.floor((mapped==='idle'?decorationTime:animationTime)/(pose==='run'?110:200))),img=catalogImages[frame.asset],source=frame.source;
       if(!img||!source)return;
-      const stride=pose==='run'&&!renderer.reduced?Math.sin(animationTime/65)*3*motion:0;
+      const stride=((pose==='run'?Math.sin(animationTime/65)*3:pose==='guard_walk'?Math.sin(animationTime/80)*2:0))*(!renderer.reduced?motion:0);
       ctx.save();ctx.globalAlpha=alpha;ctx.translate(Math.round(x),Math.round(y+stride));ctx.scale(unit.facing<0?-1:1,1);
       if(pose==='knockdown')ctx.rotate(-.55);
       ctx.drawImage(img,source.x*img.width,source.y*img.height,source.width*img.width,source.height*img.height,-size/2,-size*.91,size,size);ctx.restore();
@@ -584,7 +587,7 @@
       ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
     }
     const units=[...run.enemies,run.player];
-    if(run.build.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':run.player.pose==='run'?'run':'idle',jump:0});}
+    if(run.build.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
       if(!unit.cover){actor(unit,wallNow);return;}
@@ -627,7 +630,8 @@
         ctx.fillText(label,e.x-camera,e.y-drift);
       }
     });
-    if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}
+    const isMovingFootstep = (run.player.pose === 'run' && now - footstep > 320) || (run.player.pose === 'guard_walk' && now - footstep > 460);
+    if(run.status==='fighting' && !run.paused && isMovingFootstep && run.player.jump===0){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();
     if(now-transitionAt<500&&!renderer.reduced){ctx.fillStyle='#091914';ctx.globalAlpha=Math.max(0,.65*(1-(now-transitionAt)/500))*display.flashIntensity;ctx.fillRect(0,0,960,540);ctx.globalAlpha=1;}
   }
