@@ -528,4 +528,46 @@ func TestWeaponImpactEventVariesByWeaponFamily(t *testing.T) {
 	}
 }
 
+func TestEnemyHurtEventsVaryByCreatureFamily(t *testing.T) {
+	creatures := []struct {
+		kind string
+		want string
+	}{
+		{"goblin", "goblin_hurt"},
+		{"knight", "knight_hurt"},
+		{"archer", "archer_hurt"},
+		{"treasure", "treasure_hurt"},
+		{"boss", "boss_hurt"},
+	}
+
+	for _, tc := range creatures {
+		now := time.Unix(100, 0)
+		r := NewRun("test-hurt-"+tc.kind, testRun().Build, now)
+		r.Enemies = []Actor{
+			{ID: "enemy-1", Kind: tc.kind, X: 300, Y: 350, HP: 500, MaxHP: 500},
+		}
+
+		r.hurtEnemy(0, 25, "hit")
+
+		var hurtEvent *Event
+		for i := len(r.Events) - 1; i >= 0; i-- {
+			if strings.HasSuffix(r.Events[i].Kind, "_hurt") {
+				hurtEvent = &r.Events[i]
+				break
+			}
+		}
+
+		if hurtEvent == nil {
+			t.Fatalf("expected creature hurt event for %q, got events: %+v", tc.kind, r.Events)
+		}
+		if hurtEvent.Kind != tc.want {
+			t.Fatalf("for %q expected event %q, got %q", tc.kind, tc.want, hurtEvent.Kind)
+		}
+		if hurtEvent.Value <= 0 || hurtEvent.Value > 25 {
+			t.Fatalf("expected hurt event value between 0 and 25, got %v", hurtEvent.Value)
+		}
+	}
+}
+
+
 

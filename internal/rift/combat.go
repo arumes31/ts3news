@@ -80,6 +80,16 @@ type Actor struct {
 	TargetY   float64 `json:"target_y"`
 }
 
+// HurtCue returns the creature-family hurt audio cue identifier.
+func (a Actor) HurtCue() string {
+	switch a.Kind {
+	case "goblin", "knight", "archer", "treasure", "boss":
+		return a.Kind + "_hurt"
+	default:
+		return "hurt"
+	}
+}
+
 type Projectile struct {
 	Skill   Skill   `json:"skill"`
 	Charges int     `json:"charges"`
@@ -701,6 +711,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.Pose = "hit"
 	e.PoseTime = .2
 	r.event(effect, e.X, e.Y-30, damage)
+	if damage > 0 {
+		r.event(e.HurtCue(), e.X, e.Y-30, damage)
+	}
 	if r.Practice != nil {
 		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++

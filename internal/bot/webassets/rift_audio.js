@@ -77,6 +77,7 @@
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
     if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
+    if (kind === 'hurt' && extra) { audio.hurt(extra, pan); return; }
     playCue(kind,pan);
   };
   audio.step = function (material, pan) {
@@ -89,6 +90,12 @@
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     const fam = String(family || 'blade').toLowerCase();
     const cue = ['blade','blunt','pierce','arcane','fist','ranged'].includes(fam) ? 'hit_' + fam : 'hit';
+    playCue(cue, pan || 0);
+  };
+  audio.hurt = function (kind, pan) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    const k = String(kind || 'hurt').toLowerCase();
+    const cue = ['goblin','knight','archer','treasure','boss'].includes(k) ? k + '_hurt' : 'hurt';
     playCue(cue, pan || 0);
   };
   audio.land = function (intensity = 0.5, pan = 0, material) {
@@ -125,7 +132,7 @@
   };
   function playCue(kind,pan){
     audio.played++;
-    const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar|_escape)$/.test(kind)?voice:sfx;
+    const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar|_escape|_hurt)$/.test(kind)?voice:sfx;
     const t = (f, end, d, v, wave, delay) => tone(f, end, d, v, wave, delay, pan,target);
     const h = (duration,volume,cutoff,position,delay)=>hiss(duration,volume,cutoff,position,delay,target);
     switch (kind) {
@@ -148,6 +155,11 @@
       case 'hit_fist': h(.09, .16, 900, pan); t(140, 50, .14, .18, 'triangle'); break;
       case 'hit_ranged': h(.07, .18, 4800, pan); t(820, 340, .07, .10, 'triangle'); t(160, 70, .09, .12, 'triangle'); break;
       case 'hurt': t(170, 65, .2, .1, 'sawtooth'); h(.12, .12, 950, pan); break;
+      case 'goblin_hurt': t(360, 150, .14, .08, 'sawtooth'); h(.07, .06, 1800, pan); break;
+      case 'knight_hurt': h(.16, .14, 1100, pan); t(130, 65, .16, .12, 'triangle'); t(90, 45, .18, .08, 'sawtooth'); break;
+      case 'archer_hurt': t(480, 220, .12, .06, 'square'); h(.1, .07, 3200, pan); break;
+      case 'treasure_hurt': [784, 1175].forEach((f, i) => t(f, f * .8, .12, .06, 'triangle', i * .04)); h(.08, .07, 5000, pan); break;
+      case 'boss_hurt': t(110, 45, .35, .16, 'sawtooth'); t(75, 30, .4, .14, 'sawtooth', .02); h(.3, .12, 600, pan); break;
       case 'block': t(940, 760, .2, .08, 'square'); t(1510, 1200, .12, .04, 'sine'); h(.04, .09, 7000, pan); break;
       case 'fire': h(.5, .18, 1500, pan); t(200, 45, .45, .1, 'sawtooth'); break;
       case 'ice': [880,1320,1760].forEach((f,i) => t(f, f*.8, .25, .045, 'sine', i*.045)); h(.1,.055,7000,pan); break;
@@ -385,7 +397,7 @@
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
   audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false}))audio.set(key,value);};
-  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
+  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_hurt','knight_hurt','archer_hurt','treasure_hurt','boss_hurt','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
   audio.preview=async (channel,cueKind)=>{
