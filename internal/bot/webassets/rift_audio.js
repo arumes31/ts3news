@@ -369,6 +369,11 @@
         [440, 660, 880].forEach((f, i) => t(f, f * 1.05, .35, .06, 'triangle', i * .04));
         break;
       }
+      case 'heavy_recovery': {
+        h(.12, .07, 1400, pan);
+        t(130, 55, .16, .08, 'triangle');
+        break;
+      }
       case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
       case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
       case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;

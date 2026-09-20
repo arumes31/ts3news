@@ -996,18 +996,203 @@ func TestUltimateAnticipationPose(t *testing.T) {
 			t.Fatalf("expected event coordinates (%f, %f), got (%f, %f)", r.Player.X, r.Player.Y-35, ev.X, ev.Y)
 		}
 
-		// Smooth recovery to idle after 0.55s expires
+		// After 0.55s, transitions to recovery pose
 		cur := now
-		for i := 0; i < 7; i++ {
+		for i := 0; i < 6; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("expected pose to transition to 'recovery' after ultimate anticipation expires, got %q", r.Player.Pose)
+		}
+
+		// Smooth recovery to idle after recovery duration (0.22s) expires
+		for i := 0; i < 3; i++ {
 			cur = cur.Add(100 * time.Millisecond)
 			r.Step(Input{}, cur)
 		}
 		if r.Player.Pose != "idle" {
-			t.Fatalf("expected pose to recover to 'idle' after pose_time expires, got %q", r.Player.Pose)
+			t.Fatalf("expected pose to recover to 'idle' after recovery expires, got %q", r.Player.Pose)
 		}
 	})
 }
 
+func TestHeavyAbilityRecoveryPose(t *testing.T) {
+	now := time.Unix(100, 0)
 
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
 
+	build := testRun().Build
+	build.Signatures = []Skill{
+		{ID: "build", Role: "builder", Kind: "shield", Cost: 0, Cooldown: 0},
+		{ID: "finish", Role: "finisher", Kind: "slash", Cost: 0, Cooldown: 0, Power: 2},
+	}
+	build.Skills = []Skill{
+		{ID: "fire", Name: "Fireball", Kind: "fire", Power: 1.5, Cost: 0, Cooldown: 2},
+		{ID: "tremor", Name: "Earth Tremor", Kind: "quake", Power: 2.5, Cost: 0, Cooldown: 4},
+	}
+	build.Ultimate = &Skill{ID: "cataclysm", Name: "Cataclysm", Kind: "ultimate", Power: 4, Cost: 0, Cooldown: 12}
 
+	// 1. Regular skill cast (fireball) skips recovery pose
+	t.Run("regular_skill_skips_recovery", func(t *testing.T) {
+		r := NewRun("test-reg-skill", build, now)
+		r.Status = "fighting"
+		r.cast("fire")
+		if r.Player.Pose != "cast" {
+			t.Fatalf("expected initial pose 'cast', got %q", r.Player.Pose)
+		}
+		cur := now
+		for i := 0; i < 5; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "idle" {
+			t.Fatalf("expected regular skill to recover directly to 'idle', got %q", r.Player.Pose)
+		}
+		if findEvent(r.Events, "heavy_recovery") != nil {
+			t.Fatal("regular skill must not emit heavy_recovery event")
+		}
+	})
+
+	// 2. Uncharged finisher (0 charges) skips recovery pose
+	t.Run("uncharged_finisher_skips_recovery", func(t *testing.T) {
+		r := NewRun("test-empty-finish", build, now)
+		r.Status = "fighting"
+		r.Resource = 0
+		r.cast("finish")
+		cur := now
+		for i := 0; i < 5; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "idle" {
+			t.Fatalf("expected uncharged finisher to recover directly to 'idle', got %q", r.Player.Pose)
+		}
+		if findEvent(r.Events, "heavy_recovery") != nil {
+			t.Fatal("uncharged finisher must not emit heavy_recovery event")
+		}
+	})
+
+	// 3. Charged finisher (2 charges) enters recovery pose and emits heavy_recovery event
+	t.Run("charged_finisher_enters_recovery", func(t *testing.T) {
+		r := NewRun("test-charged-finish", build, now)
+		r.Status = "fighting"
+		r.Resource = 2
+		r.cast("finish")
+		if r.Player.Pose != "cast" {
+			t.Fatalf("expected initial pose 'cast', got %q", r.Player.Pose)
+		}
+		cur := now
+		// Step 4 times (400ms = cast duration)
+		for i := 0; i < 4; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("expected pose to transition to 'recovery' after charged finisher cast, got %q", r.Player.Pose)
+		}
+		if r.Player.PoseTime <= 0 || r.Player.PoseTime > 0.25 {
+			t.Fatalf("expected pose_time ~0.22, got %f", r.Player.PoseTime)
+		}
+		ev := findEvent(r.Events, "heavy_recovery")
+		if ev == nil {
+			t.Fatal("charged finisher must emit heavy_recovery event")
+		}
+
+		// While in recovery, cannot attack or jump
+		r.Step(Input{Attack: true}, cur.Add(20*time.Millisecond))
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("attack must not override active recovery pose, got %q", r.Player.Pose)
+		}
+
+		// Step until recovery duration expires (300ms more)
+		for i := 0; i < 3; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "idle" {
+			t.Fatalf("expected pose to recover to 'idle' after recovery expires, got %q", r.Player.Pose)
+		}
+	})
+
+	// 4. Heavy quake ability enters recovery pose
+	t.Run("quake_enters_recovery", func(t *testing.T) {
+		r := NewRun("test-quake", build, now)
+		r.Status = "fighting"
+		r.cast("tremor")
+		cur := now
+		for i := 0; i < 4; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("expected quake to transition to 'recovery', got %q", r.Player.Pose)
+		}
+		for i := 0; i < 3; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "idle" {
+			t.Fatalf("expected quake recovery to end in 'idle', got %q", r.Player.Pose)
+		}
+	})
+
+	// 5. Movement during recovery stays in recovery until pose_time expires, then transitions to run
+	t.Run("moving_during_recovery_transitions_to_run", func(t *testing.T) {
+		r := NewRun("test-recovery-move", build, now)
+		r.Status = "fighting"
+		r.Resource = 3
+		r.cast("finish")
+		cur := now
+		// Reach recovery
+		for i := 0; i < 4; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("expected recovery pose, got %q", r.Player.Pose)
+		}
+		// Hold movement key during recovery
+		cur = cur.Add(50 * time.Millisecond)
+		r.Step(Input{X: 1}, cur)
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("holding movement should not immediately interrupt recovery pose, got %q", r.Player.Pose)
+		}
+		// Step past recovery duration with movement held
+		for i := 0; i < 3; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{X: 1}, cur)
+		}
+		if r.Player.Pose != "run" {
+			t.Fatalf("expected transition to 'run' when moving after recovery expires, got %q", r.Player.Pose)
+		}
+	})
+
+	// 6. Taking damage interrupts recovery
+	t.Run("taking_damage_interrupts_recovery", func(t *testing.T) {
+		r := NewRun("test-recovery-damage", build, now)
+		r.Status = "fighting"
+		r.Resource = 2
+		r.cast("finish")
+		cur := now
+		for i := 0; i < 4; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "recovery" {
+			t.Fatalf("expected recovery pose, got %q", r.Player.Pose)
+		}
+		// Enemy hits player
+		r.hurtPlayer(15, r.Player.X+50, r.Player.Y)
+		if r.Player.Pose != "hit" {
+			t.Fatalf("taking damage must interrupt recovery with 'hit' pose, got %q", r.Player.Pose)
+		}
+	})
+}

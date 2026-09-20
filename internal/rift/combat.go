@@ -234,6 +234,7 @@ type Run struct {
 	Floor               string                   `json:"floor,omitempty"`
 	jumpAir             float64
 	jumpDist            float64
+	heavyRecovery       float64
 }
 
 type Input struct {
@@ -287,6 +288,7 @@ func (r *Run) spawnRoom() {
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
+	r.heavyRecovery = 0
 	r.Floor = r.FloorMaterial()
 	r.event("area", r.Player.X, r.Player.Y, float64(r.Room))
 }
@@ -442,6 +444,9 @@ func (r *Run) tick(in Input, dt float64) {
 	wasJumping := p.Jump > 0
 	p.Jump = math.Max(0, p.Jump-dt)
 	p.PoseTime = math.Max(0, p.PoseTime-dt)
+	if p.PoseTime < 0.0001 {
+		p.PoseTime = 0
+	}
 	if p.PoseTime == 0 {
 		p.RecoilX = 0
 	} else if p.RecoilX != 0 {
@@ -487,7 +492,7 @@ func (r *Run) tick(in Input, dt float64) {
 				intensity = 0.65
 			}
 			r.event("land", p.X, p.Y, intensity)
-			if p.Knockdown == 0 && p.HP > 0 && p.Pose != "attack" && p.Pose != "cast" && p.Pose != "hit" {
+			if p.Knockdown == 0 && p.HP > 0 && p.Pose != "attack" && p.Pose != "cast" && p.Pose != "hit" && p.Pose != "recovery" && p.Pose != "ultimate_anticipation" {
 				p.Pose = "land"
 				p.PoseTime = 0.14
 			}
@@ -498,19 +503,26 @@ func (r *Run) tick(in Input, dt float64) {
 		p.Facing = math.Copysign(1, x)
 	}
 	if p.PoseTime == 0 {
-		p.Pose = "idle"
-		if length > 0 {
-			p.Pose = "run"
-		}
-		if p.Guard {
+		if r.heavyRecovery > 0 && p.HP > 0 && p.Knockdown == 0 && (p.Pose == "cast" || p.Pose == "ultimate_anticipation") {
+			p.Pose = "recovery"
+			p.PoseTime = r.heavyRecovery
+			r.heavyRecovery = 0
+			r.event("heavy_recovery", p.X, p.Y-35, 0)
+		} else {
+			p.Pose = "idle"
 			if length > 0 {
-				p.Pose = "guard_walk"
-			} else {
-				p.Pose = "guard"
+				p.Pose = "run"
+			}
+			if p.Guard {
+				if length > 0 {
+					p.Pose = "guard_walk"
+				} else {
+					p.Pose = "guard"
+				}
 			}
 		}
 	}
-	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 {
+	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 && p.Pose != "recovery" && p.Pose != "ultimate_anticipation" {
 		r.Stats.Jumps++
 		p.Jump = .65
 		p.Pose = "jump"
@@ -520,7 +532,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.jumpDist = 0
 		r.event("jump", p.X, p.Y, 0)
 	}
-	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard {
+	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" {
 		r.Stats.Attacks++
 		p.Cooldown = .38
 		p.Pose = "attack"
@@ -684,7 +696,8 @@ func (r *Run) cast(id string) {
 		p.Cooldown = .35
 		p.Pose = "cast"
 		p.PoseTime = .4
-		if skill.Kind == "ultimate" || (r.Build.Ultimate != nil && skill.ID == r.Build.Ultimate.ID) {
+		isUlt := skill.Kind == "ultimate" || (r.Build.Ultimate != nil && skill.ID == r.Build.Ultimate.ID)
+		if isUlt {
 			p.Pose = "ultimate_anticipation"
 			p.PoseTime = .55
 			p.Cooldown = .55
@@ -694,6 +707,12 @@ func (r *Run) cast(id string) {
 		charges, marked := r.classCast(skill)
 		if skill.Role == "finisher" {
 			r.event("finisher_cast", p.X, p.Y-35, float64(charges))
+		}
+		if isUlt || (skill.Role == "finisher" && charges > 0) || skill.Kind == "quake" || skill.Kind == "slam" {
+			r.heavyRecovery = .22
+			p.Cooldown += r.heavyRecovery
+		} else {
+			r.heavyRecovery = 0
 		}
 		r.event(skill.Kind, p.X+p.Facing*35, p.Y-35, 0)
 		base := skill.Damage
@@ -843,6 +862,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	}
 	p.Pose = "hit"
 	p.PoseTime = .18
+	r.heavyRecovery = 0
 	hitDir := -p.Facing
 	if p.X != x {
 		hitDir = math.Copysign(1, p.X-x)
