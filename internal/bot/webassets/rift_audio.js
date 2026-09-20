@@ -47,7 +47,33 @@
   function save(key, value) { try { localStorage.setItem('riftAudio:' + key, JSON.stringify(value)); } catch (_) {} }
   // Freeze migrated values once so later parent-channel edits stay independent.
   for(const key of ['music','voice','interface'])save(key,audio[key]);
-  function busGain(bus, value) { if (bus) bus.gain.setTargetAtTime(value, audio.context.currentTime, .03); }
+  audio.isDragging = false;
+  audio.activeDragKey = null;
+  audio.smoothRampTime = 0.05;
+  audio.isDraggingSlider = function (key) {
+    return audio.isDragging && (!key || audio.activeDragKey === key);
+  };
+  let saveTimer = null;
+  const pendingSaves = new Set();
+  function flushPendingSaves() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    for (const k of pendingSaves) save(k, audio[k]);
+    pendingSaves.clear();
+  }
+  audio.flushPendingSaves = flushPendingSaves;
+  function busGain(bus, value, rampTime = 0.03) {
+    if (!bus || !audio.context) return;
+    const t = audio.context.currentTime;
+    try {
+      if (value === 0 && !audio.isDragging) {
+        bus.gain.setValueAtTime(0, t);
+      } else {
+        bus.gain.setTargetAtTime(value, t, rampTime);
+      }
+    } catch (_) {
+      try { bus.gain.value = value; } catch (__) {}
+    }
+  }
   function applyDynamicRange(rampTime = 0.03) {
     if (!audio.context || !limiter) return;
     const isNight = audio.nightMode || audio.dynamicRange === 'night';
@@ -672,8 +698,11 @@
       return true;
     }
   };
-  audio.set = function (key, value) {
+  audio.set = function (key, value, isDragging = false) {
     if(!['muted','mono','interfaceMuted','steadyAmbience','nightMode','dynamicRange','streamerMusic','musicPreset',...Object.keys(buses())].includes(key))return;
+    audio.isDragging = Boolean(isDragging);
+    audio.activeDragKey = isDragging ? key : null;
+    const ramp = isDragging ? audio.smoothRampTime : 0.03;
     if (key === 'nightMode') {
       audio.nightMode = !!value;
       audio.dynamicRange = audio.nightMode ? 'night' : 'standard';
@@ -697,10 +726,25 @@
       save('musicPreset', audio.musicPreset);
       save('streamerMusic', audio.streamerMusic);
     } else {
-      audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);save(key,audio[key]);
+      audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);
+      if (isDragging) {
+        pendingSaves.add(key);
+        if (!saveTimer) saveTimer = setTimeout(flushPendingSaves, 200);
+      } else {
+        flushPendingSaves();
+        save(key, audio[key]);
+      }
     }
     window.dispatchEvent(new Event('riftaudiochange'));
-    if(audio.context){busGain(master,audio.muted?0:(audio.nightMode||audio.dynamicRange==='night'?0.45:0.6));for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
+    if(audio.context){
+      if (isDragging && buses()[key]) {
+        busGain(buses()[key], channelLevel(key), ramp);
+      } else {
+        busGain(master,audio.muted?0:(audio.nightMode||audio.dynamicRange==='night'?0.45:0.6), ramp);
+        for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name), ramp);
+        for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);
+      }
+    }
   };
   audio.applyDynamicRangePreset = function (preset) {
     audio.set('dynamicRange', preset);

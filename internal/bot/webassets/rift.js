@@ -559,7 +559,7 @@
   }
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   window.addEventListener('riftaudiochange',soundLabel);
-  [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{$(id).value=audio[key]*100;$(id).addEventListener('input',()=>audio.set(key,Number($(id).value)/100));});
+  [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{const elem=$(id);elem.value=audio[key]*100;elem.addEventListener('input',()=>audio.set(key,Number(elem.value)/100,true));elem.addEventListener('change',()=>audio.set(key,Number(elem.value)/100,false));elem.addEventListener('pointerup',()=>audio.set(key,Number(elem.value)/100,false));});
   const systemMotion=window.matchMedia('(prefers-reduced-motion: reduce)');let reducedOverride=null;
   try{const reduced=JSON.parse(localStorage.getItem('riftReducedMotion'));if(typeof reduced==='boolean')reducedOverride=reduced;}catch(_){}
   function motionPreference(){renderer.reduced=reducedOverride??systemMotion.matches;$('rift-reduced').checked=renderer.reduced;window.dispatchEvent(new Event('riftmotionchange'));}

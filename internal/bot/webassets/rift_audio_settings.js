@@ -6,7 +6,7 @@
   const status=document.createElement('p');status.id='rift-audio-preview-status';status.setAttribute('role','status');
   for(const [key,name] of channels){
     let input=document.getElementById('rift-'+key+'-volume');
-    if(!input){const label=document.createElement('label');label.textContent=name;input=document.createElement('input');input.id='rift-'+key+'-volume';label.htmlFor=input.id;input.type='range';input.min=0;input.max=100;label.append(input);settings.append(label);input.addEventListener('input',()=>audio.set(key,Number(input.value)/100));}
+    if(!input){const label=document.createElement('label');label.textContent=name;input=document.createElement('input');input.id='rift-'+key+'-volume';label.htmlFor=input.id;input.type='range';input.min=0;input.max=100;label.append(input);settings.append(label);input.addEventListener('input',()=>audio.set(key,Number(input.value)/100,true));input.addEventListener('change',()=>audio.set(key,Number(input.value)/100,false));input.addEventListener('pointerup',()=>audio.set(key,Number(input.value)/100,false));}
     inputs.set(key,input);input.value=Math.round(audio[key]*100);
     const parentLabel=input.closest('label');if(parentLabel)parentLabel.htmlFor=input.id;
     settings.append(input.closest('label'));
