@@ -850,6 +850,9 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	if r.Barrier > 0 {
 		absorbed := r.absorbBarrier(damage)
 		damage -= absorbed
+		if absorbed > 0 {
+			r.event("shield_absorb", p.X, p.Y-30, absorbed)
+		}
 		if kind != "perfect_guard" {
 			kind = "block"
 		}

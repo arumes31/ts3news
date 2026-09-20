@@ -1196,3 +1196,103 @@ func TestHeavyAbilityRecoveryPose(t *testing.T) {
 		}
 	})
 }
+
+func TestShieldAbsorptionShimmerEvent(t *testing.T) {
+	now := time.Unix(100, 0)
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	build := testRun().Build
+
+	// 1. Damage without barrier emits no shield_absorb event
+	t.Run("no_barrier_emits_no_shield_absorb", func(t *testing.T) {
+		r := NewRun("test-no-barrier", build, now)
+		r.Status = "fighting"
+		r.Barrier = 0
+		r.hurtPlayer(20, r.Player.X+50, r.Player.Y)
+		if findEvent(r.Events, "shield_absorb") != nil {
+			t.Fatal("damage taken without barrier must not emit shield_absorb event")
+		}
+	})
+
+	// 2. Damage absorbed by barrier emits shield_absorb event with absorbed value
+	t.Run("barrier_absorption_emits_shield_absorb_event", func(t *testing.T) {
+		r := NewRun("test-barrier-absorb", build, now)
+		r.Status = "fighting"
+		r.Build.Armor = 0
+		r.addBarrier(40, "ward")
+		initialHP := r.Player.HP
+		r.hurtPlayer(25, r.Player.X+50, r.Player.Y)
+
+		if r.Player.HP != initialHP {
+			t.Fatalf("expected zero HP damage when fully absorbed by barrier, got %f (was %f)", r.Player.HP, initialHP)
+		}
+		if r.Barrier != 15 {
+			t.Fatalf("expected remaining barrier 15, got %f", r.Barrier)
+		}
+		ev := findEvent(r.Events, "shield_absorb")
+		if ev == nil {
+			t.Fatal("expected shield_absorb event to be emitted on barrier absorption")
+		}
+		if ev.Value != 25 {
+			t.Fatalf("expected absorbed value 25, got %f", ev.Value)
+		}
+		if ev.X != r.Player.X || ev.Y != r.Player.Y-30 {
+			t.Fatalf("expected event coords (%f, %f), got (%f, %f)", r.Player.X, r.Player.Y-30, ev.X, ev.Y)
+		}
+	})
+
+	// 3. Partial absorption when damage exceeds remaining barrier
+	t.Run("partial_absorption_emits_absorbed_amount", func(t *testing.T) {
+		r := NewRun("test-partial-absorb", build, now)
+		r.Status = "fighting"
+		r.Build.Armor = 0
+		r.Barrier = 12
+		r.hurtPlayer(30, r.Player.X+50, r.Player.Y)
+
+		if r.Barrier != 0 {
+			t.Fatalf("expected barrier depleted to 0, got %f", r.Barrier)
+		}
+		ev := findEvent(r.Events, "shield_absorb")
+		if ev == nil {
+			t.Fatal("expected shield_absorb event on partial absorption")
+		}
+		if ev.Value != 12 {
+			t.Fatalf("expected absorbed value 12, got %f", ev.Value)
+		}
+	})
+
+	// 4. Guard + barrier combination: guard mitigates, then barrier absorbs remaining
+	t.Run("guard_plus_barrier_emits_shield_absorb", func(t *testing.T) {
+		r := NewRun("test-guard-barrier", build, now)
+		r.Status = "fighting"
+		r.Build.Armor = 0
+		r.Player.Guard = true
+		r.Player.Facing = 1
+		r.Barrier = 50
+		initialHP := r.Player.HP
+		// Hit from front: 100 raw damage -> 82% guard blocked, 18 remaining absorbed by barrier
+		r.hurtPlayer(100, r.Player.X+50, r.Player.Y)
+
+		if r.Player.HP != initialHP {
+			t.Fatalf("expected full mitigation, got HP %f", r.Player.HP)
+		}
+		if r.Barrier != 32 {
+			t.Fatalf("expected remaining barrier 32 (50 - 18), got %f", r.Barrier)
+		}
+		ev := findEvent(r.Events, "shield_absorb")
+		if ev == nil {
+			t.Fatal("expected shield_absorb event for guard-mitigated barrier absorption")
+		}
+		if ev.Value != 18 {
+			t.Fatalf("expected absorbed value 18, got %f", ev.Value)
+		}
+	})
+}

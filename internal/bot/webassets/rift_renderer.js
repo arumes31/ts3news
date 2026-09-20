@@ -785,9 +785,58 @@
           }
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='shield_absorb'){
+        renderer.lastShieldShimmer = { x: e.x, y: e.y, age, started: e.started, value: e.value };
+        const screenX = e.x - camera, screenY = e.y + 30;
+        const fade = Math.max(0, 1 - age * 2.8);
+        if(fade > 0){
+          ctx.save();
+          const radius = 38 + (renderer.reduced ? 0 : Math.sin(age * 25) * 3);
+          ctx.strokeStyle = 'rgba(196, 144, 255, ' + (fade * 0.85) + ')';
+          ctx.lineWidth = Math.max(1, 3 * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY - 5, radius, radius * 1.15, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(125, 249, 255, ' + (fade * 0.9) + ')';
+          ctx.lineWidth = Math.max(1, 1.5 * fade);
+          const innerR = radius * 0.85;
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY - 5, innerR, innerR * 1.1, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          if(!renderer.reduced){
+            const facets = 6;
+            for(let f = 0; f < facets; f++){
+              const ang = f * (Math.PI / 3) + age * 2;
+              const fx1 = screenX + Math.cos(ang) * (radius * 0.6);
+              const fy1 = (screenY - 5) + Math.sin(ang) * (radius * 0.7);
+              const fx2 = screenX + Math.cos(ang) * radius;
+              const fy2 = (screenY - 5) + Math.sin(ang) * (radius * 1.15);
+              ctx.strokeStyle = 'rgba(255, 255, 255, ' + (fade * 0.65) + ')';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(fx1, fy1);
+              ctx.lineTo(fx2, fy2);
+              ctx.stroke();
+            }
+            for(let s = 0; s < 5; s++){
+              const sparkAngle = s * 1.25 + age * 5;
+              const sparkDist = radius + age * 22;
+              const sx = screenX + Math.cos(sparkAngle) * sparkDist;
+              const sy = (screenY - 5) + Math.sin(sparkAngle) * (sparkDist * 0.8);
+              ctx.fillStyle = 'rgba(230, 210, 255, ' + (fade * 0.75) + ')';
+              ctx.beginPath();
+              ctx.arc(sx, sy, 1.8 * fade, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);
