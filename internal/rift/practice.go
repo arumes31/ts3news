@@ -29,7 +29,8 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 		return nil, errors.New("unknown practice drill")
 	}
 	r := NewRunWithCatalog(id, build, now, nil)
-	r.Practice = &PracticeState{Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}}}
+	r.Practice = &PracticeState{Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: "stone"}}
+	r.Floor = "stone"
 	r.Enemies = []Actor{}
 	for i := range r.EncounterPlan {
 		r.EncounterPlan[i] = []Actor{}

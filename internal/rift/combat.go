@@ -210,6 +210,7 @@ type Run struct {
 	LastMS              int64                    `json:"last_ms"`
 	Counter             int                      `json:"counter"`
 	Combo               int                      `json:"combo"`
+	Floor               string                   `json:"floor,omitempty"`
 }
 
 type Input struct {
@@ -263,6 +264,7 @@ func (r *Run) spawnRoom() {
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
+	r.Floor = r.FloorMaterial()
 	r.event("area", r.Player.X, r.Player.Y, float64(r.Room))
 }
 
@@ -387,6 +389,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	r.Catchup = dt > 1.0/15
 	r.LastMS = max(r.LastMS, now.UnixMilli())
 	r.SavedAtMS = now.UnixMilli()
+	r.Floor = r.FloorMaterial()
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
 		return
 	}

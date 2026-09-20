@@ -294,3 +294,38 @@ func TestSeamlessCampaignAdvanceKeepsReceiptAndCompletion(t *testing.T) {
 		t.Fatal("duplicated completion")
 	}
 }
+
+func TestFloorMaterialByRegionAndArena(t *testing.T) {
+	campaign := Campaign()
+	expectedFloors := []string{"grass", "metal", "ice", "stone", "mud", "water", "wood", "stone", "stone", "metal"}
+	for _, lvl := range campaign {
+		expected := expectedFloors[lvl.Region]
+		for _, room := range lvl.Rooms {
+			if room.Floor != expected {
+				t.Fatalf("level %d (%s) expected floor %s, got %s", lvl.ID, lvl.Name, expected, room.Floor)
+			}
+		}
+	}
+
+	r := testRun()
+	if r.FloorMaterial() != "stone" {
+		t.Fatalf("expected fallback floor stone, got %s", r.FloorMaterial())
+	}
+	r.setLevel(11, content.AbyssMobCatalog()) // Region 1: Ember Forge
+	if r.FloorMaterial() != "metal" {
+		t.Fatalf("expected Ember Forge floor metal, got %s", r.FloorMaterial())
+	}
+	r.setLevel(21, content.AbyssMobCatalog()) // Region 2: Glacial Crossing
+	if r.FloorMaterial() != "ice" {
+		t.Fatalf("expected Glacial Crossing floor ice, got %s", r.FloorMaterial())
+	}
+	r.setLevel(51, content.AbyssMobCatalog()) // Region 5: Drowned Temple
+	if r.FloorMaterial() != "water" {
+		t.Fatalf("expected Drowned Temple floor water, got %s", r.FloorMaterial())
+	}
+	r.setLevel(61, content.AbyssMobCatalog()) // Region 6: Bloodrust Barracks
+	if r.FloorMaterial() != "wood" {
+		t.Fatalf("expected Bloodrust Barracks floor wood, got %s", r.FloorMaterial())
+	}
+}
+

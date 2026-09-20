@@ -32,6 +32,7 @@ type Arena struct {
 	Hazards           []Hazard          `json:"hazards"`
 	Encounter         *EncounterPreview `json:"encounter,omitempty"`
 	LootRarityCeiling string            `json:"loot_rarity_ceiling,omitempty"`
+	Floor             string            `json:"floor,omitempty"`
 }
 
 // LootRarityCap is shared by campaign previews and server-owned gear rolls.
@@ -75,6 +76,7 @@ func Campaign() []Level {
 	tactics := []string{"An open approach with scattered cover", "Circle the well to flank the patrol", "Weave between staggered pillars", "Choose your crossing between four posts", "Use the gap between twin barricades", "Jump low walls along the winding route", "Draw defenders out of their alcoves", "Cross the broken spans between pulses", "Switch lanes between sentry lines", "Circle the ring and challenge its guardian"}
 	colors := []string{"#a6ce7b", "#ff9b53", "#8bdfff", "#c6a1ff", "#bcdf64", "#65ded2", "#ed8d7c", "#bec4ff", "#be98ff", "#ffc77c"}
 	kinds := []string{"thorns", "fire", "ice", "rune", "poison", "ice", "fire", "radiant", "void", "fire"}
+	floors := []string{"grass", "metal", "ice", "stone", "mud", "water", "wood", "stone", "stone", "metal"}
 	// Coordinates describe low cover, with a continuous bypass above and below.
 	patterns := [][]Obstacle{
 		{{780, 360, 65, 28}},
@@ -94,7 +96,7 @@ func Campaign() []Level {
 			id := region*10 + layout + 1
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
-				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}}
+				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				arena.LootRarityCeiling = LootRarityCap(room).String()
 				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionExtraEnemies(id), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {
@@ -159,6 +161,17 @@ func (r *Run) Arena() Arena {
 		return r.Level.Rooms[r.Room]
 	}
 	return Arena{}
+}
+
+func (r *Run) FloorMaterial() string {
+	if a := r.Arena(); a.Floor != "" {
+		return a.Floor
+	}
+	if r.Level != nil && r.Level.Region >= 0 && r.Level.Region < 10 {
+		floors := []string{"grass", "metal", "ice", "stone", "mud", "water", "wood", "stone", "stone", "metal"}
+		return floors[r.Level.Region]
+	}
+	return "stone"
 }
 
 // FinishCheckpoint is called only after rewards have been banked atomically.

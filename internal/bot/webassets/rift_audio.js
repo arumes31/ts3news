@@ -72,9 +72,16 @@
     audio.play('cooldown_rejection', pan);
     return true;
   };
-  audio.play = function (kind, pan) {
+  audio.play = function (kind, pan, extra) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     playCue(kind,pan);
+  };
+  audio.step = function (material, pan) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    const mat = String(material || 'stone').toLowerCase();
+    const cue = ['metal','wood','water','mud','ice','grass','dirt','stone'].includes(mat) ? 'step_' + mat : 'step';
+    playCue(cue, pan || 0);
   };
   function playCue(kind,pan){
     audio.played++;
@@ -82,7 +89,13 @@
     const t = (f, end, d, v, wave, delay) => tone(f, end, d, v, wave, delay, pan,target);
     const h = (duration,volume,cutoff,position,delay)=>hiss(duration,volume,cutoff,position,delay,target);
     switch (kind) {
-      case 'step': h(.065, .07, 650, pan); break;
+      case 'step': case 'step_stone': h(.065, .07, 650, pan); t(120, 60, .05, .04, 'triangle'); break;
+      case 'step_metal': h(.07, .06, 2800, pan); t(620, 480, .06, .05, 'triangle'); break;
+      case 'step_wood': h(.06, .07, 450, pan); t(160, 90, .07, .07, 'triangle'); break;
+      case 'step_water': h(.11, .08, 1400, pan); t(260, 110, .08, .04, 'sine'); break;
+      case 'step_mud': h(.1, .075, 950, pan); t(180, 80, .07, .045, 'triangle'); break;
+      case 'step_ice': h(.08, .075, 4500, pan); t(880, 720, .05, .03, 'sine'); break;
+      case 'step_grass': case 'step_dirt': h(.07, .06, 380, pan); t(90, 50, .06, .035, 'triangle'); break;
       case 'jump': t(160, 480, .15, .09, 'triangle'); h(.09, .04, 1200, pan); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
       case 'hit': h(.1, .2, 1700, pan); t(110, 48, .15, .18, 'triangle'); break;

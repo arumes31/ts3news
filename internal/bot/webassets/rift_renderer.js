@@ -619,7 +619,7 @@
         ctx.fillText(label,e.x-camera,e.y-drift);
       }
     });
-    if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){window.RiftAudio.play('step',0);footstep=now;}
+    if(run.status==='fighting' && !run.paused && run.player.pose==='run' && run.player.jump===0 && now-footstep>320){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();
     if(now-transitionAt<500&&!renderer.reduced){ctx.fillStyle='#091914';ctx.globalAlpha=Math.max(0,.65*(1-(now-transitionAt)/500))*display.flashIntensity;ctx.fillRect(0,0,960,540);ctx.globalAlpha=1;}
   }
