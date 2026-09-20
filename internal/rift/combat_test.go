@@ -728,4 +728,118 @@ func TestPlayerGuardedWalkingPose(t *testing.T) {
 	}
 }
 
+func TestDirectionalHitRecoilOffsets(t *testing.T) {
+	now := time.Unix(100, 0)
+
+	// 1. Enemy directional hit recoil from player
+	t.Run("enemy_hit_recoil_directions_and_resistance", func(t *testing.T) {
+		r := NewRun("test-enemy-recoil", testRun().Build, now)
+		r.Status = "fighting"
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+
+		// Normal goblin to right: +10 recoil
+		r.Enemies = []Actor{{ID: "goblin-right", Kind: "goblin", X: 540, Y: 300, HP: 100, MaxHP: 100}}
+		r.hurtEnemy(0, 10, "slash")
+		if r.Enemies[0].RecoilX != 10.0 {
+			t.Fatalf("expected goblin on right to have +10.0 recoil_x, got %f", r.Enemies[0].RecoilX)
+		}
+
+		// Boss to right: +4.0 recoil (heavy resistance)
+		r.Enemies = []Actor{{ID: "boss-right", Kind: "boss", X: 540, Y: 300, HP: 500, MaxHP: 500}}
+		r.hurtEnemy(0, 10, "slash")
+		if r.Enemies[0].RecoilX != 4.0 {
+			t.Fatalf("expected boss to have +4.0 recoil_x, got %f", r.Enemies[0].RecoilX)
+		}
+
+		// Knight to right: +6.5 recoil
+		r.Enemies = []Actor{{ID: "knight-right", Kind: "knight", X: 540, Y: 300, HP: 200, MaxHP: 200}}
+		r.hurtEnemy(0, 10, "slash")
+		if r.Enemies[0].RecoilX != 6.5 {
+			t.Fatalf("expected knight to have +6.5 recoil_x, got %f", r.Enemies[0].RecoilX)
+		}
+
+		// Enemy to left: hit while player faces left
+		r.Player.Facing = -1
+		r.Enemies = []Actor{{ID: "goblin-left", Kind: "goblin", X: 460, Y: 300, HP: 100, MaxHP: 100}}
+		r.hurtEnemy(0, 10, "slash")
+		if r.Enemies[0].RecoilX != -10.0 {
+			t.Fatalf("expected goblin on left to have -10.0 recoil_x, got %f", r.Enemies[0].RecoilX)
+		}
+
+		// Enemy at same X: follows player facing
+		r.Player.Facing = 1
+		r.Enemies = []Actor{{ID: "goblin-center", Kind: "goblin", X: 500, Y: 300, HP: 100, MaxHP: 100}}
+		r.hurtEnemy(0, 10, "slash")
+		if r.Enemies[0].RecoilX != 10.0 {
+			t.Fatalf("expected center goblin with facing 1 to have +10.0 recoil_x, got %f", r.Enemies[0].RecoilX)
+		}
+	})
+
+	// 2. Player hit recoil and guard bracing
+	t.Run("player_hit_recoil_and_guard_bracing", func(t *testing.T) {
+		r := NewRun("test-player-recoil", testRun().Build, now)
+		r.Status = "fighting"
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+
+		// Damage from right (x = 550): player pushed left (-9.0)
+		r.hurtPlayer(20, 550, 300)
+		if r.Player.RecoilX != -9.0 {
+			t.Fatalf("expected unguard player hit from right to have -9.0 recoil_x, got %f", r.Player.RecoilX)
+		}
+
+		// Damage from left (x = 450): player pushed right (+9.0)
+		r.hurtPlayer(20, 450, 300)
+		if r.Player.RecoilX != 9.0 {
+			t.Fatalf("expected unguard player hit from left to have +9.0 recoil_x, got %f", r.Player.RecoilX)
+		}
+
+		// Guarding player hit: braced (+3.0 or -3.0)
+		r.Player.Guard = true
+		r.hurtPlayer(20, 550, 300)
+		if r.Player.RecoilX != -3.0 {
+			t.Fatalf("expected guarded player hit from right to have braced -3.0 recoil_x, got %f", r.Player.RecoilX)
+		}
+	})
+
+	// 3. Recoil decay over time and reset at pose_time == 0
+	t.Run("recoil_decay_and_reset", func(t *testing.T) {
+		r := NewRun("test-decay-recoil", testRun().Build, now)
+		r.Status = "fighting"
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Enemies = []Actor{{ID: "target", Kind: "goblin", X: 540, Y: 300, HP: 100, MaxHP: 100}}
+
+		// Hit enemy
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+		if r.Enemies[0].RecoilX <= 0 {
+			t.Fatalf("expected positive recoil, got %f", r.Enemies[0].RecoilX)
+		}
+		initialRecoil := r.Enemies[0].RecoilX
+
+		// Advance 50ms: recoil should decay
+		r.Step(Input{}, now.Add(100*time.Millisecond))
+		if r.Enemies[0].RecoilX >= initialRecoil || r.Enemies[0].RecoilX <= 0 {
+			t.Fatalf("expected decayed recoil between 0 and %f, got %f", initialRecoil, r.Enemies[0].RecoilX)
+		}
+
+		// Advance past pose_time (.2s total): recoil must reset to 0
+		r.Step(Input{}, now.Add(350*time.Millisecond))
+		if r.Enemies[0].RecoilX != 0 {
+			t.Fatalf("expected recoil to reset to 0 after pose_time expires, got %f", r.Enemies[0].RecoilX)
+		}
+
+		// Defeating enemy resets recoil to 0
+		r.Enemies[0].HP = 1
+		r.Enemies[0].RecoilX = 10.0
+		r.hurtEnemy(0, 50, "slash")
+		if r.Enemies[0].RecoilX != 0 {
+			t.Fatalf("expected defeated enemy recoil to reset to 0, got %f", r.Enemies[0].RecoilX)
+		}
+	})
+}
+
 

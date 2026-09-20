@@ -76,6 +76,7 @@ type Actor struct {
 	Pose      string  `json:"pose"`
 	PoseTime  float64 `json:"pose_time"`
 	Knockdown float64 `json:"knockdown"`
+	RecoilX   float64 `json:"recoil_x,omitempty"`
 	TargetX   float64 `json:"target_x"`
 	TargetY   float64 `json:"target_y"`
 }
@@ -441,6 +442,11 @@ func (r *Run) tick(in Input, dt float64) {
 	wasJumping := p.Jump > 0
 	p.Jump = math.Max(0, p.Jump-dt)
 	p.PoseTime = math.Max(0, p.PoseTime-dt)
+	if p.PoseTime == 0 {
+		p.RecoilX = 0
+	} else if p.RecoilX != 0 {
+		p.RecoilX = math.Copysign(math.Max(0, math.Abs(p.RecoilX)-50*dt), p.RecoilX)
+	}
 	p.Mana = math.Min(100, p.Mana+dt*6)
 	for id, remaining := range r.SkillTimers {
 		r.SkillTimers[id] = math.Max(0, remaining-dt)
@@ -730,6 +736,18 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
 	e.Pose = "hit"
 	e.PoseTime = .2
+	hitDir := r.Player.Facing
+	if e.X != r.Player.X {
+		hitDir = math.Copysign(1, e.X-r.Player.X)
+	}
+	recoilDist := 10.0
+	switch e.Kind {
+	case "boss":
+		recoilDist = 4.0
+	case "knight":
+		recoilDist = 6.5
+	}
+	e.RecoilX = hitDir * recoilDist
 	r.event(effect, e.X, e.Y-30, damage)
 	if damage > 0 {
 		r.event(e.HurtCue(), e.X, e.Y-30, damage)
@@ -742,6 +760,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		return
 	}
 	if e.HP == 0 {
+		e.RecoilX = 0
 		r.recordMonsterDefeat(*e)
 		r.Stats.Kills++
 		if e.Kind == "treasure" {
@@ -812,6 +831,15 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	}
 	p.Pose = "hit"
 	p.PoseTime = .18
+	hitDir := -p.Facing
+	if p.X != x {
+		hitDir = math.Copysign(1, p.X-x)
+	}
+	recoilDist := 9.0
+	if p.Guard {
+		recoilDist = 3.0
+	}
+	p.RecoilX = hitDir * recoilDist
 	r.event(kind, p.X, p.Y-30, damage)
 }
 
@@ -820,6 +848,11 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e := &r.Enemies[i]
 		e.PoseTime = math.Max(0, e.PoseTime-dt)
 		e.Knockdown = math.Max(0, e.Knockdown-dt)
+		if e.PoseTime == 0 {
+			e.RecoilX = 0
+		} else if e.RecoilX != 0 {
+			e.RecoilX = math.Copysign(math.Max(0, math.Abs(e.RecoilX)-50*dt), e.RecoilX)
+		}
 		if e.PoseTime == 0 && e.Knockdown == 0 {
 			e.Pose = "idle"
 		}
@@ -831,6 +864,11 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
+	if e.PoseTime == 0 {
+		e.RecoilX = 0
+	} else if e.RecoilX != 0 {
+		e.RecoilX = math.Copysign(math.Max(0, math.Abs(e.RecoilX)-50*dt), e.RecoilX)
+	}
 	if e.Knockdown > 0 {
 		e.Knockdown = math.Max(0, e.Knockdown-dt)
 		e.Pose = "knockdown"

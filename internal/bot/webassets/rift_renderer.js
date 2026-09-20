@@ -290,6 +290,10 @@
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
   renderer.snapshot = function (run, replay) {
     if (!run) return;
+  };
+  renderer.feed = function (run, replay) { return renderer.snapshot(run, replay); };
+  renderer.renderActor = function (unit, now) { return actor(unit, now || performance.now()); };
+  renderer.snapshot = function (run, replay) {
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
     if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
     else previous = snapshot;
@@ -349,9 +353,12 @@
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
     const guardStride = unit.pose === 'guard_walk' && !renderer.reduced ? Math.sin(animationTime/80)*2*motion : 0;
-    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump+landSquash+guardStride,size,1);else sprite(row,col,x-camera,y-jump+landSquash+guardStride,size,unit.facing,1,atlas);
-    if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
-    if (unit.guard && unit.pose === 'hit') fx(3,2,x-camera,y-size*.4,105,.85);
+    const recoil = (!renderer.reduced && unit.recoil_x) ? unit.recoil_x : 0;
+    if (unit.id === 'player') renderer.lastPlayerRecoil = recoil;
+    const drawX = x - camera + recoil;
+    if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+guardStride,size,1);else sprite(row,col,drawX,y-jump+landSquash+guardStride,size,unit.facing,1,atlas);
+    if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
+    if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
       if(!display.cleanScreenshot&&display.healthBars){
         ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
