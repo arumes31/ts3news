@@ -30,7 +30,7 @@
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
   let lastAudioArea = -1;
-  function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
+  function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);audio.silence?.();try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
   function setSafeDisabled(node, disabled) {
@@ -292,7 +292,7 @@
       delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
     }
     if(!ready)return;
-    if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;await load();return;}
+    if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;silence();await load();return;}
     starting=true;const intent=++startIntent;
     try{
       const areaIdx=(run?.level?.region||0)*3+(run?.room||0);lastAudioArea=areaIdx;
@@ -372,7 +372,7 @@
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status('Practice is ready. '+$('rift-practice-instructions').textContent);}
-    }catch(error){ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
+    }catch(error){silence();ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
   }
   const moveLabels = {
     left: ['Move left', 'Moving left (holding)'],

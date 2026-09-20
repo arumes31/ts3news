@@ -9,6 +9,8 @@
   audio.interfaceMuted=setting('interfaceMuted',false)===true;
   const channelLevel=key=>key==='interface'&&audio.interfaceMuted?0:audio[key];
   let master, sfx, ambient, music, voice, interfaceBus, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
+  Object.defineProperty(audio, 'active', { get() { return active; }, configurable: true });
+  audio.isActive = function () { return active; };
   const panners=new Map(),sources=new Map();let previewRequested=false;
   const buses=()=>({effects:sfx,ambience:ambient,music,voice,interface:interfaceBus});
   const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
@@ -294,9 +296,10 @@
   audio.crossfading = false;
   audio.bossMusicActive = false;
   audio.bossCrossfading = false;
-  audio.currentRegion = -1;
   function stopAmbience() {
     audio.stopBossMusic?.(0);
+    room = -1;
+    audio.currentRegion = -1;
     if(activeAmbience){activeAmbience.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});activeAmbience.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
     for(const group of outgoingAmbience){group.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});group.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
     outgoingAmbience.clear();activeAmbience=null;ambientNodes=[];audio.crossfading=false;
@@ -470,10 +473,52 @@
       nextBird = c.currentTime + 3 + Math.random()*4;
     }
   };
+  audio.silence = function () {
+    active = false;
+    stopAmbience();
+    stopVoices();
+    audio.stopBossMusic?.(0);
+    if (audio.context && audio.context.state === 'running') {
+      try { audio.context.suspend().catch(() => {}); } catch (_) {}
+    }
+  };
+  audio.isSilent = function () {
+    return !active || !audio.context || audio.context.state !== 'running' || audio.muted || (activeAmbience === null && audio.voices === 0 && !audio.bossMusicActive);
+  };
+  audio.recover = async function (targetArea) {
+    try {
+      const ready = await audio.unlock();
+      if (!ready) {
+        audio.silence();
+        return false;
+      }
+      if (typeof targetArea === 'number' && targetArea >= 0) {
+        return await audio.setActive(true, targetArea);
+      }
+      return true;
+    } catch (_) {
+      audio.silence();
+      return false;
+    }
+  };
   audio.setActive = async function (value, index) {
-    const intent=++activation;previewIntent++;previewRequested=false;clearTimeout(previewTimer);active=value;
-    if(value){const ready=await audio.unlock();if(ready&&intent===activation&&active)audio.area(index||0);else if(!active&&!previewRequested&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});}
-    else{stopAmbience();stopVoices();if(audio.context&&audio.context.state==='running'){try{await audio.context.suspend();}catch(_){}}}
+    const intent = ++activation;
+    previewIntent++;
+    previewRequested = false;
+    clearTimeout(previewTimer);
+    if (value) {
+      const ready = await audio.unlock();
+      if (!ready || intent !== activation) {
+        audio.silence();
+        return false;
+      }
+      active = true;
+      audio.area(index || 0);
+      return true;
+    } else {
+      audio.silence();
+      return true;
+    }
   };
   audio.set = function (key, value) {
     if(!['muted','mono','interfaceMuted','steadyAmbience',...Object.keys(buses())].includes(key))return;
