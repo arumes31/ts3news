@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -303,7 +303,7 @@
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
-      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
+      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
@@ -594,7 +594,7 @@
       ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
     }
     const units=[...run.enemies,run.player];
-    if(run.build.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
+    if(run.build?.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build?.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
       if(!unit.cover){actor(unit,wallNow);return;}
@@ -663,9 +663,59 @@
           fx(0, Math.min(5, Math.floor(age * 8)), screenX, screenY, 145, Math.max(0, 1 - age * 1.5));
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='finisher_cast'){
+        renderer.lastFinisherCastAccent = { x: e.x, y: e.y, charges: e.value, age, started: e.started };
+        if(!renderer.reduced){
+          const screenX = e.x - camera, screenY = e.y + 35;
+          const charges = Math.max(0, Math.round(e.value || 0));
+          const fade = Math.max(0, 1 - age * 2.0);
+          if(fade > 0){
+            ctx.save();
+            const bloomRadius = 24 + charges * 8 + age * 20;
+            ctx.fillStyle = charges >= 3 ? 'rgba(255, 215, 0, ' + (fade * 0.35) + ')' : 'rgba(126, 245, 208, ' + (fade * 0.3) + ')';
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY, bloomRadius, bloomRadius * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = charges >= 3 ? 'rgba(255, 235, 120, ' + (fade * 0.8) + ')' : 'rgba(150, 255, 230, ' + (fade * 0.75) + ')';
+            ctx.lineWidth = Math.max(1, (2 + charges * 0.5) * fade);
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY, bloomRadius, bloomRadius * 0.45, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const rings = 2 + charges;
+            for(let r = 0; r < rings; r++){
+              const ringProgress = (age * 3.5 + r / rings) % 1;
+              const ringY = screenY - ringProgress * 60;
+              const ringW = Math.max(8, (18 + charges * 4) * (1 - ringProgress * 0.4));
+              const ringFade = fade * Math.sin(ringProgress * Math.PI);
+              if(ringFade > 0){
+                ctx.strokeStyle = charges >= 3 ? 'rgba(255, 240, 160, ' + (ringFade * 0.85) + ')' : 'rgba(180, 255, 240, ' + (ringFade * 0.8) + ')';
+                ctx.lineWidth = Math.max(1, 2.5 * ringFade);
+                ctx.beginPath();
+                ctx.ellipse(screenX, ringY, ringW, ringW * 0.35, 0, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+            }
+
+            const motes = 3 + charges * 3;
+            for(let m = 0; m < motes; m++){
+              const motePhase = (age * 2.8 + m / motes) % 1;
+              const mx = screenX + Math.sin(m * 2.4 + age * 6) * (16 + charges * 4);
+              const my = screenY - motePhase * 68;
+              const mFade = fade * Math.sin(motePhase * Math.PI);
+              if(mFade > 0){
+                ctx.fillStyle = charges >= 3 ? 'rgba(255, 245, 180, ' + mFade + ')' : 'rgba(200, 255, 245, ' + mFade + ')';
+                ctx.fillRect(mx - 1.5, my - 1.5, 3, 3);
+              }
+            }
+            ctx.restore();
+          }
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

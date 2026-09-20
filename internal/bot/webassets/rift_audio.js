@@ -239,6 +239,7 @@
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return false;
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
+    if (kind === 'finisher_cast') { audio.finisherCast(extra, pan); return; }
     if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
     if (kind === 'hurt' && extra) { audio.hurt(extra, pan, distance); return; }
     if (kind === 'death' && extra) { audio.death(extra, pan, distance); return; }
@@ -278,6 +279,19 @@
     const cue = ['goblin','knight','archer','treasure','boss','wolf','spore'].includes(k) ? k + '_death' : 'goblin_death';
     const att = audio.isEnemyCue(cue) ? audio.distanceAttenuation(distance) : 1.0;
     playCue(cue, pan || 0, att);
+  };
+  audio.finisherCast = function (charges, pan) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    const c = Math.max(0, Math.round(Number(charges) || 0));
+    const vol = c >= 3 ? 1.3 : c > 0 ? 1.0 : 0.6;
+    hiss(.25, .10 * vol, 4800, pan || 0, 0, sfx);
+    tone(140, 320, .32, .14 * vol, 'sine', 0, pan || 0, sfx);
+    [440, 660, 880, 1320].slice(0, Math.max(2, c + 1)).forEach((f, i) => {
+      tone(f, f * 1.05, .35, .06 * vol, 'triangle', i * .04, pan || 0, sfx);
+    });
+    if (c >= 3) {
+      tone(90, 45, .4, .18 * vol, 'triangle', .02, pan || 0, sfx);
+    }
   };
   audio.land = function (intensity = 0.5, pan = 0, material) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
@@ -349,6 +363,12 @@
       case 'land_heavy': h(.16, .14, 520, pan); t(90, 32, .18, .15, 'triangle'); t(70, 25, .22, .12, 'sine', .01); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
       case 'third_strike': h(.18, .25, 2600, pan); t(220, 50, .24, .25, 'triangle'); t(90, 25, .28, .22, 'sine', .01); t(520, 180, .10, .12, 'sawtooth'); break;
+      case 'finisher_cast': {
+        h(.25, .10, 4800, pan);
+        t(140, 320, .32, .14, 'sine');
+        [440, 660, 880].forEach((f, i) => t(f, f * 1.05, .35, .06, 'triangle', i * .04));
+        break;
+      }
       case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
       case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
       case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;

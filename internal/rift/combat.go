@@ -686,6 +686,9 @@ func (r *Run) cast(id string) {
 		p.PoseTime = .4
 		r.SkillTimers[id] = skill.Cooldown
 		charges, marked := r.classCast(skill)
+		if skill.Role == "finisher" {
+			r.event("finisher_cast", p.X, p.Y-35, float64(charges))
+		}
 		r.event(skill.Kind, p.X+p.Facing*35, p.Y-35, 0)
 		base := skill.Damage
 		if base <= 0 {
