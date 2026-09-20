@@ -453,34 +453,92 @@
     const currentSources = [], currentGains = [];
     const wind = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
     wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = [460,780,1100,640,350,260,500,390,180,220][region]||460;
-    if (fade > 0 && hasPrevious) {
+    const isPaused = !audio.isRegionActive(region);
+    const windBaseGain = .14;
+    if (!isPaused && fade > 0 && hasPrevious) {
       gain.gain.setValueAtTime(0.0001, c.currentTime);
-      gain.gain.linearRampToValueAtTime(.14, c.currentTime + fade);
+      gain.gain.linearRampToValueAtTime(windBaseGain, c.currentTime + fade);
     } else {
-      gain.gain.value = .14;
+      gain.gain.value = isPaused ? 0.0001 : windBaseGain;
     }
     wind.connect(filter); filter.connect(gain); gain.connect(ambient);
     wind.onended = () => { filter.disconnect(); gain.disconnect(); };
     wind.start();
     currentSources.push(wind); currentGains.push(gain);
     const root=[130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region]||130.81;
+    const baseGains = [windBaseGain];
     [root,root*1.5,root*2].map(f=>f*(tier===2?.75:tier===1?.9:1)).forEach(f => {
       const osc = c.createOscillator(), level = c.createGain(); osc.type = 'sine'; osc.frequency.value = f;
-      if (fade > 0 && hasPrevious) {
+      const oscBaseGain = .017;
+      baseGains.push(oscBaseGain);
+      if (!isPaused && fade > 0 && hasPrevious) {
         level.gain.setValueAtTime(0.0001, c.currentTime);
-        level.gain.linearRampToValueAtTime(.017, c.currentTime + fade);
+        level.gain.linearRampToValueAtTime(oscBaseGain, c.currentTime + fade);
       } else {
-        level.gain.value = .017;
+        level.gain.value = isPaused ? 0.0001 : oscBaseGain;
       }
       osc.connect(level); level.connect(music); osc.onended = () => level.disconnect(); osc.start();
       currentSources.push(osc); currentGains.push(level);
     });
-    activeAmbience = { sources: currentSources, gains: currentGains };
+    activeAmbience = { region, sources: currentSources, gains: currentGains, baseGains, paused: isPaused };
     ambientNodes = currentSources;
     nextBird = c.currentTime + 2;
   };
+  const inactiveRegions = new Set();
+  audio.isRegionActive = function (region) {
+    if (typeof region !== 'number' || region < 0) return true;
+    return !inactiveRegions.has(region);
+  };
+  audio.setRegionActive = function (region, isActive, customFade) {
+    if (typeof region !== 'number' || region < 0) return;
+    const wasActive = !inactiveRegions.has(region);
+    if (isActive) {
+      inactiveRegions.delete(region);
+    } else {
+      inactiveRegions.add(region);
+    }
+    if (wasActive === Boolean(isActive)) return;
+
+    if (activeAmbience && activeAmbience.region === region) {
+      const c = audio.context;
+      const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : 0.4;
+      if (!isActive) {
+        activeAmbience.paused = true;
+        if (c && c.state === 'running') {
+          activeAmbience.gains.forEach(g => {
+            try {
+              g.gain.setValueAtTime(g.gain.value, c.currentTime);
+              g.gain.linearRampToValueAtTime(0.0001, c.currentTime + fade);
+            } catch (_) {}
+          });
+        }
+      } else {
+        activeAmbience.paused = false;
+        if (c && c.state === 'running') {
+          activeAmbience.gains.forEach((g, i) => {
+            const target = activeAmbience.baseGains?.[i] || 0.017;
+            try {
+              g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), c.currentTime);
+              g.gain.linearRampToValueAtTime(target, c.currentTime + fade);
+            } catch (_) {}
+          });
+          nextBird = c.currentTime + 2;
+        }
+      }
+    }
+  };
+  audio.pauseRegionAmbience = function (region, fade) {
+    audio.setRegionActive(region, false, fade);
+  };
+  audio.resumeRegionAmbience = function (region, fade) {
+    audio.setRegionActive(region, true, fade);
+  };
+  audio.isAmbiencePaused = function () {
+    return Boolean(activeAmbience?.paused);
+  };
   audio.tick = function () {
     if (!active || audio.steadyAmbience || !audio.context || audio.context.state !== 'running') return;
+    if (activeAmbience?.paused || !audio.isRegionActive(audio.currentRegion)) return;
     const c = audio.context;
     if (c.currentTime > nextBird) {
       if (room < 2) { tone(1800,2400,.13,.024,'sine',0,-.6,ambient); tone(2100,1600,.16,.02,'sine',.2,.5,ambient); }
