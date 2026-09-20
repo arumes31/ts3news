@@ -18,22 +18,37 @@
   // Freeze migrated values once so later parent-channel edits stay independent.
   for(const key of ['music','voice','interface'])save(key,audio[key]);
   function busGain(bus, value) { if (bus) bus.gain.setTargetAtTime(value, audio.context.currentTime, .03); }
+  function initContext() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    const c = audio.context = new AC();
+    master = c.createGain(); sfx = c.createGain(); ambient = c.createGain(); music = c.createGain(); voice = c.createGain(); interfaceBus = c.createGain();
+    const limiter = c.createDynamicsCompressor(); limiter.threshold.value = -16; limiter.ratio.value = 8;
+    Object.values(buses()).forEach(bus => bus.connect(master)); master.connect(limiter); limiter.connect(c.destination);
+    master.gain.value = audio.muted ? 0 : .6; for (const [key, bus] of Object.entries(buses())) bus.gain.value = channelLevel(key);
+    noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+    const data = noise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    return true;
+  }
   audio.unlock = async function () {
     try {
-      if(audio.context?.state==='closed'){stopAmbience();stopVoices();audio.context=null;audio.voices=0;panners.clear();}
-      if (!audio.context) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return false;
-        const c = audio.context = new AC();
-        master = c.createGain(); sfx = c.createGain(); ambient = c.createGain(); music=c.createGain(); voice=c.createGain(); interfaceBus=c.createGain();
-        const limiter = c.createDynamicsCompressor(); limiter.threshold.value = -16; limiter.ratio.value = 8;
-        Object.values(buses()).forEach(bus=>bus.connect(master)); master.connect(limiter); limiter.connect(c.destination);
-        master.gain.value = audio.muted ? 0 : .6; for(const [key,bus] of Object.entries(buses()))bus.gain.value=channelLevel(key);
-        noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
-        const data = noise.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      if (audio.context?.state === 'closed') {
+        stopAmbience(); stopVoices(); audio.context = null; audio.voices = 0; panners.clear();
       }
-      if (audio.context.state !== 'running') await audio.context.resume();
+      if (!audio.context) {
+        if (!initContext()) return false;
+      }
+      if (audio.context.state !== 'running') {
+        try {
+          await audio.context.resume();
+        } catch (_) {
+          try { await audio.context.close(); } catch (_) {}
+          audio.context = null; audio.voices = 0; panners.clear();
+          if (!initContext()) return false;
+          if (audio.context.state !== 'running') await audio.context.resume();
+        }
+      }
       return audio.context.state === 'running';
     } catch (_) { return false; }
   };
@@ -545,5 +560,26 @@
     return true;
   };
   window.addEventListener('pagehide', () => { active = false;activation++;previewIntent++;previewRequested=false;clearTimeout(previewTimer);stopAmbience();stopVoices(); if (audio.context) audio.context.close().catch(() => {}); });
+  window.addEventListener('pageshow', () => {
+    active = false;
+    activation++;
+    previewIntent++;
+    previewRequested = false;
+    clearTimeout(previewTimer);
+    stopAmbience();
+    stopVoices();
+    if (audio.context?.state === 'closed') {
+      audio.context = null;
+      audio.voices = 0;
+      panners.clear();
+    }
+  });
+  window.addEventListener('popstate', () => {
+    if (audio.context?.state === 'closed') {
+      audio.context = null;
+      audio.voices = 0;
+      panners.clear();
+    }
+  });
   window.RiftAudio = audio;
 })();

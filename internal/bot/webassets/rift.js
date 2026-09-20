@@ -470,7 +470,10 @@
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
-  window.addEventListener('pageshow',event=>{if(event.persisted){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}});
+  window.addEventListener('pageshow',event=>{
+    const isHistory = event.persisted || (typeof performance !== 'undefined' && performance.getEntriesByType?.('navigation')?.[0]?.type === 'back_forward');
+    if(isHistory){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}
+  });
   let pinnedRangeSkill=null,pinnedRangeIndex=-1;
   function cycleRange(){
     const skills=run?.build?.skills||[];if(!skills.length)return;
