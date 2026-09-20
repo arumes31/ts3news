@@ -78,6 +78,7 @@
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
     if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
     if (kind === 'hurt' && extra) { audio.hurt(extra, pan); return; }
+    if (kind === 'death' && extra) { audio.death(extra, pan); return; }
     playCue(kind,pan);
   };
   audio.step = function (material, pan) {
@@ -95,7 +96,13 @@
   audio.hurt = function (kind, pan) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     const k = String(kind || 'hurt').toLowerCase();
-    const cue = ['goblin','knight','archer','treasure','boss'].includes(k) ? k + '_hurt' : 'hurt';
+    const cue = ['goblin','knight','archer','treasure','boss','wolf','spore'].includes(k) ? k + '_hurt' : 'hurt';
+    playCue(cue, pan || 0);
+  };
+  audio.death = function (kind, pan) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    const k = String(kind || 'goblin').toLowerCase();
+    const cue = ['goblin','knight','archer','treasure','boss','wolf','spore'].includes(k) ? k + '_death' : 'goblin_death';
     playCue(cue, pan || 0);
   };
   audio.land = function (intensity = 0.5, pan = 0, material) {
@@ -160,6 +167,8 @@
       case 'archer_hurt': t(480, 220, .12, .06, 'square'); h(.1, .07, 3200, pan); break;
       case 'treasure_hurt': [784, 1175].forEach((f, i) => t(f, f * .8, .12, .06, 'triangle', i * .04)); h(.08, .07, 5000, pan); break;
       case 'boss_hurt': t(110, 45, .35, .16, 'sawtooth'); t(75, 30, .4, .14, 'sawtooth', .02); h(.3, .12, 600, pan); break;
+      case 'wolf_hurt': t(380, 210, .12, .07, 'sine'); h(.06, .05, 1500, pan); break;
+      case 'spore_hurt': h(.14, .08, 900, pan); t(220, 110, .12, .07, 'triangle'); break;
       case 'block': t(940, 760, .2, .08, 'square'); t(1510, 1200, .12, .04, 'sine'); h(.04, .09, 7000, pan); break;
       case 'fire': h(.5, .18, 1500, pan); t(200, 45, .45, .1, 'sawtooth'); break;
       case 'ice': [880,1320,1760].forEach((f,i) => t(f, f*.8, .25, .045, 'sine', i*.045)); h(.1,.055,7000,pan); break;
@@ -185,6 +194,8 @@
       case 'boss_roar': t(85,45,.9,.18,'sawtooth'); t(88,41,.8,.08,'sawtooth'); h(.7,.15,700,pan); break;
       case 'slam': h(.65,.3,1100,pan); t(100,28,.5,.3,'sine'); t(140,40,.4,.08,'triangle',.08); break;
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
+      case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
+      case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
       case 'pickup': [660,990,1320].forEach((f,i) => t(f,f,.15,.045,'triangle',i*.04)); break;
       case 'rare_item': case 'rare_discovery': [523,659,784,1047,1318,1568].forEach((f,i)=>t(f,f*1.02,.38,.06,'sine',i*.055)); [1047,1318,1568,2093].forEach((f,i)=>t(f,f*.98,.45,.04,'triangle',.15+i*.04)); h(.35,.075,7500,pan); break;
       case 'clear': case 'bank': [392,494,587,784].forEach((f,i) => t(f,f,.4,.07,'triangle',i*.12)); break;
@@ -397,7 +408,7 @@
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
   audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false}))audio.set(key,value);};
-  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_hurt','knight_hurt','archer_hurt','treasure_hurt','boss_hurt','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
+  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_hurt','knight_hurt','archer_hurt','treasure_hurt','boss_hurt','wolf_hurt','spore_hurt','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','wolf_death','spore_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
   audio.preview=async (channel,cueKind)=>{

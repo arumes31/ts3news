@@ -569,5 +569,44 @@ func TestEnemyHurtEventsVaryByCreatureFamily(t *testing.T) {
 	}
 }
 
+func TestEnemyDeathEventsVaryByCreatureFamily(t *testing.T) {
+	creatures := []struct {
+		kind string
+		want string
+	}{
+		{"goblin", "goblin_death"},
+		{"knight", "knight_death"},
+		{"archer", "archer_death"},
+		{"treasure", "treasure_death"},
+		{"boss", "boss_death"},
+		{"wolf", "wolf_death"},
+		{"spore", "spore_death"},
+		{"unknown_beast", "goblin_death"}, // default fallback
+	}
 
+	for _, tc := range creatures {
+		now := time.Unix(100, 0)
+		r := NewRun("test-death-"+tc.kind, testRun().Build, now)
+		r.Enemies = []Actor{
+			{ID: "enemy-1", Kind: tc.kind, X: 300, Y: 350, HP: 10, MaxHP: 10},
+		}
 
+		// Deal lethal damage
+		r.hurtEnemy(0, 50, "hit")
+
+		var deathEvent *Event
+		for i := len(r.Events) - 1; i >= 0; i-- {
+			if strings.HasSuffix(r.Events[i].Kind, "_death") {
+				deathEvent = &r.Events[i]
+				break
+			}
+		}
+
+		if deathEvent == nil {
+			t.Fatalf("expected creature death event for %q, got events: %+v", tc.kind, r.Events)
+		}
+		if deathEvent.Kind != tc.want {
+			t.Fatalf("for %q expected event %q, got %q", tc.kind, tc.want, deathEvent.Kind)
+		}
+	}
+}

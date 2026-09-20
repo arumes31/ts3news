@@ -83,10 +83,20 @@ type Actor struct {
 // HurtCue returns the creature-family hurt audio cue identifier.
 func (a Actor) HurtCue() string {
 	switch a.Kind {
-	case "goblin", "knight", "archer", "treasure", "boss":
+	case "goblin", "knight", "archer", "treasure", "boss", "wolf", "spore":
 		return a.Kind + "_hurt"
 	default:
 		return "hurt"
+	}
+}
+
+// DeathCue returns the creature-family death audio cue identifier.
+func (a Actor) DeathCue() string {
+	switch a.Kind {
+	case "goblin", "knight", "archer", "treasure", "boss", "wolf", "spore":
+		return a.Kind + "_death"
+	default:
+		return "goblin_death"
 	}
 }
 
@@ -730,7 +740,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if e.Kind == "boss" {
 			r.Stats.Bosses++
 		}
-		r.event(e.Kind+"_death", e.X, e.Y, 0)
+		r.event(e.DeathCue(), e.X, e.Y, 0)
 		mission := 1
 		if r.Level != nil {
 			mission = r.Level.ID
