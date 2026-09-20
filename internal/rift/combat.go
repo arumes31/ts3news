@@ -481,6 +481,10 @@ func (r *Run) tick(in Input, dt float64) {
 				intensity = 0.65
 			}
 			r.event("land", p.X, p.Y, intensity)
+			if p.Knockdown == 0 && p.HP > 0 && p.Pose != "attack" && p.Pose != "cast" && p.Pose != "hit" {
+				p.Pose = "land"
+				p.PoseTime = 0.14
+			}
 		}
 	}
 	r.moveActor(p, x*speed*dt, y*speed*.6*dt, false)
@@ -499,6 +503,8 @@ func (r *Run) tick(in Input, dt float64) {
 	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 {
 		r.Stats.Jumps++
 		p.Jump = .65
+		p.Pose = "jump"
+		p.PoseTime = .65
 		r.SkillTimers["jump"] = 1.05
 		r.jumpAir = 0
 		r.jumpDist = 0

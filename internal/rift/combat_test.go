@@ -610,3 +610,81 @@ func TestEnemyDeathEventsVaryByCreatureFamily(t *testing.T) {
 		}
 	}
 }
+
+func TestPlayerLandingPose(t *testing.T) {
+	now := time.Unix(100, 0)
+	r := NewRun("test-player-landing-pose", testRun().Build, now)
+	r.Status = "fighting"
+	r.Enemies = nil
+
+	// 1. Initial takeoff into jump
+	r.Step(Input{Jump: true}, now.Add(50*time.Millisecond))
+	if r.Player.Jump == 0 {
+		t.Fatal("expected player to be jumping")
+	}
+	if r.Player.Pose != "jump" {
+		t.Fatalf("expected player pose 'jump', got %q", r.Player.Pose)
+	}
+
+	// 2. Advance through jump until touchdown
+	currentTime := now.Add(50 * time.Millisecond)
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{}, currentTime)
+	}
+	if r.Player.Jump != 0 {
+		t.Fatalf("expected player to land, got Jump=%v", r.Player.Jump)
+	}
+
+	// Immediately upon landing, player should be in "land" pose with active PoseTime
+	if r.Player.Pose != "land" {
+		t.Fatalf("expected player pose 'land' immediately upon landing, got %q", r.Player.Pose)
+	}
+	if r.Player.PoseTime <= 0 {
+		t.Fatalf("expected positive PoseTime on landing, got %v", r.Player.PoseTime)
+	}
+
+	// 3. Advancing past PoseTime (0.14s) without directional input returns player to "idle"
+	currentTime = currentTime.Add(150 * time.Millisecond)
+	r.Step(Input{}, currentTime)
+	if r.Player.Pose != "idle" {
+		t.Fatalf("expected player pose 'idle' after landing recovery, got %q", r.Player.Pose)
+	}
+
+	// 4. Leap with directional movement held recovers into "run"
+	r.SkillTimers["jump"] = 0
+	currentTime = currentTime.Add(50 * time.Millisecond)
+	r.Step(Input{Jump: true, X: 1}, currentTime)
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{X: 1}, currentTime)
+	}
+	if r.Player.Pose != "land" {
+		t.Fatalf("expected player pose 'land' upon moving leap touchdown, got %q", r.Player.Pose)
+	}
+	// Once recovery expires with X held, transitions to "run"
+	currentTime = currentTime.Add(150 * time.Millisecond)
+	r.Step(Input{X: 1}, currentTime)
+	if r.Player.Pose != "run" {
+		t.Fatalf("expected player pose 'run' when moving after landing recovery, got %q", r.Player.Pose)
+	}
+
+	// 5. Attacking immediately cancels landing recovery
+	r.SkillTimers["jump"] = 0
+	currentTime = currentTime.Add(50 * time.Millisecond)
+	r.Step(Input{Jump: true}, currentTime)
+	for i := 0; i < 20 && r.Player.Jump > 0; i++ {
+		currentTime = currentTime.Add(50 * time.Millisecond)
+		r.Step(Input{}, currentTime)
+	}
+	if r.Player.Pose != "land" {
+		t.Fatalf("expected pose 'land', got %q", r.Player.Pose)
+	}
+	// Attack on next frame cancels landing
+	currentTime = currentTime.Add(30 * time.Millisecond)
+	r.Step(Input{Attack: true}, currentTime)
+	if r.Player.Pose != "attack" {
+		t.Fatalf("expected attack to cancel landing recovery, got %q", r.Player.Pose)
+	}
+}
+

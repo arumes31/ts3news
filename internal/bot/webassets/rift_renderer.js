@@ -340,12 +340,14 @@
     if (unit.pose === 'cast') col = 11;
     if (unit.pose === 'windup') col = 8;
     if (unit.guard) col = 7;
+    if (unit.pose === 'land') col = 10;
     if (unit.jump > 0) col = 6;
     if (unit.pose === 'hit' && !unit.guard) col = 12;
     if (unit.knockdown > 0) col = 13;
     if (unit.id === 'player' && snapshot.status === 'cleared' && unit.pose !== 'run') col = 15;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
-    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump,size,1);else sprite(row,col,x-camera,y-jump,size,unit.facing,1,atlas);
+    const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
+    if(shared)catalogActor(unit,unit.pose,x-camera,y-jump+landSquash,size,1);else sprite(row,col,x-camera,y-jump+landSquash,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,x-camera,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,x-camera,y-size*.4,105,.85);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
@@ -370,12 +372,13 @@
     // Keep the expanded Brawl animations for matching existing species. All
     // other anatomy comes directly from Abyss's shared actor-frame provider.
     const localRow={goblin:0,wolf:4,knight:2}[profile.rig];
-    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose;
+    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'?'idle':pose;
     if(localRow!==undefined){
       let col=renderer.reduced?0:Math.floor(decorationTime/650)%2;
       if(pose==='run')col=2+Math.floor(animationTime/105)%4;
       if(pose==='attack')col=unit.pose_time>.25?8:unit.pose_time>.12?9:10;
       if(pose==='windup')col=8;if(pose==='cast')col=11;if(pose==='hit')col=12;if(pose==='knockdown')col=13;if(pose==='defeat')col=14;
+      if(pose==='land')col=10;
       sprite(localRow,col,x,y,size,unit.facing,alpha,'mobs');
     }else{
       const frame=bestiary.frame(unit,mapped,Math.floor((mapped==='idle'?decorationTime:animationTime)/(pose==='run'?110:200))),img=catalogImages[frame.asset],source=frame.source;
