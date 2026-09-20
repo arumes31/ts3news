@@ -1677,6 +1677,100 @@ func TestBossPhaseTransitionEvent(t *testing.T) {
 	})
 }
 
+func TestVictoryPoseAtMissionCompletion(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("clearing final boss room sets victory pose and emits victory event", func(t *testing.T) {
+		r := NewRun("test-victory-run", build, now)
+		r.Room = len(Rooms) - 1 // final room
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "final-boss", Kind: "boss", HP: 100, MaxHP: 100, X: 400, Y: 350},
+		}
+
+		// Defeat boss
+		r.hurtEnemy(0, 200, "hit")
+		// Trigger tick to resolve room clear
+		r.tick(Input{}, 0.05)
+
+		if r.Status != "cleared" {
+			t.Fatalf("expected status 'cleared', got %s", r.Status)
+		}
+		if r.Player.Pose != "victory" {
+			t.Fatalf("expected player pose 'victory', got %s", r.Player.Pose)
+		}
+		if r.Player.PoseTime <= 0 {
+			t.Fatalf("expected positive PoseTime for victory, got %f", r.Player.PoseTime)
+		}
+		ev := findEvent(r.Events, "victory")
+		if ev == nil {
+			t.Fatal("expected victory event emitted on final room clear")
+		}
+
+		// Movement transitions player from victory to run
+		r.tick(Input{X: 1}, 0.05)
+		if r.Player.Pose != "run" {
+			t.Fatalf("expected player pose 'run' on movement, got %s", r.Player.Pose)
+		}
+
+		// Stopping in cleared final room restores victory pose
+		r.tick(Input{X: 0}, 0.05)
+		if r.Player.Pose != "victory" {
+			t.Fatalf("expected player pose 'victory' when stationary in cleared final room, got %s", r.Player.Pose)
+		}
+	})
+
+	t.Run("clearing non-final room does not set victory pose", func(t *testing.T) {
+		r := NewRun("test-intermediate-room", build, now)
+		r.Room = 0 // first room
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "mob-1", Kind: "goblin", HP: 50, MaxHP: 50, X: 400, Y: 350},
+		}
+
+		r.hurtEnemy(0, 50, "hit")
+		r.tick(Input{}, 0.05)
+
+		if r.Status != "cleared" {
+			t.Fatalf("expected status 'cleared', got %s", r.Status)
+		}
+		if r.Player.Pose == "victory" {
+			t.Fatalf("expected non-final room not to set victory pose, got %s", r.Player.Pose)
+		}
+		if findEvent(r.Events, "victory") != nil {
+			t.Fatal("unexpected victory event in non-final room")
+		}
+	})
+
+	t.Run("banking in final room completes mission and sets victory pose", func(t *testing.T) {
+		r := NewRun("test-bank-victory", build, now)
+		r.Room = len(Rooms) - 1
+		r.Status = "cleared"
+		r.Player.Pose = "idle"
+
+		r.FinishCheckpoint("bank", nil)
+		if r.Status != "complete" {
+			t.Fatalf("expected status 'complete', got %s", r.Status)
+		}
+		if r.Player.Pose != "victory" {
+			t.Fatalf("expected player pose 'victory' on mission complete, got %s", r.Player.Pose)
+		}
+		if findEvent(r.Events, "victory") == nil {
+			t.Fatal("expected victory event on bank completion")
+		}
+	})
+}
+
 
 
 

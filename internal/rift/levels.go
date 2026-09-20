@@ -200,6 +200,11 @@ func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 	if kind == "bank" {
 		if r.Room == len(Rooms)-1 {
 			r.Status = "complete"
+			if r.Player.Pose != "victory" {
+				r.event("victory", r.Player.X, r.Player.Y-30, 0)
+			}
+			r.Player.Pose = "victory"
+			r.Player.PoseTime = 4.0
 		}
 		return
 	}
@@ -217,6 +222,11 @@ func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 		return
 	}
 	r.Status = "complete"
+	if r.Player.Pose != "victory" {
+		r.event("victory", r.Player.X, r.Player.Y-30, 0)
+	}
+	r.Player.Pose = "victory"
+	r.Player.PoseTime = 4.0
 }
 
 func contains(o Obstacle, x, y, radius float64) bool {

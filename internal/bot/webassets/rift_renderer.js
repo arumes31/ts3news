@@ -348,7 +348,7 @@
     if (unit.jump > 0) col = 6;
     if (unit.pose === 'hit' && !unit.guard) col = 12;
     if (unit.knockdown > 0) col = 13;
-    if (unit.id === 'player' && snapshot.status === 'cleared' && unit.pose !== 'run') col = 15;
+    if (unit.id === 'player' && (unit.pose === 'victory' || snapshot.status === 'complete' || (snapshot.status === 'cleared' && snapshot.room === 3)) && unit.pose !== 'run') col = 15;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
     const recoverySquash = unit.pose === 'recovery' && !renderer.reduced ? 2 : 0;
@@ -406,6 +406,36 @@
       ctx.beginPath();
       ctx.ellipse(drawX, y + 1, 26 + frostPulse, 6, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+    if (unit.id === 'player' && (unit.pose === 'victory' || snapshot.status === 'complete' || (snapshot.status === 'cleared' && snapshot.room === 3))) {
+      renderer.lastVictoryPose = { x: Math.round(drawX), y: Math.round(y), pose: unit.pose, poseTime: unit.pose_time, reduced: !!renderer.reduced };
+      ctx.save();
+      const auraPulse = renderer.reduced ? 0 : Math.sin(animationTime / 180) * 3;
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(drawX, y + 2, 28 + auraPulse, 8 + auraPulse * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 235, 120, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(drawX, y + 2, 28 + auraPulse, 8 + auraPulse * 0.25, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (!renderer.reduced) {
+        const motes = 4;
+        for (let m = 0; m < motes; m++) {
+          const mProgress = ((animationTime / 500) + m / motes) % 1;
+          const mx = drawX + Math.sin(m * 1.8 + animationTime / 250) * 18;
+          const my = y - mProgress * 55;
+          const mAlpha = Math.sin(mProgress * Math.PI) * 0.8;
+          ctx.fillStyle = 'rgba(255, 240, 160, ' + mAlpha + ')';
+          ctx.beginPath();
+          ctx.arc(mx, my, 2 * (1 - mProgress * 0.3), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       ctx.restore();
     }
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
@@ -1102,9 +1132,80 @@
           ctx.restore();
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='victory'){
+        renderer.lastVictoryEvent = { x: e.x, y: e.y, age, started: e.started, reduced: !!renderer.reduced };
+        const screenX = e.x - camera, screenY = e.y;
+        const fade = Math.max(0, 1 - age * 1.8);
+        if(fade > 0){
+          ctx.save();
+          // Expanding golden triumph rings
+          const laurelR = 28 + age * 85;
+          ctx.strokeStyle = 'rgba(255, 215, 0, ' + (fade * 0.9) + ')';
+          ctx.lineWidth = Math.max(1, 3.5 * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY + 25, laurelR, laurelR * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          const innerR = 14 + age * 50;
+          ctx.strokeStyle = 'rgba(255, 245, 180, ' + (fade * 0.95) + ')';
+          ctx.lineWidth = Math.max(1, 2 * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY + 25, innerR, innerR * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Overhead herald banner: "🏆 VICTORY!"
+          const bannerY = screenY - 55 - (renderer.reduced ? 0 : age * 18);
+          const bannerFade = Math.max(0, 1 - age * 1.5);
+          if(bannerFade > 0){
+            ctx.font = 'bold ' + Math.round(14 * display.textScale) + 'px monospace';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#0a1715';
+            ctx.lineWidth = 4;
+            ctx.strokeText('🏆 VICTORY!', screenX, bannerY);
+            ctx.fillStyle = '#ffe066';
+            ctx.fillText('🏆 VICTORY!', screenX, bannerY);
+          }
+
+          if(!renderer.reduced){
+            // Radiant laurel celebration rays
+            const rays = 8;
+            for(let r = 0; r < rays; r++){
+              const ang = r * (Math.PI * 2 / rays) + age * 2.2;
+              const innerDist = 20 + age * 30;
+              const outerDist = innerDist + 18 * (1 - age * 0.7);
+              const rx1 = screenX + Math.cos(ang) * innerDist;
+              const ry1 = (screenY - 10) + Math.sin(ang) * (innerDist * 0.55);
+              const rx2 = screenX + Math.cos(ang) * outerDist;
+              const ry2 = (screenY - 10) + Math.sin(ang) * (outerDist * 0.55);
+              ctx.strokeStyle = 'rgba(255, 230, 100, ' + (fade * 0.8) + ')';
+              ctx.lineWidth = Math.max(1, 2 * fade);
+              ctx.beginPath();
+              ctx.moveTo(rx1, ry1);
+              ctx.lineTo(rx2, ry2);
+              ctx.stroke();
+            }
+
+            // Ascending celebration sparkle motes
+            const motes = 8;
+            for(let m = 0; m < motes; m++){
+              const progress = (age * 2.8 + m / motes) % 1;
+              const mx = screenX + Math.sin(m * 2.2 + age * 5) * 32;
+              const my = (screenY + 20) - progress * 75;
+              const mFade = fade * Math.sin(progress * Math.PI);
+              if(mFade > 0){
+                ctx.fillStyle = m % 2 === 0 ? 'rgba(255, 225, 100, ' + mFade + ')' : 'rgba(255, 255, 220, ' + mFade + ')';
+                ctx.beginPath();
+                ctx.arc(mx, my, 2.5 * (1 - progress * 0.4), 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          }
+          ctx.restore();
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

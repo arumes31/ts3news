@@ -529,7 +529,13 @@ func (r *Run) tick(in Input, dt float64) {
 					p.Pose = "guard"
 				}
 			}
+			if (r.Status == "cleared" || r.Status == "complete") && r.Room == len(Rooms)-1 && length == 0 && !p.Guard {
+				p.Pose = "victory"
+			}
 		}
+	} else if length > 0 && p.Pose == "victory" {
+		p.Pose = "run"
+		p.PoseTime = 0
 	}
 	if in.Jump && p.Jump == 0 && r.SkillTimers["jump"] == 0 && p.Pose != "recovery" && p.Pose != "ultimate_anticipation" {
 		r.Stats.Jumps++
@@ -675,6 +681,11 @@ func (r *Run) tick(in Input, dt float64) {
 		r.Projectiles = []Projectile{}
 		r.RecordEncounterSummary("cleared")
 		r.event("clear", p.X, p.Y, 0)
+		if r.Room == len(Rooms)-1 {
+			p.Pose = "victory"
+			p.PoseTime = 4.0
+			r.event("victory", p.X, p.Y-30, 0)
+		}
 	}
 }
 
