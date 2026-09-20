@@ -629,4 +629,22 @@
   display: none !important;
 }
 
+#rift-sound[data-audio-blocked="true"] {
+  border-color: #f7a840 !important;
+  color: #ffca65 !important;
+  background: rgba(180, 100, 20, 0.25) !important;
+}
+
+#rift-audio-blocked-notice {
+  margin: 6px 0 10px;
+  padding: 6px 10px;
+  background: rgba(180, 100, 20, 0.18);
+  border: 1px solid #f7a840;
+  border-radius: 4px;
+  color: #ffca65;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
 

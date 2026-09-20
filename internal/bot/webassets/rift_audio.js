@@ -15,10 +15,31 @@
   if(audio.musicPreset==='streamer')audio.streamerMusic=true;
   const channelLevel=key=>(key==='interface'&&audio.interfaceMuted)||(key==='music'&&(audio.streamerMusic||audio.musicPreset==='streamer'))?0:audio[key];
   audio.channelLevel = channelLevel;
+  let audioBlocked = false;
+  if (typeof navigator !== 'undefined' && typeof navigator.getAutoplayPolicy === 'function') {
+    try {
+      if (navigator.getAutoplayPolicy('audiocontext') === 'disallowed') audioBlocked = true;
+    } catch (_) {}
+  }
   let master, sfx, ambient, music, voice, interfaceBus, limiter, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
   Object.defineProperty(audio, 'active', { get() { return active; }, configurable: true });
   Object.defineProperty(audio, 'limiter', { get() { return limiter; }, configurable: true });
   Object.defineProperty(audio, 'musicBus', { get() { return music; }, configurable: true });
+  Object.defineProperty(audio, 'blocked', {
+    get() { return audioBlocked; },
+    set(v) {
+      const next = Boolean(v);
+      if (audioBlocked !== next) {
+        audioBlocked = next;
+        window.dispatchEvent(new Event('riftaudiochange'));
+      }
+    },
+    configurable: true
+  });
+  audio.isBlocked = function () {
+    if (audio.context && audio.context.state === 'running') return false;
+    return audioBlocked;
+  };
   audio.isActive = function () { return active; };
   const panners=new Map(),sources=new Map();let previewRequested=false;
   const buses=()=>({effects:sfx,ambience:ambient,music,voice,interface:interfaceBus});
@@ -65,6 +86,13 @@
     noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    c.onstatechange = () => {
+      if (c.state === 'running') {
+        audio.blocked = false;
+      } else if (c.state === 'suspended' && audioBlocked) {
+        window.dispatchEvent(new Event('riftaudiochange'));
+      }
+    };
     return true;
   }
   audio.unlock = async function () {
@@ -73,7 +101,10 @@
         stopAmbience(); stopVoices(); audio.context = null; audio.voices = 0; panners.clear();
       }
       if (!audio.context) {
-        if (!initContext()) return false;
+        if (!initContext()) {
+          audio.blocked = true;
+          return false;
+        }
       }
       if (audio.context.state !== 'running') {
         try {
@@ -81,12 +112,22 @@
         } catch (_) {
           try { await audio.context.close(); } catch (_) {}
           audio.context = null; audio.voices = 0; panners.clear();
-          if (!initContext()) return false;
-          if (audio.context.state !== 'running') await audio.context.resume();
+          if (!initContext()) {
+            audio.blocked = true;
+            return false;
+          }
+          if (audio.context.state !== 'running') {
+            try { await audio.context.resume(); } catch (_) {}
+          }
         }
       }
-      return audio.context.state === 'running';
-    } catch (_) { return false; }
+      const ready = audio.context.state === 'running';
+      audio.blocked = !ready;
+      return ready;
+    } catch (_) {
+      audio.blocked = true;
+      return false;
+    }
   };
   function tone(frequency, endFrequency, duration, volume, type, delay, pan, bus) {
     const c = audio.context;
@@ -619,9 +660,11 @@
       const ready = await audio.unlock();
       if (!ready || intent !== activation) {
         audio.silence();
+        audio.blocked = !ready;
         return false;
       }
       active = true;
+      audio.blocked = false;
       audio.area(index || 0);
       return true;
     } else {
@@ -675,7 +718,7 @@
     if(!Object.hasOwn(buses(),channel))return false;
     const intent=++previewIntent;previewRequested=true;clearTimeout(previewTimer);if(!active){stopAmbience();stopVoices();}
     const ready=await audio.unlock();if(intent!==previewIntent||document.hidden){if(document.hidden)previewRequested=false;if(!active&&!previewRequested&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
-    if(!ready||audio.muted||channel==='interface'&&audio.interfaceMuted||channel==='music'&&(audio.streamerMusic||audio.musicPreset==='streamer')){previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
+    if(!ready||audio.muted||channel==='interface'&&audio.interfaceMuted||channel==='music'&&(audio.streamerMusic||audio.musicPreset==='streamer')){if(!ready)audio.blocked=true;previewRequested=false;if(!active&&audio.context?.state==='running')await audio.context.suspend().catch(()=>{});return false;}
     const bus=buses()[channel];
     if(cueKind)playCue(cueKind,0);
     else if(channel==='ambience')hiss(.45,.1,900,0,0,bus);

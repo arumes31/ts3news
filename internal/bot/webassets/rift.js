@@ -550,7 +550,13 @@
     $('rift-fullscreen').setAttribute('aria-pressed',String(inFs));
     $('rift-controls-fullscreen').textContent=inFs?'Exit fullscreen':'Enter fullscreen';
   });
-  function soundLabel(){$('rift-sound').textContent=audio.muted?'Sound off':'Sound on';$('rift-sound').setAttribute('aria-pressed',String(audio.muted));}
+  function soundLabel(){
+    const blocked=!audio.muted&&Boolean(audio.isBlocked?.());
+    $('rift-sound').textContent=audio.muted?'Sound off':blocked?'Sound blocked':'Sound on';
+    $('rift-sound').setAttribute('aria-pressed',String(audio.muted));
+    if(blocked){$('rift-sound').dataset.audioBlocked='true';$('rift-sound').title='Audio is blocked by the browser. Click to allow sound.';}
+    else{delete $('rift-sound').dataset.audioBlocked;$('rift-sound').title='';}
+  }
   soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   window.addEventListener('riftaudiochange',soundLabel);
   [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{$(id).value=audio[key]*100;$(id).addEventListener('input',()=>audio.set(key,Number($(id).value)/100));});
