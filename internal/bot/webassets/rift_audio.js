@@ -348,6 +348,7 @@
       case 'land': case 'land_medium': h(.10, .09, 650, pan); t(110, 50, .09, .08, 'triangle'); break;
       case 'land_heavy': h(.16, .14, 520, pan); t(90, 32, .18, .15, 'triangle'); t(70, 25, .22, .12, 'sine', .01); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
+      case 'third_strike': h(.18, .25, 2600, pan); t(220, 50, .24, .25, 'triangle'); t(90, 25, .28, .22, 'sine', .01); t(520, 180, .10, .12, 'sawtooth'); break;
       case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
       case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
       case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -303,7 +303,7 @@
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
-      if(!replay&&(event.kind==='slam'||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
+      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
@@ -625,9 +625,47 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
-      if(effectRows[e.kind]!==undefined && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='third_strike'){
+        renderer.lastThirdStrikeAccent = { x: e.x, y: e.y, age, started: e.started };
+        if(!renderer.reduced){
+          const screenX = e.x - camera, screenY = e.y;
+          ctx.save();
+          const ringRadius = 12 + age * 65;
+          const fade = Math.max(0, 1 - age * 2.2);
+          if (fade > 0) {
+            ctx.strokeStyle = 'rgba(255, 238, 140, ' + fade + ')';
+            ctx.lineWidth = Math.max(1, 3.5 * fade);
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY, ringRadius, ringRadius * 0.55, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const spireLen = (1 - age * 1.8) * 32;
+            if (spireLen > 0) {
+              ctx.strokeStyle = 'rgba(255, 255, 220, ' + (fade * 0.9) + ')';
+              ctx.lineWidth = Math.max(1, 2 * fade);
+              ctx.beginPath();
+              ctx.moveTo(screenX - spireLen, screenY - spireLen * 0.4);
+              ctx.lineTo(screenX + spireLen, screenY + spireLen * 0.4);
+              ctx.moveTo(screenX - spireLen * 0.7, screenY + spireLen * 0.5);
+              ctx.lineTo(screenX + spireLen * 0.7, screenY - spireLen * 0.5);
+              ctx.stroke();
+            }
+
+            const flareSize = Math.max(1, 14 * (1 - age * 2.5));
+            if (flareSize > 0) {
+              ctx.fillStyle = 'rgba(255, 245, 180, ' + (fade * 0.8) + ')';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY, flareSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+          fx(0, Math.min(5, Math.floor(age * 8)), screenX, screenY, 145, Math.max(0, 1 - age * 1.5));
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

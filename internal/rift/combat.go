@@ -532,13 +532,16 @@ func (r *Run) tick(in Input, dt float64) {
 			e := &r.Enemies[i]
 			if e.HP > 0 && math.Abs(e.Y-p.Y) < 32 && (e.X-p.X)*p.Facing >= -10 && (e.X-p.X)*p.Facing < 95 {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
-				if r.Combo == 3 && e.HP > 0 && !EnemyTraining(e.Kind).ResistsKnockdown {
-					e.Knockdown = .55
-					e.Windup = 0
-					if r.Practice == nil || e.ID != "practice-target" {
-						e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+				if r.Combo == 3 {
+					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
+					if e.HP > 0 && !EnemyTraining(e.Kind).ResistsKnockdown {
+						e.Knockdown = .55
+						e.Windup = 0
+						if r.Practice == nil || e.ID != "practice-target" {
+							e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+						}
+						r.event("knockdown", e.X, e.Y, 0)
 					}
-					r.event("knockdown", e.X, e.Y, 0)
 				}
 			}
 		}

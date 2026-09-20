@@ -842,4 +842,108 @@ func TestDirectionalHitRecoilOffsets(t *testing.T) {
 	})
 }
 
+func TestThirdStrikeImpactAccent(t *testing.T) {
+	now := time.Unix(100, 0)
+
+	hasEvent := func(events []Event, kind string) bool {
+		for _, e := range events {
+			if e.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 1. Strikes 1 and 2 do not emit third_strike event
+	t.Run("strikes_1_and_2_no_third_strike_event", func(t *testing.T) {
+		r := NewRun("test-combo-1-2", testRun().Build, now)
+		r.Status = "fighting"
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+		r.Enemies = []Actor{{ID: "goblin", Kind: "goblin", X: 540, Y: 300, HP: 500, MaxHP: 500}}
+
+		// Strike 1
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+		if r.Combo != 1 {
+			t.Fatalf("expected combo 1, got %d", r.Combo)
+		}
+		if hasEvent(r.Events, "third_strike") {
+			t.Fatal("strike 1 must not emit third_strike event")
+		}
+
+		// Strike 2
+		r.Player.Cooldown = 0
+		r.Events = nil
+		r.Step(Input{Attack: true}, now.Add(450*time.Millisecond))
+		if r.Combo != 2 {
+			t.Fatalf("expected combo 2, got %d", r.Combo)
+		}
+		if hasEvent(r.Events, "third_strike") {
+			t.Fatal("strike 2 must not emit third_strike event")
+		}
+	})
+
+	// 2. Strike 3 hitting enemy emits third_strike impact event and knocks down enemy
+	t.Run("strike_3_emits_third_strike_on_hit", func(t *testing.T) {
+		r := NewRun("test-combo-3", testRun().Build, now)
+		r.Status = "fighting"
+		r.Combo = 2
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+		r.Enemies = []Actor{{ID: "goblin", Kind: "goblin", X: 540, Y: 300, HP: 500, MaxHP: 500}}
+
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+		if r.Combo != 3 {
+			t.Fatalf("expected combo 3, got %d", r.Combo)
+		}
+		if !hasEvent(r.Events, "third_strike") {
+			t.Fatal("strike 3 hitting enemy must emit third_strike event")
+		}
+		if r.Enemies[0].Knockdown <= 0 {
+			t.Fatal("normal goblin must receive knockdown on third strike")
+		}
+	})
+
+	// 3. Strike 3 on boss emits third_strike impact even though boss resists knockdown
+	t.Run("strike_3_boss_emits_third_strike_resists_knockdown", func(t *testing.T) {
+		r := NewRun("test-combo-3-boss", testRun().Build, now)
+		r.Status = "fighting"
+		r.Combo = 2
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+		r.Enemies = []Actor{{ID: "boss", Kind: "boss", X: 540, Y: 300, HP: 1000, MaxHP: 1000}}
+
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+		if !hasEvent(r.Events, "third_strike") {
+			t.Fatal("strike 3 hitting boss must emit third_strike event")
+		}
+		if r.Enemies[0].Knockdown != 0 {
+			t.Fatal("boss must resist knockdown on third strike")
+		}
+	})
+
+	// 4. Strike 3 swing that misses all enemies does not emit third_strike impact
+	t.Run("strike_3_whiff_no_third_strike_impact", func(t *testing.T) {
+		r := NewRun("test-combo-3-whiff", testRun().Build, now)
+		r.Status = "fighting"
+		r.Combo = 2
+		r.Player.X = 500
+		r.Player.Y = 300
+		r.Player.Facing = 1
+		r.Enemies = []Actor{{ID: "goblin-far", Kind: "goblin", X: 700, Y: 300, HP: 500, MaxHP: 500}}
+
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+		if r.Combo != 3 {
+			t.Fatalf("expected combo 3, got %d", r.Combo)
+		}
+		if hasEvent(r.Events, "third_strike") {
+			t.Fatal("whiffed strike 3 must not emit third_strike impact event")
+		}
+	})
+}
+
+
 
