@@ -182,6 +182,38 @@ func TestHazardsWarnThenDamageOnceAndRespectJumpPause(t *testing.T) {
 	}
 }
 
+func TestHazardWarningEventEmittedOncePerCycle(t *testing.T) {
+	r := NewRunAtLevel("hazard-warn-test", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "fire", Period: 5, Duration: 1}}
+
+	// Clock at start of warning phase
+	r.Clock = 0.1
+	r.hazardTick()
+
+	warnCount := 0
+	for _, e := range r.Events {
+		if e.Kind == "hazard_warning" {
+			warnCount++
+		}
+	}
+	if warnCount != 1 {
+		t.Fatalf("expected exactly 1 hazard_warning event, got %d", warnCount)
+	}
+
+	// Repeated tick in same warning phase must not emit another warning event
+	r.Clock = 0.5
+	r.hazardTick()
+	warnCount = 0
+	for _, e := range r.Events {
+		if e.Kind == "hazard_warning" {
+			warnCount++
+		}
+	}
+	if warnCount != 1 {
+		t.Fatalf("warning event repeated within same warning phase: %d", warnCount)
+	}
+}
+
 func TestSeamlessCampaignAdvanceKeepsReceiptAndCompletion(t *testing.T) {
 	catalog := content.AbyssMobCatalog()
 	r := NewRunAtLevel("campaign", Build{HP: 200}, time.Now(), catalog, 10)

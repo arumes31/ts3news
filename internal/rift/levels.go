@@ -281,12 +281,22 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 func (h Hazard) Phase(clock float64) float64 { return math.Mod(clock+h.Offset, h.Period) }
 
 func (r *Run) hazardTick() {
-	if r.Status != "fighting" || r.Player.Jump > .1 {
+	if r.Status != "fighting" {
 		return
+	}
+	if r.SkillTimers == nil {
+		r.SkillTimers = map[string]float64{}
 	}
 	for i, h := range r.Arena().Hazards {
 		phase := h.Phase(r.Clock)
-		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) {
+		warnKey := fmt.Sprintf("hazard-warn-%d", i)
+		if phase < 1.2 {
+			if r.SkillTimers[warnKey] <= 0 {
+				r.SkillTimers[warnKey] = math.Max(1.5, h.Period-phase+.05)
+				r.event("hazard_warning", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
+		}
+		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) || r.Player.Jump > .1 {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)
