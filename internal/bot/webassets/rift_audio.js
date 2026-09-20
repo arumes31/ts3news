@@ -72,14 +72,28 @@
     audio.play('cooldown_rejection', pan);
     return true;
   };
-  audio.play = function (kind, pan, extra, extra2) {
+  audio.isEnemyCue = function (kind) {
+    return /(?:_attack|_death|_roar|_escape|_hurt)$/.test(kind) || kind === 'slam' || kind === 'arrow';
+  };
+  audio.distanceAttenuation = function (dist) {
+    if (typeof dist !== 'number' || !Number.isFinite(dist) || dist <= 0) return 1.0;
+    const minDistance = 120;
+    const maxDistance = 850;
+    const minGain = 0.3;
+    if (dist <= minDistance) return 1.0;
+    if (dist >= maxDistance) return minGain;
+    const t = (dist - minDistance) / (maxDistance - minDistance);
+    return 1.0 - t * (1.0 - minGain);
+  };
+  audio.play = function (kind, pan, extra, extra2, distance) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
     if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
-    if (kind === 'hurt' && extra) { audio.hurt(extra, pan); return; }
-    if (kind === 'death' && extra) { audio.death(extra, pan); return; }
-    playCue(kind,pan);
+    if (kind === 'hurt' && extra) { audio.hurt(extra, pan, distance); return; }
+    if (kind === 'death' && extra) { audio.death(extra, pan, distance); return; }
+    const att = audio.isEnemyCue(kind) ? audio.distanceAttenuation(distance) : 1.0;
+    playCue(kind, pan, att);
   };
   audio.step = function (material, pan) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
@@ -93,17 +107,19 @@
     const cue = ['blade','blunt','pierce','arcane','fist','ranged'].includes(fam) ? 'hit_' + fam : 'hit';
     playCue(cue, pan || 0);
   };
-  audio.hurt = function (kind, pan) {
+  audio.hurt = function (kind, pan, distance) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     const k = String(kind || 'hurt').toLowerCase();
     const cue = ['goblin','knight','archer','treasure','boss','wolf','spore'].includes(k) ? k + '_hurt' : 'hurt';
-    playCue(cue, pan || 0);
+    const att = audio.isEnemyCue(cue) ? audio.distanceAttenuation(distance) : 1.0;
+    playCue(cue, pan || 0, att);
   };
-  audio.death = function (kind, pan) {
+  audio.death = function (kind, pan, distance) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     const k = String(kind || 'goblin').toLowerCase();
     const cue = ['goblin','knight','archer','treasure','boss','wolf','spore'].includes(k) ? k + '_death' : 'goblin_death';
-    playCue(cue, pan || 0);
+    const att = audio.isEnemyCue(cue) ? audio.distanceAttenuation(distance) : 1.0;
+    playCue(cue, pan || 0, att);
   };
   audio.land = function (intensity = 0.5, pan = 0, material) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
@@ -137,11 +153,12 @@
       }
     }
   };
-  function playCue(kind,pan){
+  function playCue(kind, pan, attenuation = 1.0) {
     audio.played++;
     const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar|_escape|_hurt)$/.test(kind)?voice:sfx;
-    const t = (f, end, d, v, wave, delay) => tone(f, end, d, v, wave, delay, pan,target);
-    const h = (duration,volume,cutoff,position,delay)=>hiss(duration,volume,cutoff,position,delay,target);
+    const gainMult = typeof attenuation === 'number' && Number.isFinite(attenuation) ? Math.max(0.05, Math.min(1.0, attenuation)) : 1.0;
+    const t = (f, end, d, v, wave, delay) => tone(f, end, d, v * gainMult, wave, delay, pan, target);
+    const h = (duration, volume, cutoff, position, delay) => hiss(duration, volume * gainMult, cutoff ? cutoff * Math.max(0.6, gainMult) : cutoff, position, delay, target);
     switch (kind) {
       case 'step': case 'step_stone': h(.065, .07, 650, pan); t(120, 60, .05, .04, 'triangle'); break;
       case 'step_metal': h(.07, .06, 2800, pan); t(620, 480, .06, .05, 'triangle'); break;

@@ -303,7 +303,10 @@
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
-      window.RiftAudio.play(event.kind, (event.x - run.player.x) / 700, extraArg, floorMat);
+      const dx = run.player ? (event.x - run.player.x) : 0;
+      const dy = run.player ? ((event.y || run.player.y) - run.player.y) : 0;
+      const dist = Math.hypot(dx, dy);
+      window.RiftAudio.play(event.kind, dx / 700, extraArg, floorMat, dist);
     });
     if (effects.length > 40) effects = effects.slice(-40);
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
