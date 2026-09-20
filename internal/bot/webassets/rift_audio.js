@@ -124,7 +124,7 @@
   audio.unlock = async function () {
     try {
       if (audio.context?.state === 'closed') {
-        stopAmbience(); stopVoices(); audio.context = null; audio.voices = 0; panners.clear();
+        clearAmbienceTimers?.(); stopAmbience(); stopVoices(); audio.releaseAbandonedAmbience?.(); audio.context = null; audio.voices = 0; panners.clear();
       }
       if (!audio.context) {
         if (!initContext()) {
@@ -409,6 +409,67 @@
     return true;
   };
   function stopVoices(){recentImpactTimes.clear();for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
+  const trackedAmbienceNodes = new Set();
+  const pendingAmbienceTimers = new Set();
+  function trackAmbienceNode(node) {
+    if (node) trackedAmbienceNodes.add(node);
+    return node;
+  }
+  function releaseAmbienceNode(node) {
+    if (!node) return;
+    try { node.stop?.(); } catch (_) {}
+    try { node.disconnect?.(); } catch (_) {}
+    trackedAmbienceNodes.delete(node);
+  }
+  function clearAmbienceTimers() {
+    for (const timer of pendingAmbienceTimers) {
+      clearTimeout(timer);
+    }
+    pendingAmbienceTimers.clear();
+  }
+  function releaseAmbienceGroup(group) {
+    if (!group) return;
+    if (group.timer) {
+      clearTimeout(group.timer);
+      pendingAmbienceTimers.delete(group.timer);
+      group.timer = null;
+    }
+    group.sources?.forEach(releaseAmbienceNode);
+    group.filters?.forEach(releaseAmbienceNode);
+    group.gains?.forEach(releaseAmbienceNode);
+    group.sources = [];
+    group.filters = [];
+    group.gains = [];
+  }
+  audio.getTrackedAmbienceCount = function () {
+    return trackedAmbienceNodes.size;
+  };
+  audio.releaseAbandonedAmbience = function () {
+    const liveNodes = new Set();
+    if (activeAmbience) {
+      activeAmbience.sources?.forEach(n => liveNodes.add(n));
+      activeAmbience.filters?.forEach(n => liveNodes.add(n));
+      activeAmbience.gains?.forEach(n => liveNodes.add(n));
+    }
+    for (const group of outgoingAmbience) {
+      group.sources?.forEach(n => liveNodes.add(n));
+      group.filters?.forEach(n => liveNodes.add(n));
+      group.gains?.forEach(n => liveNodes.add(n));
+    }
+    if (bossMusicNodes) {
+      bossMusicNodes.sources?.forEach(n => liveNodes.add(n));
+      bossMusicNodes.filters?.forEach(n => liveNodes.add(n));
+      bossMusicNodes.gains?.forEach(n => liveNodes.add(n));
+    }
+    let releasedCount = 0;
+    for (const node of [...trackedAmbienceNodes]) {
+      if (!liveNodes.has(node)) {
+        releaseAmbienceNode(node);
+        releasedCount++;
+      }
+    }
+    return releasedCount;
+  };
   let activeAmbience = null; const outgoingAmbience = new Set();
   let bossMusicNodes = null;
   audio.crossfading = false;
@@ -418,9 +479,18 @@
     audio.stopBossMusic?.(0);
     room = -1;
     audio.currentRegion = -1;
-    if(activeAmbience){activeAmbience.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});activeAmbience.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
-    for(const group of outgoingAmbience){group.sources.forEach(s=>{try{s.stop();}catch(_){}s.disconnect();});group.gains.forEach(g=>{try{g.disconnect();}catch(_){}});}
-    outgoingAmbience.clear();activeAmbience=null;ambientNodes=[];audio.crossfading=false;
+    clearAmbienceTimers();
+    if (activeAmbience) {
+      releaseAmbienceGroup(activeAmbience);
+      activeAmbience = null;
+    }
+    for (const group of outgoingAmbience) {
+      releaseAmbienceGroup(group);
+    }
+    outgoingAmbience.clear();
+    ambientNodes = [];
+    audio.crossfading = false;
+    audio.releaseAbandonedAmbience();
   }
   audio.startBossMusic = function (customFade) {
     const c = audio.context;
@@ -435,7 +505,7 @@
     }
     const region = audio.currentRegion >= 0 ? audio.currentRegion : 0;
     const root = [130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region] || 130.81;
-    const sources = [], gains = [];
+    const sources = [], filters = [], gains = [];
     const bass = c.createOscillator(), bassFilter = c.createBiquadFilter(), bassGain = c.createGain();
     bass.type = 'sawtooth';
     bass.frequency.value = Math.max(30, root * 0.5);
@@ -448,7 +518,9 @@
       bassGain.gain.value = 0.024;
     }
     bass.connect(bassFilter); bassFilter.connect(bassGain); bassGain.connect(music);
-    bass.start(); sources.push(bass); gains.push(bassGain);
+    bass.start();
+    trackAmbienceNode(bass); trackAmbienceNode(bassFilter); trackAmbienceNode(bassGain);
+    sources.push(bass); filters.push(bassFilter); gains.push(bassGain);
     [root * 0.75, root * 1.2, root * 1.414, root * 1.8].forEach((f, i) => {
       const osc = c.createOscillator(), level = c.createGain();
       osc.type = i === 1 ? 'triangle' : 'sine';
@@ -461,9 +533,11 @@
         level.gain.value = targetGain;
       }
       osc.connect(level); level.connect(music);
-      osc.start(); sources.push(osc); gains.push(level);
+      osc.start();
+      trackAmbienceNode(osc); trackAmbienceNode(level);
+      sources.push(osc); gains.push(level);
     });
-    bossMusicNodes = { sources, gains };
+    bossMusicNodes = { sources, filters, gains, timer: null };
     if (fade > 0) {
       setTimeout(() => {
         if (audio.bossMusicActive) audio.bossCrossfading = false;
@@ -492,15 +566,16 @@
         try { g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0.0001, stopTime); } catch (_) {}
       });
       nodes.sources.forEach(s => { try { s.stop(stopTime + 0.05); } catch (_) {} });
-      setTimeout(() => {
-        nodes.sources.forEach(s => { try { s.disconnect(); } catch (_) {} });
-        nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+      const timer = setTimeout(() => {
+        pendingAmbienceTimers.delete(timer);
+        releaseAmbienceGroup(nodes);
         audio.bossFadingOut = false;
       }, (fade + 0.1) * 1000);
+      nodes.timer = timer;
+      pendingAmbienceTimers.add(timer);
     } else {
       audio.bossFadingOut = false;
-      nodes.sources.forEach(s => { try { s.stop(); } catch (_) {} s.disconnect(); });
-      nodes.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+      releaseAmbienceGroup(nodes);
     }
   };
   audio.bossFadingOut = false;
@@ -533,6 +608,13 @@
     const fade = typeof customFade === 'number' && customFade >= 0 ? customFade : isRegionTransition ? 1.5 : hasPrevious ? 0.6 : 0;
     if (hasPrevious) {
       const old = activeAmbience;
+      if (outgoingAmbience.size >= 2) {
+        for (const stale of outgoingAmbience) {
+          if (outgoingAmbience.size < 2) break;
+          releaseAmbienceGroup(stale);
+          outgoingAmbience.delete(stale);
+        }
+      }
       outgoingAmbience.add(old);
       const stopTime = c.currentTime + fade;
       old.gains.forEach(g => {
@@ -541,19 +623,21 @@
       old.sources.forEach(s => { try { s.stop(stopTime + 0.05); } catch (_) {} });
       if (fade > 0) {
         audio.crossfading = true;
-        setTimeout(() => {
-          old.sources.forEach(s => { try { s.disconnect(); } catch (_) {} });
-          old.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+        const timer = setTimeout(() => {
+          pendingAmbienceTimers.delete(timer);
+          releaseAmbienceGroup(old);
           outgoingAmbience.delete(old);
           if (outgoingAmbience.size === 0) audio.crossfading = false;
         }, (fade + 0.1) * 1000);
+        old.timer = timer;
+        pendingAmbienceTimers.add(timer);
       } else {
-        old.sources.forEach(s => { try { s.stop(); } catch (_) {} s.disconnect(); });
-        old.gains.forEach(g => { try { g.disconnect(); } catch (_) {} });
+        releaseAmbienceGroup(old);
         outgoingAmbience.delete(old);
       }
     }
-    const currentSources = [], currentGains = [];
+    audio.releaseAbandonedAmbience();
+    const currentSources = [], currentFilters = [], currentGains = [];
     const wind = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
     wind.buffer = noise; wind.loop = true; filter.type = 'lowpass'; filter.frequency.value = [460,780,1100,640,350,260,500,390,180,220][region]||460;
     const isPaused = !audio.isRegionActive(region);
@@ -565,9 +649,10 @@
       gain.gain.value = isPaused ? 0.0001 : windBaseGain;
     }
     wind.connect(filter); filter.connect(gain); gain.connect(ambient);
-    wind.onended = () => { filter.disconnect(); gain.disconnect(); };
+    wind.onended = () => { releaseAmbienceNode(filter); releaseAmbienceNode(gain); };
     wind.start();
-    currentSources.push(wind); currentGains.push(gain);
+    trackAmbienceNode(wind); trackAmbienceNode(filter); trackAmbienceNode(gain);
+    currentSources.push(wind); currentFilters.push(filter); currentGains.push(gain);
     const root=[130.81,73.42,146.83,82.41,98,65.41,87.31,110,61.74,55][region]||130.81;
     const baseGains = [windBaseGain];
     [root,root*1.5,root*2].map(f=>f*(tier===2?.75:tier===1?.9:1)).forEach(f => {
@@ -580,10 +665,13 @@
       } else {
         level.gain.value = isPaused ? 0.0001 : oscBaseGain;
       }
-      osc.connect(level); level.connect(music); osc.onended = () => level.disconnect(); osc.start();
+      osc.connect(level); level.connect(music);
+      osc.onended = () => releaseAmbienceNode(level);
+      osc.start();
+      trackAmbienceNode(osc); trackAmbienceNode(level);
       currentSources.push(osc); currentGains.push(level);
     });
-    activeAmbience = { region, sources: currentSources, gains: currentGains, baseGains, paused: isPaused };
+    activeAmbience = { region, sources: currentSources, filters: currentFilters, gains: currentGains, baseGains, paused: isPaused, timer: null };
     ambientNodes = currentSources;
     nextBird = c.currentTime + 2;
   };
@@ -654,6 +742,7 @@
     stopAmbience();
     stopVoices();
     audio.stopBossMusic?.(0);
+    audio.releaseAbandonedAmbience();
     if (audio.context && audio.context.state === 'running') {
       try { audio.context.suspend().catch(() => {}); } catch (_) {}
     }
@@ -772,15 +861,28 @@
     previewTimer=setTimeout(()=>{if(intent!==previewIntent)return;previewRequested=false;if(!active&&audio.context?.state==='running')audio.context.suspend().catch(()=>{});},cueKind?1750:650);
     return true;
   };
-  window.addEventListener('pagehide', () => { active = false;activation++;previewIntent++;previewRequested=false;clearTimeout(previewTimer);stopAmbience();stopVoices(); if (audio.context) audio.context.close().catch(() => {}); });
+  window.addEventListener('pagehide', () => {
+    active = false;
+    activation++;
+    previewIntent++;
+    previewRequested = false;
+    clearTimeout(previewTimer);
+    clearAmbienceTimers();
+    stopAmbience();
+    stopVoices();
+    audio.releaseAbandonedAmbience();
+    if (audio.context) audio.context.close().catch(() => {});
+  });
   window.addEventListener('pageshow', () => {
     active = false;
     activation++;
     previewIntent++;
     previewRequested = false;
     clearTimeout(previewTimer);
+    clearAmbienceTimers();
     stopAmbience();
     stopVoices();
+    audio.releaseAbandonedAmbience();
     if (audio.context?.state === 'closed') {
       audio.context = null;
       audio.voices = 0;
