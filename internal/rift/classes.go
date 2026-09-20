@@ -108,6 +108,13 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 			}
 		}
 	}
+	if e.Kind == "boss" && e.HP > 0 && ((skill.Role == "finisher" && charges > 0) || skill.Kind == "quake" || skill.Kind == "ultimate") {
+		e.Pose = "stagger"
+		e.PoseTime = .45
+		e.Windup = 0
+		e.Cooldown = math.Max(e.Cooldown, 0.8)
+		r.event("boss_stagger", e.X, e.Y-30, 0)
+	}
 	if skill.Kind == "ice" && EnemyTraining(e.Kind).Interruptible {
 		e.Windup = 0
 		e.Cooldown = math.Max(e.Cooldown, 1)

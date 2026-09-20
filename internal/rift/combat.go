@@ -554,13 +554,21 @@ func (r *Run) tick(in Input, dt float64) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
 				if r.Combo == 3 {
 					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
-					if e.HP > 0 && !EnemyTraining(e.Kind).ResistsKnockdown {
-						e.Knockdown = .55
-						e.Windup = 0
-						if r.Practice == nil || e.ID != "practice-target" {
-							e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+					if e.HP > 0 {
+						if !EnemyTraining(e.Kind).ResistsKnockdown {
+							e.Knockdown = .55
+							e.Windup = 0
+							if r.Practice == nil || e.ID != "practice-target" {
+								e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+							}
+							r.event("knockdown", e.X, e.Y, 0)
+						} else if e.Kind == "boss" {
+							e.Pose = "stagger"
+							e.PoseTime = .45
+							e.Windup = 0
+							e.Cooldown = math.Max(e.Cooldown, 0.8)
+							r.event("boss_stagger", e.X, e.Y-30, 0)
 						}
-						r.event("knockdown", e.X, e.Y, 0)
 					}
 				}
 			}
@@ -773,8 +781,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.HP = math.Max(0, e.HP-damage)
 	r.Stats.DamageDealt += damage
 	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
-	e.Pose = "hit"
-	e.PoseTime = .2
+	if e.Pose != "stagger" {
+		e.Pose = "hit"
+		e.PoseTime = .2
+	}
 	hitDir := r.Player.Facing
 	if e.X != r.Player.X {
 		hitDir = math.Copysign(1, e.X-r.Player.X)
@@ -913,6 +923,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
+	if e.PoseTime < 0.0001 {
+		e.PoseTime = 0
+	}
 	if e.Jump > 0 {
 		e.Jump = math.Max(0, e.Jump-dt)
 		if e.Jump < 0.0001 {
@@ -921,8 +934,14 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	if e.PoseTime == 0 {
 		e.RecoilX = 0
+		if e.Pose == "stagger" || e.Pose == "hit" {
+			e.Pose = "idle"
+		}
 	} else if e.RecoilX != 0 {
 		e.RecoilX = math.Copysign(math.Max(0, math.Abs(e.RecoilX)-50*dt), e.RecoilX)
+	}
+	if e.Pose == "stagger" && e.PoseTime > 0 {
+		return
 	}
 	if e.Knockdown > 0 {
 		e.Knockdown = math.Max(0, e.Knockdown-dt)

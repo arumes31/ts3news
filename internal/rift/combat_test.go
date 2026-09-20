@@ -1500,5 +1500,91 @@ func TestEnemyJumpDecrementAndShadowSupport(t *testing.T) {
 	})
 }
 
+func TestBossStaggerPoseAndEvent(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("third_strike_knocks_down_trash_mob_but_staggers_boss", func(t *testing.T) {
+		// Trash mob: gets knockdown
+		rMob := NewRun("test-mob-third", build, now)
+		rMob.Status = "fighting"
+		rMob.Combo = 2
+		rMob.Enemies = []Actor{
+			{ID: "goblin-1", Kind: "goblin", HP: 200, MaxHP: 200, X: rMob.Player.X + 35, Y: rMob.Player.Y},
+		}
+		rMob.tick(Input{Attack: true}, 0.05)
+		if rMob.Enemies[0].Knockdown == 0 {
+			t.Fatal("expected goblin knocked down by third strike")
+		}
+		if rMob.Enemies[0].Pose != "knockdown" {
+			t.Fatalf("expected goblin pose knockdown, got %s", rMob.Enemies[0].Pose)
+		}
+
+		// Boss: resists knockdown, enters separate stagger pose
+		rBoss := NewRun("test-boss-third", build, now)
+		rBoss.Status = "fighting"
+		rBoss.Combo = 2
+		rBoss.Enemies = []Actor{
+			{ID: "boss-1", Kind: "boss", HP: 1000, MaxHP: 1000, X: rBoss.Player.X + 35, Y: rBoss.Player.Y, Windup: 0.5},
+		}
+		rBoss.tick(Input{Attack: true}, 0.05)
+		if rBoss.Enemies[0].Knockdown != 0 {
+			t.Fatal("expected boss not knocked down")
+		}
+		if rBoss.Enemies[0].Pose != "stagger" {
+			t.Fatalf("expected boss pose 'stagger', got %s", rBoss.Enemies[0].Pose)
+		}
+		if rBoss.Enemies[0].PoseTime <= 0 {
+			t.Fatalf("expected positive PoseTime, got %f", rBoss.Enemies[0].PoseTime)
+		}
+		ev := findEvent(rBoss.Events, "boss_stagger")
+		if ev == nil {
+			t.Fatal("expected boss_stagger event emitted")
+		}
+
+		// Minor hits during stagger do not downgrade pose
+		rBoss.hurtEnemy(0, 10, "hit")
+		if rBoss.Enemies[0].Pose != "stagger" {
+			t.Fatalf("expected boss to remain in 'stagger' after minor hit, got %s", rBoss.Enemies[0].Pose)
+		}
+
+		// Stagger expires cleanly to idle in enemyTick
+		rBoss.enemyTick(0, 0.5)
+		if rBoss.Enemies[0].PoseTime != 0 {
+			t.Fatalf("expected PoseTime 0, got %f", rBoss.Enemies[0].PoseTime)
+		}
+		if rBoss.Enemies[0].Pose != "idle" {
+			t.Fatalf("expected boss to return to 'idle' after stagger, got %s", rBoss.Enemies[0].Pose)
+		}
+	})
+
+	t.Run("heavy_abilities_stagger_boss", func(t *testing.T) {
+		r := NewRun("test-boss-heavy", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "boss-slam", Kind: "boss", HP: 1000, MaxHP: 1000, X: 400, Y: 350},
+		}
+
+		quakeSkill := Skill{ID: "earth_quake", Kind: "quake", Power: 30}
+		r.skillHit(0, 50, quakeSkill, 0, "")
+		if r.Enemies[0].Pose != "stagger" {
+			t.Fatalf("expected quake to stagger boss, got %s", r.Enemies[0].Pose)
+		}
+		if findEvent(r.Events, "boss_stagger") == nil {
+			t.Fatal("expected boss_stagger event on quake hit")
+		}
+	})
+}
+
+
 
 
