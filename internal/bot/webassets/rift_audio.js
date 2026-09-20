@@ -72,6 +72,18 @@
     audio.play('cooldown_rejection', pan);
     return true;
   };
+  const recentImpactTimes = new Map();
+  audio.isImpactCue = function (kind) {
+    return kind === 'hit' || kind.startsWith('hit_') || kind === 'slash' || kind === 'knockdown' || kind === 'slam' || kind === 'block' || kind === 'perfect_guard' || kind.endsWith('_hurt');
+  };
+  audio.shouldThrottleImpact = function (kind, now = performance.now()) {
+    if (!audio.isImpactCue(kind)) return false;
+    const history = (recentImpactTimes.get(kind) || []).filter(t => now - t < 50);
+    return history.filter(t => now - t < 38).length >= 2;
+  };
+  audio.clearImpactHistory = function () {
+    recentImpactTimes.clear();
+  };
   audio.isEnemyCue = function (kind) {
     return /(?:_attack|_death|_roar|_escape|_hurt)$/.test(kind) || kind === 'slam' || kind === 'arrow';
   };
@@ -154,10 +166,28 @@
     }
   };
   function playCue(kind, pan, attenuation = 1.0) {
+    const now = performance.now();
+    if (audio.isImpactCue(kind)) {
+      if (audio.shouldThrottleImpact(kind, now)) {
+        return false;
+      }
+      const history = (recentImpactTimes.get(kind) || []).filter(t => now - t < 50);
+      history.push(now);
+      recentImpactTimes.set(kind, history);
+    }
     audio.played++;
     const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar|_escape|_hurt)$/.test(kind)?voice:sfx;
-    const gainMult = typeof attenuation === 'number' && Number.isFinite(attenuation) ? Math.max(0.05, Math.min(1.0, attenuation)) : 1.0;
-    const t = (f, end, d, v, wave, delay) => tone(f, end, d, v * gainMult, wave, delay, pan, target);
+    let gainMult = typeof attenuation === 'number' && Number.isFinite(attenuation) ? Math.max(0.05, Math.min(1.0, attenuation)) : 1.0;
+    if (audio.isImpactCue(kind)) {
+      const history = recentImpactTimes.get(kind) || [];
+      if (history.length > 1) {
+        gainMult *= 0.75;
+      }
+    }
+    const detune = audio.isImpactCue(kind) && (recentImpactTimes.get(kind)?.length || 0) > 1
+      ? 0.96 + Math.random() * 0.08
+      : 1.0;
+    const t = (f, end, d, v, wave, delay) => tone(f * detune, end * detune, d, v * gainMult, wave, delay, pan, target);
     const h = (duration, volume, cutoff, position, delay) => hiss(duration, volume * gainMult, cutoff ? cutoff * Math.max(0.6, gainMult) : cutoff, position, delay, target);
     switch (kind) {
       case 'step': case 'step_stone': h(.065, .07, 650, pan); t(120, 60, .05, .04, 'triangle'); break;
@@ -231,7 +261,7 @@
       default: break;
     }
   };
-  function stopVoices(){for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
+  function stopVoices(){recentImpactTimes.clear();for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
   let activeAmbience = null; const outgoingAmbience = new Set();
   let bossMusicNodes = null;
   audio.crossfading = false;
