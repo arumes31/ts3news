@@ -30,7 +30,7 @@
       current.dispatchEvent(new Event('input',{bubbles:true}));current.dispatchEvent(new Event('change',{bubbles:true}));return;
     }
     if(button===0){if(index>=0&&current.matches('button,summary,a,input[type=checkbox]'))current.click();return;}
-    const direction=button===12||button===14?-1:1;elements[(index+direction+elements.length)%elements.length].focus();
+    const direction=button===12||button===14?-1:1;elements[(index+direction+elements.length)%elements.length].focus();window.RiftAudio?.playUINav?.(0,false);
   }
   function poll(){
     if(!callbacks)return;
@@ -54,7 +54,7 @@
       held.clear();taps.clear();x=y=0;for(const i of [12,13,14,15,0])if(edges[i])navigate(i);return;
     }
     const count=callbacks.skillCount();selected=count?Math.min(selected,count-1):0;
-    if(count&&(edges[6]||edges[7])){selected=(selected+(edges[7]?1:-1)+count)%count;window.RiftControls.prompts();}
+    if(count&&(edges[6]||edges[7])){selected=(selected+(edges[7]?1:-1)+count)%count;window.RiftControls.prompts();window.RiftAudio?.playUINav?.(0,false);}
     const oldX=x,oldY=y;x=buttons[14]||buttons[15]?Number(buttons[15])-Number(buttons[14]):sx;
     y=buttons[12]||buttons[13]?Number(buttons[13])-Number(buttons[12]):sy;
     if(x!==oldX||y!==oldY)callbacks.recognize(x!==0&&Math.abs(x)>=Math.abs(y)?x>0?'right':'left':y!==0?y>0?'down':'up':'stop');

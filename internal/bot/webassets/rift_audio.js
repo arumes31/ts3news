@@ -97,15 +97,41 @@
     const t = (dist - minDistance) / (maxDistance - minDistance);
     return 1.0 - t * (1.0 - minGain);
   };
+  let lastUINavTime = 0;
+  audio.canPlayUINavigation = function (isHeld = false, now = performance.now()) {
+    const minInterval = isHeld ? 110 : 35;
+    return (now - lastUINavTime) >= minInterval;
+  };
+  audio.recordUINavigation = function (now = performance.now()) {
+    lastUINavTime = now;
+  };
+  audio.playUINav = function (pan = 0, isHeld = false, now = performance.now()) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return false;
+    if (!audio.canPlayUINavigation(isHeld, now)) return false;
+    lastUINavTime = now;
+    const att = isHeld ? 0.7 : 1.0;
+    return playCue('ui', pan || 0, att);
+  };
+  audio.resetUINavLimits = function () {
+    lastUINavTime = 0;
+  };
   audio.play = function (kind, pan, extra, extra2, distance) {
-    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return false;
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
     if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
     if (kind === 'hurt' && extra) { audio.hurt(extra, pan, distance); return; }
     if (kind === 'death' && extra) { audio.death(extra, pan, distance); return; }
+    if (kind === 'ui') {
+      const isHeld = Boolean(extra);
+      const now = performance.now();
+      if (!audio.canPlayUINavigation(isHeld, now)) return false;
+      lastUINavTime = now;
+      const att = isHeld ? 0.7 : 1.0;
+      return playCue('ui', pan || 0, att);
+    }
     const att = audio.isEnemyCue(kind) ? audio.distanceAttenuation(distance) : 1.0;
-    playCue(kind, pan, att);
+    return playCue(kind, pan, att);
   };
   audio.step = function (material, pan) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
@@ -260,6 +286,7 @@
       case 'hazard_deactivation': t(580,220,.22,.06,'sine'); t(380,160,.18,.04,'triangle',.04); h(.18,.035,1200,pan); break;
       default: break;
     }
+    return true;
   };
   function stopVoices(){recentImpactTimes.clear();for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
   let activeAmbience = null; const outgoingAmbience = new Set();
