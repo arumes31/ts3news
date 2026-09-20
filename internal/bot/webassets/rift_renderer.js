@@ -336,8 +336,7 @@
       const t = Math.min(1,(now-received)/110);
       if (old) { x = old.x+(x-old.x)*t; y = old.y+(y-old.y)*t; }
     }
-    ctx.fillStyle='#03110b70'; ctx.beginPath(); ctx.ellipse(x-camera,y+2,size*.28,7,0,0,Math.PI*2); ctx.fill();
-    if (unit.hp <= 0) { const fallen=animationTime-(deaths.get(unit.id)??0);if(shared)catalogActor(unit,'defeat',x-camera,y,size,fallen<700?.85:.4);else sprite(row,fallen<320?13:14,x-camera,y,size,unit.facing,fallen<700?.85:.4,atlas);return; }
+    if (unit.hp <= 0) { ctx.fillStyle='#03110b70'; ctx.beginPath(); ctx.ellipse(x-camera,y+2,size*.28,7,0,0,Math.PI*2); ctx.fill(); const fallen=animationTime-(deaths.get(unit.id)??0);if(shared)catalogActor(unit,'defeat',x-camera,y,size,fallen<700?.85:.4);else sprite(row,fallen<320?13:14,x-camera,y,size,unit.facing,fallen<700?.85:.4,atlas);return; }
     let col = renderer.reduced ? 0 : Math.floor(decorationTime/650)%2;
     if (unit.pose === 'run') col = 2+Math.floor(animationTime/105)%4;
     if (unit.pose === 'attack') col = unit.pose_time > .25 ? 8 : unit.pose_time > .12 ? 9 : 10;
@@ -358,6 +357,25 @@
     const recoil = (!renderer.reduced && unit.recoil_x) ? unit.recoil_x : 0;
     if (unit.id === 'player') renderer.lastPlayerRecoil = recoil;
     const drawX = x - camera + recoil;
+    if (unit.id !== 'player') {
+      const jumpNorm = Math.min(1, Math.max(0, jump / 52));
+      const shadowScale = renderer.reduced ? 1.0 : Math.max(0.48, 1.0 - jumpNorm * 0.42);
+      const shadowAlpha = renderer.reduced ? 0.38 : Math.max(0.18, 0.44 * (1.0 - jumpNorm * 0.45));
+      const shadowRx = size * 0.30 * shadowScale;
+      const shadowRy = Math.max(2.5, 6.5 * shadowScale);
+      ctx.save();
+      ctx.fillStyle = 'rgba(3, 17, 11, ' + shadowAlpha + ')';
+      ctx.beginPath();
+      ctx.ellipse(drawX, y + 2, shadowRx, shadowRy, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      renderer.lastEnemyJumpShadow = { unitId: unit.id, x: Math.round(drawX), y: Math.round(y + 2), jump: Number(jump.toFixed(2)), scale: Number(shadowScale.toFixed(3)), alpha: Number(shadowAlpha.toFixed(3)), reduced: !!renderer.reduced };
+    } else {
+      ctx.fillStyle = '#03110b70';
+      ctx.beginPath();
+      ctx.ellipse(drawX, y + 2, size * 0.28, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);

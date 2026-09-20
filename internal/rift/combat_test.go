@@ -1,6 +1,7 @@
 package rift
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -1462,5 +1463,42 @@ func TestThawVisualWhenSlowEnds(t *testing.T) {
 		}
 	})
 }
+
+func TestEnemyJumpDecrementAndShadowSupport(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	t.Run("enemy_jump_decrements_cleanly_in_tick", func(t *testing.T) {
+		r := NewRun("test-enemy-jump", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "jumping-goblin", Kind: "goblin", HP: 100, MaxHP: 100, X: 450, Y: 350, Jump: 0.5},
+		}
+
+		r.enemyTick(0, 0.2)
+		if math.Abs(r.Enemies[0].Jump-0.3) > 0.001 {
+			t.Fatalf("expected Jump ~0.3, got %f", r.Enemies[0].Jump)
+		}
+
+		r.enemyTick(0, 0.3)
+		if r.Enemies[0].Jump != 0 {
+			t.Fatalf("expected Jump snapped to 0 upon completion, got %f", r.Enemies[0].Jump)
+		}
+	})
+
+	t.Run("defeated_enemy_skips_jump_decrement", func(t *testing.T) {
+		r := NewRun("test-enemy-dead-jump", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "dead-goblin", Kind: "goblin", HP: 0, MaxHP: 100, X: 450, Y: 350, Jump: 0.4},
+		}
+
+		r.enemyTick(0, 0.1)
+		if r.Enemies[0].Jump != 0.4 {
+			t.Fatalf("expected dead enemy jump untouched (early return), got %f", r.Enemies[0].Jump)
+		}
+	})
+}
+
 
 

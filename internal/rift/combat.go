@@ -913,6 +913,12 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
+	if e.Jump > 0 {
+		e.Jump = math.Max(0, e.Jump-dt)
+		if e.Jump < 0.0001 {
+			e.Jump = 0
+		}
+	}
 	if e.PoseTime == 0 {
 		e.RecoilX = 0
 	} else if e.RecoilX != 0 {
