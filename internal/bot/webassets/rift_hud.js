@@ -320,7 +320,7 @@
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
     const guardNode=$('rift-guard-reduction');
     put(guardNode,run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
-    const recentGuard=(run.events||[]).some(e=>e.kind==='block'&&(run.counter-e.id)<6);
+    const recentGuard=(run.events||[]).some(e=>(e.kind==='block'||e.kind==='perfect_guard')&&(run.counter-e.id)<6);
     if(recentGuard)guardNode.dataset.guardedHit='';else delete guardNode.dataset.guardedHit;
     const guardBtn=document.querySelector('.rift-basics button[data-bind="guard"]');
     if(guardBtn){if(recentGuard)guardBtn.dataset.guardedHit='';else delete guardBtn.dataset.guardedHit;}

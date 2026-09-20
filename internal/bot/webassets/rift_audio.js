@@ -122,6 +122,7 @@
       case 'empty_mana': t(150,75,.15,.08,'triangle'); h(.08,.045,450,pan); break;
       case 'cooldown_rejection': t(480,240,.08,.055,'sine'); t(240,120,.09,.04,'triangle',.03); break;
       case 'dodge': t(280,560,.12,.06,'triangle'); h(.06,.035,3500,pan); break;
+      case 'perfect_guard': t(1350,920,.1,.1,'triangle'); [1175,1760,2350].forEach((f,i)=>t(f,f*.96,.28,.06,'sine',i*.02)); h(.05,.08,8500,pan); break;
       default: break;
     }
   };

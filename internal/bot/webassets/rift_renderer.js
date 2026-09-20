@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, hit:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5 };
+  const images = {}, effectRows = { slash:0, hit:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -21,7 +21,7 @@
   function combatTextProperties(e) {
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
-    else if(e.kind==='block'){color='#7fd7ff';label='🛡️ Guarded'+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='block'||e.kind==='perfect_guard'){color=e.kind==='perfect_guard'?'#ffd700':'#7fd7ff';label=(e.kind==='perfect_guard'?'⭐ Perfect Guard':'🛡️ Guarded')+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
     else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
     else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
     else if(e.kind==='heal'){color='#a8f0b0';label='+'+Math.round(e.value)+' HP';}
@@ -607,7 +607,7 @@
       const age=(now-e.started)/750;
       if(effectRows[e.kind]!==undefined && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block') && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard') && e.kind!=='area' && (['pickup','resource','heal','barrier'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

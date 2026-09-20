@@ -200,3 +200,47 @@ func TestRunSavedAtMS(t *testing.T) {
 		t.Fatalf("expected SavedAtMS=%d after SetPaused, got %d", expected, r.SavedAtMS)
 	}
 }
+
+func TestPerfectGuardEventWithinWindowAndNormalGuardAfter(t *testing.T) {
+	r := testRun()
+	now := time.Unix(100, 0)
+	r.LastMS = now.UnixMilli()
+
+	// Initial step raising guard
+	r.Step(Input{Guard: true}, now.Add(50*time.Millisecond))
+	if !r.Player.Guard {
+		t.Fatal("player should be guarding")
+	}
+	if r.SkillTimers["perfect_guard"] <= 0 {
+		t.Fatal("perfect_guard timer should be active immediately after raising guard")
+	}
+
+	// Incoming attack within window emits "perfect_guard"
+	r.hurtPlayer(30, r.Player.X+20, r.Player.Y)
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "perfect_guard" {
+		t.Fatalf("expected last event to be perfect_guard, got %+v", r.Events)
+	}
+
+	// Step forward beyond the 0.22s window while holding guard (two steps since dt is capped at 0.2s)
+	r.Step(Input{Guard: true}, now.Add(200*time.Millisecond))
+	r.Step(Input{Guard: true}, now.Add(350*time.Millisecond))
+	if r.SkillTimers["perfect_guard"] > 0 {
+		t.Fatal("perfect_guard timer should have expired after 300ms")
+	}
+
+	// Incoming attack after window emits standard "block"
+	r.hurtPlayer(30, r.Player.X+20, r.Player.Y)
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "block" {
+		t.Fatalf("expected last event to be block, got %+v", r.Events)
+	}
+
+	// Release guard
+	r.Step(Input{Guard: false}, now.Add(400*time.Millisecond))
+	if r.Player.Guard {
+		t.Fatal("player should no longer be guarding")
+	}
+	r.hurtPlayer(30, r.Player.X+20, r.Player.Y)
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "hurt" {
+		t.Fatalf("expected last event to be hurt, got %+v", r.Events)
+	}
+}

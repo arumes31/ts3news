@@ -414,7 +414,16 @@ func (r *Run) tick(in Input, dt float64) {
 	for id, remaining := range r.SkillTimers {
 		r.SkillTimers[id] = math.Max(0, remaining-dt)
 	}
+	wasGuarding := p.Guard
 	p.Guard = in.Guard && p.Jump == 0
+	if p.Guard && !wasGuarding {
+		if r.SkillTimers == nil {
+			r.SkillTimers = map[string]float64{}
+		}
+		r.SkillTimers["perfect_guard"] = .22
+	} else if !p.Guard && r.SkillTimers != nil {
+		delete(r.SkillTimers, "perfect_guard")
+	}
 	speed := 235.0
 	if r.SkillTimers["slowed"] > 0 {
 		speed *= .6
@@ -694,12 +703,18 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		r.Stats.Guards++
 		r.Stats.GuardBlocked += damage * .82
 		damage *= .18
-		kind = "block"
+		if r.SkillTimers != nil && r.SkillTimers["perfect_guard"] > 0 {
+			kind = "perfect_guard"
+		} else {
+			kind = "block"
+		}
 	}
 	if r.Barrier > 0 {
 		absorbed := r.absorbBarrier(damage)
 		damage -= absorbed
-		kind = "block"
+		if kind != "perfect_guard" {
+			kind = "block"
+		}
 	}
 	damage = math.Min(p.HP, damage)
 	p.HP = math.Max(0, p.HP-damage)
