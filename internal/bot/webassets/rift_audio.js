@@ -7,9 +7,13 @@
   audio.music=levelSetting('music',audio.ambience);audio.voice=levelSetting('voice',audio.effects);audio.interface=levelSetting('interface',audio.effects);audio.mono=setting('mono',false)===true;
   audio.steadyAmbience=setting('steadyAmbience',false)===true;
   audio.interfaceMuted=setting('interfaceMuted',false)===true;
+  audio.nightMode=setting('nightMode',false)===true;
+  audio.dynamicRange=setting('dynamicRange',audio.nightMode?'night':'standard');
+  if(audio.dynamicRange==='night')audio.nightMode=true;
   const channelLevel=key=>key==='interface'&&audio.interfaceMuted?0:audio[key];
-  let master, sfx, ambient, music, voice, interfaceBus, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
+  let master, sfx, ambient, music, voice, interfaceBus, limiter, noise, ambientNodes = [], active = false, room = -1, nextBird = 0, activation = 0, previewIntent = 0, previewTimer = 0;
   Object.defineProperty(audio, 'active', { get() { return active; }, configurable: true });
+  Object.defineProperty(audio, 'limiter', { get() { return limiter; }, configurable: true });
   audio.isActive = function () { return active; };
   const panners=new Map(),sources=new Map();let previewRequested=false;
   const buses=()=>({effects:sfx,ambience:ambient,music,voice,interface:interfaceBus});
@@ -18,14 +22,41 @@
   // Freeze migrated values once so later parent-channel edits stay independent.
   for(const key of ['music','voice','interface'])save(key,audio[key]);
   function busGain(bus, value) { if (bus) bus.gain.setTargetAtTime(value, audio.context.currentTime, .03); }
+  function applyDynamicRange(rampTime = 0.03) {
+    if (!audio.context || !limiter) return;
+    const isNight = audio.nightMode || audio.dynamicRange === 'night';
+    const t = audio.context.currentTime;
+    const threshold = isNight ? -28 : -16;
+    const ratio = isNight ? 14 : 8;
+    const knee = isNight ? 10 : 30;
+    const attack = isNight ? 0.002 : 0.003;
+    const release = isNight ? 0.20 : 0.25;
+    try {
+      limiter.threshold.value = threshold;
+      limiter.ratio.value = ratio;
+      limiter.knee.value = knee;
+      limiter.attack.value = attack;
+      limiter.release.value = release;
+      if (master) {
+        const targetMaster = audio.muted ? 0 : isNight ? 0.45 : 0.6;
+        if (rampTime > 0) {
+          master.gain.setTargetAtTime(targetMaster, t, rampTime);
+        } else {
+          master.gain.value = targetMaster;
+        }
+      }
+    } catch (_) {}
+  }
   function initContext() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     const c = audio.context = new AC();
     master = c.createGain(); sfx = c.createGain(); ambient = c.createGain(); music = c.createGain(); voice = c.createGain(); interfaceBus = c.createGain();
-    const limiter = c.createDynamicsCompressor(); limiter.threshold.value = -16; limiter.ratio.value = 8;
+    limiter = c.createDynamicsCompressor();
+    applyDynamicRange(0);
     Object.values(buses()).forEach(bus => bus.connect(master)); master.connect(limiter); limiter.connect(c.destination);
-    master.gain.value = audio.muted ? 0 : .6; for (const [key, bus] of Object.entries(buses())) bus.gain.value = channelLevel(key);
+    master.gain.value = audio.muted ? 0 : (audio.nightMode || audio.dynamicRange === 'night' ? 0.45 : 0.6);
+    for (const [key, bus] of Object.entries(buses())) bus.gain.value = channelLevel(key);
     noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -594,12 +625,30 @@
     }
   };
   audio.set = function (key, value) {
-    if(!['muted','mono','interfaceMuted','steadyAmbience',...Object.keys(buses())].includes(key))return;
-    audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);save(key,audio[key]);
+    if(!['muted','mono','interfaceMuted','steadyAmbience','nightMode','dynamicRange',...Object.keys(buses())].includes(key))return;
+    if (key === 'nightMode') {
+      audio.nightMode = !!value;
+      audio.dynamicRange = audio.nightMode ? 'night' : 'standard';
+      save('nightMode', audio.nightMode);
+      save('dynamicRange', audio.dynamicRange);
+      applyDynamicRange();
+    } else if (key === 'dynamicRange') {
+      audio.dynamicRange = value === 'night' ? 'night' : 'standard';
+      audio.nightMode = audio.dynamicRange === 'night';
+      save('dynamicRange', audio.dynamicRange);
+      save('nightMode', audio.nightMode);
+      applyDynamicRange();
+    } else {
+      audio[key]=key==='muted'||key==='mono'||key==='interfaceMuted'||key==='steadyAmbience'?!!value:clamp(value);save(key,audio[key]);
+    }
     window.dispatchEvent(new Event('riftaudiochange'));
-    if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
+    if(audio.context){busGain(master,audio.muted?0:(audio.nightMode||audio.dynamicRange==='night'?0.45:0.6));for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
-  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false}))audio.set(key,value);};
+  audio.applyDynamicRangePreset = function (preset) {
+    audio.set('dynamicRange', preset);
+    return audio.dynamicRange;
+  };
+  audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false,nightMode:false,dynamicRange:'standard'}))audio.set(key,value);};
   const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_hurt','knight_hurt','archer_hurt','treasure_hurt','boss_hurt','wolf_hurt','spore_hurt','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','wolf_death','spore_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
