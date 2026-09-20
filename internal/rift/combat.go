@@ -636,6 +636,8 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	if p.HP <= 0 {
+		p.Pose = "defeat"
+		p.Knockdown = 0
 		r.Status = "defeated"
 		r.finishMissionHistory("defeated")
 		r.RecordEncounterSummary("defeated")
@@ -912,18 +914,24 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	if damage > 0 {
 		r.Stats.HitsTaken++
 	}
-	p.Pose = "hit"
-	p.PoseTime = .18
+	if p.HP == 0 {
+		p.Pose = "defeat"
+		p.Knockdown = 0
+		p.RecoilX = 0
+	} else {
+		p.Pose = "hit"
+		p.PoseTime = .18
+		hitDir := -p.Facing
+		if p.X != x {
+			hitDir = math.Copysign(1, p.X-x)
+		}
+		recoilDist := 9.0
+		if p.Guard {
+			recoilDist = 3.0
+		}
+		p.RecoilX = hitDir * recoilDist
+	}
 	r.heavyRecovery = 0
-	hitDir := -p.Facing
-	if p.X != x {
-		hitDir = math.Copysign(1, p.X-x)
-	}
-	recoilDist := 9.0
-	if p.Guard {
-		recoilDist = 3.0
-	}
-	p.RecoilX = hitDir * recoilDist
 	r.event(kind, p.X, p.Y-30, damage)
 }
 

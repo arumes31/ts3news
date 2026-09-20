@@ -336,7 +336,51 @@
       const t = Math.min(1,(now-received)/110);
       if (old) { x = old.x+(x-old.x)*t; y = old.y+(y-old.y)*t; }
     }
-    if (unit.hp <= 0) { ctx.fillStyle='#03110b70'; ctx.beginPath(); ctx.ellipse(x-camera,y+2,size*.28,7,0,0,Math.PI*2); ctx.fill(); const fallen=animationTime-(deaths.get(unit.id)??0);if(shared)catalogActor(unit,'defeat',x-camera,y,size,fallen<700?.85:.4);else sprite(row,fallen<320?13:14,x-camera,y,size,unit.facing,fallen<700?.85:.4,atlas);return; }
+    if (unit.hp <= 0) {
+      const drawX = x - camera;
+      ctx.fillStyle='#03110b70'; ctx.beginPath(); ctx.ellipse(drawX,y+2,size*.28,7,0,0,Math.PI*2); ctx.fill();
+      const fallen=animationTime-(deaths.get(unit.id)??0);
+      if (unit.id === 'player') {
+        const colorAlpha = Math.max(0.18, 0.9 - Math.min(1, fallen / 900) * 0.72);
+        const silhouetteAlpha = Math.max(0.55, 0.85 - Math.min(1, fallen / 2000) * 0.2);
+        renderer.lastDefeatedPlayerSilhouette = { x: Math.round(drawX), y: Math.round(y), fallen, colorAlpha: Number(colorAlpha.toFixed(3)), silhouetteAlpha: Number(silhouetteAlpha.toFixed(3)), preserved: true, reduced: !!renderer.reduced };
+        const fallenFrame = fallen < 320 ? 13 : 14;
+
+        // Preserved silhouette backing layer
+        ctx.save();
+        if (typeof ctx.filter === 'string') {
+          ctx.filter = 'brightness(15%) contrast(150%)';
+        }
+        ctx.shadowColor = 'rgba(126, 245, 208, 0.35)';
+        ctx.shadowBlur = renderer.reduced ? 0 : 4;
+        sprite(row, fallenFrame, drawX, y, size, unit.facing, silhouetteAlpha, atlas);
+        ctx.restore();
+
+        // Fading color details on top
+        sprite(row, fallenFrame, drawX, y, size, unit.facing, colorAlpha, atlas);
+
+        // Rising ethereal soul motes
+        if (!renderer.reduced) {
+          const motes = 3;
+          for (let m = 0; m < motes; m++) {
+            const progress = ((animationTime / 700) + m / motes) % 1;
+            const mx = drawX + Math.sin(m * 2.3 + animationTime / 300) * 14;
+            const my = (y - 8) - progress * 42;
+            const mFade = (1 - progress) * 0.5 * Math.min(1, fallen / 400);
+            if (mFade > 0) {
+              ctx.fillStyle = 'rgba(160, 245, 220, ' + mFade + ')';
+              ctx.beginPath();
+              ctx.arc(mx, my, 1.8 * (1 - progress * 0.4), 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+        return;
+      }
+      if(shared)catalogActor(unit,'defeat',drawX,y,size,fallen<700?.85:.4);
+      else sprite(row,fallen<320?13:14,drawX,y,size,unit.facing,fallen<700?.85:.4,atlas);
+      return;
+    }
     let col = renderer.reduced ? 0 : Math.floor(decorationTime/650)%2;
     if (unit.pose === 'run') col = 2+Math.floor(animationTime/105)%4;
     if (unit.pose === 'attack') col = unit.pose_time > .25 ? 8 : unit.pose_time > .12 ? 9 : 10;

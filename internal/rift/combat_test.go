@@ -1771,6 +1771,54 @@ func TestVictoryPoseAtMissionCompletion(t *testing.T) {
 	})
 }
 
+func TestDefeatedPlayerPoseAndState(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	t.Run("fatal damage sets player pose to defeat and cleans knockdown and recoil", func(t *testing.T) {
+		r := NewRun("test-defeat-run", build, now)
+		r.Status = "fighting"
+		r.Player.HP = 50
+		r.Player.Knockdown = 0.5
+		r.Player.RecoilX = 10
+
+		// Deal fatal damage to player
+		r.hurtPlayer(100, r.Player.X+20, r.Player.Y)
+		if r.Player.HP != 0 {
+			t.Fatalf("expected player HP 0, got %f", r.Player.HP)
+		}
+		if r.Player.Pose != "defeat" {
+			t.Fatalf("expected player pose 'defeat', got %s", r.Player.Pose)
+		}
+		if r.Player.Knockdown != 0 {
+			t.Fatalf("expected knockdown reset to 0, got %f", r.Player.Knockdown)
+		}
+		if r.Player.RecoilX != 0 {
+			t.Fatalf("expected recoil reset to 0, got %f", r.Player.RecoilX)
+		}
+
+		// tick transitions status to defeated and emits defeat event
+		r.tick(Input{}, 0.05)
+		if r.Status != "defeated" {
+			t.Fatalf("expected status 'defeated', got %s", r.Status)
+		}
+		if r.Player.Pose != "defeat" {
+			t.Fatalf("expected player pose remains 'defeat', got %s", r.Player.Pose)
+		}
+
+		hasDefeatEvent := false
+		for _, ev := range r.Events {
+			if ev.Kind == "defeat" {
+				hasDefeatEvent = true
+				break
+			}
+		}
+		if !hasDefeatEvent {
+			t.Fatal("expected defeat event emitted on player death")
+		}
+	})
+}
+
 
 
 
