@@ -792,6 +792,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	if e.HP == 0 {
 		e.RecoilX = 0
+		if r.Marked == e.ID {
+			r.Marked = ""
+		}
 		r.recordMonsterDefeat(*e)
 		r.Stats.Kills++
 		if e.Kind == "treasure" {
@@ -825,6 +828,9 @@ func (r *Run) escapeEnemy(i int) {
 	}
 	e.HP = 0
 	e.Pose = "escape"
+	if r.Marked == e.ID {
+		r.Marked = ""
+	}
 	r.event(e.Kind+"_escape", e.X, e.Y, 0)
 }
 

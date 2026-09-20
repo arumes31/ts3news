@@ -375,7 +375,61 @@
       }
       if(!display.cleanScreenshot&&unit.art_key&&(display.enemyNames==='all'||display.enemyNames==='boss'&&unit.kind==='boss')){const displayName=(unit.kind==='boss'&&unit.name&&unit.name.length>26)?unit.name.slice(0,24)+'…':unit.name;const textY=y-size*.9-18;ctx.font=(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#e9efce';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText(displayName,x-camera,textY);ctx.fillText(displayName,x-camera,textY);}
       if(!display.cleanScreenshot&&unit.kind==='boss'&&unit.windup>0){const attack=unit.attack_name||(unit.art_key&&(unit.attacks+1)%2===0?'Aimed Volley':'Ground Slam');const attackY=y-size*.9-30;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe599';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText('⚡ '+attack+' ('+unit.windup.toFixed(1)+'s)',x-camera,attackY);ctx.fillText('⚡ '+attack+' ('+unit.windup.toFixed(1)+'s)',x-camera,attackY);}
-      if(snapshot.marked===unit.id){ctx.fillStyle='#8fe1cc';ctx.beginPath();ctx.moveTo(x-camera,y-size-12);ctx.lineTo(x-camera-4,y-size-18);ctx.lineTo(x-camera+4,y-size-18);ctx.fill();}
+      if(snapshot.marked===unit.id){
+        const targetX = drawX;
+        const targetY = y - jump - size * 0.45;
+        const pulse = renderer.reduced ? 0 : Math.sin(animationTime / 180);
+        renderer.lastMarkedTargetPulse = { unitId: unit.id, x: Math.round(targetX), y: Math.round(targetY), pulse: Number(pulse.toFixed(3)), reduced: !!renderer.reduced };
+        ctx.save();
+        ctx.strokeStyle = 'rgba(126, 245, 208, ' + (renderer.reduced ? 0.7 : 0.6 + 0.3 * pulse) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(targetX, y + 1, size * 0.34 * (renderer.reduced ? 1 : (1 + 0.06 * pulse)), 6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const rx = size * 0.42 * (renderer.reduced ? 1 : (1 + 0.08 * pulse));
+        const ry = size * 0.52 * (renderer.reduced ? 1 : (1 + 0.08 * pulse));
+        ctx.strokeStyle = 'rgba(126, 245, 208, ' + (renderer.reduced ? 0.75 : 0.65 + 0.25 * pulse) + ')';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(targetX, targetY, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if(!renderer.reduced){
+          const bx = rx * 0.82, by = ry * 0.82;
+          const bLen = 6;
+          ctx.strokeStyle = '#a6ffe5';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(targetX - bx, targetY - by + bLen); ctx.lineTo(targetX - bx, targetY - by); ctx.lineTo(targetX - bx + bLen, targetY - by);
+          ctx.moveTo(targetX + bx - bLen, targetY - by); ctx.lineTo(targetX + bx, targetY - by); ctx.lineTo(targetX + bx, targetY - by + bLen);
+          ctx.moveTo(targetX - bx, targetY + by - bLen); ctx.lineTo(targetX - bx, targetY + by); ctx.lineTo(targetX - bx + bLen, targetY + by);
+          ctx.moveTo(targetX + bx - bLen, targetY + by); ctx.lineTo(targetX + bx, targetY + by); ctx.lineTo(targetX + bx, targetY + by - bLen);
+          ctx.stroke();
+        }
+
+        const caretBob = renderer.reduced ? 0 : Math.sin(animationTime / 140) * 3;
+        const caretY = y - jump - size - 12 + caretBob;
+        ctx.fillStyle = '#7ef5d0';
+        ctx.beginPath();
+        ctx.moveTo(targetX, caretY);
+        ctx.lineTo(targetX - 5, caretY - 7);
+        ctx.lineTo(targetX + 5, caretY - 7);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#b4ffeb';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(targetX, caretY - 14);
+        ctx.lineTo(targetX + 3.5, caretY - 10.5);
+        ctx.lineTo(targetX, caretY - 7);
+        ctx.lineTo(targetX - 3.5, caretY - 10.5);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+      }
     }
   }
   function catalogActor(unit,pose,x,y,size,alpha){
@@ -834,9 +888,36 @@
           ctx.restore();
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='mark_target'){
+        renderer.lastMarkTargetEvent = { x: e.x, y: e.y, age, started: e.started };
+        if(!renderer.reduced){
+          const screenX = e.x - camera, screenY = e.y;
+          const fade = Math.max(0, 1 - age * 2.5);
+          if(fade > 0){
+            ctx.save();
+            const lockR = 42 * (1 - age * 0.45);
+            ctx.strokeStyle = 'rgba(126, 245, 208, ' + (fade * 0.85) + ')';
+            ctx.lineWidth = Math.max(1, 2 * fade);
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, lockR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const tickLen = 7;
+            ctx.strokeStyle = 'rgba(166, 255, 229, ' + (fade * 0.9) + ')';
+            ctx.lineWidth = Math.max(1, 1.5 * fade);
+            ctx.beginPath();
+            ctx.moveTo(screenX - lockR - tickLen, screenY); ctx.lineTo(screenX - lockR + tickLen, screenY);
+            ctx.moveTo(screenX + lockR - tickLen, screenY); ctx.lineTo(screenX + lockR + tickLen, screenY);
+            ctx.moveTo(screenX, screenY - lockR - tickLen); ctx.lineTo(screenX, screenY - lockR + tickLen);
+            ctx.moveTo(screenX, screenY + lockR - tickLen); ctx.lineTo(screenX, screenY + lockR + tickLen);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

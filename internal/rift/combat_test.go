@@ -1296,3 +1296,96 @@ func TestShieldAbsorptionShimmerEvent(t *testing.T) {
 		}
 	})
 }
+
+func TestMarkedTargetOutlinePulseAndEvent(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("builder_marks_target_and_emits_event", func(t *testing.T) {
+		r := NewRun("test-mark-1", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "goblin-1", Kind: "goblin", HP: 50, MaxHP: 50, X: 200, Y: 300},
+			{ID: "goblin-2", Kind: "goblin", HP: 50, MaxHP: 50, X: 300, Y: 300},
+		}
+
+		builderSkill := Skill{ID: "heavy_strike", Role: "builder", Power: 10}
+		r.skillHit(0, 10, builderSkill, 0, "")
+
+		if r.Marked != "goblin-1" {
+			t.Fatalf("expected goblin-1 marked, got %q", r.Marked)
+		}
+		ev := findEvent(r.Events, "mark_target")
+		if ev == nil {
+			t.Fatal("expected mark_target event emitted")
+		}
+		if ev.X != 200 || ev.Y != 270 {
+			t.Fatalf("expected event at (200, 270), got (%f, %f)", ev.X, ev.Y)
+		}
+
+		// Striking the same enemy again does not re-emit mark_target
+		r.Events = nil
+		r.skillHit(0, 10, builderSkill, 0, "")
+		if r.Marked != "goblin-1" {
+			t.Fatalf("expected goblin-1 still marked, got %q", r.Marked)
+		}
+		if findEvent(r.Events, "mark_target") != nil {
+			t.Fatal("did not expect duplicate mark_target event for same enemy")
+		}
+
+		// Striking goblin-2 switches mark and emits new event
+		r.Events = nil
+		r.skillHit(1, 10, builderSkill, 0, "")
+		if r.Marked != "goblin-2" {
+			t.Fatalf("expected goblin-2 marked, got %q", r.Marked)
+		}
+		ev2 := findEvent(r.Events, "mark_target")
+		if ev2 == nil {
+			t.Fatal("expected mark_target event for goblin-2")
+		}
+		if ev2.X != 300 || ev2.Y != 270 {
+			t.Fatalf("expected event at (300, 270), got (%f, %f)", ev2.X, ev2.Y)
+		}
+	})
+
+	t.Run("defeated_marked_enemy_clears_marked", func(t *testing.T) {
+		r := NewRun("test-mark-defeat", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "goblin-dead", Kind: "goblin", HP: 10, MaxHP: 50, X: 200, Y: 300},
+		}
+		r.Marked = "goblin-dead"
+
+		r.hurtEnemyPiercing(0, 20, "hit", 0)
+		if r.Enemies[0].HP != 0 {
+			t.Fatalf("expected enemy defeated, got HP %f", r.Enemies[0].HP)
+		}
+		if r.Marked != "" {
+			t.Fatalf("expected r.Marked cleared upon enemy defeat, got %q", r.Marked)
+		}
+	})
+
+	t.Run("escaped_marked_enemy_clears_marked", func(t *testing.T) {
+		r := NewRun("test-mark-escape", build, now)
+		r.Status = "fighting"
+		r.Enemies = []Actor{
+			{ID: "treasure-escape", Kind: "treasure", HP: 50, MaxHP: 50, X: 200, Y: 300},
+		}
+		r.Marked = "treasure-escape"
+
+		r.escapeEnemy(0)
+		if r.Marked != "" {
+			t.Fatalf("expected r.Marked cleared upon enemy escape, got %q", r.Marked)
+		}
+	})
+}
+

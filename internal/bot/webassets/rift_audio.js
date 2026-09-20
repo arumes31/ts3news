@@ -380,6 +380,12 @@
         [1200, 1600, 2100].forEach((f, i) => t(f, f * 0.95, .15, .05, 'triangle', i * .02));
         break;
       }
+      case 'mark_target': {
+        h(.08, .09, 4200, pan);
+        t(880, 1320, .14, .08, 'triangle');
+        t(1760, 1760, .12, .05, 'sine', .02);
+        break;
+      }
       case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
       case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
       case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;
