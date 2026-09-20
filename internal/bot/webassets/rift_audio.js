@@ -76,12 +76,19 @@
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     if (kind === 'step' && extra) { audio.step(extra, pan); return; }
     if (kind === 'land') { audio.land(extra, pan, extra2); return; }
+    if (kind === 'hit' && extra) { audio.hit(extra, pan); return; }
     playCue(kind,pan);
   };
   audio.step = function (material, pan) {
     if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
     const mat = String(material || 'stone').toLowerCase();
     const cue = ['metal','wood','water','mud','ice','grass','dirt','stone'].includes(mat) ? 'step_' + mat : 'step';
+    playCue(cue, pan || 0);
+  };
+  audio.hit = function (family, pan) {
+    if (!audio.context || audio.context.state !== 'running' || audio.muted || !active) return;
+    const fam = String(family || 'blade').toLowerCase();
+    const cue = ['blade','blunt','pierce','arcane','fist','ranged'].includes(fam) ? 'hit_' + fam : 'hit';
     playCue(cue, pan || 0);
   };
   audio.land = function (intensity = 0.5, pan = 0, material) {
@@ -134,7 +141,12 @@
       case 'land': case 'land_medium': h(.10, .09, 650, pan); t(110, 50, .09, .08, 'triangle'); break;
       case 'land_heavy': h(.16, .14, 520, pan); t(90, 32, .18, .15, 'triangle'); t(70, 25, .22, .12, 'sine', .01); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
-      case 'hit': h(.1, .2, 1700, pan); t(110, 48, .15, .18, 'triangle'); break;
+      case 'hit': case 'hit_blade': h(.08, .18, 3200, pan); t(420, 180, .09, .14, 'sawtooth'); t(130, 60, .12, .15, 'triangle'); break;
+      case 'hit_blunt': h(.14, .24, 750, pan); t(150, 40, .20, .24, 'triangle'); t(80, 30, .22, .18, 'sine', .01); break;
+      case 'hit_pierce': h(.05, .20, 5200, pan); t(980, 420, .06, .12, 'triangle'); t(180, 85, .08, .12, 'triangle'); break;
+      case 'hit_arcane': h(.18, .16, 6000, pan); t(523, 392, .18, .12, 'sine'); t(784, 523, .16, .10, 'triangle', .02); break;
+      case 'hit_fist': h(.09, .16, 900, pan); t(140, 50, .14, .18, 'triangle'); break;
+      case 'hit_ranged': h(.07, .18, 4800, pan); t(820, 340, .07, .10, 'triangle'); t(160, 70, .09, .12, 'triangle'); break;
       case 'hurt': t(170, 65, .2, .1, 'sawtooth'); h(.12, .12, 950, pan); break;
       case 'block': t(940, 760, .2, .08, 'square'); t(1510, 1200, .12, .04, 'sine'); h(.04, .09, 7000, pan); break;
       case 'fire': h(.5, .18, 1500, pan); t(200, 45, .45, .1, 'sawtooth'); break;

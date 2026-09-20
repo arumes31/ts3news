@@ -495,7 +495,7 @@ func (r *Run) tick(in Input, dt float64) {
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
 			if e.HP > 0 && math.Abs(e.Y-p.Y) < 32 && (e.X-p.X)*p.Facing >= -10 && (e.X-p.X)*p.Facing < 95 {
-				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit")
+				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
 				if r.Combo == 3 && e.HP > 0 && !EnemyTraining(e.Kind).ResistsKnockdown {
 					e.Knockdown = .55
 					e.Windup = 0
@@ -702,7 +702,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.PoseTime = .2
 	r.event(effect, e.X, e.Y-30, damage)
 	if r.Practice != nil {
-		if damage > 0 && e.ID == "practice-target" && effect == "hit" {
+		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++
 		}
 		e.HP = e.MaxHP

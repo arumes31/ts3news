@@ -1,6 +1,7 @@
 package rift
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -439,6 +440,91 @@ func TestLandingEventVariesByJumpIntensity(t *testing.T) {
 	last := r.Events[len(r.Events)-1]
 	if last.Kind != "land" || last.Value != 0.92 {
 		t.Fatalf("expected direct Land event with value 0.92, got %+v", last)
+	}
+}
+
+func TestWeaponFamilyClassification(t *testing.T) {
+	tests := []struct {
+		weapon string
+		class  string
+		want   string
+	}{
+		{"Trusty Longsword", "vanguard", "blade"},
+		{"Sunforged Claymore", "berserker", "blade"},
+		{"Firebrand Greatsword", "bloodblade", "blade"},
+		{"Earthshaker Warhammer", "geomancer", "blunt"},
+		{"Spiked Mace", "warrior", "blunt"},
+		{"Necrotic Dagger", "assassin", "pierce"},
+		{"Soul Reaper Scythe", "reaver", "pierce"},
+		{"Harvester's Gulthook", "adventurer", "pierce"},
+		{"Lifebloom Staff", "elementalist", "arcane"},
+		{"Tidal Wave Scepter", "oracle", "blunt"},
+		{"Pocket Bow", "marksman", "ranged"},
+		{"Unarmed", "", "fist"},
+		{"Iron Knuckles", "brawler", "fist"},
+		{"", "runesmith", "blunt"},
+		{"", "chronomancer", "arcane"},
+	}
+
+	for _, tt := range tests {
+		got := WeaponFamily(tt.weapon, tt.class)
+		if got != tt.want {
+			t.Errorf("WeaponFamily(%q, %q) = %q, want %q", tt.weapon, tt.class, got, tt.want)
+		}
+	}
+}
+
+func TestWeaponImpactEventVariesByWeaponFamily(t *testing.T) {
+	families := []struct {
+		weapon string
+		class  string
+		want   string
+	}{
+		{"Claymore", "vanguard", "hit_blade"},
+		{"Warhammer", "geomancer", "hit_blunt"},
+		{"Dagger", "marksman", "hit_pierce"},
+		{"Staff", "elementalist", "hit_arcane"},
+		{"Unarmed", "", "hit_fist"},
+	}
+
+	for _, tc := range families {
+		now := time.Unix(100, 0)
+		r, err := NewPracticeRun("test-"+tc.want, Build{
+			Name:   "Tester",
+			Class:  tc.class,
+			Weapon: tc.weapon,
+			Damage: 10,
+			HP:     100,
+		}, "combo", now)
+		if err != nil {
+			t.Fatalf("failed to create practice run: %v", err)
+		}
+
+		r.Player.X = 220
+		r.Player.Y = 400
+		r.Enemies[0].X = 260
+		r.Enemies[0].Y = 400
+		r.Player.Facing = 1
+
+		r.Step(Input{Attack: true}, now.Add(50*time.Millisecond))
+
+		var hitEvent *Event
+		for i := len(r.Events) - 1; i >= 0; i-- {
+			if strings.HasPrefix(r.Events[i].Kind, "hit") {
+				hitEvent = &r.Events[i]
+				break
+			}
+		}
+
+		if hitEvent == nil {
+			t.Fatalf("expected hit event for weapon %q, got events: %+v", tc.weapon, r.Events)
+		}
+		if hitEvent.Kind != tc.want {
+			t.Fatalf("for weapon %q expected event kind %q, got %q", tc.weapon, tc.want, hitEvent.Kind)
+		}
+		if r.Practice.Hits != 1 {
+			t.Fatalf("expected Practice.Hits to increment for weapon %q, got %d", tc.weapon, r.Practice.Hits)
+		}
 	}
 }
 
