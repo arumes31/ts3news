@@ -7,7 +7,7 @@
   const dirLabel=document.createElement('label'),dirCheckbox=document.createElement('input');dirCheckbox.type='checkbox';dirCheckbox.id='rift-directional-threat-captions';dirLabel.htmlFor='rift-directional-threat-captions';dirLabel.append(dirCheckbox,document.createTextNode('Directional captions for off-screen threats'));document.querySelector('.rift-settings').append(dirLabel);
   try{const savedDir=JSON.parse(localStorage.getItem('riftDirectionalCaptions'));dirCheckbox.checked=savedDir?.version===1&&savedDir.enabled===true;}catch(_){}
   let previous=null,seen=0,lastLow=-Infinity,ultimateArmed=false,finisherArmed=false,items=[],expiry=0,lastThreatLeftTime=0,lastThreatLeftCount=0,lastThreatRightTime=0,lastThreatRightCount=0;
-  const labels={boss_roar:'Boss roar',slam:'Ground slam',boss_death:'Boss defeated',clear:'Room secured',defeat:'Expedition ended',pickup:'Loot collected',ultimate:'Ultimate unleashed',block:'Attack guarded',perfect_guard:'Perfect guard!',empty_mana:'Not enough mana',cooldown_rejection:'Ability on cooldown',dodge:'Dodged!',hazard_warning:'Hazard charging',hazard_deactivation:'Hazard cleared',treasure_escape:'Treasure goblin escaped'};
+  const labels={boss_roar:'Boss roar',slam:'Ground slam',boss_death:'Boss defeated',clear:'Room secured',defeat:'Expedition ended',pickup:'Loot collected',ultimate:'Ultimate unleashed',block:'Attack guarded',perfect_guard:'Perfect guard!',empty_mana:'Not enough mana',cooldown_rejection:'Ability on cooldown',dodge:'Dodged!',hazard_warning:'Hazard charging',hazard_deactivation:'Hazard cleared',treasure_escape:'Treasure goblin escaped',rare_item:'Rare item discovered',rare_discovery:'Rare item discovered'};
   function paint(){
     clearTimeout(expiry);const now=performance.now();items=items.filter(item=>item.until>now);list.replaceChildren();
     for(const item of items){const li=document.createElement('li');li.textContent=item.text;list.append(li);}
@@ -38,12 +38,19 @@
       if(event.id<=seen)continue;
       seen=event.id;
       if(labels[event.kind]){
-        let text=labels[event.kind],isDir=false;
-        if(dirCheckbox.checked&&Number.isFinite(event.x)){
-          if(event.x<cam){text='← '+labels[event.kind]+' (off-screen left)';isDir=true;}
-          else if(event.x>cam+960){text=labels[event.kind]+' (off-screen right) →';isDir=true;}
+        let baseLabel=labels[event.kind];
+        if(event.kind==='rare_item'||event.kind==='rare_discovery'){
+          if(event.value>=4)baseLabel='Legendary item discovered';
+          else if(event.value>=3)baseLabel='Epic item discovered';
         }
-        cue(isDir?event.kind+'_dir':event.kind,text,false,isDir);
+        let text=baseLabel,isDir=false;
+        if(dirCheckbox.checked&&Number.isFinite(event.x)){
+          if(event.x<cam){text='← '+baseLabel+' (off-screen left)';isDir=true;}
+          else if(event.x>cam+960){text=baseLabel+' (off-screen right) →';isDir=true;}
+        }
+        let cueKey = isDir ? event.kind+'_dir' : event.kind;
+        if(event.kind==='rare_item'||event.kind==='rare_discovery')cueKey+='_'+Math.round(event.value||0);
+        cue(cueKey,text,false,isDir);
       }
     }
     seen=Math.max(seen,run.counter);

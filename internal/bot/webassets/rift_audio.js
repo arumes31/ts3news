@@ -113,6 +113,7 @@
       case 'slam': h(.65,.3,1100,pan); t(100,28,.5,.3,'sine'); t(140,40,.4,.08,'triangle',.08); break;
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'pickup': [660,990,1320].forEach((f,i) => t(f,f,.15,.045,'triangle',i*.04)); break;
+      case 'rare_item': case 'rare_discovery': [523,659,784,1047,1318,1568].forEach((f,i)=>t(f,f*1.02,.38,.06,'sine',i*.055)); [1047,1318,1568,2093].forEach((f,i)=>t(f,f*.98,.45,.04,'triangle',.15+i*.04)); h(.35,.075,7500,pan); break;
       case 'clear': case 'bank': [392,494,587,784].forEach((f,i) => t(f,f,.4,.07,'triangle',i*.12)); break;
       case 'defeat': [294,247,196,147].forEach((f,i) => t(f,f*.95,.65,.07,'triangle',i*.16)); break;
       case 'area': t(110,165,.8,.05,'sine'); t(220,247,.9,.04,'sine',.1); break;

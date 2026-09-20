@@ -526,7 +526,11 @@ func (r *Run) tick(in Input, dt float64) {
 		if !d.Collected && math.Hypot(d.X-p.X, d.Y-p.Y) < 65 {
 			d.Collected = true
 			r.Gold += d.Gold
-			r.event("pickup", d.X, d.Y, float64(d.Gold))
+			if d.Gear != nil && d.Gear.Rarity >= content.RarityRare {
+				r.event("rare_item", d.X, d.Y, float64(d.Gear.Rarity))
+			} else {
+				r.event("pickup", d.X, d.Y, float64(d.Gold))
+			}
 		}
 	}
 	if p.HP <= 0 {
@@ -564,7 +568,11 @@ func (r *Run) tick(in Input, dt float64) {
 			if !d.Collected {
 				d.Collected = true
 				r.Gold += d.Gold
-				r.event("pickup", d.X, d.Y, float64(d.Gold))
+				if d.Gear != nil && d.Gear.Rarity >= content.RarityRare {
+					r.event("rare_item", d.X, d.Y, float64(d.Gear.Rarity))
+				} else {
+					r.event("pickup", d.X, d.Y, float64(d.Gold))
+				}
 			}
 		}
 		r.Status = "cleared"

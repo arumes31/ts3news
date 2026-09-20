@@ -3,6 +3,8 @@ package rift
 import (
 	"testing"
 	"time"
+
+	"ts3news/internal/content"
 )
 
 func testRun() *Run {
@@ -280,3 +282,72 @@ func TestTreasureGoblinEscapeEventAndNoKillCredit(t *testing.T) {
 		t.Fatalf("defeated goblin should grant 1 treasure goblin, 1 kill, 1 drop: %+v drops=%d", r.Stats, len(r.Drops))
 	}
 }
+
+func TestRareItemDiscoveryEventEmittedOnCollection(t *testing.T) {
+	r := testRun()
+	now := time.Unix(100, 0)
+	r.LastMS = now.UnixMilli()
+
+	// 1. Drop with only gold emits "pickup"
+	r.Player.X = 160
+	r.Player.Y = 410
+	r.Drops = []Drop{
+		{ID: "drop-gold", X: 160, Y: 410, Gold: 50},
+	}
+	r.Step(Input{}, now.Add(50*time.Millisecond))
+	if !r.Drops[0].Collected || r.Gold != 50 {
+		t.Fatalf("expected drop-gold collected with gold=50, got collected=%v gold=%v", r.Drops[0].Collected, r.Gold)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "pickup" || r.Events[len(r.Events)-1].Value != 50 {
+		t.Fatalf("expected pickup event with value 50, got %+v", r.Events)
+	}
+
+	// 2. Drop with common gear (Rarity < RarityRare) emits "pickup"
+	r.Drops = append(r.Drops, Drop{
+		ID:   "drop-common",
+		X:    160,
+		Y:    410,
+		Gold: 20,
+		Gear: &content.Gear{Name: "Iron Dagger", Rarity: content.RarityCommon},
+	})
+	r.Step(Input{}, now.Add(100*time.Millisecond))
+	if !r.Drops[1].Collected || r.Gold != 70 {
+		t.Fatalf("expected drop-common collected with gold=70, got collected=%v gold=%v", r.Drops[1].Collected, r.Gold)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "pickup" {
+		t.Fatalf("expected pickup event for common gear, got %+v", r.Events)
+	}
+
+	// 3. Drop with Rare gear emits "rare_item" with value = Rarity
+	r.Drops = append(r.Drops, Drop{
+		ID:   "drop-rare",
+		X:    160,
+		Y:    410,
+		Gold: 100,
+		Gear: &content.Gear{Name: "Sapphire Wand", Rarity: content.RarityRare},
+	})
+	r.Step(Input{}, now.Add(150*time.Millisecond))
+	if !r.Drops[2].Collected || r.Gold != 170 {
+		t.Fatalf("expected drop-rare collected with gold=170, got collected=%v gold=%v", r.Drops[2].Collected, r.Gold)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "rare_item" || r.Events[len(r.Events)-1].Value != float64(content.RarityRare) {
+		t.Fatalf("expected rare_item event with value %v, got %+v", float64(content.RarityRare), r.Events)
+	}
+
+	// 4. Drop with Legendary gear emits "rare_item" with value = Rarity
+	r.Drops = append(r.Drops, Drop{
+		ID:   "drop-legendary",
+		X:    160,
+		Y:    410,
+		Gold: 500,
+		Gear: &content.Gear{Name: "Sunforged Claymore", Rarity: content.RarityLegendary},
+	})
+	r.Step(Input{}, now.Add(200*time.Millisecond))
+	if !r.Drops[3].Collected || r.Gold != 670 {
+		t.Fatalf("expected drop-legendary collected with gold=670, got collected=%v gold=%v", r.Drops[3].Collected, r.Gold)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "rare_item" || r.Events[len(r.Events)-1].Value != float64(content.RarityLegendary) {
+		t.Fatalf("expected rare_item event with value %v, got %+v", float64(content.RarityLegendary), r.Events)
+	}
+}
+
