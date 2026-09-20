@@ -690,6 +690,25 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 }
 
+// EscapeEnemy marks an enemy as having escaped rather than being defeated.
+// It emits a Kind_escape event (e.g. treasure_escape) without granting kills, drops, or defeat credit.
+func (r *Run) EscapeEnemy(i int) {
+	r.escapeEnemy(i)
+}
+
+func (r *Run) escapeEnemy(i int) {
+	if i < 0 || i >= len(r.Enemies) {
+		return
+	}
+	e := &r.Enemies[i]
+	if e.HP <= 0 {
+		return
+	}
+	e.HP = 0
+	e.Pose = "escape"
+	r.event(e.Kind+"_escape", e.X, e.Y, 0)
+}
+
 func (r *Run) hurtPlayer(damage, x, y float64) {
 	p := &r.Player
 	if p.HP <= 0 {

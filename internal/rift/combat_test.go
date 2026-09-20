@@ -244,3 +244,39 @@ func TestPerfectGuardEventWithinWindowAndNormalGuardAfter(t *testing.T) {
 		t.Fatalf("expected last event to be hurt, got %+v", r.Events)
 	}
 }
+
+func TestTreasureGoblinEscapeEventAndNoKillCredit(t *testing.T) {
+	r := testRun()
+	r.Enemies = []Actor{
+		{ID: "goblin-1", Kind: "treasure", X: 150, Y: 300, HP: 50, MaxHP: 50},
+		{ID: "goblin-2", Kind: "treasure", X: 350, Y: 300, HP: 50, MaxHP: 50},
+	}
+
+	// Goblin 0 escapes
+	r.EscapeEnemy(0)
+	if r.Enemies[0].HP != 0 || r.Enemies[0].Pose != "escape" {
+		t.Fatalf("expected goblin 0 to have HP=0 and Pose=escape, got HP=%v Pose=%s", r.Enemies[0].HP, r.Enemies[0].Pose)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "treasure_escape" {
+		t.Fatalf("expected treasure_escape event, got %+v", r.Events)
+	}
+	lastEvent := r.Events[len(r.Events)-1]
+	if lastEvent.X != 150 || lastEvent.Y != 300 {
+		t.Fatalf("expected event at (150, 300), got (%v, %v)", lastEvent.X, lastEvent.Y)
+	}
+	if r.Stats.TreasureGoblins != 0 || r.Stats.Kills != 0 || len(r.Drops) != 0 {
+		t.Fatalf("escaped goblin should not give stats or drops: %+v drops=%d", r.Stats, len(r.Drops))
+	}
+
+	// Goblin 1 is defeated by player
+	r.hurtEnemy(1, 100, "hit")
+	if r.Enemies[1].HP != 0 {
+		t.Fatalf("expected goblin 1 to be defeated, got HP=%v", r.Enemies[1].HP)
+	}
+	if len(r.Events) == 0 || r.Events[len(r.Events)-1].Kind != "treasure_death" {
+		t.Fatalf("expected treasure_death event, got %+v", r.Events)
+	}
+	if r.Stats.TreasureGoblins != 1 || r.Stats.Kills != 1 || len(r.Drops) != 1 {
+		t.Fatalf("defeated goblin should grant 1 treasure goblin, 1 kill, 1 drop: %+v drops=%d", r.Stats, len(r.Drops))
+	}
+}

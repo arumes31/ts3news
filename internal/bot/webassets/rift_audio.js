@@ -78,7 +78,7 @@
   };
   function playCue(kind,pan){
     audio.played++;
-    const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar)$/.test(kind)?voice:sfx;
+    const target=kind==='ui'||kind==='bank'||kind==='empty_mana'||kind==='cooldown_rejection'?interfaceBus:/(?:_attack|_death|_roar|_escape)$/.test(kind)?voice:sfx;
     const t = (f, end, d, v, wave, delay) => tone(f, end, d, v, wave, delay, pan,target);
     const h = (duration,volume,cutoff,position,delay)=>hiss(duration,volume,cutoff,position,delay,target);
     switch (kind) {
@@ -106,6 +106,7 @@
       case 'goblin_death': t(440,80,.4,.075,'sawtooth'); break;
       case 'treasure_attack': t(560,240,.13,.07,'triangle'); break;
       case 'treasure_death': [660,990,1320].forEach((f,i)=>t(f,f*1.2,.23,.06,'triangle',i*.1)); break;
+      case 'treasure_escape': [440,660,880,1320,1760].forEach((f,i)=>t(f,f*1.25,.18,.055,'triangle',i*.05)); h(.28,.08,6500,pan); t(240,60,.35,.07,'sine'); break;
       case 'archer_death': h(.4,.16,4000,pan); t(600,180,.28,.04,'square'); break;
       case 'knight_death': h(.7,.24,1000,pan); t(100,30,.6,.18,'triangle'); break;
       case 'boss_roar': t(85,45,.9,.18,'sawtooth'); t(88,41,.8,.08,'sawtooth'); h(.7,.15,700,pan); break;
@@ -322,7 +323,7 @@
     if(audio.context){busGain(master,audio.muted?0:.6);for(const [name,bus] of Object.entries(buses()))busGain(bus,channelLevel(name));for(const [panner,position] of panners)panner.pan.setTargetAtTime(audio.mono?0:position,audio.context.currentTime,.03);}
   };
   audio.resetMix=()=>{for(const [key,value] of Object.entries({effects:.65,ambience:.35,music:.35,voice:.65,interface:.65,mono:false,interfaceMuted:false,steadyAmbience:false}))audio.set(key,value);};
-  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
+  const creatureCues=new Set(['goblin_attack','knight_attack','treasure_attack','goblin_death','knight_death','treasure_death','treasure_escape','archer_death','boss_roar','boss_death','slam','arrow','fire','ice','void','poison','radiant','rune']);
   audio.previewCue=kind=>creatureCues.has(kind)?audio.preview('voice',kind):Promise.resolve(false);
   audio.cancelPreview=()=>{previewIntent++;previewRequested=false;clearTimeout(previewTimer);if(!active){stopVoices();if(audio.context?.state==='running')audio.context.suspend().catch(()=>{});}};
   audio.preview=async (channel,cueKind)=>{
