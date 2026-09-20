@@ -945,5 +945,69 @@ func TestThirdStrikeImpactAccent(t *testing.T) {
 	})
 }
 
+func TestUltimateAnticipationPose(t *testing.T) {
+	now := time.Unix(100, 0)
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	build := testRun().Build
+	build.Ultimate = &Skill{ID: "cataclysm", Name: "Cataclysm", Kind: "ultimate", Power: 4, Cost: 0, Cooldown: 12}
+
+	// 1. Regular skill cast sets pose "cast" with .4s, not ultimate_anticipation
+	t.Run("regular_skill_uses_cast_pose", func(t *testing.T) {
+		r := NewRun("test-regular-cast", build, now)
+		r.cast("fire")
+		if r.Player.Pose != "cast" {
+			t.Fatalf("expected regular skill to set pose 'cast', got %q", r.Player.Pose)
+		}
+		if r.Player.PoseTime != 0.4 {
+			t.Fatalf("expected pose_time 0.4, got %f", r.Player.PoseTime)
+		}
+		if findEvent(r.Events, "ultimate_anticipation") != nil {
+			t.Fatal("regular skill must not emit ultimate_anticipation event")
+		}
+	})
+
+	// 2. Ultimate skill cast sets pose "ultimate_anticipation" with 0.55s and emits event
+	t.Run("ultimate_sets_anticipation_pose_and_event", func(t *testing.T) {
+		r := NewRun("test-ultimate-cast", build, now)
+		r.Status = "fighting"
+		r.Player.X = 450
+		r.Player.Y = 320
+		r.cast("cataclysm")
+		if r.Player.Pose != "ultimate_anticipation" {
+			t.Fatalf("expected ultimate to set pose 'ultimate_anticipation', got %q", r.Player.Pose)
+		}
+		if r.Player.PoseTime != 0.55 {
+			t.Fatalf("expected pose_time 0.55 for ultimate anticipation, got %f", r.Player.PoseTime)
+		}
+		ev := findEvent(r.Events, "ultimate_anticipation")
+		if ev == nil {
+			t.Fatal("ultimate cast must emit ultimate_anticipation event")
+		}
+		if ev.X != r.Player.X || ev.Y != r.Player.Y-35 {
+			t.Fatalf("expected event coordinates (%f, %f), got (%f, %f)", r.Player.X, r.Player.Y-35, ev.X, ev.Y)
+		}
+
+		// Smooth recovery to idle after 0.55s expires
+		cur := now
+		for i := 0; i < 7; i++ {
+			cur = cur.Add(100 * time.Millisecond)
+			r.Step(Input{}, cur)
+		}
+		if r.Player.Pose != "idle" {
+			t.Fatalf("expected pose to recover to 'idle' after pose_time expires, got %q", r.Player.Pose)
+		}
+	})
+}
+
+
 
 

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -303,7 +303,7 @@
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
-      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
+      if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
@@ -341,7 +341,7 @@
     let col = renderer.reduced ? 0 : Math.floor(decorationTime/650)%2;
     if (unit.pose === 'run') col = 2+Math.floor(animationTime/105)%4;
     if (unit.pose === 'attack') col = unit.pose_time > .25 ? 8 : unit.pose_time > .12 ? 9 : 10;
-    if (unit.pose === 'cast') col = 11;
+    if (unit.pose === 'cast' || unit.pose === 'ultimate_anticipation') col = 11;
     if (unit.pose === 'windup') col = 8;
     if (unit.guard) col = 7;
     if (unit.pose === 'guard_walk') col = Math.floor(animationTime/160)%2 === 0 ? 7 : 3;
@@ -353,10 +353,11 @@
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
     const guardStride = unit.pose === 'guard_walk' && !renderer.reduced ? Math.sin(animationTime/80)*2*motion : 0;
+    const ultimateHover = unit.pose === 'ultimate_anticipation' && !renderer.reduced ? Math.sin(animationTime/70)*4 + 7 : 0;
     const recoil = (!renderer.reduced && unit.recoil_x) ? unit.recoil_x : 0;
     if (unit.id === 'player') renderer.lastPlayerRecoil = recoil;
     const drawX = x - camera + recoil;
-    if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+guardStride,size,1);else sprite(row,col,drawX,y-jump+landSquash+guardStride,size,unit.facing,1,atlas);
+    if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
@@ -381,12 +382,12 @@
     // Keep the expanded Brawl animations for matching existing species. All
     // other anatomy comes directly from Abyss's shared actor-frame provider.
     const localRow={goblin:0,wolf:4,knight:2}[profile.rig];
-    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'||pose==='guard_walk'?'idle':pose;
+    let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'||pose==='guard_walk'?'idle':pose==='ultimate_anticipation'?'cast':pose;
     if(localRow!==undefined){
       let col=renderer.reduced?0:Math.floor(decorationTime/650)%2;
       if(pose==='run')col=2+Math.floor(animationTime/105)%4;
       if(pose==='attack')col=unit.pose_time>.25?8:unit.pose_time>.12?9:10;
-      if(pose==='windup')col=8;if(pose==='cast')col=11;if(pose==='hit')col=12;if(pose==='knockdown')col=13;if(pose==='defeat')col=14;
+      if(pose==='windup')col=8;if(pose==='cast'||pose==='ultimate_anticipation')col=11;if(pose==='hit')col=12;if(pose==='knockdown')col=13;if(pose==='defeat')col=14;
       if(pose==='guard_walk')col=Math.floor(animationTime/160)%2===0?7:3;
       if(pose==='land')col=10;
       sprite(localRow,col,x,y,size,unit.facing,alpha,'mobs');
@@ -713,9 +714,49 @@
           }
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='ultimate_anticipation'){
+        renderer.lastUltimateAnticipation = { x: e.x, y: e.y, age, started: e.started };
+        if(!renderer.reduced){
+          const screenX = e.x - camera, screenY = e.y + 35;
+          const fade = Math.max(0, 1 - age * 1.8);
+          if(fade > 0){
+            ctx.save();
+            const arms = 4;
+            const vortexR = Math.max(14, (1 - age * 0.7) * 72);
+            for(let a = 0; a < arms; a++){
+              const baseAngle = a * (Math.PI * 2 / arms) + age * 8;
+              ctx.beginPath();
+              for(let step = 0; step < 16; step++){
+                const t = step / 15;
+                const r = t * vortexR;
+                const angle = baseAngle + t * 2.2;
+                const px = screenX + Math.cos(angle) * r;
+                const py = (screenY - 25) + Math.sin(angle) * (r * 0.45);
+                if(step === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+              }
+              ctx.strokeStyle = 'rgba(180, 140, 255, ' + (fade * 0.75) + ')';
+              ctx.lineWidth = Math.max(1, 2.5 * fade);
+              ctx.stroke();
+            }
+
+            const coreRadius = Math.max(6, 16 * Math.sin(age * Math.PI));
+            ctx.fillStyle = 'rgba(255, 235, 180, ' + (fade * 0.7) + ')';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY - 25, coreRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(210, 170, 255, ' + (fade * 0.7) + ')';
+            ctx.lineWidth = Math.max(1, 2 * fade);
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY, 40 * (1 - age * 0.2), 16 * (1 - age * 0.2), 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

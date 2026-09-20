@@ -393,6 +393,7 @@
       case 'radiant': [523,784,1047].forEach((f,i)=>t(f,f,.55,.05,'sine',i*.06)); break;
       case 'pack': t(320,620,.35,.075,'sine'); t(620,300,.6,.06,'sine',.3); h(.18,.05,850,pan); break;
       case 'quake': h(.85,.22,600,pan); t(90,25,.7,.2,'triangle'); break;
+      case 'ultimate_anticipation': t(130, 480, .55, .15, 'sawtooth'); t(65, 240, .6, .18, 'sine'); h(.4, .12, 3500, pan); break;
       case 'ultimate': [196,294,392,588].forEach((f,i)=>t(f,f*2,.75,.07,'sawtooth',i*.07)); h(.8,.2,2200,pan); break;
       case 'knockdown': h(.2,.16,500,pan); t(85,32,.2,.12,'triangle'); break;
       case 'shield': case 'heal': [330,440,660].forEach((f,i) => t(f,f*1.05,.45,.06,'sine',i*.07)); break;

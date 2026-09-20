@@ -684,6 +684,12 @@ func (r *Run) cast(id string) {
 		p.Cooldown = .35
 		p.Pose = "cast"
 		p.PoseTime = .4
+		if skill.Kind == "ultimate" || (r.Build.Ultimate != nil && skill.ID == r.Build.Ultimate.ID) {
+			p.Pose = "ultimate_anticipation"
+			p.PoseTime = .55
+			p.Cooldown = .55
+			r.event("ultimate_anticipation", p.X, p.Y-35, 0)
+		}
 		r.SkillTimers[id] = skill.Cooldown
 		charges, marked := r.classCast(skill)
 		if skill.Role == "finisher" {
