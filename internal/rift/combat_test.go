@@ -1389,3 +1389,78 @@ func TestMarkedTargetOutlinePulseAndEvent(t *testing.T) {
 	})
 }
 
+func TestThawVisualWhenSlowEnds(t *testing.T) {
+	now := time.Unix(100, 0)
+	build := testRun().Build
+
+	findEvent := func(events []Event, kind string) *Event {
+		for i := range events {
+			if events[i].Kind == kind {
+				return &events[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("no_slow_emits_no_thaw", func(t *testing.T) {
+		r := NewRun("test-no-slow", build, now)
+		r.Status = "fighting"
+		r.tick(Input{}, 0.1)
+		if findEvent(r.Events, "thaw") != nil {
+			t.Fatal("unexpected thaw event when player was never slowed")
+		}
+	})
+
+	t.Run("slow_expiration_emits_thaw_event", func(t *testing.T) {
+		r := NewRun("test-slow-thaw", build, now)
+		r.Status = "fighting"
+		r.SkillTimers["slowed"] = 0.5
+
+		// Tick 0.3s -> remaining 0.2s, no thaw event
+		r.tick(Input{}, 0.3)
+		if findEvent(r.Events, "thaw") != nil {
+			t.Fatal("unexpected thaw event while slow is still active")
+		}
+		if r.SkillTimers["slowed"] <= 0 {
+			t.Fatalf("expected slowed still active, got %f", r.SkillTimers["slowed"])
+		}
+
+		// Tick remaining 0.2s -> slow expires to 0, thaw emitted at (p.X, p.Y-25)
+		r.Events = nil
+		r.tick(Input{}, 0.2)
+		if r.SkillTimers["slowed"] != 0 {
+			t.Fatalf("expected slowed timer to be 0, got %f", r.SkillTimers["slowed"])
+		}
+		ev := findEvent(r.Events, "thaw")
+		if ev == nil {
+			t.Fatal("expected thaw event emitted when slow timer expired")
+		}
+		if ev.X != r.Player.X || ev.Y != r.Player.Y-25 {
+			t.Fatalf("expected thaw event coords (%f, %f), got (%f, %f)", r.Player.X, r.Player.Y-25, ev.X, ev.Y)
+		}
+
+		// Subsequent ticks do not re-emit thaw
+		r.Events = nil
+		r.tick(Input{}, 0.1)
+		if findEvent(r.Events, "thaw") != nil {
+			t.Fatal("unexpected repeated thaw event after slow already expired")
+		}
+	})
+
+	t.Run("repeated_slow_cycles_emit_thaw_each_time", func(t *testing.T) {
+		r := NewRun("test-slow-repeat", build, now)
+		r.Status = "fighting"
+
+		for cycle := 1; cycle <= 3; cycle++ {
+			r.SkillTimers["slowed"] = 0.2
+			r.Events = nil
+			r.tick(Input{}, 0.2)
+			ev := findEvent(r.Events, "thaw")
+			if ev == nil {
+				t.Fatalf("cycle %d: expected thaw event upon expiration", cycle)
+			}
+		}
+	})
+}
+
+

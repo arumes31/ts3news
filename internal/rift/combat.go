@@ -453,8 +453,16 @@ func (r *Run) tick(in Input, dt float64) {
 		p.RecoilX = math.Copysign(math.Max(0, math.Abs(p.RecoilX)-50*dt), p.RecoilX)
 	}
 	p.Mana = math.Min(100, p.Mana+dt*6)
+	wasSlowed := r.SkillTimers != nil && r.SkillTimers["slowed"] > 0
 	for id, remaining := range r.SkillTimers {
-		r.SkillTimers[id] = math.Max(0, remaining-dt)
+		val := math.Max(0, remaining-dt)
+		if val < 0.0001 {
+			val = 0
+		}
+		r.SkillTimers[id] = val
+	}
+	if wasSlowed && r.SkillTimers["slowed"] == 0 {
+		r.event("thaw", p.X, p.Y-25, 0)
 	}
 	wasGuarding := p.Guard
 	p.Guard = in.Guard && p.Jump == 0

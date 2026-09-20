@@ -361,6 +361,17 @@
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
+    if (unit.id === 'player' && (snapshot.skill_timers?.slowed || 0) > 0) {
+      renderer.lastSlowFrost = { x: Math.round(drawX), y: Math.round(y), remaining: snapshot.skill_timers.slowed };
+      const frostPulse = renderer.reduced ? 0 : Math.sin(animationTime / 160) * 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(150, 235, 255, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(drawX, y + 1, 26 + frostPulse, 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
       if(!display.cleanScreenshot&&display.healthBars){
         ctx.fillStyle='#0a1715dc'; ctx.fillRect(x-camera-24,y-size*.9-8,48,5);
@@ -915,9 +926,57 @@
           }
         }
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(e.kind==='thaw'){
+        renderer.lastThawEffect = { x: e.x, y: e.y, age, started: e.started };
+        const screenX = e.x - camera, screenY = e.y;
+        const fade = Math.max(0, 1 - age * 2.6);
+        if(fade > 0){
+          ctx.save();
+          const ringR = 20 + age * 55;
+          ctx.strokeStyle = 'rgba(195, 245, 255, ' + (fade * 0.8) + ')';
+          ctx.lineWidth = Math.max(1, 2.5 * fade);
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY + 5, ringR, ringR * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          if(!renderer.reduced){
+            const shards = 8;
+            for(let s = 0; s < shards; s++){
+              const ang = s * (Math.PI * 2 / shards) + 0.35;
+              const dist = 12 + age * 68;
+              const sx = screenX + Math.cos(ang) * dist;
+              const sy = screenY + Math.sin(ang) * (dist * 0.6) + (age * age * 40);
+              const shardSize = Math.max(1, (1 - age * 1.6) * 3.5);
+              ctx.fillStyle = s % 2 === 0 ? 'rgba(230, 250, 255, ' + (fade * 0.9) + ')' : 'rgba(145, 235, 255, ' + (fade * 0.85) + ')';
+              ctx.beginPath();
+              ctx.moveTo(sx, sy - shardSize * 1.5);
+              ctx.lineTo(sx + shardSize, sy);
+              ctx.lineTo(sx, sy + shardSize * 1.5);
+              ctx.lineTo(sx - shardSize, sy);
+              ctx.closePath();
+              ctx.fill();
+            }
+
+            const motes = 4;
+            for(let m = 0; m < motes; m++){
+              const progress = (age * 3.2 + m * 0.25) % 1;
+              const mx = screenX + Math.sin(m * 2.1 + age * 5) * 16;
+              const my = screenY - progress * 40;
+              const mFade = fade * Math.sin(progress * Math.PI);
+              if(mFade > 0){
+                ctx.fillStyle = 'rgba(220, 245, 255, ' + (mFade * 0.6) + ')';
+                ctx.beginPath();
+                ctx.arc(mx, my, 2 * (1 - progress * 0.5), 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          }
+          ctx.restore();
+        }
+      }
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);
