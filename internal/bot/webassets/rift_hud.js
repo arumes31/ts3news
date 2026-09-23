@@ -108,6 +108,7 @@
   }
   function detectPlayerAreaEffects(run){
     if(!run||!run.player||!['fighting','cleared'].includes(run.status))return null;
+    if(run.status==='fighting'&&(run.skill_timers?.connection_grace||0)>0)return {kind:'connection',state:'evading',label:'Connection recovered: protected ('+run.skill_timers.connection_grace.toFixed(1)+'s)'};
     const p=run.player;
     const arena=run.practice?.arena||run.level?.rooms?.[run.room];
     if(run.status==='fighting'&&arena&&Array.isArray(arena.hazards)){

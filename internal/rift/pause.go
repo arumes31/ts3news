@@ -10,6 +10,7 @@ func (r *Run) SetPaused(paused bool, now time.Time) {
 	}
 	stamp := max(r.LastMS, now.UnixMilli())
 	if !paused {
+		r.recoverConnection(now)
 		if r.Paused && r.PauseStartedMS != nil {
 			r.Stats.PausedSeconds += float64(max(int64(0), stamp-*r.PauseStartedMS)) / 1000
 		}

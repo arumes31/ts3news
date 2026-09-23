@@ -630,7 +630,7 @@ func (r *Run) hazardTick() {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)
-		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 {
+		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 || r.SkillTimers["connection_grace"] > 0 {
 			continue
 		}
 		r.Stats.HazardContacts++

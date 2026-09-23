@@ -497,6 +497,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	if !in.ValidMovement() {
 		return
 	}
+	r.recoverConnection(now)
 	in = r.practiceInput(in)
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
 	r.Catchup = dt > 1.0/15
@@ -1057,6 +1058,9 @@ func (r *Run) escapeEnemy(i int) {
 }
 
 func (r *Run) hurtPlayer(damage, x, y float64) {
+	if r.SkillTimers["connection_grace"] > 0 {
+		return
+	}
 	p := &r.Player
 	if p.HP <= 0 {
 		return
