@@ -748,6 +748,7 @@
           ctx.stroke();
         }
 
+        if(snapshot.build.class==='beastmaster'&&unit.hp>0&&!display.cleanScreenshot){ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#bce8a5';ctx.strokeStyle='#10221d';ctx.lineWidth=3;interactionPrompt('PACK TARGET',targetX,y+19,true);}
         const caretBob = renderer.reduced ? 0 : Math.sin(animationTime / 140) * 3;
         const caretY = y - jump - size - 12 + caretBob;
         ctx.fillStyle = '#7ef5d0';
@@ -1284,7 +1285,13 @@
     if(run.room_objective?.kind==='split_defense')units.push(...run.room_objective.lanes.map(l=>l.ward));
     if(run.room_objective?.kind==='protect_lantern')units.push(run.room_objective.lantern);
     if(run.room_objective?.kind==='escort_spirit')units.push(run.room_objective.escort);
-    if(run.build?.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build?.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
+    if(run.build?.class==='beastmaster'&&run.player.hp>0){
+      const commandTarget=run.enemies.find(e=>e.id===run.marked&&e.hp>0);
+      for(let i=0;i<Math.min(3,run.build?.pets||0);i++){
+        const petX=run.player.x-run.player.facing*(55+i*36),facing=commandTarget?Math.sign(commandTarget.x-petX)||run.player.facing:run.player.facing;
+        units.push({id:'pet'+i,kind:'wolf',x:petX,y:run.player.y+22+i*8,hp:1,max_hp:1,facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});
+      }
+    }
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     (arena?.cover||[]).forEach(c=>units.push({y:c.y+c.h,terrain:c}));
     (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));

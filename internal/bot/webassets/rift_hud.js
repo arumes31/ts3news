@@ -411,6 +411,8 @@
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
     put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
+    const pack=$('rift-pack-target');pack.hidden=run.build.class!=='beastmaster';
+    if(!pack.hidden)put(pack,marked?'Pack target: '+marked.name+'. Face and line up your shot; it hits the first enemy in that lane.':'Pack target: none. Land a builder hit to direct the pack.');
     const precision=$('rift-precision-state');precision.hidden=run.build.class!=='marksman';
     if(!precision.hidden)put(precision,!marked?'Precision: land a builder hit to mark a target.':!(run.resource>0)?'Precision target: '+marked.name+'. Build charges before firing your finisher.':!finisher?'Precision target: '+marked.name+'. Equip a finisher in Abyss.':'Precision armed on '+marked.name+': next charged finisher gains +60 percentage points of armor piercing on this target (total capped at 100%). Finisher: '+reason(finisher,run,playing)+'.');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
