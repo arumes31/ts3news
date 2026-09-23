@@ -12,6 +12,8 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	Banked       bool                `json:"banked,omitempty"`
+	Difficulty   string              `json:"difficulty,omitempty"`
 	Mission      int                 `json:"mission"`
 	Finished     bool                `json:"finished"`
 	StartSeconds float64             `json:"start_seconds"`
@@ -35,7 +37,7 @@ func (r *Run) beginObjectives() {
 	if r.Objectives != nil && r.Objectives.Finished {
 		r.LastObjectives = r.Objectives
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, Entries: ObjectiveOptions()}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, Entries: ObjectiveOptions()}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.

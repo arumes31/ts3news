@@ -17,12 +17,17 @@
   root.hidden=!!run?.practice||!!document.getElementById('rift-app').dataset.practice;
   if(root.hidden)return;
   const current=run?.objectives,previous=run?.last_objectives;
-  const next=JSON.stringify([current,previous,paused,!!run,options],(name,value)=>name==='current'&&typeof value==='number'?Math.floor(value):value);
+  const next=JSON.stringify([current,previous,run?.objective_history,paused,!!run,options],(name,value)=>name==='current'&&typeof value==='number'?Math.floor(value):value);
   if(next===key)return;key=next;
-  caption.textContent=current?'Mission '+current.mission+' · '+(current.finished?'Results':paused?'Paused':'In progress'):run?'Tracking starts with your next mission.':'Before you enter: optional goals for all three tiers.';
+  caption.textContent=current?'Mission '+current.mission+' · '+(current.finished?'Results · '+(current.banked?'Banked':'Not banked'):paused?'Paused':'In progress'):run?'Tracking starts with your next mission.':'Before you enter: optional goals for all three tiers.';
   rows(list,current?.entries||options,!current);
+  const history=document.getElementById('rift-objective-history'),historyList=document.getElementById('rift-objective-history-list');historyList.replaceChildren();
+  for(const [difficulty,counts] of Object.entries(run?.objective_history||{}).sort(([a],[b])=>a.localeCompare(b))){
+   for(const [id,count] of Object.entries(counts).sort(([a],[b])=>a.localeCompare(b)))if(count>0)text('li',difficulty+' · '+(options.find(entry=>entry.id===id)?.name||id)+' — '+count,historyList);
+  }
+  history.hidden=!historyList.children.length;
   last.hidden=!previous;
-  if(previous){document.getElementById('rift-objectives-last-title').textContent='Previous mission '+previous.mission+' objectives';rows(lastList,previous.entries,false);}
+  if(previous){document.getElementById('rift-objectives-last-title').textContent='Previous mission '+previous.mission+' objectives · '+(previous.banked?'Banked':'Not banked');rows(lastList,previous.entries,false);}
  }
  window.RiftObjectives={init(values){options=values;key='';update(null,false);},update};
 })();

@@ -197,6 +197,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+ ObjectiveHistory map[string]map[string]int `json:"objective_history,omitempty"`
  LastObjectives *MissionObjectives `json:"last_objectives,omitempty"`
  Objectives *MissionObjectives `json:"objectives,omitempty"`
 	DefeatedByBoss      string                   `json:"defeated_by_boss,omitempty"`

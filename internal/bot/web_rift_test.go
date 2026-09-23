@@ -120,7 +120,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				if advance {
 					snapshot = riftSnapshotCheck(func(saved *rift.Run) bool {
 						h := saved.History[10]
-						return saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
+						return saved.ObjectiveHistory["Wayfarer"]["timed"] == 1 && saved.LastObjectives != nil && saved.LastObjectives.Banked && saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
 					})
 				}
 				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)
@@ -151,7 +151,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				if out.BankedAtMS != wantBankedAt {
 					t.Fatalf("bank timestamp changed or missing: %d", out.BankedAtMS)
 				}
-				if advance && (out.History[10].Completions != 1 || out.History[10].CompletedByClass["vanguard"] != 1 || out.ClearStreak != 1 || out.History[10].BestSeconds != 20) {
+				if advance && (out.ObjectiveHistory["Wayfarer"]["timed"] != 1 || out.LastObjectives == nil || !out.LastObjectives.Banked || out.History[10].Completions != 1 || out.History[10].CompletedByClass["vanguard"] != 1 || out.ClearStreak != 1 || out.History[10].BestSeconds != 20) {
 					t.Fatalf("request replay altered records: %+v", out.History[10])
 				}
 				if advance && (out.Level.ID != 11 || out.Room != 0 || out.Status != "fighting" || len(out.CompletedLevels) != 1 || out.CompletedLevels[0] != 10) {
