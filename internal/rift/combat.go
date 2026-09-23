@@ -88,6 +88,8 @@ type Actor struct {
 // HurtCue returns the creature-family hurt audio cue identifier.
 func (a Actor) HurtCue() string {
 	switch a.Kind {
+	case "totem":
+		return "totem_hurt"
 	case "goblin", "knight", "archer", "treasure", "boss", "wolf", "spore":
 		return a.Kind + "_hurt"
 	default:
@@ -627,7 +629,7 @@ func (r *Run) tick(in Input, dt float64) {
 			e := &r.Enemies[i]
 			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
-				if e.HP == 0 && p.Jump > .1 && r.Practice == nil {
+				if e.HP == 0 && e.Kind != "totem" && p.Jump > .1 && r.Practice == nil {
 					r.Stats.AerialFinishes++
 				}
 				if r.Combo == 3 {
@@ -951,6 +953,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if r.Marked == e.ID {
 			r.Marked = ""
 		}
+		if e.Kind == "totem" {
+			r.event("totem_break", e.X, e.Y, 0)
+			r.updateTotemObjective()
+			return
+		}
 		r.recordPriorityDefeat(*e)
 		r.recordMonsterDefeat(*e)
 		r.Stats.Kills++
@@ -1072,6 +1079,15 @@ func (r *Run) canStartEnemyAttack(candidate *Actor) bool {
 const treasureEscapeMargin = 55.0
 
 func (r *Run) enemyTick(i int, dt float64) {
+	if r.Enemies[i].Kind == "totem" {
+		e := &r.Enemies[i]
+		e.PoseTime = math.Max(0, e.PoseTime-dt)
+		if e.PoseTime == 0 {
+			e.Pose = "idle"
+			e.RecoilX = 0
+		}
+		return
+	}
 	if r.Practice != nil && r.Enemies[i].ID == "practice-target" {
 		e := &r.Enemies[i]
 		e.PoseTime = math.Max(0, e.PoseTime-dt)

@@ -43,6 +43,10 @@ func (r *Run) beginRoomObjective() {
 	if r.Practice != nil {
 		return
 	}
+	if r.Arena().Objective == "destroy_totems" {
+		r.beginTotemObjective()
+		return
+	}
 	if r.Arena().Objective == "survive_waves" {
 		r.beginWaveObjective()
 		return
@@ -83,6 +87,7 @@ func (r *Run) collectRoomSigils() {
 
 func (r *Run) tickRoomObjective(dt float64) {
 	r.collectRoomSigils()
+	r.updateTotemObjective()
 	r.tickWaveObjective(dt)
 	o := r.RoomObjective
 	if o == nil || o.Kind != "hold_circle" || o.Complete || o.Zone == nil || r.Practice != nil || r.Paused || r.Status != "fighting" || r.Player.HP <= 0 {

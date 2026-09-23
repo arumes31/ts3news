@@ -218,6 +218,35 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+
+		if r.URL.Query().Get("scenario") == "totems" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("totem-room", selectedBuild, now, riftMobCatalog(now), 6)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Hazards = nil
+			run.Level.Rooms[1].Obstacles = nil
+			run.Level.Rooms[1].HighCover = nil
+			index := 0
+			for i := range run.Enemies {
+				e := &run.Enemies[i]
+				if e.Kind != "totem" {
+					e.HP = 0
+					continue
+				}
+				e.X, e.Y = 225+float64(index)*250, 410
+				index++
+			}
+			run.Player.X, run.Player.Y = 180, 410
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "waves" {
 			mu.Lock()
 			now := time.Now()

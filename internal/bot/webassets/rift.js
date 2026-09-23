@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='survive_waves'){
+    if(roomGoal?.kind==='destroy_totems'){
+      const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='totem'&&e.hp>0),patrol=run.enemies.filter(e=>e.kind!=='totem'&&e.hp>0).length;
+      put($('rift-room-objective-progress'),'Totems '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'Shattered':'Destroy the ritual props'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(patrol?'Defeat the remaining patrol to secure this tier.':'All totems and defenders cleared. Bank the tier loot to continue.'):'Use attacks or damaging spells. Totems do not grant monster loot or kill credit.');
+      put($('rift-room-objective-directions'),ended?'':remaining.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='survive_waves'){
       const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0;
       put($('rift-room-objective-progress'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
