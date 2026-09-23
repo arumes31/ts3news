@@ -2,6 +2,14 @@ package rift
 
 import "encoding/json"
 
+// Projectile target extents are deliberately smaller for the player.
+const (
+	projectilePlayerRadiusX = 25.0
+	projectilePlayerRadiusY = 23.0
+	projectileEnemyRadiusX  = 35.0
+	projectileEnemyRadiusY  = 30.0
+)
+
 // SkillReference exposes the targeting rules used by the action simulation.
 type SkillReference struct {
 	Target     string  `json:"target"`
@@ -12,7 +20,7 @@ type SkillReference struct {
 }
 
 func (s Skill) Reference() SkillReference {
-	r := SkillReference{Target: "projectile", Horizontal: 35, Depth: 30, Healing: s.Heal}
+	r := SkillReference{Target: "projectile", Horizontal: projectileEnemyRadiusX, Depth: projectileEnemyRadiusY, Healing: s.Heal}
 	switch s.Kind {
 	case "shield":
 		r.Target = "self"

@@ -643,7 +643,7 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 		hit := false
 		if shot.Enemy {
-			if math.Abs(shot.X-p.X) < 25 && math.Abs(shot.Y-p.Y) < 23 {
+			if math.Abs(shot.X-p.X) < projectilePlayerRadiusX && math.Abs(shot.Y-p.Y) < projectilePlayerRadiusY {
 				if p.Jump < .1 {
 					r.hurtPlayer(shot.Power, shot.X, shot.Y)
 					hit = true
