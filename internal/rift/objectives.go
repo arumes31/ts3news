@@ -40,6 +40,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "treasure_capture", Name: "Treasure hunter", Description: "Defeat at least one treasure goblin and clear all three tiers. Offered when the mission contains a goblin; escapes do not count.", Target: 1, Status: "active"},
 		{ID: "aerial_finish", Name: "Aerial finish", Description: "Defeat at least one enemy with a basic attack while airborne, then clear all three tiers. Spell and pet kills do not count.", Target: 1, Status: "active"},
 		{ID: "melee_only", Name: "Close combat", Description: "Clear all three tiers using only basic attacks, slash abilities, heals and shields. Projectile, quake and area-ultimate casts fail this goal, even on a miss.", Status: "active"},
+		{ID: "ranged_priority", Name: "Ranged enemies first", Description: "Clear all three tiers, defeating every archer or spellcaster before other enemies in its tier. Offered when the mission contains ranged enemies.", Status: "active"},
 	}
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
@@ -60,16 +61,17 @@ func (r *Run) beginObjectives() {
 		r.LastObjectives = r.Objectives
 	}
 	entries := ObjectiveOptions(r.Build)
-	hasTreasure := false
+	hasTreasure, hasRanged := false, false
 	for _, room := range r.EncounterPlan {
 		for _, enemy := range room {
 			hasTreasure = hasTreasure || enemy.Kind == "treasure"
+			hasRanged = hasRanged || enemy.Kind == "archer"
 		}
 	}
-	if !hasTreasure {
+	if !hasTreasure || !hasRanged {
 		filtered := entries[:0]
 		for _, entry := range entries {
-			if entry.ID != "treasure_capture" {
+			if (entry.ID != "treasure_capture" || hasTreasure) && (entry.ID != "ranged_priority" || hasRanged) {
 				filtered = append(filtered, entry)
 			}
 		}

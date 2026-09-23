@@ -163,6 +163,23 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "ranged-priority" {
+			mu.Lock()
+			now := time.Now()
+			var catalog []content.Mob
+			for _, mob := range riftMobCatalog(now) {
+				if rift.AdaptMonster(mob).Kind == "archer" {
+					catalog = append(catalog, mob)
+					break
+				}
+			}
+			run := rift.NewRunAtLevel("ranged-priority", selectedBuild, now, catalog, 1)
+			run.Enemies = []rift.Actor{{ID: "priority-melee", Name: "Melee target", Kind: "goblin", X: 205, Y: 410, HP: 1, MaxHP: 50, Knockdown: 100}, {ID: "priority-ranged", Name: "Ranged target", Kind: "archer", X: 1300, Y: 410, HP: 100, MaxHP: 100, Knockdown: 100}}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

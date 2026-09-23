@@ -948,6 +948,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if r.Marked == e.ID {
 			r.Marked = ""
 		}
+		r.recordPriorityDefeat(*e)
 		r.recordMonsterDefeat(*e)
 		r.Stats.Kills++
 		if e.Kind == "treasure" {
