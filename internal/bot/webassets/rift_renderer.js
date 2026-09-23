@@ -434,7 +434,10 @@
       }
       ctx.restore();
     }
+    ctx.save();
+    if(unit.id!=='player'&&unit.pose==='hit'&&!renderer.reduced)ctx.filter='brightness('+(1+.5*Math.max(0,Math.min(1,(unit.pose_time||0)/.2)))+')';
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
+    ctx.restore();
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
     if (unit.pose === 'stagger') {
