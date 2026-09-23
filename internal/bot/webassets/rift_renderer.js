@@ -356,6 +356,10 @@
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; cameraRecovering=false; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
+    if(entering&&run.status==='fighting'&&!run.practice&&run.player.hp>0){
+      const flourish=entryFlourishes[run.build?.class];
+      if(flourish){effects.push({kind:'class_entry',subclass:run.build.class,x:run.player.x,y:run.player.y-(run.player.elevation||0),started:animationTime});renderer.classEntryCount=(renderer.classEntryCount||0)+1;window.RiftAudio.play(flourish.sound,0);}
+    }
     if(run.paused)camera=cameraFrame(run).target;
     [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
@@ -384,6 +388,14 @@
       ctx.save();ctx.globalAlpha=1;ctx.strokeStyle=valid?'#55e7e2':'#ff4fc3';ctx.lineWidth=1;ctx.setLineDash([]);ctx.strokeRect(dx,dy,dw,dh);ctx.restore();
     }
   }
+  const entryFlourishes={
+    vanguard:{row:3,points:4,sound:'shield'},berserker:{row:0,points:3,sound:'slash'},
+    marksman:{row:0,points:4,sound:'arrow'},beastmaster:{row:3,points:3,sound:'pack'},
+    elementalist:{row:2,points:6,sound:'fire'},chronomancer:{row:4,points:8,sound:'ice'},
+    oracle:{row:5,points:6,sound:'heal'},geomancer:{row:1,points:4,sound:'quake'},
+    bloodblade:{row:0,points:5,sound:'slash'},voidwalker:{row:4,points:3,sound:'void'},
+    runesmith:{row:4,points:4,sound:'rune'},alchemist:{row:2,points:5,sound:'poison'}
+  };
   const victoryStances={
     vanguard:{name:'Shield salute',frame:7,angle:0,lift:0,color:'#b8d9ff'},
     berserker:{name:'Battle triumph',frame:15,angle:-.08,lift:0,color:'#ffb08d'},
@@ -1362,6 +1374,16 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='class_entry'){
+        const flourish=entryFlourishes[e.subclass],color=victoryStances[e.subclass].color,x=e.x-camera,y=e.y;
+        const radius=renderer.reduced?29:18+age*22*motion,turn=renderer.reduced?0:age*.5*motion;
+        ctx.save();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.globalAlpha=(1-age)*display.effectIntensity;
+        ctx.beginPath();
+        for(let i=0;i<flourish.points;i++){const angle=i*Math.PI*2/flourish.points+turn,px=x+Math.cos(angle)*radius,py=y+Math.sin(angle)*radius*.35;if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py);}
+        ctx.closePath();ctx.stroke();ctx.restore();
+        fx(flourish.row,renderer.reduced?2:Math.min(5,Math.floor(age*6)),x,y-30,72,(1-age)*.65*(flourish.row===5?display.effectIntensity:1));
+        renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
+      }
       if(e.kind==='projectile_expire'&&!renderer.reduced&&motion>0&&age<.4){
         const x=e.x-camera,y=e.y-28,progress=age/.4;
         if(x>=0&&x<=960&&y>=0&&y<=540){
