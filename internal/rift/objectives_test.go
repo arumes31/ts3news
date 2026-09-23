@@ -17,6 +17,7 @@ func TestMissionObjectivesTrackFailuresAndCompletion(t *testing.T) {
 	r.Stats.SkillsCast = 1
 	r.Stats.Guards = 5
 	r.Stats.TreasureGoblins = 1
+	r.Stats.AerialFinishes = 1
 	r.UpdateObjectives()
 	for i := 0; i < 3; i++ {
 		if r.Objectives.Entries[i].Status != "failed" || r.Objectives.Entries[i].Reason == "" {
@@ -87,6 +88,7 @@ func TestObjectiveTimeIncludesBoundaryAndExcludesPausedTime(t *testing.T) {
 	r.Stats.Seconds = 180
 	r.Stats.Guards = 5
 	r.Stats.TreasureGoblins = 1
+	r.Stats.AerialFinishes = 1
 	r.Room = 2
 	r.Status = "cleared"
 	r.UpdateObjectives()
@@ -122,6 +124,7 @@ func TestObjectiveResultsSurviveSeamlessAdvanceAndNewExpedition(t *testing.T) {
 	r.Status = "cleared"
 	r.Stats.Guards = 5
 	r.Stats.TreasureGoblins = 1
+	r.Stats.AerialFinishes = 1
 	r.Stats.Seconds = 42
 	r.FinishCheckpoint("advance", content.AbyssMobCatalog())
 	if r.LastObjectives == nil || !r.LastObjectives.Finished || r.LastObjectives.Mission != 1 || r.Objectives.Mission != 2 {

@@ -625,6 +625,9 @@ func (r *Run) tick(in Input, dt float64) {
 			e := &r.Enemies[i]
 			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
+				if e.HP == 0 && p.Jump > .1 && r.Practice == nil {
+					r.Stats.AerialFinishes++
+				}
 				if r.Combo == 3 {
 					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
 					if e.HP > 0 {
