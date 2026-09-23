@@ -1128,12 +1128,16 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.Windup > 0 {
 		e.Windup = math.Max(0, e.Windup-dt)
 		if e.Windup == 0 {
+			plan := r.NextBossAttack(*e)
 			e.AttackName = ""
 			e.Attacks++
 			e.Pose = "attack"
 			e.PoseTime = .4
 			e.Cooldown = 1.6 + rangedCooldownOffset(e)
-			if e.Kind == "archer" || e.Kind == "boss" && e.ArtKey != "" && e.Attacks%2 == 0 {
+			if e.Kind == "boss" {
+				e.Cooldown = plan.Recovery
+			}
+			if e.Kind == "archer" || plan.Kind == "projectile" {
 				if !r.clearProjectilePath(e, e) || e.Kind == "archer" && !r.clearProjectilePath(e, p) {
 					e.Pose = "idle"
 					e.PoseTime = 0
@@ -1164,7 +1168,6 @@ func (r *Run) enemyTick(i int, dt float64) {
 				if math.Abs(p.X-e.TargetX) >= 125 || math.Abs(p.Y-e.TargetY) >= 62 || p.Jump >= .1 {
 					e.WeakPoint = .8
 				}
-				e.Cooldown = 2.3
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
 				inReach := math.Abs(dx) < 85 && math.Abs(dy) < 33 && r.clearMeleePath(e, p)
@@ -1228,7 +1231,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.TargetY = p.Y
 		if e.Kind == "boss" {
 			r.event("boss_roar", e.X, e.Y, 0)
-			e.AttackName = r.bossAttackName(e)
+			plan := r.NextBossAttack(*e)
+			e.AttackName, e.Windup = plan.Name, plan.Windup
 		}
 	} else if e.PoseTime == 0 {
 		e.Pose = "idle"
