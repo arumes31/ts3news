@@ -353,6 +353,34 @@ func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
 	}
 }
 
+// detourLane tries the other side when the preferred passage is outside the
+// arena or another obstacle has closed its horizontal crossing.
+func detourLane(a *Actor, wall Obstacle, obstacles []Obstacle) float64 {
+	radius := actorClearance(a)
+	above, below := wall.Y-radius-4, wall.Y+wall.H+radius+4
+	choices := []float64{above, below}
+	if a.Y >= wall.Y+wall.H/2 {
+		choices[0], choices[1] = below, above
+	}
+	for _, y := range choices {
+		if y < 315 || y > 490 {
+			continue
+		}
+		clear := true
+		for _, o := range obstacles {
+			expanded := Obstacle{o.X - radius, o.Y - radius, o.W + 2*radius, o.H + 2*radius}
+			if _, hit := obstacleImpact(wall.X-radius-5, y, wall.X+wall.W+radius+5, y, expanded); hit {
+				clear = false
+				break
+			}
+		}
+		if clear {
+			return y
+		}
+	}
+	return choices[0]
+}
+
 func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	arena := r.Arena()
 	obstacles := arena.solidObstacles()
@@ -364,11 +392,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	for _, o := range obstacles {
 		if navigate && dx != 0 && contains(o, a.X+dx, a.Y, radius+2) {
 			// Keep the bypass until the actor is beyond this obstacle in X.
-			if a.Y < o.Y+o.H/2 {
-				a.RouteY = o.Y - radius - 4
-			} else {
-				a.RouteY = o.Y + o.H + radius + 4
-			}
+			a.RouteY = detourLane(a, o, obstacles)
 			a.RouteX = o.X + o.W + radius + 5
 			if dx < 0 {
 				a.RouteX = o.X - radius - 5
