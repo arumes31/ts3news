@@ -613,6 +613,7 @@ func (r *Run) hazardTick() {
 		switch h.Kind {
 		case "ice", "thorns", "poison":
 			r.SkillTimers["slowed"] = 1.4
+			r.SlowSource = h.Kind
 		case "void":
 			r.moveActor(&r.Player, (h.X+h.W/2-r.Player.X)*.3, 0, false)
 		}

@@ -211,6 +211,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	SlowSource string `json:"slow_source,omitempty"`
 	DefeatedByHazard *HazardDefeat `json:"defeated_by_hazard,omitempty"`
  RoomObjective *RoomObjective `json:"room_objective,omitempty"`
  ObjectiveHistory map[string]map[string]int `json:"objective_history,omitempty"`
@@ -297,6 +298,7 @@ func NewRun(id string, build Build, now time.Time) *Run {
 func (r *Run) spawnRoom() {
 	r.DefeatedByBoss = ""
 	r.DefeatedByHazard = nil
+	r.SlowSource = ""
 	hits := r.Stats.HitsTaken
 	r.RoomStartHits = &hits
 	seconds := r.Stats.Seconds
@@ -567,6 +569,9 @@ func (r *Run) tick(in Input, dt float64) {
 			val = 0
 		}
 		r.SkillTimers[id] = val
+	}
+	if r.SkillTimers["slowed"] <= 0 {
+		r.SlowSource = ""
 	}
 	if wasSlowed && r.SkillTimers["slowed"] == 0 {
 		r.eventAtHeight("thaw", p.X, p.Y-25, 0, p.Elevation)

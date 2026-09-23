@@ -1,6 +1,8 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
+  const slowName=run=>({ice:'Ice',poison:'Poison',thorns:'Thorns'}[run.slow_source]||'');
+  const slowLabel=run=>'Slowed'+(slowName(run)?' by '+slowName(run):'');
   function hazardDefeatHint(source){
     if(!source||typeof source.kind!=='string')return '';
     if(source.kind==='collapse')return 'Defeated by the advancing collapse. Stay ahead of its moving edge and reach the exit seal. Jumping does not evade collapse damage.';
@@ -156,8 +158,8 @@
       return{
         kind:'slowed',
         state:'debuff',
-        name:'Slowed',
-        label:'Area effect: Slowed ('+run.skill_timers.slowed.toFixed(1)+'s)',
+        name:slowLabel(run),
+        label:'Area effect: '+slowLabel(run)+' ('+run.skill_timers.slowed.toFixed(1)+'s)',
       };
     }
     return null;
@@ -391,7 +393,7 @@
     put($('rift-jump-ready'),(run.skill_timers.jump||0)>0?'Jump '+run.skill_timers.jump.toFixed(1)+'s':'Jump ready');
     put($('rift-combo-step'),'Strike '+(run.combo||0)+'/3');
     put($('rift-barrier-state'),run.barrier>0?'Barrier '+numbers.format(run.barrier):'No barrier');
-    put($('rift-slow-state'),run.skill_timers.slowed>0?'Slowed '+run.skill_timers.slowed.toFixed(1)+'s':'Normal speed');
+    put($('rift-slow-state'),run.skill_timers.slowed>0?slowLabel(run)+' '+run.skill_timers.slowed.toFixed(1)+'s':'Normal speed');
     const areaNode=$('rift-area-effects');
     if(areaNode){
       const effect=detectPlayerAreaEffects(run);
