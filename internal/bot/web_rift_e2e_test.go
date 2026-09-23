@@ -143,6 +143,26 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "treasure-objective" {
+			mu.Lock()
+			now := time.Now()
+			var catalog []content.Mob
+			for _, mob := range riftMobCatalog(now) {
+				if rift.AdaptMonster(mob).Kind == "treasure" {
+					catalog = append(catalog, mob)
+				}
+			}
+			run := rift.NewRunAtLevel("treasure-objective", selectedBuild, now, catalog, 1)
+			run.Enemies = run.Enemies[:1]
+			run.Enemies[0].X = run.Player.X + 45
+			run.Enemies[0].Y = run.Player.Y
+			run.Enemies[0].HP = 1
+			run.Enemies[0].Knockdown = 100
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartTreasure  int                 `json:"start_treasure"`
 	StartHazards   int                 `json:"start_hazards"`
 	StartUltimates int                 `json:"start_ultimates"`
 	StartFinishers int                 `json:"start_finishers"`
@@ -34,6 +35,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "basic_only", Name: "Basic attacks only", Description: "Clear all three tiers without using abilities. Movement, jumping and guarding are allowed.", Status: "active"},
 		{ID: "guard", Name: "Guard mastery", Description: "Block at least five attacks and clear all three tiers.", Target: 5, Status: "active"},
 		{ID: "hazard_avoidance", Name: "Safe footing", Description: "Clear all three tiers without triggering an active floor hazard. Jumping avoids hazards; shields do not.", Status: "active"},
+		{ID: "treasure_capture", Name: "Treasure hunter", Description: "Defeat at least one treasure goblin and clear all three tiers. Offered when the mission contains a goblin; escapes do not count.", Target: 1, Status: "active"},
 	}
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
@@ -53,7 +55,23 @@ func (r *Run) beginObjectives() {
 	if r.Objectives != nil && r.Objectives.Finished {
 		r.LastObjectives = r.Objectives
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, Entries: ObjectiveOptions(r.Build)}
+	entries := ObjectiveOptions(r.Build)
+	hasTreasure := false
+	for _, room := range r.EncounterPlan {
+		for _, enemy := range room {
+			hasTreasure = hasTreasure || enemy.Kind == "treasure"
+		}
+	}
+	if !hasTreasure {
+		filtered := entries[:0]
+		for _, entry := range entries {
+			if entry.ID != "treasure_capture" {
+				filtered = append(filtered, entry)
+			}
+		}
+		entries = filtered
+	}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, Entries: entries}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -85,6 +103,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "treasure_capture":
+			e.Current = float64(max(0, r.Stats.TreasureGoblins-o.StartTreasure))
+			if cleared && e.Current < e.Target {
+				reason = "Finished without defeating a treasure goblin."
 			}
 		case "hazard_avoidance":
 			e.Current = float64(max(0, r.Stats.HazardContacts-o.StartHazards))
