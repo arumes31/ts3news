@@ -34,7 +34,7 @@ test('displays area effects affecting the player in combat signals and battlefie
       status: 'fighting',
       clock: 1.5,
       player: { x: 150, y: 400, jump: 0.5 },
-      practice: { arena: { hazards: [{ x: 100, y: 350, w: 100, h: 100, kind: 'poison', period: 3.5, offset: 0, duration: 1 }] } },
+      practice: { arena: { hazards: [{ x: 100, y: 350, w: 100, h: 100, kind: 'poison', jumpable: true, period: 3.5, offset: 0, duration: 1 }] } },
     };
     return window.RiftHUD?.detectPlayerAreaEffects?.(run);
   });
@@ -71,4 +71,11 @@ test('displays area effects affecting the player in combat signals and battlefie
   await screenshotBtn.click();
   await expect(screenshotBtn).toHaveAttribute('aria-pressed', 'false');
   await expect(areaSignal).toBeVisible();
+});
+
+test('airborne hazard status respects explicit jumpability',async({page})=>{
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+ const states=await page.evaluate(()=>[true,false,undefined].map(jumpable=>RiftHUD.detectPlayerAreaEffects({status:'fighting',clock:1.4,player:{x:150,y:400,jump:.4},enemies:[],skill_timers:{},practice:{arena:{hazards:[{x:100,y:350,w:100,h:100,kind:'poison',period:7,offset:0,duration:1,jumpable}]}}})));
+ expect(states.map(s=>s.state)).toEqual(['evading','active','active']);
+ expect(states[1].label).toBe('In area effect: Poison hazard (Active)');expect(states[2].label).toBe(states[1].label);
 });

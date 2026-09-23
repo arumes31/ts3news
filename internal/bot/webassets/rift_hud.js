@@ -121,7 +121,7 @@
           const active=phase>=1.2&&phase<1.2+h.duration;
           const kindName=h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
           if(active){
-            const evading=(p.jump||0)>0.1;
+            const evading=h.jumpable===true&&(p.jump||0)>0.1;
             return{
               kind:h.kind,
               state:evading?'evading':'active',
