@@ -132,6 +132,23 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "objective-results" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("objective-results", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Room = 2
+			run.Enemies = append([]rift.Actor{}, run.EncounterPlan[2]...)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Stats.Guards = 5
+			run.Stats.Seconds = 42
+			run.Epoch = "fixture"
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "boss-retry" {
 			mu.Lock()
 			now := time.Now()
@@ -224,7 +241,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if custom := r.URL.Query().Get("challenge"); custom != "" {
 				ch = riftChallengeFor(custom)
 			}
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": ch})
+			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": ch})
 			return
 		}
 		var req riftRequest

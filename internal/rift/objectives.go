@@ -21,16 +21,25 @@ type MissionObjectives struct {
 	Entries      []ObjectiveProgress `json:"entries"`
 }
 
-func (r *Run) beginObjectives() {
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, Entries: []ObjectiveProgress{
+// ObjectiveOptions supplies both mission tracking and the pre-run preview.
+func ObjectiveOptions() []ObjectiveProgress {
+	return []ObjectiveProgress{
 		{ID: "timed", Name: "Swift clear", Description: "Clear all three tiers within 180 combat seconds. Pauses do not count.", Target: 180, Status: "active"},
 		{ID: "no_damage", Name: "Untouched", Description: "Clear all three tiers without taking health damage.", Status: "active"},
 		{ID: "basic_only", Name: "Basic attacks only", Description: "Clear all three tiers without using abilities. Movement, jumping and guarding are allowed.", Status: "active"},
 		{ID: "guard", Name: "Guard mastery", Description: "Block at least five attacks and clear all three tiers.", Target: 5, Status: "active"},
-	}}
+	}
 }
 
-func (r *Run) updateObjectives() {
+func (r *Run) beginObjectives() {
+	if r.Objectives != nil && r.Objectives.Finished {
+		r.LastObjectives = r.Objectives
+	}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, Entries: ObjectiveOptions()}
+}
+
+// UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
+func (r *Run) UpdateObjectives() {
 	o := r.Objectives
 	if o == nil || o.Finished || r.Practice != nil {
 		return

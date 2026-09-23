@@ -659,3 +659,12 @@
 #rift-boss-intro p{margin:5px 0;font-size:13px;line-height:1.5}
 #rift-boss-intro small{flex-basis:100%;font-size:11px;color:#cec7ad}
 .rift-clean-screenshot #rift-boss-intro{display:none!important}
+
+#rift-optional-objectives{padding:16px;border-top:1px solid #42553e}
+#rift-optional-objectives ul{list-style:none;padding:0;margin:12px 0}
+#rift-optional-objectives li{border-left:3px solid #859c72;padding:10px 12px;margin:8px 0;background:#14251c;overflow-wrap:anywhere}
+#rift-optional-objectives li>span{display:inline-block;margin-left:12px;color:#d6cba8;font-size:12px}
+#rift-optional-objectives p{margin:6px 0;line-height:1.5}
+#rift-optional-objectives li[data-state=failed]{border-color:#dc9b86}
+#rift-optional-objectives li[data-state=complete]{border-color:#9dce82}
+.rift-clean-screenshot #rift-optional-objectives{display:none!important}

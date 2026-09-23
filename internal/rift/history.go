@@ -98,6 +98,10 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 	if previous == nil || r.Level == nil || r.Practice != nil || previous.Practice != nil {
 		return
 	}
+	r.LastObjectives = previous.LastObjectives
+	if previous.Objectives != nil && previous.Objectives.Finished {
+		r.LastObjectives = previous.Objectives
+	}
 	r.inheritMonsterRecords(previous)
 	r.PastExpeditions = previous.RecordedTotals()
 	r.AttemptHistory = append([]AttemptRecord(nil), previous.AttemptHistory...)

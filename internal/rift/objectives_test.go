@@ -16,7 +16,7 @@ func TestMissionObjectivesTrackFailuresAndCompletion(t *testing.T) {
 	r.Stats.DamageTaken = 1
 	r.Stats.SkillsCast = 1
 	r.Stats.Guards = 5
-	r.updateObjectives()
+	r.UpdateObjectives()
 	for i := 0; i < 3; i++ {
 		if r.Objectives.Entries[i].Status != "failed" || r.Objectives.Entries[i].Reason == "" {
 			t.Fatal("objective violation not explained")
@@ -27,7 +27,7 @@ func TestMissionObjectivesTrackFailuresAndCompletion(t *testing.T) {
 	}
 	r.Room = 2
 	r.Status = "cleared"
-	r.updateObjectives()
+	r.UpdateObjectives()
 	if r.Objectives.Entries[3].Status != "complete" || !r.Objectives.Finished {
 		t.Fatal("guard objective did not complete with mission")
 	}
@@ -40,7 +40,7 @@ func TestMissionObjectivesTrackFailuresAndCompletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved.Stats.Guards = 0
-	saved.updateObjectives()
+	saved.UpdateObjectives()
 	if saved.Objectives.Entries[3].Status != "complete" {
 		t.Fatal("saved result changed after completion")
 	}
@@ -53,7 +53,7 @@ func TestObjectivesUseMissionBaselineAndPreserveRetryFailures(t *testing.T) {
 	r.Stats.SkillsCast = 4
 	r.Stats.Guards = 10
 	r.setLevel(2, content.AbyssMobCatalog())
-	r.updateObjectives()
+	r.UpdateObjectives()
 	for _, entry := range r.Objectives.Entries {
 		if entry.Current != 0 || entry.Status != "active" {
 			t.Fatal("previous mission polluted objectives")
@@ -68,7 +68,7 @@ func TestObjectivesUseMissionBaselineAndPreserveRetryFailures(t *testing.T) {
 	if err := r.RetryBossEncounter(time.Unix(200, 0)); err != nil {
 		t.Fatal(err)
 	}
-	r.updateObjectives()
+	r.UpdateObjectives()
 	for _, entry := range r.Objectives.Entries {
 		if entry.Status != "failed" {
 			t.Fatal("retry erased optional failure")
@@ -87,7 +87,7 @@ func TestObjectiveTimeIncludesBoundaryAndExcludesPausedTime(t *testing.T) {
 	r.Stats.Guards = 5
 	r.Room = 2
 	r.Status = "cleared"
-	r.updateObjectives()
+	r.UpdateObjectives()
 	for _, entry := range r.Objectives.Entries {
 		if entry.Status != "complete" {
 			t.Fatalf("valid mission failed %s", entry.ID)
@@ -111,5 +111,40 @@ func TestObjectivesFollowConfirmedCombatNotRejectedInputs(t *testing.T) {
 	r.tick(Input{}, .02)
 	if r.Objectives.Entries[1].Status != "failed" || r.Status != "fighting" {
 		t.Fatal("damage objective did not fail independently")
+	}
+}
+
+func TestObjectiveResultsSurviveSeamlessAdvanceAndNewExpedition(t *testing.T) {
+	r := NewRunAtLevel("results", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+	r.Room = 2
+	r.Status = "cleared"
+	r.Stats.Guards = 5
+	r.Stats.Seconds = 42
+	r.FinishCheckpoint("advance", content.AbyssMobCatalog())
+	if r.LastObjectives == nil || !r.LastObjectives.Finished || r.LastObjectives.Mission != 1 || r.Objectives.Mission != 2 {
+		t.Fatal("advancement discarded results")
+	}
+	for _, entry := range r.LastObjectives.Entries {
+		if entry.Status != "complete" {
+			t.Fatal("checkpoint did not finalize objective")
+		}
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err = json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	next := NewRunAtLevel("new-results", r.Build, time.Unix(200, 0), content.AbyssMobCatalog(), 3)
+	next.InheritCampaignHistory(&saved)
+	if next.LastObjectives == nil || next.LastObjectives.Mission != 1 {
+		t.Fatal("new expedition lost last results")
+	}
+	next.Stats.SkillsCast = 1
+	next.UpdateObjectives()
+	if saved.LastObjectives.Entries[2].Status != "complete" {
+		t.Fatal("current progress mutated prior result")
 	}
 }

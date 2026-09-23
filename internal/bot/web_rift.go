@@ -206,7 +206,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": riftChallenge(time.Now())})
+		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": riftChallenge(time.Now())})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -390,6 +390,7 @@ func loadRiftMode(ctx context.Context, database *sql.DB, uid, mode string) (*rif
 		run.BankedGold = 0
 		run.BankedItems = []string{}
 	}
+	run.UpdateObjectives()
 	return run, nil
 }
 

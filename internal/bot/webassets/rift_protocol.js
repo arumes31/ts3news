@@ -19,6 +19,8 @@
   function level(value){return object(value)&&Number.isInteger(value.id)&&value.id>0&&text(value.name)&&text(value.region_name)&&text(value.tactic)&&text(value.difficulty)&&Number.isInteger(value.region)&&value.region>=0&&value.region<10&&list(value.rooms,arena)&&value.rooms.length===3;}
   const splits=value=>Array.isArray(value)&&value.length===3&&value.every(seconds=>seconds===null||nonnegative(seconds));
   const attempt=value=>object(value)&&(value.splits===undefined||splits(value.splits))&&Number.isInteger(value.mission)&&value.mission>=1&&value.mission<=100&&['completed','defeated','exited','expired'].includes(value.outcome)&&Number.isSafeInteger(value.at_ms)&&value.at_ms>=0&&value.at_ms<=8640000000000000&&text(value.class)&&nonnegative(value.seconds)&&nonnegative(value.hp)&&nonnegative(value.max_hp)&&(value.hits===undefined||Number.isSafeInteger(value.hits)&&value.hits>=0);
+  const objective=value=>object(value)&&text(value.id)&&text(value.name)&&text(value.description)&&nonnegative(value.current)&&nonnegative(value.target)&&["active","failed","complete"].includes(value.status)&&(value.reason===undefined||text(value.reason));
+  const objectives=value=>object(value)&&Number.isInteger(value.mission)&&value.mission>=1&&value.mission<=100&&typeof value.finished==="boolean"&&list(value.entries,objective);
   function run(value){
     if(!object(value))return false;
     if(value.schema!==1)throw new Error('This expedition uses an unsupported save version. Reload the page to get the current game before recovering.');
@@ -30,6 +32,7 @@
       list(value.banked_items,text)&&optionalList(value.banked_loot,item=>object(item)&&text(item.name)&&Number.isSafeInteger(item.rarity)&&item.rarity>=0)&&(value.banked_at_ms===undefined||Number.isSafeInteger(value.banked_at_ms)&&value.banked_at_ms>=0&&value.banked_at_ms<=8640000000000000)&&nonnegative(value.gold)&&nonnegative(value.banked_gold)&&nonnegative(value.clock)&&nonnegative(value.counter)&&
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
       (!value.level||level(value.level))&&(value.practice===undefined||object(value.practice)&&["movement","jump","combo","guard","hazard","boss"].includes(value.practice.mode)&&(value.practice.mode!=="boss"||actor(value.practice.boss_start))&&(value.practice.slow_telegraphs===undefined||typeof value.practice.slow_telegraphs==="boolean")&&nonnegative(value.practice.goal_x)&&Number.isSafeInteger(value.practice.hits)&&value.practice.hits>=0&&typeof value.practice.completed==="boolean"&&arena(value.practice.arena)&&(value.practice.dodges===undefined||Number.isSafeInteger(value.practice.dodges)&&value.practice.dodges>=0))&&optionalList(value.encounter_plan,room=>list(room,actor))&&
+      (value.objectives===undefined||objectives(value.objectives))&&(value.last_objectives===undefined||objectives(value.last_objectives))&&
       optionalList(value.completed_levels,id=>Number.isInteger(id)&&id>0)&&
       (value.monster_records===undefined||object(value.monster_records)&&Object.values(value.monster_records).every(record=>object(record)&&Number.isSafeInteger(record.first_seen_ms)&&record.first_seen_ms>=0&&record.first_seen_ms<=8640000000000000&&Number.isSafeInteger(record.defeats)&&record.defeats>=0&&(record.fastest_clear_seconds===undefined||nonnegative(record.fastest_clear_seconds))))&&
       (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
@@ -45,7 +48,7 @@
   }
   function validate(data,method,request){
     let valid=object(data)&&data.ok===true;
-    if(valid&&method==='GET')valid=build(data.build)&&list(data.rooms,text)&&list(data.levels,level)&&data.levels.length>0&&data.levels.every((l,i)=>l.id===i+1)&&list(data.bestiary,unit=>actor(unit)&&text(unit.tier)&&text(unit.art_key)&&(unit.training===undefined||object(unit.training)&&nonnegative(unit.training.windup_seconds)&&typeof unit.training.resists_knockdown==="boolean"&&typeof unit.training.interruptible==="boolean"))&&(data.run===null||run(data.run));
+    if(valid&&method==='GET')valid=optionalList(data.objective_options,objective)&&build(data.build)&&list(data.rooms,text)&&list(data.levels,level)&&data.levels.length>0&&data.levels.every((l,i)=>l.id===i+1)&&list(data.bestiary,unit=>actor(unit)&&text(unit.tier)&&text(unit.art_key)&&(unit.training===undefined||object(unit.training)&&nonnegative(unit.training.windup_seconds)&&typeof unit.training.resists_knockdown==="boolean"&&typeof unit.training.interruptible==="boolean"))&&(data.run===null||run(data.run));
     else if(valid)valid=run(data.run)&&(request.kind==='start'||data.run.id===request.run_id);
     if(!valid)throw new Error('Received an incomplete expedition update. Recover the saved expedition before continuing.');
     return data;

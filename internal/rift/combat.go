@@ -197,6 +197,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+ LastObjectives *MissionObjectives `json:"last_objectives,omitempty"`
  Objectives *MissionObjectives `json:"objectives,omitempty"`
 	DefeatedByBoss      string                   `json:"defeated_by_boss,omitempty"`
 	MonsterRecords      map[string]MonsterRecord `json:"monster_records,omitempty"`
@@ -487,7 +488,7 @@ func inBasicMeleeRange(attacker, target *Actor) bool {
 }
 
 func (r *Run) tick(in Input, dt float64) {
- defer r.updateObjectives()
+ defer r.UpdateObjectives()
 	if r.Combo > 0 {
 		// Older saves have a partial combo but no remaining-time field.
 		if r.ComboTime <= 0 {

@@ -185,13 +185,14 @@ func (r *Run) FloorMaterial() string {
 // FinishCheckpoint is called only after rewards have been banked atomically.
 // Advancing keeps the same run, build and receipt, without a page reload.
 func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
-	defer r.updateObjectives()
+	defer r.UpdateObjectives()
 	if r.Practice != nil {
 		return
 	}
 	if r.Status != "cleared" {
 		return
 	}
+	r.UpdateObjectives()
 	r.SetPaused(false, time.UnixMilli(r.LastMS))
 	if r.Room == len(Rooms)-1 {
 		r.finishMissionHistory("completed")
