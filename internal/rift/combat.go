@@ -1045,9 +1045,6 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.Pose = "knockdown"
 		return
 	}
-	if e.Kind == "knight" && e.Pose == "attack" && e.PoseTime > 0 {
-		return
-	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
 	if e.RouteY != 0 && r.clearPursuitPath(e, p) {
@@ -1069,6 +1066,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	if dx != 0 {
 		e.Facing = math.Copysign(1, dx)
+	}
+	if e.Kind == "knight" && e.Pose == "attack" && e.PoseTime > 0 {
+		return
 	}
 	if e.Windup > 0 {
 		e.Windup = math.Max(0, e.Windup-dt)
