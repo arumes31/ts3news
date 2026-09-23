@@ -833,9 +833,9 @@
       ctx.stroke();ctx.restore();
     });
     (arena?.hazards||[]).forEach(h=>{
-      if(h.disabled){
+      if(h.disabled||run.status!=='fighting'){
         ctx.save();ctx.strokeStyle='#75a796';ctx.lineWidth=1;ctx.setLineDash([3,5]);ctx.strokeRect(h.x-camera,h.y,h.w,h.h);ctx.setLineDash([]);
-        if(!display.cleanScreenshot){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.strokeText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);ctx.fillText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);}
+        if(!display.cleanScreenshot&&display.hazardLabels){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.strokeText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);ctx.fillText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);}
         ctx.restore();return;
       }
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
@@ -846,7 +846,14 @@
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
       if(display.hazardPatterns!==false&&(warning||active)){ctx.save();ctx.beginPath();ctx.rect(x,h.y,h.w,h.h);ctx.clip();drawHazardPattern(ctx,h.kind,x,h.y,h.w,h.h,active,color);ctx.restore();}
       if(display.hazardContrast&&(warning||active)){ctx.globalAlpha=1;ctx.strokeStyle='#fff8d8';ctx.lineWidth=3;ctx.setLineDash(active?[]:[8,4]);ctx.strokeRect(x-2,h.y-2,h.w+4,h.h+4);ctx.setLineDash([]);}
-      if(!display.cleanScreenshot&&display.hazardLabels&&(warning||active)){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(active?'JUMP':h.kind.toUpperCase(),x+h.w/2,h.y-5);}
+      if(!display.cleanScreenshot&&display.hazardLabels){
+        // The frozen combat clock also drives damage; do not count down with wall time.
+        const remaining=active?1.2+h.duration-phase:warning?1.2-phase:h.period-phase+1.2;
+        const seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
+        const label=active?'JUMP · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
+        ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
+        ctx.strokeText(label,x+h.w/2,h.y-6);ctx.fillText(label,x+h.w/2,h.y-6);
+      }
       if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
       ctx.restore();
     });
