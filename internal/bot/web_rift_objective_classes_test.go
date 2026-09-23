@@ -847,3 +847,28 @@ func TestRiftSplitDefenseSupportsEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftTerrainCoverBreaksForEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Breaker", 24)
+				now := time.Unix(100, 0)
+				run := rift.NewRunAtLevel("class-cover", build, now, content.AbyssMobCatalog(), 4)
+				run.Level.Rooms[0].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].Knockdown = 100
+				}
+				cover := &run.Level.Rooms[0].Cover[0]
+				run.Player.X, run.Player.Y, run.Player.Facing = cover.X-40, cover.Y+cover.H/2, 1
+				for n := 0; n < 500 && cover.HP > 0; n++ {
+					now = now.Add(20 * time.Millisecond)
+					run.Step(rift.Input{Attack: true}, now)
+				}
+				if cover.HP != 0 || run.Stats.Kills != 0 || len(run.Drops) != 0 {
+					t.Fatal("subclass cannot break cover without monster rewards")
+				}
+			})
+		}
+	}
+}

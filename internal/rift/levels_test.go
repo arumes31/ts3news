@@ -43,7 +43,7 @@ func TestCampaignHas100DistinctPlayableMissions(t *testing.T) {
 			t.Fatalf("invalid mission %+v", level)
 		}
 		names[level.Name] = true
-		geometry, _ := json.Marshal(level.Rooms[0].Obstacles)
+		geometry, _ := json.Marshal(level.Rooms[0].solidObstacles())
 		if layouts[string(geometry)] {
 			t.Fatalf("mission %d repeats geometry", level.ID)
 		}
@@ -69,7 +69,7 @@ func TestCampaignHas100DistinctPlayableMissions(t *testing.T) {
 						continue
 					}
 					blocked := false
-					for _, o := range arena.Obstacles {
+					for _, o := range arena.solidObstacles() {
 						blocked = blocked || contains(o, float64(next.x*10), float64(next.y*10), 10)
 					}
 					if !blocked {

@@ -29,6 +29,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	Cover             []TerrainCover    `json:"cover,omitempty"`
 	Objective         string            `json:"objective,omitempty"`
 	MaxAttackers      int               `json:"max_attackers,omitempty"`
 	HighCover         []Obstacle        `json:"high_cover,omitempty"`
@@ -187,7 +188,15 @@ func Campaign() []Level {
 					obstacle.X += float64(region*7 + room*19)
 					obstacle.Y += float64((region+room+i)%3-1) * 4
 					obstacle.W += float64(region%4) * 3
-					if layout == 2 && i == 0 {
+					if room == 0 && i == 0 && (layout == 1 || layout == 3) {
+						material := "wood"
+						hp := 60.0
+						if layout == 1 {
+							material = "stone"
+							hp = 0
+						}
+						arena.Cover = append(arena.Cover, TerrainCover{Obstacle: obstacle, ID: fmt.Sprintf("mission-%d-cover", id), Material: material, HP: hp, MaxHP: hp})
+					} else if layout == 2 && i == 0 {
 						arena.HighCover = append(arena.HighCover, obstacle)
 					} else {
 						arena.Obstacles = append(arena.Obstacles, obstacle)
@@ -363,12 +372,13 @@ func settle(a *Actor, obstacles []Obstacle) {
 }
 
 func (a Arena) solidObstacles() []Obstacle {
-	if len(a.HighCover) == 0 {
+	tall := a.tallObstacles()
+	if len(tall) == 0 {
 		return a.Obstacles
 	}
-	all := make([]Obstacle, 0, len(a.Obstacles)+len(a.HighCover))
+	all := make([]Obstacle, 0, len(a.Obstacles)+len(tall))
 	all = append(all, a.Obstacles...)
-	return append(all, a.HighCover...)
+	return append(all, tall...)
 }
 
 // obstacleImpact returns the first intersection along a movement segment.
@@ -395,7 +405,7 @@ func obstacleImpact(x1, y1, x2, y2 float64, o Obstacle) (float64, bool) {
 }
 
 func (r *Run) clearProjectilePath(from, to *Actor) bool {
-	for _, wall := range r.Arena().HighCover {
+	for _, wall := range r.Arena().tallObstacles() {
 		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, wall); hit {
 			return false
 		}
@@ -417,7 +427,7 @@ func (r *Run) clearPursuitPath(from, to *Actor) bool {
 	arena := r.Arena()
 	obstacles := arena.solidObstacles()
 	if from.Jump > .1 {
-		obstacles = arena.HighCover
+		obstacles = arena.tallObstacles()
 	}
 	radius := actorClearance(from) + 2
 	for _, o := range obstacles {
@@ -473,7 +483,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	arena := r.Arena()
 	obstacles := arena.solidObstacles()
 	if a.Jump > .1 {
-		obstacles = arena.HighCover
+		obstacles = arena.tallObstacles()
 	}
 	radius := actorClearance(a)
 	settle(a, obstacles)

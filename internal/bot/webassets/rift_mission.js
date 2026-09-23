@@ -13,7 +13,7 @@
   const preference=add('label','','',controls),automatic=add('input','rift-preview-default','',preference);automatic.type='checkbox';preference.htmlFor=automatic.id;preference.append(document.createTextNode('Open route previews by default'));
   const status=add('p','rift-mission-link-status');status.setAttribute('role','status');
   const details=add('details','rift-mission-preview');add('summary','','Three-room route and terrain',details);
-  add('p','','Top-down terrain: solid blocks are low cover; outlined zones are hazards. Walk above or below cover, or jump it. Hazard timing continues during combat.',details);
+  add('p','','Top-down terrain: pale blocks are low cover; brown barricades are breakable wood; gray blocks are tall stone or permanent cover; outlined zones are hazards. Jump low cover or walk around tall cover. Hazard timing continues during combat.',details);
   const route=add('div','rift-room-previews','',details);
   $('rift-campaign').append(section);
   try{automatic.checked=localStorage.getItem('riftPreviewOpen')==='true';}catch(_){}details.open=automatic.checked;
@@ -53,13 +53,13 @@
     else if(!invalid)status.textContent='Share this mission without including character or account details.';
     route.replaceChildren();
     level.rooms.forEach((room,index)=>{
-      const obstacles=room.obstacles||[],zones=room.hazards||[];
+      const obstacles=room.obstacles||[],zones=room.hazards||[],tall=room.high_cover||[],materials=room.cover||[];
       const card=add('article','','',route);add('h4','','Tier '+(index+1)+' · '+room.name,card);
       if(known){const encounter=room.encounter;add('p','','Planned defenders: '+encounter.enemies+(room.objective==='survive_waves'?' across three waves':index===2?' (includes the guardian)':'')+' · Health ×'+encounter.health_multiplier.toFixed(3)+' · Damage ×'+encounter.damage_multiplier.toFixed(3),card);}
-      const terrainSummary=obstacles.length+' cover '+(obstacles.length===1?'block':'blocks')+' · '+zones.length+' hazard '+(zones.length===1?'zone':'zones');
+      const terrainSummary=obstacles.length+' low cover · '+tall.length+' tall cover · '+materials.filter(c=>c.material==='wood').length+' wooden barricades · '+materials.filter(c=>c.material==='stone').length+' stone blocks · '+zones.length+' hazard '+(zones.length===1?'zone':'zones');
       const svg=document.createElementNS(namespace,'svg');svg.setAttribute('viewBox','0 300 1600 210');svg.setAttribute('role','img');svg.setAttribute('aria-label',room.name+': '+terrainSummary);card.append(svg);
-      const rectangle=(terrain,kind)=>{const rect=document.createElementNS(namespace,'rect');for(const [attribute,value] of Object.entries({x:terrain.x,y:terrain.y,width:terrain.w,height:terrain.h}))rect.setAttribute(attribute,value);rect.dataset.terrain=kind;const title=document.createElementNS(namespace,'title');title.textContent=kind==='cover'?'Low cover':terrain.kind+' hazard';rect.append(title);svg.append(rect);};
-      zones.forEach(hazard=>rectangle(hazard,'hazard'));obstacles.forEach(obstacle=>rectangle(obstacle,'cover'));
+      const rectangle=(terrain,kind)=>{const rect=document.createElementNS(namespace,'rect');for(const [attribute,value] of Object.entries({x:terrain.x,y:terrain.y,width:terrain.w,height:terrain.h}))rect.setAttribute(attribute,value);rect.dataset.terrain=kind;const title=document.createElementNS(namespace,'title');title.textContent=kind==='cover'?'Low cover':kind==='wood'?'Breakable wood: '+terrain.hp+' / '+terrain.max_hp:kind==='stone'?'Permanent stone: blocks movement and projectiles':kind==='tall'?'Permanent tall cover':terrain.kind+' hazard';rect.append(title);svg.append(rect);};
+      zones.forEach(hazard=>rectangle(hazard,'hazard'));obstacles.forEach(obstacle=>rectangle(obstacle,'cover'));tall.forEach(obstacle=>rectangle(obstacle,'tall'));materials.forEach(cover=>rectangle(cover,cover.material));
       const hazards=[...new Set(zones.map(hazard=>hazard.kind))];add('p','',terrainSummary+' · '+(hazards.join(', ')||'No hazards'),card);
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
       const objectives={

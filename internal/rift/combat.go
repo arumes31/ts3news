@@ -661,6 +661,7 @@ func (r *Run) tick(in Input, dt float64) {
 				}
 			}
 		}
+		r.attackTerrainCover(r.Build.Damage * (1 + float64(r.Combo-1)*.2))
 	}
 	if in.Skill != "" && !p.Guard {
 		r.cast(in.Skill)
@@ -684,13 +685,9 @@ func (r *Run) tick(in Input, dt float64) {
 			r.event("projectile_expire", shot.X, shot.Y, 0)
 			continue
 		}
-		impact := 2.0
-		for _, wall := range r.Arena().HighCover {
-			if t, hit := obstacleImpact(fromX, fromY, shot.X, shot.Y, wall); hit {
-				impact = math.Min(impact, t)
-			}
-		}
+		impact, coverIndex := r.projectileCoverImpact(fromX, fromY, shot.X, shot.Y)
 		if impact <= 1 {
+			r.damageTerrainCover(coverIndex, shot.Power)
 			r.event("projectile_impact", fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact, 0)
 			continue
 		}

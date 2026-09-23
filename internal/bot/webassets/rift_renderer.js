@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -76,7 +76,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator','spirit','cage','lantern'];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator','spirit','cage','lantern','terrainCover'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -1103,10 +1103,20 @@
     if(run.room_objective?.kind==='escort_spirit')units.push(run.room_objective.escort);
     if(run.build?.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build?.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
+    (arena?.cover||[]).forEach(c=>units.push({y:c.y+c.h,terrain:c}));
     (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));
     for(const pickup of (run.room_objective?.kind==='sigils'?run.room_objective.pickups:[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
+      if(unit.terrain){
+        const c=unit.terrain,broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
+        // Tight source bounds align the generated sprites to the actual footprint.
+        const frames=[[48,107,542,434],[676,107,541,434],[16,906,600,242],[657,733,574,399]],frame=frames[index],width=c.w+12,height=broken?30:c.h+74;
+        ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(c.x+c.w/2-camera,c.y+c.h-2,c.w*.56,7,0,0,Math.PI*2);ctx.fill();
+        ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);
+        if(!display.cleanScreenshot&&!broken){const dx=c.x+c.w/2-run.player.x,dy=c.y+c.h/2-run.player.y,targeted=Math.abs(dx)<150&&Math.abs(dy)<65&&dx*run.player.facing>=-8;if(targeted){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#f5e4c3';ctx.strokeStyle='#201a14';ctx.lineWidth=3;const label=c.material==='stone'?'STONE · PERMANENT':'WOOD '+Math.ceil(c.hp)+' / '+c.max_hp;ctx.strokeText(label,c.x+c.w/2-camera,c.y+c.h-height-13);ctx.fillText(label,c.x+c.w/2-camera,c.y+c.h-height-13);if(c.material==='wood'){ctx.fillStyle='#30241b';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w,4);ctx.fillStyle='#dca766';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w*c.hp/c.max_hp,4);}}}
+        return;
+      }
       if(unit.relic){ctx.drawImage(images.relic,unit.relic.x-camera-24,unit.relic.y-45,48,48);return;}
       if(unit.sigil){drawSigil(unit.sigil);return;}
       if(!unit.cover){actor(unit,wallNow);return;}

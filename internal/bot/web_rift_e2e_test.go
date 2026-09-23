@@ -235,6 +235,27 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if scenario := r.URL.Query().Get("scenario"); scenario == "terrain-cover" || scenario == "terrain-projectile" || scenario == "terrain-stone-projectile" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("terrain-cover", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Level.Rooms[0] = rift.Arena{Name: "Cover workshop", Cover: []rift.TerrainCover{
+				{Obstacle: rift.Obstacle{X: 300, Y: 380, W: 80, H: 40}, ID: "wood-workshop", Material: "wood", HP: 60, MaxHP: 60},
+				{Obstacle: rift.Obstacle{X: 650, Y: 380, W: 80, H: 40}, ID: "stone-workshop", Material: "stone"},
+			}}
+			run.Enemies = []rift.Actor{{ID: "watcher", Name: "Watcher", Kind: "goblin", X: 1450, Y: 485, HP: 100, MaxHP: 100, Knockdown: 1000}}
+			run.Drops = []rift.Drop{{ID: "behind-wood", X: 410, Y: 410, Gold: 15}}
+			if scenario == "terrain-projectile" {
+				run.Projectiles = []rift.Projectile{{X: 160, Y: 410, VX: 350, Life: 4, Power: 80, Kind: "fire"}}
+			}
+			if scenario == "terrain-stone-projectile" {
+				run.Projectiles = []rift.Projectile{{X: 900, Y: 410, VX: -350, Life: 4, Power: 80, Kind: "fire", Enemy: true}}
+			}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if scenario := r.URL.Query().Get("scenario"); scenario == "split-defense" || scenario == "split-defense-failure" {
 			mu.Lock()
 			now := time.Now()
