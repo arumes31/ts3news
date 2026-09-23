@@ -495,7 +495,7 @@ func (r *Run) Step(in Input, now time.Time) {
 	dt := math.Max(0, math.Min(.2, float64(now.UnixMilli()-r.LastMS)/1000))
 	r.Catchup = dt > 1.0/15
 	r.LastMS = max(r.LastMS, now.UnixMilli())
-	r.SavedAtMS = now.UnixMilli()
+	r.SavedAtMS = r.LastMS
 	r.Floor = r.FloorMaterial()
 	if r.Paused || (r.Status != "fighting" && r.Status != "cleared") {
 		return
