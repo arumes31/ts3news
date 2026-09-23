@@ -411,6 +411,8 @@
     const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
     put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
+    const reaction=$('rift-elemental-reaction');reaction.hidden=run.build.class!=='elementalist';
+    if(!reaction.hidden)put(reaction,marked&&run.resource>0?'Reaction armed: a charged finisher hitting '+marked.name+' deals ×1.2 damage before defenses.':'Reaction setup: mark an enemy with your builder, then hit it with a charged finisher.');
     const pack=$('rift-pack-target');pack.hidden=run.build.class!=='beastmaster';
     if(!pack.hidden)put(pack,marked?'Pack target: '+marked.name+'. Face and line up your shot; it hits the first enemy in that lane.':'Pack target: none. Land a builder hit to direct the pack.');
     const precision=$('rift-precision-state');precision.hidden=run.build.class!=='marksman';

@@ -90,6 +90,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 		case "elementalist":
 			if marked == e.ID {
 				damage *= 1.2
+				r.eventAtHeight("elemental_reaction", e.X, e.Y-45, 20, e.Elevation)
 			}
 		case "oracle":
 			damage *= 1.15
