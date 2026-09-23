@@ -11,6 +11,9 @@ type EnemyTrainingProfile struct {
 func EnemyTraining(kind string) EnemyTrainingProfile {
 	boss := kind == "boss"
 	windup := .55
+	if kind == "treasure" {
+		windup = 0
+	}
 	if boss {
 		windup = 1.15
 	}

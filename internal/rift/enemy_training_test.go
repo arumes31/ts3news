@@ -11,6 +11,9 @@ func TestEnemyTrainingMatchesActualWindupAndResistance(t *testing.T) {
 			r.Player.X = 60
 		}
 		r.enemyTick(0, .01)
+		if kind == "treasure" && (r.Enemies[0].HP != 0 || r.Enemies[0].Pose != "escape") {
+			t.Fatal("treasure must escape at the boundary instead of winding up")
+		}
 		profile := EnemyTraining(kind)
 		if r.Enemies[0].Windup != profile.WindupSeconds {
 			t.Fatalf("%s windup drift: %v versus %v", kind, r.Enemies[0].Windup, profile.WindupSeconds)

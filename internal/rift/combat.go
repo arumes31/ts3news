@@ -980,6 +980,8 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	r.event(kind, p.X, p.Y-30, damage)
 }
 
+const treasureEscapeMargin = 55.0
+
 func (r *Run) enemyTick(i int, dt float64) {
 	if r.Practice != nil && r.Enemies[i].ID == "practice-target" {
 		e := &r.Enemies[i]
@@ -1028,10 +1030,17 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
-	if e.Kind == "treasure" && math.Abs(dx) < 240 && e.X > 55 && e.X < Width-55 {
+	if e.Kind == "treasure" && (e.X <= treasureEscapeMargin || e.X >= Width-treasureEscapeMargin) {
+		r.escapeEnemy(i)
+		return
+	}
+	if e.Kind == "treasure" && math.Abs(dx) < 240 {
 		e.Facing = -math.Copysign(1, dx)
 		r.moveActor(e, -math.Copysign(e.Speed*dt, dx), 0, true)
 		e.Pose = "run"
+		if e.X <= treasureEscapeMargin || e.X >= Width-treasureEscapeMargin {
+			r.escapeEnemy(i)
+		}
 		return
 	}
 	if dx != 0 {
