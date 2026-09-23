@@ -26,13 +26,13 @@ func (a Arena) tallObstacles() []Obstacle {
 	return walls
 }
 
-func (r *Run) damageTerrainCover(index int, damage float64) {
+func (r *Run) damageTerrainCover(index int, damage float64) float64 {
 	if r.Level == nil || index < 0 || index >= len(r.Level.Rooms[r.Room].Cover) || damage <= 0 || math.IsNaN(damage) || math.IsInf(damage, 0) {
-		return
+		return 0
 	}
 	c := &r.Level.Rooms[r.Room].Cover[index]
 	if c.Material != "wood" || c.HP <= 0 {
-		return
+		return 0
 	}
 	dealt := math.Min(c.HP, damage)
 	c.HP -= dealt
@@ -41,6 +41,7 @@ func (r *Run) damageTerrainCover(index int, damage float64) {
 		kind = "cover_break"
 	}
 	r.event(kind, c.X+c.W/2, c.Y+c.H/2, dealt)
+	return dealt
 }
 
 // projectileCoverImpact selects the first wall, never a farther destructible prop.
@@ -97,5 +98,14 @@ func (r *Run) attackTerrainCover(damage float64) {
 			nearest, index = distance, i
 		}
 	}
-	r.damageTerrainCover(index, damage)
+	if r.damageTerrainCover(index, damage) > 0 {
+		c := arena.Cover[index]
+		r.geomancerTerrainCue(c.X+c.W/2, c.Y+c.H/2)
+	}
+}
+
+func (r *Run) geomancerTerrainCue(x, y float64) {
+	if r.Build.Class == "geomancer" {
+		r.event("geomancer_terrain", x, y, 0)
+	}
 }

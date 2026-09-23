@@ -1810,6 +1810,9 @@
           ctx.restore();
         }
       }
+      if(e.kind==='geomancer_terrain'){
+        const radius=renderer.reduced?28:12+age*48*motion;ctx.save();ctx.strokeStyle='#e7c18b';ctx.globalAlpha=Math.max(0,1-age);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,radius,radius*.4,0,0,Math.PI*2);ctx.moveTo(e.x-camera-8,e.y);ctx.lineTo(e.x-camera,e.y-9);ctx.lineTo(e.x-camera+8,e.y);ctx.lineTo(e.x-camera,e.y+9);ctx.closePath();ctx.stroke();ctx.restore();
+      }
       if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
       if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){

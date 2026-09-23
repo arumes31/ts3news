@@ -733,6 +733,9 @@ func (r *Run) tick(in Input, dt float64) {
 		impact, coverIndex := r.projectileCoverImpact(fromX, fromY, shot.X, shot.Y)
 		if impact <= 1 {
 			r.damageTerrainCover(coverIndex, shot.Power)
+			if !shot.Enemy {
+				r.geomancerTerrainCue(fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact)
+			}
 			r.eventAtHeight("projectile_impact", fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact, 0, shot.Elevation)
 			continue
 		}

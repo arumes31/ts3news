@@ -469,6 +469,7 @@
       case 'rune_wrong': t(240,120,.35,.05,'triangle'); break;
       case 'rune_gate_open': [523,659,784,1047].forEach((f,i)=>t(f,f,.6,.045,'sine',i*.12)); break;
       case 'projectile_impact': h(.12,.065,2600,pan); t(260,120,.12,.04,'triangle'); break;
+      case 'geomancer_terrain': t(110,45,.28,.08,'triangle');h(.2,.055,850,pan);break;
       case 'cover_hit': h(.13,.07,1200,pan); t(140,85,.13,.055,'triangle'); break;
       case 'ledge_drop': h(.12,.13,450,pan); t(220,95,.12,.035,'triangle'); break;
       case 'cover_break': h(.5,.16,1800,pan); t(180,45,.4,.08,'triangle'); break;
