@@ -585,6 +585,7 @@ func (r *Run) tick(in Input, dt float64) {
 			r.SkillTimers = map[string]float64{}
 		}
 		r.SkillTimers["perfect_guard"] = .22
+		delete(r.SkillTimers, "vanguard_guard_reward")
 	} else if !p.Guard && r.SkillTimers != nil {
 		delete(r.SkillTimers, "perfect_guard")
 	}

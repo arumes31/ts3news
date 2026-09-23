@@ -1,9 +1,11 @@
 package rift
 
 func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
+	guards := r.Stats.Guards
 	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
 	r.hurtPlayer(damage, x, y)
+	r.rewardVanguardGuard(guards)
 	r.Stats.EnemyDamageTaken += r.Stats.DamageTaken - before
 	if !alive || r.Player.HP > 0 || ownerID == "" {
 		return

@@ -441,7 +441,7 @@
     put(node.querySelector('strong'),(current.class_name||current.class||'Adventurer')+' · Combat primer');
     const key=skill=>controls.label('signature'+signatures.indexOf(skill));
     const copy=builder&&finisher?'Use '+builder.name+' ('+key(builder)+') to build up to three '+(current.resource||'class')+' charges, then spend them with '+finisher.name+' ('+key(finisher)+').':builder?'Use '+builder.name+' ('+key(builder)+') to build class charges. Unlock your finisher in Abyss.':finisher?'Your finisher is '+finisher.name+' ('+key(finisher)+'). Equip a builder in Abyss to gain charges.':'Class abilities unlock through Abyss progression. Use basic attacks and your equipped skills.';
-    put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.');
+    put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.'+(current.class==='vanguard'?' Perfect-guard an enemy attack to gain one charge per guard raise (maximum three).':'' ));
   }
   function loadout(){
     classPrimer();
