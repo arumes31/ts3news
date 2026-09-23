@@ -431,6 +431,15 @@
     const costWarning=$('rift-health-cost-warning');costWarning.hidden=run.build.class!=='voidwalker'||!finisher||!(run.resource>0)||run.player.hp<=0;
     if(!costWarning.hidden){const after=run.player.hp-window.RiftAbilities.healthCost(run,finisher),low=after<=run.player.max_hp*.25;attr(costWarning,'data-low',String(low));put(costWarning,(low?'Low-health cast: ':'Charged finisher: ')+run.player.hp.toFixed(1)+' → '+after.toFixed(1)+' HP. Self-cost stops at 1 HP; incoming damage can still defeat you.');}
     const builder=run.build.signatures?.find(s=>s.role==='builder');
+    const mixture=$('rift-alchemist-sequence');mixture.hidden=run.build.class!=='alchemist';
+    if(!mixture.hidden){
+      if(!builder||!finisher)put(mixture,'Mixture sequence: equip both your class builder and finisher in Abyss.');
+      else{const signatures=run.build.signatures,key=s=>window.RiftControls.label('signature'+signatures.indexOf(s)),charges=run.resource||0,buildStep=builder.name+' ('+key(builder)+')',finishStep=finisher.name+' ('+key(finisher)+')';
+        const next=charges===0?'Start with '+buildStep+'.':charges<3?'Build again with '+buildStep+' or spend with '+finishStep+'.':'Mixture full: spend with '+finishStep+'.';
+        const target=marked?'Marked target: '+marked.name+'. Charged burst adds 35 percentage points of armor piercing against it (100% total cap).':'Land a builder hit to mark a target for the charged burst’s piercing bonus.';
+        put(mixture,'Mixture '+charges+'/3 · '+next+' '+(charges>0?'Spending now restores up to '+Number((charges*3).toFixed(0))+'% maximum HP, capped at full health. ':'')+target);
+      }
+    }
     coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     const relic=$('rift-relic-synergy');relic.hidden=run.build.class!=='runesmith';
