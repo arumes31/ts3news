@@ -306,6 +306,17 @@
     }
     ctx.restore();
   }
+  const hazardLegend=document.querySelector('#rift-hazard-legend dl');
+  if(hazardLegend){
+    for(const profile of Object.values(hazardPatternProfiles)){
+      const name=document.createElement('dt'),sample=document.createElement('canvas'),description=document.createElement('dd');
+      sample.width=84;sample.height=36;sample.dataset.kind=profile.kind;sample.setAttribute('aria-hidden','true');
+      const sampleContext=sample.getContext('2d');sampleContext.fillStyle='#000000';sampleContext.fillRect(0,0,84,36);
+      sampleContext.save();sampleContext.beginPath();sampleContext.rect(0,0,84,36);sampleContext.clip();drawHazardPattern(sampleContext,profile.kind,0,0,84,36,false,'#ffffff');sampleContext.restore();
+      name.append(sample,document.createTextNode(profile.kind.charAt(0).toUpperCase()+profile.kind.slice(1)));description.textContent=profile.label;
+      hazardLegend.append(name,description);
+    }
+  }
   const baseImages = Promise.all(criticalAtlasKeys.map(key => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
