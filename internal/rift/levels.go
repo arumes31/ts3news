@@ -125,7 +125,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol"
 			}
 			if layout == 3 {
-				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds"
+				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds. Tier 3: linked hazards pulse one at a time from left to right"
 			}
 			if layout == 4 {
 				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements"
@@ -223,6 +223,21 @@ func Campaign() []Level {
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
 					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Jumpable: true, Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
+				}
+				if layout == 3 && room == 2 {
+					slices.SortFunc(arena.Hazards, func(a, b Hazard) int {
+						if a.X < b.X {
+							return -1
+						}
+						if a.X > b.X {
+							return 1
+						}
+						return 0
+					})
+					period := arena.Hazards[0].Period
+					for index := range arena.Hazards {
+						arena.Hazards[index].Offset = math.Mod(period-float64(index)*period/float64(len(arena.Hazards)), period)
+					}
 				}
 				if layout == 1 && room == 0 {
 					arena.Platforms = []RaisedPlatform{{Obstacle: Obstacle{180, 360, 180, 100}, ID: fmt.Sprintf("mission-%d-platform", id), Rise: 16, Ramp: 24, Floor: "stone"}}
