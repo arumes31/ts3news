@@ -88,7 +88,7 @@ type Actor struct {
 // HurtCue returns the creature-family hurt audio cue identifier.
 func (a Actor) HurtCue() string {
 	switch a.Kind {
-	case "totem", "generator":
+	case "totem", "generator", "cage":
 		return a.Kind + "_hurt"
 	case "goblin", "knight", "archer", "treasure", "boss", "wolf", "spore":
 		return a.Kind + "_hurt"
@@ -965,6 +965,8 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			r.event(e.Kind+"_break", e.X, e.Y, 0)
 			if e.Kind == "generator" {
 				r.disableGenerator(e.ID)
+			} else if e.Kind == "cage" {
+				r.updateRescueObjective()
 			} else {
 				r.updateTotemObjective()
 			}

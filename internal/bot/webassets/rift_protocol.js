@@ -33,7 +33,8 @@
   const ritualObjective=value=>object(value)&&value.kind==='interrupt_ritual'&&text(value.name)&&text(value.description)&&Number.isInteger(value.target)&&value.target>=1&&value.target<=3&&Number.isInteger(value.collected)&&value.collected>=0&&value.collected<=value.target&&value.complete===(value.collected===value.target)&&list(value.channels,c=>object(c)&&text(c.enemy_id)&&c.enemy_id.length>0&&nonnegative(c.seconds)&&c.seconds<8)&&value.channels.length===value.target&&new Set(value.channels.map(c=>c.enemy_id)).size===value.target;
   const collapseObjective=value=>object(value)&&value.kind==='escape_collapse'&&text(value.name)&&text(value.description)&&value.target===1&&[0,1].includes(value.collected)&&value.complete===(value.collected===1)&&nonnegative(value.seconds)&&nonnegative(value.collapse_hit_cooldown)&&value.collapse_hit_cooldown<=1&&nonnegative(value.collapse_x)&&Math.abs(value.collapse_x-Math.min(1600,Math.max(0,value.seconds-3)*90))<.000001&&point(value.zone)&&value.zone.x>=1400&&value.zone.x<=1500&&value.zone.y>=300&&value.zone.y<=490&&value.zone.radius_x===45&&value.zone.radius_y===28;
   const guardianObjective=value=>object(value)&&value.kind==='linked_guardians'&&text(value.name)&&text(value.description)&&value.target===2&&Number.isInteger(value.collected)&&value.collected>=0&&value.collected<=2&&value.complete===(value.collected===2)&&typeof value.bond_active==='boolean'&&(!value.complete||!value.bond_active)&&list(value.targets,id=>text(id)&&id.length>0)&&value.targets.length===2&&new Set(value.targets).size===2;
-  const roomObjective=value=>guardianObjective(value)||collapseObjective(value)||ritualObjective(value)||escortObjective(value)||beaconObjective(value)||huntObjective(value)||generatorObjective(value)||relicObjective(value)||totemObjective(value)||sigilObjective(value)||circleObjective(value)||waveObjective(value);
+  const rescueObjective=value=>object(value)&&value.kind==='rescue_companions'&&text(value.name)&&text(value.description)&&value.target===2&&Number.isInteger(value.collected)&&value.collected>=0&&value.collected<=2&&value.complete===(value.collected===2)&&list(value.captives,c=>point(c)&&text(c.name)&&text(c.cage_id)&&c.cage_id.length>0&&typeof c.freed==='boolean'&&nonnegative(c.freed_at)&& (c.freed||c.freed_at===0))&&value.captives.length===2&&new Set(value.captives.map(c=>c.cage_id)).size===2&&value.captives.filter(c=>c.freed).length===value.collected;
+  const roomObjective=value=>rescueObjective(value)||guardianObjective(value)||collapseObjective(value)||ritualObjective(value)||escortObjective(value)||beaconObjective(value)||huntObjective(value)||generatorObjective(value)||relicObjective(value)||totemObjective(value)||sigilObjective(value)||circleObjective(value)||waveObjective(value);
   function generatorLinks(run){
     if(run.room_objective?.kind!=='disable_generators')return true;
     const hazards=run.level?.rooms?.[run.room]?.hazards;
@@ -46,6 +47,12 @@
     if(!huntObjective(goal)||!list(run.enemies,actor))return false;
     const targets=goal.targets.map(id=>run.enemies.filter(e=>e.id===id));
     return targets.every(matches=>matches.length===1&&!['treasure','totem','generator'].includes(matches[0].kind))&&targets.filter(matches=>matches[0].hp===0&&matches[0].pose!=='escape').length===goal.collected;
+  }
+  function rescueCages(run){
+    const goal=run.room_objective;if(goal?.kind!=='rescue_companions')return true;
+    if(!rescueObjective(goal)||!list(run.enemies,actor))return false;
+    const cages=run.enemies.filter(e=>e.kind==='cage');
+    return cages.length===2&&goal.captives.every(c=>c.freed_at<=run.clock&&cages.filter(e=>e.id===c.cage_id&&e.x===c.x&&e.y===c.y&&(e.hp===0)===c.freed).length===1);
   }
   function guardianTargets(run){
     const goal=run.room_objective;if(goal?.kind!=='linked_guardians')return true;
@@ -68,7 +75,7 @@
     return text(value.id)&&value.id.length>0&&Number.isInteger(value.revision)&&value.revision>=0&&
       Number.isInteger(value.room)&&value.room>=0&&value.room<3&&typeof value.paused==='boolean'&&
       (value.room_objective?.kind!=='destroy_totems'||list(value.enemies,actor)&&value.enemies.filter(e=>e.kind==='totem').length===3&&new Set(value.enemies.filter(e=>e.kind==='totem').map(e=>e.id)).size===3&&value.enemies.filter(e=>e.kind==='totem'&&e.hp===0).length===value.room_objective.collected)&&
-      guardianTargets(value)&&ritualTargets(value)&&huntTargets(value)&&generatorLinks(value)&&build(value.build)&&actor(value.player)&&nonnegative(value.player.mana)&&list(value.enemies,actor)&&
+      rescueCages(value)&&guardianTargets(value)&&ritualTargets(value)&&huntTargets(value)&&generatorLinks(value)&&build(value.build)&&actor(value.player)&&nonnegative(value.player.mana)&&list(value.enemies,actor)&&
       list(value.projectiles,projectile)&&list(value.drops,drop)&&optionalList(value.events,event)&&
       list(value.banked_items,text)&&optionalList(value.banked_loot,item=>object(item)&&text(item.name)&&Number.isSafeInteger(item.rarity)&&item.rarity>=0)&&(value.banked_at_ms===undefined||Number.isSafeInteger(value.banked_at_ms)&&value.banked_at_ms>=0&&value.banked_at_ms<=8640000000000000)&&nonnegative(value.gold)&&nonnegative(value.banked_gold)&&nonnegative(value.clock)&&nonnegative(value.counter)&&
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&

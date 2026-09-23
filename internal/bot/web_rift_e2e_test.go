@@ -219,6 +219,22 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "rescue" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("rescue-room", selectedBuild, now, riftMobCatalog(now), 7)
+			run.Level.Rooms[0].Hazards = nil
+			for i := range run.Enemies {
+				if run.Enemies[i].Kind != "cage" {
+					run.Enemies[i].HP = 0
+				}
+			}
+			run.Player.X, run.Player.Y = 430, 330
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "guardians" {
 			mu.Lock()
 			now := time.Now()

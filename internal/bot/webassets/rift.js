@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='linked_guardians'){
+    if(roomGoal?.kind==='rescue_companions'){
+      const ended=!['fighting','cleared'].includes(run.status),captives=roomGoal.captives.filter(c=>!c.freed);
+      put($('rift-room-objective-progress'),'Companions '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Rescued':gamePaused?'Paused':'Break the cages'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Companions rescued. Clear the remaining patrol and bank the loot.':'Attacks and spells break the cages without harming the captive spirits. Cages grant no monster kills or loot.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':captives.map(c=>c.name+': '+(c.x<run.player.x?'left':'right')+(Math.abs(c.y-run.player.y)<24?'':c.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='linked_guardians'){
       const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
       put($('rift-room-objective-progress'),'Guardians '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Defeated':gamePaused?'Paused':roomGoal.bond_active?'Linked · 50% damage reduction':'Bond broken'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Guardians defeated. Clear the remaining patrol and bank the loot.':'Separate the guardians by more than 240 units or defeat one to remove their protection. They can reform the bond when close together.');

@@ -116,7 +116,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 1: separate linked guardians to remove their damage protection. Tier 2: destroy three ritual totems and defeat the patrol"
 			}
 			if layout == 6 {
-				level.Tactic += ". Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
+				level.Tactic += ". Tier 1: break both cages to rescue captive companions. Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
 			}
 			if layout == 7 {
 				level.Tactic += ". Tier 2: destroy the generators to shut down linked floor hazards"
@@ -152,6 +152,9 @@ func Campaign() []Level {
 				}
 				if layout == 5 && room == 1 {
 					arena.Objective = "destroy_totems"
+				}
+				if layout == 6 && room == 0 {
+					arena.Objective = "rescue_companions"
 				}
 				if layout == 6 && room == 1 {
 					arena.Objective = "carry_relic"
@@ -419,6 +422,9 @@ func (r *Run) clearPursuitPath(from, to *Actor) bool {
 
 // knockbackActor uses short sweeps so an impulse cannot skip a thin obstacle.
 func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
+	if a.Kind == "cage" {
+		return
+	}
 	a.RouteX, a.RouteY = 0, 0
 	steps := max(1, int(math.Ceil(math.Hypot(dx, dy)/8)))
 	for range steps {

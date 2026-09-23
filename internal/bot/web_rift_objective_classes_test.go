@@ -676,3 +676,45 @@ func TestRiftLinkedGuardiansSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftRescueRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Breaker", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-rescue", build, now, catalog, 7)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				run.Level.Rooms[0].Hazards = nil
+				run.Level.Rooms[0].Obstacles = nil
+				run.Level.Rooms[0].HighCover = nil
+				for i := range run.Enemies {
+					if run.Enemies[i].Kind != "cage" {
+						run.Enemies[i].HP = 0
+					}
+				}
+				for i := range run.Enemies {
+					target := &run.Enemies[i]
+					if target.Kind != "cage" {
+						continue
+					}
+					for n := 0; n < 1000 && target.HP > 0; n++ {
+						dx, dy := target.X-30-run.Player.X, target.Y-run.Player.Y
+						input := rift.Input{Attack: true}
+						if math.Abs(dx) > 5 {
+							input.X = math.Copysign(1, dx)
+						}
+						if math.Abs(dy) > 5 {
+							input.Y = math.Copysign(1, dy)
+						}
+						step(input)
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != 0 || len(run.Drops) != 0 {
+					t.Fatal("subclass prop completion or reward isolation failed")
+				}
+			})
+		}
+	}
+}

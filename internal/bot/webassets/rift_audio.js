@@ -455,6 +455,10 @@
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
       case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
+      case 'cage_hurt': t(520,180,.16,.045,'triangle'); break;
+      case 'cage_break': t(330,80,.35,.06,'triangle'); break;
+      case 'companion_freed': [523,784].forEach((f,i)=>t(f,f,.55,.045,'sine',i*.13)); break;
+      case 'rescue_complete': [523,659,1047].forEach((f,i)=>t(f,f,.65,.045,'sine',i*.16)); break;
       case 'guardian_linked': t(330,660,.45,.05,'triangle'); break;
       case 'guardian_unlinked': t(660,220,.4,.05,'sine'); break;
       case 'guardians_defeated': [440,660,880].forEach((f,i)=>t(f,f,.5,.045,'sine',i*.13)); break;

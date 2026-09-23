@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -76,7 +76,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator','spirit'];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator','spirit','cage'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -376,6 +376,24 @@
       if(!goal.complete){ctx.setLineDash([4,6]);ctx.beginPath();ctx.ellipse(x,y,150,90,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
       ctx.drawImage(images.spirit,x-43,y-104+bob,86,108);
       if(!display.cleanScreenshot){ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle=goal.contested?'#ffdb9a':'#d5ffea';ctx.strokeStyle='#10251d';ctx.lineWidth=4;const label=!['fighting','cleared'].includes(snapshot.status)?'ESCORT ENDED':goal.complete?'SPIRIT SAFE':goal.contested?'CLEAR NEARBY ENEMIES':goal.escort_moving?'FOLLOWING YOU':'STAY NEAR THE SPIRIT';ctx.strokeText(label,x,y-110);ctx.fillText(label,x,y-110);}
+      ctx.restore();return;
+    }
+    if(unit.kind==='cage'){
+      const captive=snapshot.room_objective?.captives?.find(c=>c.cage_id===unit.id);if(!captive)return;
+      const x=unit.x-camera,y=unit.y,age=captive.freed?Math.max(0,snapshot.clock-captive.freed_at):0;
+      if(captive.freed&&age>=3)return;
+      ctx.save();
+      if(captive.freed)ctx.globalAlpha=Math.max(0,1-age/3);
+      const rise=captive.freed&&!renderer.reduced?age*30*motion:0;
+      ctx.drawImage(images.spirit,x-27,y-76-rise,54,70);
+      if(!captive.freed){
+        const shake=unit.pose==='hit'&&unit.pose_time>0&&!renderer.reduced?Math.sin(animationTime/25)*2*motion:0;
+        ctx.drawImage(images.cage,x-37+shake,y-105,74,111);
+      }
+      if(!display.cleanScreenshot){
+        ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#d5ffea';ctx.strokeStyle='#10251d';ctx.lineWidth=3;const label=captive.freed?'FREE · '+captive.name:captive.name+' · BREAK CAGE';ctx.strokeText(label,x,y-121-rise);ctx.fillText(label,x,y-121-rise);
+        if(!captive.freed){ctx.fillStyle='#241d30';ctx.fillRect(x-25,y-114,50,5);ctx.fillStyle='#a9e5ff';ctx.fillRect(x-25,y-114,50*unit.hp/unit.max_hp,5);}
+      }
       ctx.restore();return;
     }
     if(unit.kind==='totem'||unit.kind==='generator'){

@@ -63,6 +63,7 @@
       const hazards=[...new Set(zones.map(hazard=>hazard.kind))];add('p','',terrainSummary+' · '+(hazards.join(', ')||'No hazards'),card);
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
       const objectives={
+        rescue_companions:'Break both cages with attacks or spells to rescue the captive spirits, then clear the patrol. Cages grant no monster kills or loot.',
         linked_guardians:'Linked guardians take 50% less damage within 240 units of each other. Separate them or defeat one to break the bond, then defeat both guardians and the patrol.',
         escape_collapse:'Escape through the exit seal before the collapse catches you. It advances after three seconds and damages fighters behind its edge. Surviving enemies grant no rewards.',
         interrupt_ritual:'Hit channelers to reset their eight-second charge. Leave their pulse rings before discharge. Defeat all channelers and the remaining patrol.',

@@ -5,7 +5,9 @@ import (
 	"math"
 )
 
-func (a Actor) isObjectiveProp() bool { return a.Kind == "totem" || a.Kind == "generator" }
+func (a Actor) isObjectiveProp() bool {
+	return a.Kind == "totem" || a.Kind == "generator" || a.Kind == "cage"
+}
 
 func (r *Run) beginGeneratorObjective() {
 	if r.Level == nil || len(r.Arena().Hazards) == 0 {
