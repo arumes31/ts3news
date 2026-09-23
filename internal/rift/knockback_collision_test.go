@@ -55,3 +55,21 @@ func TestLeftwardThirdStrikeStopsBeforeWall(t *testing.T) {
 		t.Fatal("leftward knockback crossed terrain")
 	}
 }
+
+func TestThirdStrikeKnockbackMovesAwayFromImpactSource(t *testing.T) {
+	for _, facing := range []float64{-1, 1} {
+		r := NewRunAtLevel("rear-knockback", Build{HP: 200, Damage: 10}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+		r.Status = "cleared"
+		r.Level.Rooms[0].Obstacles = nil
+		r.Player.X = 500
+		r.Player.Y = 410
+		r.Player.Facing = facing
+		r.Combo = 2
+		start := r.Player.X - facing*5
+		r.Enemies = []Actor{{ID: "rear-target", Kind: "goblin", X: start, Y: 410, HP: 1000, MaxHP: 1000}}
+		r.tick(Input{Attack: true}, 0)
+		if got, want := r.Enemies[0].X, start-facing*35; got != want {
+			t.Fatalf("facing %v: rear target x=%v, want %v away from source", facing, got, want)
+		}
+	}
+}

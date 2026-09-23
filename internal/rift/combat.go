@@ -581,7 +581,11 @@ func (r *Run) tick(in Input, dt float64) {
 							e.Knockdown = .55
 							e.Windup = 0
 							if r.Practice == nil || e.ID != "practice-target" {
-								r.knockbackActor(e, p.Facing*35, 0)
+								direction := p.Facing
+								if e.X != p.X {
+									direction = math.Copysign(1, e.X-p.X)
+								}
+								r.knockbackActor(e, direction*35, 0)
 							}
 							r.event("knockdown", e.X, e.Y, 0)
 						} else if e.Kind == "boss" {
