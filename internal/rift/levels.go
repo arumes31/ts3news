@@ -254,6 +254,14 @@ func settle(a *Actor, obstacles []Obstacle) {
 	a.Y = clamp(a.Y, 315, 490)
 }
 
+// knockbackActor uses short sweeps so an impulse cannot skip a thin obstacle.
+func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
+	steps := max(1, int(math.Ceil(math.Hypot(dx, dy)/8)))
+	for range steps {
+		r.moveActor(a, dx/float64(steps), dy/float64(steps), false)
+	}
+}
+
 func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	obstacles := r.Arena().Obstacles
 	if a.Jump > .1 {

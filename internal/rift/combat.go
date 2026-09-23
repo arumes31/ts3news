@@ -581,7 +581,7 @@ func (r *Run) tick(in Input, dt float64) {
 							e.Knockdown = .55
 							e.Windup = 0
 							if r.Practice == nil || e.ID != "practice-target" {
-								e.X = clamp(e.X+p.Facing*35, 35, Width-35)
+								r.knockbackActor(e, p.Facing*35, 0)
 							}
 							r.event("knockdown", e.X, e.Y, 0)
 						} else if e.Kind == "boss" {
