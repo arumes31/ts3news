@@ -8,6 +8,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	BossStart     *Actor  `json:"boss_start,omitempty"`
 	Dodges        int     `json:"dodges,omitempty"`
 	PulseCycle    int     `json:"pulse_cycle,omitempty"`
 	PulseHits     int     `json:"pulse_hits,omitempty"`
@@ -28,6 +29,10 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
 	}
+	return newPracticeRun(id, build, mode, now)
+}
+
+func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	r := NewRunWithCatalog(id, build, now, nil)
 	r.Practice = &PracticeState{Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: "stone"}}
 	r.Floor = "stone"
@@ -55,7 +60,16 @@ func (r *Run) ResetPractice(now time.Time) error {
 	if r.Practice == nil {
 		return errors.New("not a practice run")
 	}
-	fresh, err := NewPracticeRun(r.ID, r.Build, r.Practice.Mode, now)
+	var fresh *Run
+	var err error
+	if r.Practice.Mode == "boss" {
+		if r.Practice.BossStart == nil {
+			return errors.New("missing boss practice snapshot")
+		}
+		fresh, err = newBossPracticeSnapshot(r.ID, r.Build, *r.Practice.BossStart, now)
+	} else {
+		fresh, err = NewPracticeRun(r.ID, r.Build, r.Practice.Mode, now)
+	}
 	if err != nil {
 		return err
 	}
@@ -71,6 +85,8 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
+	case "boss":
+		return in
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
 	case "jump", "hazard":
@@ -88,6 +104,9 @@ func (r *Run) practiceTick() {
 		return
 	}
 	complete := r.Player.X >= r.Practice.GoalX
+	if r.Practice.Mode == "boss" {
+		complete = len(r.Enemies) == 1 && r.Enemies[0].HP <= 0
+	}
 	if r.Practice.Mode == "jump" {
 		complete = complete && r.Stats.Jumps > 0
 	}

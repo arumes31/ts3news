@@ -926,7 +926,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++
 		}
-		e.HP = e.MaxHP
+		if r.Practice.Mode != "boss" {
+			e.HP = e.MaxHP
+		}
 		return
 	}
 	if e.HP == 0 {
