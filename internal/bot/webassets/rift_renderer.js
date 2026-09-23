@@ -814,6 +814,11 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='arrival'){
+        const still=renderer.reduced||motion===0,radius=still?32:18+age*44;
+        ctx.save();ctx.strokeStyle='#b8f2dc';ctx.lineWidth=2;ctx.globalAlpha=still?.65:(1-age)*.8;
+        ctx.beginPath();ctx.ellipse(e.x-camera,e.y+4,radius,radius*.3,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+      }
       if(e.kind==='third_strike'){
         renderer.lastThirdStrikeAccent = { x: e.x, y: e.y, age, started: e.started };
         if(!renderer.reduced){

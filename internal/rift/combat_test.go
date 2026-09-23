@@ -1819,6 +1819,63 @@ func TestDefeatedPlayerPoseAndState(t *testing.T) {
 	})
 }
 
+func TestRespawnArrivalEventOnNewExpedition(t *testing.T) {
+	t.Run("new expedition emits arrival event in room 0", func(t *testing.T) {
+		r := NewRun("test-arrival", Build{Name: "Delver", Class: "vanguard", HP: 200}, time.Now())
+		if r.Room != 0 {
+			t.Fatalf("expected room 0, got %d", r.Room)
+		}
 
+		var arrivalEvent *Event
+		for i := range r.Events {
+			if r.Events[i].Kind == "arrival" {
+				arrivalEvent = &r.Events[i]
+				break
+			}
+		}
 
+		if arrivalEvent == nil {
+			t.Fatalf("expected arrival event in room 0, got events: %+v", r.Events)
+		}
+		if arrivalEvent.X != 160 || arrivalEvent.Y != 410 {
+			t.Fatalf("expected arrival event at (160, 410), got (%f, %f)", arrivalEvent.X, arrivalEvent.Y)
+		}
 
+		// Clear enemies to allow next room transition
+		r.Enemies = []Actor{}
+		r.Status = "cleared"
+		eventsBefore := len(r.Events)
+
+		advanced := r.NextRoom()
+		if !advanced || r.Room != 1 {
+			t.Fatalf("expected advance to room 1, got advanced=%v room=%d", advanced, r.Room)
+		}
+
+		// Verify no new arrival event is emitted in room 1
+		for _, ev := range r.Events[eventsBefore:] {
+			if ev.Kind == "arrival" {
+				t.Fatalf("did not expect arrival event in room 1, found %+v", ev)
+			}
+		}
+
+		// Starting another new expedition at level emits arrival again
+		fresh := NewRunAtLevel("fresh-expedition", Build{Name: "Delver", Class: "blade", HP: 250}, time.Now(), nil, 2)
+		arrivalCount := 0
+		var freshArrival *Event
+		for i := range fresh.Events {
+			if fresh.Events[i].Kind == "arrival" {
+				freshArrival = &fresh.Events[i]
+				arrivalCount++
+			}
+		}
+		if arrivalCount != 1 {
+			t.Fatalf("expected exactly one arrival event, got %d", arrivalCount)
+		}
+		if freshArrival == nil {
+			t.Fatalf("expected arrival event on fresh expedition, got %+v", fresh.Events)
+		}
+		if freshArrival.X != 160 || freshArrival.Y != 410 {
+			t.Fatalf("expected fresh arrival event at (160, 410), got (%f, %f)", freshArrival.X, freshArrival.Y)
+		}
+	})
+}

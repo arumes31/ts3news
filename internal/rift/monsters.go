@@ -85,6 +85,7 @@ func NewRunWithCatalog(id string, build Build, now time.Time, catalog []content.
 	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
 	r.EncounterPlan = planEncounters(id, catalog)
 	r.spawnRoom()
+	r.event("arrival", r.Player.X, r.Player.Y, 0)
 	return r
 }
 
