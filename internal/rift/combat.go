@@ -551,6 +551,9 @@ func (r *Run) tick(in Input, dt float64) {
 	if p.Guard {
 		speed = 75
 	}
+	if r.RoomObjective != nil && r.RoomObjective.Kind == "carry_relic" && r.RoomObjective.Carrying {
+		speed *= .7
+	}
 	x, y := in.X, in.Y
 	length := math.Hypot(x, y)
 	if length > 1 {

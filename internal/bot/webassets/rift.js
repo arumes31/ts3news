@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='destroy_totems'){
+    if(roomGoal?.kind==='carry_relic'){
+      const ended=!['fighting','cleared'].includes(run.status),target=roomGoal.carrying?roomGoal.zone:roomGoal.relic;
+      put($('rift-room-objective-progress'),'Relic · '+(ended?'Expedition ended':roomGoal.complete?'Delivered':roomGoal.carrying?'Carrying · 30% slower':'Find the relic')+(gamePaused&&!ended&&!roomGoal.complete?' · Paused':''));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Movement restored. Defeat the patrol to secure this tier.':'Relic delivered and patrol cleared. Bank the tier loot to continue.'):roomGoal.carrying?'Carry it to the exit seal. Attacks and jumps remain available. Land inside the seal to deliver.':'Walk over the relic to pick it up. Carrying reduces movement speed by 30%.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':(roomGoal.carrying?'Exit seal: ':'Relic: ')+(target.x<run.player.x?'left':'right')+(Math.abs(target.y-run.player.y)<24?'':target.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='destroy_totems'){
       const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='totem'&&e.hp>0),patrol=run.enemies.filter(e=>e.kind!=='totem'&&e.hp>0).length;
       put($('rift-room-objective-progress'),'Totems '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'Shattered':'Destroy the ritual props'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(patrol?'Defeat the remaining patrol to secure this tier.':'All totems and defenders cleared. Bank the tier loot to continue.'):'Use attacks or damaging spells. Totems do not grant monster loot or kill credit.');

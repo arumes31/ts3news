@@ -295,3 +295,46 @@ func TestRiftTotemRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftRelicRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Carrier", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-relic", build, now, catalog, 7)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				run.Level.Rooms[1].Hazards = nil
+				run.Level.Rooms[1].Obstacles = nil
+				run.Level.Rooms[1].HighCover = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for n := 0; n < 1500 && !run.RoomObjective.Complete; n++ {
+					x, y := run.RoomObjective.Relic.X, run.RoomObjective.Relic.Y
+					if run.RoomObjective.Carrying {
+						x, y = run.RoomObjective.Zone.X, run.RoomObjective.Zone.Y
+					}
+					dx, dy := x-run.Player.X, y-run.Player.Y
+					input := rift.Input{}
+					if math.Abs(dx) > 5 {
+						input.X = math.Copysign(1, dx)
+					}
+					if math.Abs(dy) > 5 {
+						input.Y = math.Copysign(1, dy)
+					}
+					step(input)
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.RoomObjective.Carrying {
+					t.Fatal("subclass could not deliver relic")
+				}
+			})
+		}
+	}
+}

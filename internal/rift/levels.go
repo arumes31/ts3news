@@ -110,6 +110,9 @@ func Campaign() []Level {
 			if layout == 5 {
 				level.Tactic += ". Tier 2: destroy three ritual totems and defeat the patrol"
 			}
+			if layout == 6 {
+				level.Tactic += ". Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
@@ -123,6 +126,9 @@ func Campaign() []Level {
 				}
 				if layout == 5 && room == 1 {
 					arena.Objective = "destroy_totems"
+				}
+				if layout == 6 && room == 1 {
+					arena.Objective = "carry_relic"
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()

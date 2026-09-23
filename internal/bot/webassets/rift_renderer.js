@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, totem_break:4, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, totem_break:4, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -75,7 +75,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem'];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -491,6 +491,7 @@
     if(unit.id!=='player'&&unit.pose==='hit'&&!renderer.reduced)ctx.filter='brightness('+(1+.5*Math.max(0,Math.min(1,(unit.pose_time||0)/.2)))+')';
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
     ctx.restore();
+    if(unit.id==='player'&&snapshot.room_objective?.kind==='carry_relic'&&snapshot.room_objective.carrying)ctx.drawImage(images.relic,drawX-18,y-jump-112,36,36);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
     if (unit.pose === 'stagger') {
@@ -913,6 +914,16 @@
     }else{
       renderer.lastOffscreen=[];
     }
+    if(run.room_objective?.kind==='carry_relic'){
+      const goal=run.room_objective,z=goal.zone,x=z.x-camera,y=z.y;
+      ctx.save();ctx.strokeStyle=goal.complete?'#baffd0':'#ffd17c';ctx.fillStyle='#b77e2626';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(x,y,z.radius_x,z.radius_y,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe1a4';ctx.strokeStyle='#21190c';ctx.lineWidth=4;
+      const label=goal.complete?'RELIC DELIVERED':'DELIVER RELIC';ctx.strokeText(label,x,y-z.radius_y-10);ctx.fillText(label,x,y-z.radius_y-10);
+      if(goal.complete)ctx.drawImage(images.relic,x-20,y-35,40,40);
+      if(!goal.complete){const target=goal.carrying?z:goal.relic,tx=target.x-camera;if(tx<24||tx>936){const edge=tx<24?25:935;ctx.textAlign=tx<24?'left':'right';const hint=(tx<24?'← ':'')+(goal.carrying?'EXIT SEAL':'RELIC')+(tx>936?' →':'');ctx.strokeText(hint,edge,340);ctx.fillText(hint,edge,340);}}
+      ctx.restore();
+    }
     if(run.room_objective?.kind==='hold_circle'){
       const goal=run.room_objective,z=goal.zone,x=z.x-camera,y=z.y,color=goal.complete?'#baffd0':goal.contested?'#ffd078':'#9df6d3';
       ctx.save();ctx.fillStyle=goal.contested?'#c38c2526':'#56c89726';ctx.strokeStyle=color;ctx.lineWidth=2;
@@ -951,7 +962,9 @@
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));
     for(const pickup of (run.room_objective?.pickups||[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
+    if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
+      if(unit.relic){ctx.drawImage(images.relic,unit.relic.x-camera-24,unit.relic.y-45,48,48);return;}
       if(unit.sigil){drawSigil(unit.sigil);return;}
       if(!unit.cover){actor(unit,wallNow);return;}
       const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level?.region||0],sw=img.width/4,sh=img.height/2;
