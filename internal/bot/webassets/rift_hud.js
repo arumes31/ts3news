@@ -418,6 +418,8 @@
     const precision=$('rift-precision-state');precision.hidden=run.build.class!=='marksman';
     if(!precision.hidden)put(precision,!marked?'Precision: land a builder hit to mark a target.':!(run.resource>0)?'Precision target: '+marked.name+'. Build charges before firing your finisher.':!finisher?'Precision target: '+marked.name+'. Equip a finisher in Abyss.':'Precision armed on '+marked.name+': next charged finisher gains +60 percentage points of armor piercing on this target (total capped at 100%). Finisher: '+reason(finisher,run,playing)+'.');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
+    const receipt=run.last_cooldown_receipt,receiptNode=$('rift-cooldown-receipt');receiptNode.hidden=run.build.class!=='chronomancer'||!receipt;
+    if(!receiptNode.hidden)put(receiptNode,'Last rewind · '+receipt.source+': '+(receipt.recovered.length?receipt.recovered.map(r=>r.name+' −'+Number(r.seconds.toFixed(2))+'s').join(', '):'no active cooldowns to reduce')+'.');
     const spent=run.last_charge_spend,spentNode=$('rift-last-charge-spend');spentNode.hidden=!spent;
     if(spent)put(spentNode,'Last charge spend: '+spent.skill_name+' consumed '+spent.charges+' charge'+(spent.charges===1?'':'s')+'.');
     put($('rift-charge-benefit'),window.RiftAbilities.chargeBenefits(run));
