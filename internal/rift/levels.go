@@ -312,8 +312,24 @@ func (r *Run) clearMeleePath(from, to *Actor) bool {
 	return true
 }
 
+func (r *Run) clearPursuitPath(from, to *Actor) bool {
+	arena := r.Arena()
+	obstacles := arena.solidObstacles()
+	if from.Jump > .1 {
+		obstacles = arena.HighCover
+	}
+	for _, o := range obstacles {
+		clearance := Obstacle{X: o.X - 12, Y: o.Y - 12, W: o.W + 24, H: o.H + 24}
+		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, clearance); hit {
+			return false
+		}
+	}
+	return true
+}
+
 // knockbackActor uses short sweeps so an impulse cannot skip a thin obstacle.
 func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
+	a.RouteX, a.RouteY = 0, 0
 	steps := max(1, int(math.Ceil(math.Hypot(dx, dy)/8)))
 	for range steps {
 		r.moveActor(a, dx/float64(steps), dy/float64(steps), false)

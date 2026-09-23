@@ -1046,6 +1046,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
+	if e.RouteY != 0 && r.clearPursuitPath(e, p) {
+		e.RouteX, e.RouteY = 0, 0
+	}
 	if e.Kind == "treasure" && (e.X <= treasureEscapeMargin || e.X >= Width-treasureEscapeMargin) {
 		r.escapeEnemy(i)
 		return
