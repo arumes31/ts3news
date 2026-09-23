@@ -25,7 +25,7 @@
   $('rift-transition-delay').value=String(transitionDelay);
   $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;countdownAnnounced=-1;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
-  const practice=root.dataset.practice||'', drillNames={boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
+  const practice=root.dataset.practice||'', drillNames={class:'Your class sequence',boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
@@ -286,8 +286,8 @@
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(practice){
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
-      for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=practice!=='boss';
-      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+(run.practice.hazard_intensity||'standard')+' · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=!['boss','class'].includes(practice);
+      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='class'?(run.resource||0)+'/3 charges · '+(run.practice.class_hits||0)+'/1 charged finisher hits':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+(run.practice.hazard_intensity||'standard')+' · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
       setSafeDisabled($('rift-practice-reset'),!ready||starting||practiceToolPending);practiceToolButtons();
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
@@ -381,6 +381,7 @@
       delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
     }
     if(!ready)return;
+    if(practice==='class'&&!classPracticeInstructions())return;
     if($('rift-start').dataset.recover){delete $('rift-start').dataset.recover;silence();await load();return;}
     starting=true;const intent=++startIntent;
     try{
@@ -433,9 +434,17 @@
     const preferred=window.RiftMission.preferred(window.RiftCampaignTools.preferred(),levels);
     selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:preferred;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
+  function classPracticeInstructions(){
+    if(practice!=='class')return;
+    const current=run?.build||build,signatures=current?.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
+    if(!builder||!finisher){put($('rift-practice-instructions'),'Unlock and equip a class builder and finisher in Abyss before starting this drill.');return false;}
+    const key=s=>controls.label('signature'+signatures.indexOf(s));
+    put($('rift-practice-instructions'),'Use '+builder.name+' ('+key(builder)+') to build charges, then land '+finisher.name+' ('+key(finisher)+') on the training target. Face the target and stay in its lane. '+(current.skills.length?'Your equipped skills are also available: '+current.skills.map(s=>s.name).join(', ')+'. ':'')+'One charged finisher hit completes the drill.');return true;
+  }
   function classPrimer(){
+    classPracticeInstructions();
     const node=$('rift-class-primer'),current=run&&['fighting','cleared'].includes(run.status)?run.build:build;
-    node.hidden=playing||!current||!!practice&&practice!=='boss';
+    node.hidden=playing||!current||!!practice&&!['boss','class'].includes(practice);
     if(!current)return;
     const signatures=current.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
     put(node.querySelector('strong'),(current.class_name||current.class||'Adventurer')+' · Combat primer');
@@ -468,6 +477,7 @@
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       if(practice)message(drillNames[practice],$('rift-practice-instructions').textContent,run&&['fighting','cleared'].includes(run.status)?'Resume drill':'Start drill','PRACTICE');
+      if(practice==='class'&&!classPracticeInstructions()){$('rift-start').disabled=true;$('rift-start').textContent='Class abilities required';}
       window.RiftLoot.banking('reloaded');
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
@@ -707,7 +717,7 @@
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
     $('rift-boss-practice-options').hidden=practice!=='boss';
     $('rift-hazard-practice-options').hidden=practice!=='hazard';
-    $('rift-practice-instructions').textContent=practice==='boss'?'Defeat the selected Abyss boss. Jump or move clear of slams; evade volleys or face them to guard. Use your equipped skills. Reset to retry the selected starting phase.':practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
+    $('rift-practice-instructions').textContent=practice==='class'?'Build charges with your equipped class builder, then land your finisher.':practice==='boss'?'Defeat the selected Abyss boss. Jump or move clear of slams; evade volleys or face them to guard. Use your equipped skills. Reset to retry the selected starting phase.':practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
     for(const node of [$('rift-campaign'),$('rift-campaign-tools-extra'),root.querySelector('.rift-route')?.closest('section'),$('rift-loot')?.closest('section'),root.querySelector('.rift-run-statistics'),$('rift-walkthrough')])if(node)node.hidden=true;
     root.querySelectorAll('[data-practice-action]').forEach(button=>button.addEventListener('click',async()=>{
       if(!ready||starting||practiceToolPending||run?.status!=='fighting'||button.getAttribute('aria-disabled')==='true')return;

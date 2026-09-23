@@ -158,7 +158,7 @@
 #rift-practice-links a:hover,#rift-practice-links a:focus-visible {background:#284234;outline:2px solid #c2da9c;outline-offset:2px}
 #rift-practice-guide {padding:1rem 1.25rem;margin-bottom:1rem;border:1px solid #49664b;border-radius:8px;background:#14271f;color:#deedc9}
 #rift-practice-guide h2 {margin:0 0 .5rem}
-#rift-app[data-practice]:not([data-practice=""]) :is(#rift-defeat-guide,#rift-checkpoint-guide,#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,.rift-classbar,#rift-finisher-state,#rift-ultimate-state,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout,#rift-last-encounter) {display:none!important}
+#rift-app[data-practice]:not([data-practice=""]) :is(#rift-defeat-guide,#rift-checkpoint-guide,#rift-pending-hud,#rift-nearest-drop,#rift-legendary-drops,#rift-loadout,#rift-loadout-presets,#rift-loadout-order,#rift-loadout-preview,#rift-empty-loadout,#rift-last-encounter) {display:none!important}
 #rift-app[data-practice="movement"] .rift-basics,#rift-app[data-practice="jump"] [data-bind="attack"],#rift-app[data-practice="jump"] [data-bind="guard"],#rift-app[data-practice="combo"] [data-bind="jump"] {display:none}
 
 #rift-app[data-practice="guard"] :is([data-bind="attack"],[data-bind="jump"]) {display:none}
@@ -703,3 +703,5 @@
 #rift-app .rift-health-cost-label{color:#ffc6b2;font-size:9px;line-height:1.2;white-space:nowrap}#rift-health-cost-warning[data-low="true"]{color:#ffd1bc;border:1px solid #d5967c;background:#442923;padding:4px 6px}
 
 #rift-relic-synergy[data-state="armed"]{color:#ffe5ac;border:1px solid #b6a374;background:#353422;padding:4px 6px}
+
+#rift-app[data-practice]:not([data-practice=""]):not([data-practice="boss"]):not([data-practice="class"]) :is(.rift-classbar,#rift-finisher-state,#rift-ultimate-state){display:none!important}

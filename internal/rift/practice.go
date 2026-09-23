@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	ClassHits      int     `json:"class_hits,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	SlowTelegraphs bool    `json:"slow_telegraphs,omitempty"`
 	BossStart      *Actor  `json:"boss_start,omitempty"`
@@ -25,12 +26,22 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
+	}
+	if mode == "class" {
+		builder, finisher := false, false
+		for _, skill := range build.Signatures {
+			builder = builder || skill.Role == "builder"
+			finisher = finisher || skill.Role == "finisher"
+		}
+		if !builder || !finisher {
+			return nil, errors.New("class practice requires an equipped builder and finisher")
+		}
 	}
 	if mode == "boss" {
 		for _, mob := range content.AbyssMobCatalog() {
@@ -54,7 +65,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}
-	if mode == "combo" {
+	if mode == "combo" || mode == "class" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
 	}
 	if mode == "guard" {
@@ -102,7 +113,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
-	case "boss":
+	case "boss", "class":
 		return in
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
@@ -123,6 +134,9 @@ func (r *Run) practiceTick() {
 	complete := r.Player.X >= r.Practice.GoalX
 	if r.Practice.Mode == "boss" {
 		complete = len(r.Enemies) == 1 && r.Enemies[0].HP <= 0
+	}
+	if r.Practice.Mode == "class" {
+		complete = r.Practice.ClassHits > 0
 	}
 	if r.Practice.Mode == "jump" {
 		complete = complete && r.Stats.Jumps > 0
