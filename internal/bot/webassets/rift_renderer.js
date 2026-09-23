@@ -418,9 +418,10 @@
       ctx.restore();
       renderer.lastEnemyJumpShadow = { unitId: unit.id, x: Math.round(drawX), y: Math.round(y + 2), jump: Number(jump.toFixed(2)), scale: Number(shadowScale.toFixed(3)), alpha: Number(shadowAlpha.toFixed(3)), reduced: !!renderer.reduced };
     } else {
+      const shadowScale=renderer.reduced?1:1-Math.min(1,Math.max(0,jump/52))*.42;
       ctx.fillStyle = '#03110b70';
       ctx.beginPath();
-      ctx.ellipse(drawX, y + 2, size * 0.28, 7, 0, 0, Math.PI * 2);
+      ctx.ellipse(drawX, y + 2, size * 0.28 * shadowScale, 7 * shadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
