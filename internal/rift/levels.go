@@ -615,7 +615,7 @@ func (r *Run) hazardTick() {
 			r.SkillTimers["slowed"] = 1.4
 			r.SlowSource = h.Kind
 		case "void":
-			r.moveActor(&r.Player, (h.X+h.W/2-r.Player.X)*.3, 0, false)
+			r.pullIntoVoidWell(h)
 		}
 		r.event(h.Kind, r.Player.X, r.Player.Y, 0)
 	}
