@@ -810,7 +810,7 @@
           drawProjectileShape(ctx,p.x-camera,p.y-28,Boolean(p.enemy),p.vx,p.vy,p.kind);
         }
       }else{
-        if(p.kind==='arrow'){ctx.save();ctx.translate(p.x-camera,p.y-30);ctx.rotate(projectileAngle(p.vx,p.vy,p.enemy));ctx.fillStyle='#d8b3e9';ctx.fillRect(-12,-1.5,25,3);ctx.restore();}
+        if(p.kind==='arrow'){ctx.save();ctx.translate(p.x-camera,p.y-30);ctx.rotate(projectileAngle(p.vx,p.vy,p.enemy));ctx.fillStyle='#d8b3e9';ctx.fillRect(-12,-1.5,22,3);ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(6,-6);ctx.lineTo(6,6);ctx.closePath();ctx.fillStyle='#fff0bb';ctx.fill();ctx.strokeStyle='#14221d';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();}
         else if(p.kind==='pack')sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
         else fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
       }
