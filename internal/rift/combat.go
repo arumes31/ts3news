@@ -763,6 +763,7 @@ func (r *Run) tick(in Input, dt float64) {
 			}
 		}
 		r.Status = "cleared"
+		r.recordBossClear()
 		r.Projectiles = []Projectile{}
 		r.RecordEncounterSummary("cleared")
 		r.event("clear", p.X, p.Y, 0)

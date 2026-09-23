@@ -2,8 +2,9 @@ package rift
 
 // MonsterRecord contains observations made by this version, not inferred history.
 type MonsterRecord struct {
-	FirstSeenMS int64 `json:"first_seen_ms"`
-	Defeats     int   `json:"defeats"`
+	FastestClearSeconds *float64 `json:"fastest_clear_seconds,omitempty"`
+	FirstSeenMS         int64    `json:"first_seen_ms"`
+	Defeats             int      `json:"defeats"`
 }
 
 func (r *Run) observeMonster(actor Actor) {
@@ -46,8 +47,43 @@ func (r *Run) inheritMonsterRecords(previous *Run) {
 		if old, exists := combined[key]; exists {
 			record.FirstSeenMS = min(record.FirstSeenMS, old.FirstSeenMS)
 			record.Defeats += old.Defeats
+			if old.FastestClearSeconds != nil && (record.FastestClearSeconds == nil || *old.FastestClearSeconds < *record.FastestClearSeconds) {
+				seconds := *old.FastestClearSeconds
+				record.FastestClearSeconds = &seconds
+			}
 		}
 		combined[key] = record
 	}
 	r.MonsterRecords = combined
+}
+
+// recordBossClear measures the entire room, so surviving defenders still count.
+func (r *Run) recordBossClear() {
+	if r.Practice != nil || r.Level == nil || r.Status != "cleared" || r.RoomStartSeconds == nil {
+		return
+	}
+	seconds := r.Stats.Seconds - *r.RoomStartSeconds
+	if seconds < 0 {
+		return
+	}
+	for _, actor := range r.Enemies {
+		if actor.HP > 0 {
+			return
+		}
+	}
+	for _, actor := range r.Enemies {
+		if actor.Kind != "boss" {
+			continue
+		}
+		r.observeMonster(actor)
+		record, exists := r.MonsterRecords[actor.ArtKey]
+		if !exists {
+			continue
+		}
+		if record.FastestClearSeconds == nil || seconds < *record.FastestClearSeconds {
+			best := seconds
+			record.FastestClearSeconds = &best
+			r.MonsterRecords[actor.ArtKey] = record
+		}
+	}
 }
