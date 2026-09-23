@@ -898,6 +898,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		damage *= 1.25
 	}
 	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
+	if r.guardianBondActive(e.ID) {
+		damage *= .5
+	}
 	damage = math.Min(e.HP, math.Max(0, damage))
 	prevHP := e.HP
 	e.HP = math.Max(0, e.HP-damage)

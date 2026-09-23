@@ -1,0 +1,22 @@
+const {test,expect}=require('@playwright/test');
+test('guardian bond reduces damage, persists and breaks on defeat',async({page})=>{
+ test.setTimeout(90000);
+ await page.goto('/abyss/rift?scenario=guardians');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-auto').uncheck();
+ const saved=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const progress=page.locator('#rift-room-objective-progress'),initial=await saved(),ids=initial.room_objective.targets;
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await expect(progress).toContainText('Linked');
+ await page.locator('#rift-viewport').screenshot({path:'test-results/guardians-linked.png'});
+ const first=initial.enemies.find(e=>e.id===ids[0]);await page.keyboard.press('KeyJ');await expect.poll(async()=>(await saved()).enemies.find(e=>e.id===ids[0]).hp).toBeLessThan(first.hp);
+ expect(first.hp-(await saved()).enemies.find(e=>e.id===ids[0]).hp).toBeCloseTo(initial.build.damage*.5,5);
+ await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');const before=await saved();await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();const restored=await saved();expect(restored.room_objective).toEqual(before.room_objective);expect(restored.enemies.find(e=>e.id===ids[0]).hp).toBe(before.enemies.find(e=>e.id===ids[0]).hp);
+ await page.locator('#rift-auto').uncheck();await page.evaluate(()=>{window.guardianCues=[];const play=window.RiftAudio.play;window.RiftAudio.play=function(kind,...args){if(kind.startsWith('guardian'))window.guardianCues.push(kind);return play.call(this,kind,...args);};});await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ const fight=async id=>{const held=new Set();try{for(let n=0;n<350;n++){const r=await saved(),e=r.enemies.find(e=>e.id===id);if(e.hp===0)break;const wanted=new Set(['KeyJ']);const dx=e.x-30-r.player.x,dy=e.y-r.player.y;if(Math.abs(dx)>8)wanted.add(dx>0?'KeyD':'KeyA');else if(e.x>r.player.x&&r.player.facing<0)wanted.add('KeyD');else if(e.x<r.player.x&&r.player.facing>0)wanted.add('KeyA');if(Math.abs(dy)>8)wanted.add(dy>0?'KeyS':'KeyW');for(const key of held)if(!wanted.has(key)){await page.keyboard.up(key);held.delete(key);}for(const key of wanted)if(!held.has(key)){await page.keyboard.down(key);held.add(key);}await page.waitForTimeout(40);}}finally{for(const key of held)await page.keyboard.up(key);}expect((await saved()).enemies.find(e=>e.id===id).hp).toBe(0);};
+ await fight(ids[0]);await expect(progress).toContainText('Bond broken');await page.locator('#rift-viewport').screenshot({path:'test-results/guardians-unlinked.png'});expect(await page.evaluate(()=>window.guardianCues.includes('guardian_unlinked'))).toBe(true);
+ await fight(ids[1]);await expect.poll(async()=>(await saved()).status).toBe('cleared');await expect(progress).toContainText('Guardians 2/2');const result=await saved();expect(result.stats.kills).toBe(2);expect(result.drops.length).toBe(2);expect(await page.evaluate(()=>window.guardianCues.filter(k=>k==='guardians_defeated').length)).toBe(1);
+ await page.locator('#rift-next').click();await expect.poll(async()=>(await saved()).room).toBe(1);await expect(progress).toContainText('Totems 0/3');
+});
+test('guardian snapshots reject inconsistent bonds and fit mobile',async({page})=>{
+ await page.goto('/abyss/rift?scenario=guardians');await expect(page.locator('#rift-start')).toBeEnabled();const data=await(await page.request.get('/api/abyss/rift')).json();
+ expect(await page.evaluate(data=>{const valid=v=>{try{window.RiftProtocol.validate(v,'GET');return true;}catch(_){return false;}};const duplicate=structuredClone(data);duplicate.run.room_objective.targets[1]=duplicate.run.room_objective.targets[0];const missing=structuredClone(data);missing.run.room_objective.targets[0]='missing';const bond=structuredClone(data);bond.run.room_objective.bond_active=false;const count=structuredClone(data);count.run.room_objective.collected=1;return [data,duplicate,missing,bond,count].map(valid);},data)).toEqual([true,false,false,false,false]);
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

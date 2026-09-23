@@ -622,3 +622,57 @@ func TestRiftCollapseRoomsSupportEverySubclassAndRegion(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftLinkedGuardiansSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Bondbreaker", 24)
+				now := time.Unix(100, 0)
+				run := rift.NewRunAtLevel("class-guardians", build, now, content.AbyssMobCatalog(), 6)
+				if run.RoomObjective == nil || run.RoomObjective.Kind != "linked_guardians" {
+					t.Fatal("guardians missing")
+				}
+				run.Level.Rooms[0].Hazards = nil
+				run.Level.Rooms[0].Obstacles = nil
+				run.Level.Rooms[0].HighCover = nil
+				ids := run.RoomObjective.Targets
+				for i := range run.Enemies {
+					e := &run.Enemies[i]
+					if e.ID == ids[0] {
+						e.X, e.Y = 400, 330
+						e.Knockdown = 100
+					} else if e.ID == ids[1] {
+						e.X, e.Y = 550, 330
+						e.Knockdown = 100
+					} else {
+						e.HP = 0
+					}
+				}
+				run.Player.X, run.Player.Y = 350, 330
+				for _, id := range ids {
+					for n := 0; n < 1000; n++ {
+						var target *rift.Actor
+						for i := range run.Enemies {
+							if run.Enemies[i].ID == id {
+								target = &run.Enemies[i]
+							}
+						}
+						if target.HP <= 0 {
+							break
+						}
+						input := rift.Input{Attack: true}
+						if target.X-run.Player.X > 35 {
+							input.X = 1
+						}
+						now = now.Add(20 * time.Millisecond)
+						run.Step(input, now)
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != 2 || len(run.Drops) != 2 {
+					t.Fatal("subclass guardian completion or rewards failed")
+				}
+			})
+		}
+	}
+}

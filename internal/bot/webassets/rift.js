@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='escape_collapse'){
+    if(roomGoal?.kind==='linked_guardians'){
+      const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
+      put($('rift-room-objective-progress'),'Guardians '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Defeated':gamePaused?'Paused':roomGoal.bond_active?'Linked · 50% damage reduction':'Bond broken'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Guardians defeated. Clear the remaining patrol and bank the loot.':'Separate the guardians by more than 240 units or defeat one to remove their protection. They can reform the bond when close together.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':targets.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='escape_collapse'){
       const ended=!['fighting','cleared'].includes(run.status),caught=run.player.x<=roomGoal.collapse_x;
       put($('rift-room-objective-progress'),'Collapse · '+(ended?'Expedition ended':roomGoal.complete?'Escaped':gamePaused?'Paused':roomGoal.seconds<3?'Starts in '+(3-roomGoal.seconds).toFixed(1)+'s':caught?'Caught in the collapse':'Keep moving to the exit'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'You escaped. Bank collected loot to continue.':'Stay ahead of the advancing edge and land inside the exit seal. Fight for loot if time permits; surviving enemies grant no rewards.');

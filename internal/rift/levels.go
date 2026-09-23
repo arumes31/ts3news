@@ -113,7 +113,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements"
 			}
 			if layout == 5 {
-				level.Tactic += ". Tier 2: destroy three ritual totems and defeat the patrol"
+				level.Tactic += ". Tier 1: separate linked guardians to remove their damage protection. Tier 2: destroy three ritual totems and defeat the patrol"
 			}
 			if layout == 6 {
 				level.Tactic += ". Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
@@ -146,6 +146,9 @@ func Campaign() []Level {
 				}
 				if layout == 4 && room == 1 {
 					arena.Objective = "survive_waves"
+				}
+				if layout == 5 && room == 0 {
+					arena.Objective = "linked_guardians"
 				}
 				if layout == 5 && room == 1 {
 					arena.Objective = "destroy_totems"

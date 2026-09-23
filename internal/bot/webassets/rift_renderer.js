@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -563,6 +563,13 @@
       }
       ctx.restore();
     }
+      if(snapshot.room_objective?.kind==='linked_guardians'&&snapshot.room_objective.targets.includes(unit.id)&&unit.hp>0){
+        const active=snapshot.room_objective.bond_active,ty=y-jump-size*.9-34;
+        ctx.save();ctx.strokeStyle=active?'#a9e5ff':'#ffe0a6';ctx.lineWidth=2;ctx.beginPath();ctx.arc(drawX,ty,9,0,Math.PI*2);ctx.stroke();
+        if(active){ctx.beginPath();ctx.arc(drawX+7,ty,9,0,Math.PI*2);ctx.stroke();}
+        if(!display.cleanScreenshot){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle=active?'#a9e5ff':'#ffe0a6';ctx.strokeStyle='#10202e';ctx.lineWidth=3;const label=active?'LINKED · 50% GUARD':'GUARDIAN · UNLINKED';ctx.strokeText(label,drawX,ty-16);ctx.fillText(label,drawX,ty-16);}
+        ctx.restore();
+      }
       if(snapshot.room_objective?.kind==='interrupt_ritual'&&unit.hp>0){
         const channel=snapshot.room_objective.channels.find(c=>c.enemy_id===unit.id);
         if(channel){
@@ -948,6 +955,10 @@
       });
     }else{
       renderer.lastOffscreen=[];
+    }
+    if(run.room_objective?.kind==='linked_guardians'&&run.room_objective.bond_active){
+      const pair=run.room_objective.targets.map(id=>run.enemies.find(e=>e.id===id));
+      if(pair.every(e=>e&&e.hp>0)){ctx.save();ctx.strokeStyle='#a9e5ff';ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(pair[0].x-camera,pair[0].y-35);ctx.lineTo(pair[1].x-camera,pair[1].y-35);ctx.stroke();ctx.restore();}
     }
     if(run.room_objective?.kind==='escape_collapse'){
       const goal=run.room_objective,edge=goal.collapse_x-camera,z=goal.zone,x=z.x-camera;

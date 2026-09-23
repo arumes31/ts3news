@@ -219,6 +219,35 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "guardians" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("guardian-room", selectedBuild, now, riftMobCatalog(now), 6)
+			run.Level.Rooms[0].Hazards = nil
+			for i := range run.Enemies {
+				e := &run.Enemies[i]
+				n := -1
+				for j, id := range run.RoomObjective.Targets {
+					if e.ID == id {
+						n = j
+					}
+				}
+				if n >= 0 {
+					e.X, e.Y = 400+float64(n)*180, 330
+					e.HP, e.MaxHP = selectedBuild.Damage*3, selectedBuild.Damage*3
+					e.Armor = 0
+					e.Knockdown = 100
+				} else {
+					e.HP = 0
+				}
+			}
+			run.Player.X, run.Player.Y = 350, 330
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "collapse" {
 			mu.Lock()
 			now := time.Now()

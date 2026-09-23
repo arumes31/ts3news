@@ -63,6 +63,7 @@
       const hazards=[...new Set(zones.map(hazard=>hazard.kind))];add('p','',terrainSummary+' · '+(hazards.join(', ')||'No hazards'),card);
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
       const objectives={
+        linked_guardians:'Linked guardians take 50% less damage within 240 units of each other. Separate them or defeat one to break the bond, then defeat both guardians and the patrol.',
         escape_collapse:'Escape through the exit seal before the collapse catches you. It advances after three seconds and damages fighters behind its edge. Surviving enemies grant no rewards.',
         interrupt_ritual:'Hit channelers to reset their eight-second charge. Leave their pulse rings before discharge. Defeat all channelers and the remaining patrol.',
         escort_spirit:'Stay near the spirit and clear nearby threats so it reaches the exit. It waits when left behind or threatened. Defeat the patrol before banking.',

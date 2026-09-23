@@ -22,6 +22,7 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
+	BondActive          bool              `json:"bond_active"`
 	CollapseX           float64           `json:"collapse_x"`
 	CollapseHitCooldown float64           `json:"collapse_hit_cooldown"`
 	Channels            []RitualChannel   `json:"channels,omitempty"`
@@ -50,6 +51,10 @@ type RoomObjective struct {
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "linked_guardians" {
+		r.beginGuardianObjective()
 		return
 	}
 	if r.Arena().Objective == "escape_collapse" {
@@ -125,6 +130,7 @@ func (r *Run) collectRoomSigils() {
 func (r *Run) tickRoomObjective(dt float64) {
 	r.collectRoomSigils()
 	r.updateRitualObjective()
+	r.updateGuardianObjective()
 	r.tickEscortObjective(dt)
 	r.tickBeaconObjective(dt)
 	r.tickHuntObjective()
