@@ -318,8 +318,8 @@ func (r *Run) spawnRoom() {
 		r.EncounterPlan = planEncounters(r.ID, content.AbyssMobCatalog())
 	}
 	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
+	r.Arena().settleEnemySpawns(r.Enemies)
 	for i := range r.Enemies {
-		r.Arena().settleEnemySpawn(&r.Enemies[i])
 		// Give arrivals time to read the arena before ranged attacks begin.
 		// Keep the stable archer offsets so the opening volley stays staggered.
 		if r.Enemies[i].Kind == "archer" || r.Enemies[i].Kind == "boss" {

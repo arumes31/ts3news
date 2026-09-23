@@ -267,8 +267,10 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 			a.HP *= missionHealthMultiplier(id)
 			a.MaxHP = a.HP
 			a.Damage *= missionDamageMultiplier(id)
-			level.Rooms[room].settleEnemySpawn(a)
-			a.Elevation = level.Rooms[room].Elevation(a.X, a.Y)
+		}
+		level.Rooms[room].settleEnemySpawns(actors)
+		for i := range actors {
+			actors[i].Elevation = level.Rooms[room].Elevation(actors[i].X, actors[i].Y)
 		}
 		r.EncounterPlan[room] = actors
 	}

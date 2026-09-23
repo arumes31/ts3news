@@ -7,14 +7,24 @@ import "math"
 // phase cannot put a newly arriving enemy inside the next pulse.
 // Authored campaign arenas retain clear ground; false reports an invalid arena
 // with no safe candidate without silently removing its enemies or hazards.
-func (arena Arena) settleEnemySpawn(a *Actor) bool {
+func (arena Arena) settleEnemySpawn(a *Actor, reserved ...Obstacle) bool {
 	radius := actorClearance(a)
+	boundaryMargin := 0.0
+	if a.Kind == "boss" {
+		radius += 14
+		boundaryMargin = 14
+	}
 	walls := arena.solidObstacles()
 	safe := func(x, y float64) bool {
-		if x < 35 || x > Width-35 || y < 315 || y > 490 {
+		if x < 35+boundaryMargin || x > Width-35-boundaryMargin || y < 315+boundaryMargin || y > 490-boundaryMargin {
 			return false
 		}
 		for _, o := range walls {
+			if contains(o, x, y, radius) {
+				return false
+			}
+		}
+		for _, o := range reserved {
 			if contains(o, x, y, radius) {
 				return false
 			}
@@ -50,4 +60,29 @@ func (arena Arena) settleEnemySpawn(a *Actor) bool {
 	}
 	a.X, a.Y = bestX, bestY
 	return true
+}
+
+// Reserve starting room for large sprites without changing their combat collision.
+func bossSpawnReservations(actors []Actor) []Obstacle {
+	var spaces []Obstacle
+	for _, a := range actors {
+		if a.Kind == "boss" && a.HP > 0 {
+			spaces = append(spaces, Obstacle{a.X - 60, a.Y - 32, 120, 64})
+		}
+	}
+	return spaces
+}
+
+func (arena Arena) settleEnemySpawns(actors []Actor, reserved ...Obstacle) {
+	for i := range actors {
+		if actors[i].Kind == "boss" {
+			arena.settleEnemySpawn(&actors[i], reserved...)
+			reserved = append(reserved, bossSpawnReservations(actors[i:i+1])...)
+		}
+	}
+	for i := range actors {
+		if actors[i].Kind != "boss" {
+			arena.settleEnemySpawn(&actors[i], reserved...)
+		}
+	}
 }
