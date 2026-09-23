@@ -241,7 +241,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if custom := r.URL.Query().Get("challenge"); custom != "" {
 				ch = riftChallengeFor(custom)
 			}
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": ch})
+			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(build), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": ch})
 			return
 		}
 		var req riftRequest

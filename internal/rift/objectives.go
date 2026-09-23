@@ -12,32 +12,42 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
-	Banked       bool                `json:"banked,omitempty"`
-	Difficulty   string              `json:"difficulty,omitempty"`
-	Mission      int                 `json:"mission"`
-	Finished     bool                `json:"finished"`
-	StartSeconds float64             `json:"start_seconds"`
-	StartDamage  float64             `json:"start_damage"`
-	StartSkills  int                 `json:"start_skills"`
-	StartGuards  int                 `json:"start_guards"`
-	Entries      []ObjectiveProgress `json:"entries"`
+	StartFinishers int                 `json:"start_finishers"`
+	Banked         bool                `json:"banked,omitempty"`
+	Difficulty     string              `json:"difficulty,omitempty"`
+	Mission        int                 `json:"mission"`
+	Finished       bool                `json:"finished"`
+	StartSeconds   float64             `json:"start_seconds"`
+	StartDamage    float64             `json:"start_damage"`
+	StartSkills    int                 `json:"start_skills"`
+	StartGuards    int                 `json:"start_guards"`
+	Entries        []ObjectiveProgress `json:"entries"`
 }
 
 // ObjectiveOptions supplies both mission tracking and the pre-run preview.
-func ObjectiveOptions() []ObjectiveProgress {
-	return []ObjectiveProgress{
+func ObjectiveOptions(build Build) []ObjectiveProgress {
+	entries := []ObjectiveProgress{
 		{ID: "timed", Name: "Swift clear", Description: "Clear all three tiers within 180 combat seconds. Pauses do not count.", Target: 180, Status: "active"},
 		{ID: "no_damage", Name: "Untouched", Description: "Clear all three tiers without taking health damage.", Status: "active"},
 		{ID: "basic_only", Name: "Basic attacks only", Description: "Clear all three tiers without using abilities. Movement, jumping and guarding are allowed.", Status: "active"},
 		{ID: "guard", Name: "Guard mastery", Description: "Block at least five attacks and clear all three tiers.", Target: 5, Status: "active"},
 	}
+	builder, finisher := false, false
+	for _, skill := range build.Signatures {
+		builder = builder || skill.Role == "builder"
+		finisher = finisher || skill.Role == "finisher"
+	}
+	if builder && finisher {
+		entries = append(entries, ObjectiveProgress{ID: "finisher", Name: "Class finisher", Description: "Use at least one charged class finisher and clear all three tiers. Empty finishers do not count.", Target: 1, Status: "active"})
+	}
+	return entries
 }
 
 func (r *Run) beginObjectives() {
 	if r.Objectives != nil && r.Objectives.Finished {
 		r.LastObjectives = r.Objectives
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, Entries: ObjectiveOptions()}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, Entries: ObjectiveOptions(r.Build)}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -69,6 +79,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "finisher":
+			e.Current = float64(max(0, r.Stats.ChargedFinishers-o.StartFinishers))
+			if cleared && e.Current < e.Target {
+				reason = "Finished without using a charged class finisher."
 			}
 		case "guard":
 			e.Current = float64(max(0, r.Stats.Guards-o.StartGuards))
