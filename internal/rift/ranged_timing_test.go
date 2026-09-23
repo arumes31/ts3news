@@ -15,8 +15,8 @@ func TestArchersHaveIndividualInitialAndRepeatCooldowns(t *testing.T) {
 	seen := map[float64]bool{}
 	for i := range r.Enemies {
 		initial := r.Enemies[i].Cooldown
-		if initial <= 0 || initial > .65 {
-			t.Fatal("initial ranged delay must be positive and bounded")
+		if initial <= 1.5 || initial > 2.15 {
+			t.Fatal("initial ranged delay must include arrival grace and a bounded individual offset")
 		}
 		seen[initial] = true
 		r.Enemies[i].Windup = .01

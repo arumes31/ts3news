@@ -320,7 +320,11 @@ func (r *Run) spawnRoom() {
 	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
 	for i := range r.Enemies {
 		r.Arena().settleEnemySpawn(&r.Enemies[i])
-		r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, rangedCooldownOffset(&r.Enemies[i]))
+		// Give arrivals time to read the arena before ranged attacks begin.
+		// Keep the stable archer offsets so the opening volley stays staggered.
+		if r.Enemies[i].Kind == "archer" || r.Enemies[i].Kind == "boss" {
+			r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, 1.5+rangedCooldownOffset(&r.Enemies[i]))
+		}
 	}
 	r.beginRoomObjective()
 	for i := range r.Enemies {
