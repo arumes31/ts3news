@@ -436,7 +436,19 @@ func (r *Run) Step(in Input, now time.Time) {
 	}
 }
 
-const comboWindow = 1.2
+const (
+	comboWindow            = 1.2
+	basicMeleeForwardReach = 95.0
+	basicMeleeRearOverlap  = 10.0
+	basicMeleeLaneReach    = 32.0
+)
+
+func inBasicMeleeRange(attacker, target *Actor) bool {
+	forward := (target.X - attacker.X) * attacker.Facing
+	// The small rear overlap covers touching sprites, not attacks behind the fighter.
+	return forward >= -basicMeleeRearOverlap && forward < basicMeleeForwardReach &&
+		math.Abs(target.Y-attacker.Y) < basicMeleeLaneReach
+}
 
 func (r *Run) tick(in Input, dt float64) {
 	if r.Combo > 0 {
@@ -572,7 +584,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
-			if e.HP > 0 && math.Abs(e.Y-p.Y) < 32 && (e.X-p.X)*p.Facing >= -10 && (e.X-p.X)*p.Facing < 95 {
+			if e.HP > 0 && inBasicMeleeRange(p, e) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
 				if r.Combo == 3 {
 					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
