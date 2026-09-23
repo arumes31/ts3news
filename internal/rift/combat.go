@@ -1079,7 +1079,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.PoseTime = .4
 			e.Cooldown = 1.6
 			if e.Kind == "archer" || e.Kind == "boss" && e.ArtKey != "" && e.Attacks%2 == 0 {
-				if e.Kind == "archer" && !r.clearProjectilePath(e, p) {
+				if !r.clearProjectilePath(e, e) || e.Kind == "archer" && !r.clearProjectilePath(e, p) {
 					e.Pose = "idle"
 					e.PoseTime = 0
 					e.Cooldown = .3
