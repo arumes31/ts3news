@@ -584,7 +584,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
-			if e.HP > 0 && inBasicMeleeRange(p, e) {
+			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
 				if r.Combo == 3 {
 					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
@@ -1059,7 +1059,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 				e.Cooldown = 2.3
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
-				if math.Abs(dx) < 85 && math.Abs(dy) < 33 {
+				if math.Abs(dx) < 85 && math.Abs(dy) < 33 && r.clearMeleePath(e, p) {
 					if p.Jump < .25 {
 						power := e.Damage
 						if power <= 0 {

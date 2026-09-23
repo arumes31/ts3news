@@ -254,6 +254,37 @@ func settle(a *Actor, obstacles []Obstacle) {
 	a.Y = clamp(a.Y, 315, 490)
 }
 
+// clearMeleePath rejects segments that touch or cross a solid arena obstacle.
+func (r *Run) clearMeleePath(from, to *Actor) bool {
+	for _, o := range r.Arena().Obstacles {
+		enter, leave := 0.0, 1.0
+		blocked := true
+		for _, axis := range [][4]float64{{from.X, to.X - from.X, o.X, o.X + o.W}, {from.Y, to.Y - from.Y, o.Y, o.Y + o.H}} {
+			start, delta, low, high := axis[0], axis[1], axis[2], axis[3]
+			if delta == 0 {
+				if start < low || start > high {
+					blocked = false
+					break
+				}
+				continue
+			}
+			a, b := (low-start)/delta, (high-start)/delta
+			if a > b {
+				a, b = b, a
+			}
+			enter, leave = math.Max(enter, a), math.Min(leave, b)
+			if enter > leave {
+				blocked = false
+				break
+			}
+		}
+		if blocked {
+			return false
+		}
+	}
+	return true
+}
+
 // knockbackActor uses short sweeps so an impulse cannot skip a thin obstacle.
 func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
 	steps := max(1, int(math.Ceil(math.Hypot(dx, dy)/8)))
