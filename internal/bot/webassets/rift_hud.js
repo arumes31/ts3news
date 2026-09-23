@@ -419,6 +419,10 @@
               put($('rift-announcer'),'Boss preparing '+attack+' · '+Math.ceil(boss.windup)+'s windup.');
             }
           }
+        }else if(boss.weak_point>0){
+          put(bossAttackNode,'Weak point · +25% damage · '+boss.weak_point.toFixed(1)+'s');
+          bossAttackNode.hidden=false;
+          lastAnnouncedBossAttack='';
         }else{
           bossAttackNode.hidden=true;
           lastAnnouncedBossAttack='';

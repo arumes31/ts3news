@@ -50,6 +50,7 @@ type Build struct {
 }
 
 type Actor struct {
+	WeakPoint float64 `json:"weak_point,omitempty"`
 	Fleeing   bool    `json:"fleeing,omitempty"`
 	RouteX    float64 `json:"route_x,omitempty"`
 	RouteY    float64 `json:"route_y,omitempty"`
@@ -872,6 +873,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.ArtKey == "" && e.Kind == "boss" {
 		armor = .15
 	}
+	if e.Kind == "boss" && e.WeakPoint > 0 {
+		damage *= 1.25
+	}
 	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
 	damage = math.Min(e.HP, math.Max(0, damage))
 	prevHP := e.HP
@@ -1068,6 +1072,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.HP <= 0 {
 		return
 	}
+	e.WeakPoint = math.Max(0, e.WeakPoint-dt)
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
 	if e.PoseTime < 0.0001 {
@@ -1155,6 +1160,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 					} else {
 						r.event("dodge", p.X, p.Y, 0)
 					}
+				}
+				if math.Abs(p.X-e.TargetX) >= 125 || math.Abs(p.Y-e.TargetY) >= 62 || p.Jump >= .1 {
+					e.WeakPoint = .8
 				}
 				e.Cooldown = 2.3
 			} else {
