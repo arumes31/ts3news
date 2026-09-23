@@ -218,6 +218,24 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "circle" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("circle-room", selectedBuild, now, riftMobCatalog(now), 4)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Hazards = nil
+			run.Enemies = []rift.Actor{{ID: "contester", Name: "Circle defender", Kind: "goblin", X: 480, Y: 410, HP: 1, MaxHP: 50, Knockdown: 100}}
+			run.Player.X = 430
+			run.Player.Y = 410
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

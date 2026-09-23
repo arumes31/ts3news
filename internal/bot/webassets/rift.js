@@ -136,7 +136,15 @@
     window.RiftObjectives.update(run,gamePaused);
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
-    if(roomGoal){
+    $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
+    if(roomGoal?.kind==='hold_circle'){
+      const zone=roomGoal.zone,inside=((run.player.x-zone.x)/zone.radius_x)**2+((run.player.y-zone.y)/zone.radius_y)**2<=1;
+      const ended=!['fighting','cleared'].includes(run.status);
+      const state=ended?'Expedition ended':roomGoal.complete?'Charged':gamePaused?'Paused':roomGoal.contested?'Contested':inside&&run.player.jump<=.1?'Charging':'Move onto the circle';
+      put($('rift-room-objective-progress'),roomGoal.name+' · '+Math.floor(roomGoal.seconds)+' / '+roomGoal.target+' s · '+state);
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Circle charged. Defeat the remaining enemies.':'Circle charged and enemies defeated. Tier secured.'):'Stay grounded inside the circle while no enemy occupies it. Leaving keeps the charge you have earned.');
+      put($('rift-room-objective-directions'),inside?'Inside the circle':('Circle: '+(run.player.x<zone.x?'right':'left')+(Math.abs(run.player.y-zone.y)<20?'':run.player.y<zone.y?', down':', up')));
+    }else if(roomGoal){
       put($('rift-room-objective-progress'),roomGoal.name+' · '+roomGoal.collected+' / '+roomGoal.target+(roomGoal.complete?' · Gathered':''));
       put($('rift-room-objective-help'),roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Sigils gathered. Defeat the remaining enemies.':'Sigils gathered and enemies defeated. Tier secured.'):'Walk over the marked sigils on the ground. Both the sigils and enemy defeats are required to clear this tier.');
       put($('rift-room-objective-directions'),roomGoal.pickups.filter(p=>!p.collected).map(p=>'Sigil '+p.id+': '+(Math.abs(p.x-run.player.x)<28?'aligned':p.x<run.player.x?'left':'right')+(Math.abs(p.y-run.player.y)<24?'':p.y<run.player.y?', up':', down')).join(' · '));

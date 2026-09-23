@@ -900,6 +900,17 @@
     }else{
       renderer.lastOffscreen=[];
     }
+    if(run.room_objective?.kind==='hold_circle'){
+      const goal=run.room_objective,z=goal.zone,x=z.x-camera,y=z.y,color=goal.complete?'#baffd0':goal.contested?'#ffd078':'#9df6d3';
+      ctx.save();ctx.fillStyle=goal.contested?'#c38c2526':'#56c89726';ctx.strokeStyle=color;ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(x,y,z.radius_x,z.radius_y,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.lineWidth=6;ctx.beginPath();ctx.ellipse(x,y,z.radius_x+5,z.radius_y+5,0,-Math.PI/2,-Math.PI/2+Math.PI*2*goal.seconds/goal.target);ctx.stroke();
+      ctx.drawImage(images.sigil,x-16,y-24,32,32);
+      ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillStyle=color;ctx.strokeStyle='#081914';ctx.lineWidth=4;
+      const label=goal.complete?'CHARGED':goal.contested?'CONTESTED':'HOLD '+Math.floor(goal.seconds)+' / '+goal.target+'s';ctx.strokeText(label,x,y-z.radius_y-12);ctx.fillText(label,x,y-z.radius_y-12);
+      if(x<24||x>936){const edge=x<24?25:935;ctx.textAlign=x<24?'left':'right';const direction=x<24?'← CIRCLE':'CIRCLE →';ctx.strokeText(direction,edge,355);ctx.fillText(direction,edge,355);}
+      ctx.restore();
+    }
     function drawSigil(pickup){
       const x=pickup.x-camera,y=pickup.y;
       ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,23,9,0,0,Math.PI*2);ctx.stroke();

@@ -101,10 +101,16 @@ func Campaign() []Level {
 			if layout == 2 {
 				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol"
 			}
+			if layout == 3 {
+				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
 					arena.Objective = "sigils"
+				}
+				if layout == 3 && room == 1 {
+					arena.Objective = "hold_circle"
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()

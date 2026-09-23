@@ -9,7 +9,23 @@ type ObjectivePickup struct {
 	Collected bool    `json:"collected"`
 }
 
+type ObjectiveZone struct {
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	RadiusX float64 `json:"radius_x"`
+	RadiusY float64 `json:"radius_y"`
+}
+
+func (z ObjectiveZone) contains(actor Actor) bool {
+	dx, dy := (actor.X-z.X)/z.RadiusX, (actor.Y-z.Y)/z.RadiusY
+	return dx*dx+dy*dy <= 1
+}
+
 type RoomObjective struct {
+	Zone        *ObjectiveZone    `json:"zone,omitempty"`
+	Seconds     float64           `json:"seconds"`
+	Contested   bool              `json:"contested"`
+	Charging    bool              `json:"charging"`
 	Kind        string            `json:"kind"`
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
@@ -21,7 +37,14 @@ type RoomObjective struct {
 
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
-	if r.Practice != nil || r.Arena().Objective != "sigils" {
+	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "hold_circle" {
+		r.RoomObjective = &RoomObjective{Kind: "hold_circle", Name: "Hold the circle", Description: "Charge the circle for 15 uncontested seconds, then defeat the patrol. Progress is kept when you leave.", Target: 15, Zone: &ObjectiveZone{X: 480, Y: 410, RadiusX: 80, RadiusY: 44}}
+		return
+	}
+	if r.Arena().Objective != "sigils" {
 		return
 	}
 	objective := &RoomObjective{Kind: "sigils", Name: "Gather the sigils", Description: "Walk over all three sigils and defeat every enemy to clear this tier.", Target: 3}
@@ -49,4 +72,33 @@ func (r *Run) collectRoomSigils() {
 		r.event("sigil_pickup", pickup.X, pickup.Y, float64(objective.Collected))
 	}
 	objective.Complete = objective.Collected == objective.Target
+}
+
+func (r *Run) tickRoomObjective(dt float64) {
+	r.collectRoomSigils()
+	o := r.RoomObjective
+	if o == nil || o.Kind != "hold_circle" || o.Complete || o.Zone == nil || r.Practice != nil || r.Paused || r.Status != "fighting" || r.Player.HP <= 0 {
+		return
+	}
+	wasContested, wasCharging := o.Contested, o.Charging
+	o.Contested = false
+	for _, enemy := range r.Enemies {
+		o.Contested = o.Contested || (enemy.HP > 0 && o.Zone.contains(enemy))
+	}
+	o.Charging = !o.Contested && r.Player.Jump <= .1 && o.Zone.contains(r.Player)
+	if o.Contested && !wasContested {
+		r.event("circle_contested", o.Zone.X, o.Zone.Y, 0)
+	}
+	if o.Charging && !wasCharging {
+		r.event("circle_charge", o.Zone.X, o.Zone.Y, 0)
+	}
+	if o.Charging {
+		o.Seconds = math.Min(float64(o.Target), o.Seconds+dt)
+	}
+	if o.Seconds >= float64(o.Target)-1e-9 {
+		o.Seconds = float64(o.Target)
+		o.Complete = true
+		o.Charging = false
+		r.event("circle_complete", o.Zone.X, o.Zone.Y, 0)
+	}
 }

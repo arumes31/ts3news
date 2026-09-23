@@ -748,7 +748,7 @@ func (r *Run) tick(in Input, dt float64) {
 	if r.Practice != nil {
 		r.practiceTick()
 	}
-	r.collectRoomSigils()
+	r.tickRoomObjective(dt)
 	if r.Practice == nil && alive == 0 && r.Status == "fighting" && (r.RoomObjective == nil || r.RoomObjective.Complete) {
 		r.Stats.RoomsCleared++
 		r.recordFlawlessRoom()

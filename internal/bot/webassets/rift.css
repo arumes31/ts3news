@@ -673,3 +673,5 @@
 #rift-room-objective p{margin:5px 0;font-size:13px;line-height:1.5}
 #rift-room-objective-directions{color:#c7d8ce}
 .rift-clean-screenshot #rift-room-objective{display:none!important}
+
+#rift-room-objective[data-contested=true]{border-color:#ffd078}

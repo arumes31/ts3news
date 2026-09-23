@@ -176,3 +176,39 @@ func TestRiftSigilRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftCircleRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Holder", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-circle", build, now, catalog, 4)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				if run.RoomObjective == nil {
+					t.Fatal("campaign circle missing")
+				}
+				run.Level.Rooms[1].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for n := 0; n < 1500 && !run.RoomObjective.Complete; n++ {
+					input := rift.Input{}
+					if run.Player.X < run.RoomObjective.Zone.X-5 {
+						input.X = 1
+					}
+					step(input)
+				}
+				if run.Status != "cleared" || run.RoomObjective.Seconds != 15 {
+					t.Fatal("subclass could not charge circle through movement")
+				}
+			})
+		}
+	}
+}
