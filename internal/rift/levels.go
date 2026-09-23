@@ -247,7 +247,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 			a.HP *= missionHealthMultiplier(id)
 			a.MaxHP = a.HP
 			a.Damage *= missionDamageMultiplier(id)
-			settle(a, level.Rooms[room].solidObstacles())
+			level.Rooms[room].settleEnemySpawn(a)
 		}
 		r.EncounterPlan[room] = actors
 	}

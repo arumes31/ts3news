@@ -567,6 +567,19 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+        if r.URL.Query().Get("scenario") == "spawn-hazards" {
+            mu.Lock()
+            now:=time.Now()
+            run:=rift.NewRunAtLevel("spawn-hazards",selectedBuild,now,riftMobCatalog(now),1)
+            for run.Room<2 {run.Status="cleared";run.NextRoom()}
+            h:=run.Level.Rooms[2].Hazards[0]
+            run.Clock=1.3-h.Offset
+            if run.Clock<0 {run.Clock+=h.Period}
+            run.Epoch="fixture"
+            run.SetPaused(true,now)
+            runs[cookie.Value]=run
+            mu.Unlock()
+        }
 		if r.URL.Query().Get("scenario") == "waves" {
 			mu.Lock()
 			now := time.Now()

@@ -315,6 +315,7 @@ func (r *Run) spawnRoom() {
 	}
 	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
 	for i := range r.Enemies {
+		r.Arena().settleEnemySpawn(&r.Enemies[i])
 		r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, rangedCooldownOffset(&r.Enemies[i]))
 	}
 	r.beginRoomObjective()
