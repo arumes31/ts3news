@@ -9,10 +9,15 @@ import (
 // NewBossPracticeRun starts an isolated fight against a shared Abyss boss.
 // Phase selection changes starting health and timing; reset preserves this snapshot.
 func NewBossPracticeRun(id string, build Build, name string, phase int, now time.Time) (*Run, error) {
+	return NewBossPracticeRunWithCatalog(id, build, name, phase, now, content.AbyssMobCatalog())
+}
+
+// NewBossPracticeRunWithCatalog also supports the server's live Abyss boss roster.
+func NewBossPracticeRunWithCatalog(id string, build Build, name string, phase int, now time.Time, catalog []content.Mob) (*Run, error) {
 	if phase < 1 || phase > len(bossPhaseTraining) {
 		return nil, errors.New("invalid boss phase")
 	}
-	for _, mob := range content.AbyssMobCatalog() {
+	for _, mob := range catalog {
 		if mob.Name != name {
 			continue
 		}

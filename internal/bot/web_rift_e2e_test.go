@@ -242,7 +242,12 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			}
 			previous := run
 			if mode != "" {
-				run, _ = rift.NewPracticeRun(req.RequestID, selected, mode, time.Now())
+				var err error
+				run, err = newRiftPractice(req, req.RequestID, selected, mode, time.Now())
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
 			} else {
 				run = rift.NewRunAtLevel(req.RequestID, selected, time.Now(), riftMobCatalog(time.Now()), req.LevelID)
 				run.InheritCampaignHistory(previous)
@@ -266,7 +271,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					return
 				}
 			case "practice_reset":
-				if err := run.ResetPractice(time.Now()); err != nil {
+				if err := resetRiftPractice(run, req, time.Now()); err != nil {
 					http.Error(w, err.Error(), 400)
 					return
 				}

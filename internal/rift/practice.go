@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"time"
+	"ts3news/internal/content"
 )
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
@@ -22,12 +23,20 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
+	}
+	if mode == "boss" {
+		for _, mob := range content.AbyssMobCatalog() {
+			if AdaptMonster(mob).Kind == "boss" {
+				return NewBossPracticeRun(id, build, mob.Name, 1, now)
+			}
+		}
+		return nil, errors.New("no practice bosses available")
 	}
 	return newPracticeRun(id, build, mode, now)
 }

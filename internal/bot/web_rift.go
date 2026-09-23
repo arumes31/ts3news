@@ -25,6 +25,8 @@ import (
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
 
 type riftRequest struct {
+	BossName  string     `json:"boss_name,omitempty"`
+	BossPhase int        `json:"boss_phase,omitempty"`
 	LevelID   int        `json:"level_id,omitempty"`
 	Kind      string     `json:"kind"`
 	RunID     string     `json:"run_id"`
@@ -272,6 +274,9 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 }
 
 func validRiftRequest(r riftRequest) bool {
+	if len(r.BossName) > 512 || r.BossPhase < 0 || r.BossPhase > 3 {
+		return false
+	}
 	if r.LevelID < 0 || r.LevelID > rift.LevelCount {
 		return false
 	}
@@ -442,7 +447,7 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 		}
 		previous := run
 		if mode != "" {
-			run, err = rift.NewPracticeRun(id, build, mode, now)
+			run, err = newRiftPractice(req, id, build, mode, now)
 			if err != nil {
 				return nil, err
 			}
@@ -468,7 +473,7 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 				return nil, errRiftConflict
 			}
 		case "practice_reset":
-			if err := run.ResetPractice(now); err != nil {
+			if err := resetRiftPractice(run, req, now); err != nil {
 				return nil, err
 			}
 		case "step":
