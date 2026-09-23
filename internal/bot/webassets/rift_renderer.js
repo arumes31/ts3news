@@ -930,7 +930,12 @@
     }
     (arena?.hazards||[]).forEach(h=>{
       if(h.disabled||run.status!=='fighting'){
-        ctx.save();ctx.strokeStyle='#75a796';ctx.lineWidth=1;ctx.setLineDash([3,5]);ctx.strokeRect(h.x-camera,h.y,h.w,h.h);ctx.setLineDash([]);
+        ctx.save();const x=h.x-camera;
+        // Static ground residue replaces the live warning silhouette after shutdown.
+        ctx.fillStyle='#26392e';ctx.globalAlpha=.55;ctx.beginPath();ctx.ellipse(x+h.w/2,h.y+h.h/2,h.w*.46,h.h*.36,0,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#53645a';ctx.globalAlpha=.7;ctx.lineWidth=1;ctx.setLineDash([]);ctx.beginPath();
+        for(let i=0;i<3;i++){const sx=x+h.w*(.16+i*.25),sy=h.y+h.h*(.35+(i%2)*.23);ctx.moveTo(sx,sy);ctx.lineTo(sx+h.w*.09,sy-h.h*.1);ctx.lineTo(sx+h.w*.17,sy+h.h*.08);}
+        ctx.stroke();ctx.globalAlpha=1;
         if(!display.cleanScreenshot&&display.hazardLabels){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;interactionPrompt('OFF',h.x+h.w/2-camera,h.y+h.h/2+3,true);}
         ctx.restore();return;
       }
