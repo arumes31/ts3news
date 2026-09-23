@@ -32,6 +32,7 @@ func (r *Run) classCast(skill Skill) (int, string) {
 		r.Stats.EmptyFinishers++
 		return 0, marked
 	}
+	r.LastChargeSpend = &ChargeSpend{SkillID: skill.ID, SkillName: skill.Name, Charges: charges}
 	r.Stats.ChargedFinishers++
 	r.Stats.ChargesSpent += charges
 	p := &r.Player

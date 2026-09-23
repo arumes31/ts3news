@@ -95,6 +95,7 @@
       (value.past_expeditions===undefined||object(value.past_expeditions)&&['enemies','bosses','treasure_goblins','gold','gear'].every(key=>Number.isSafeInteger(value.past_expeditions[key])&&value.past_expeditions[key]>=0))&&
       (value.last_clear===undefined||object(value.last_clear)&&Number.isInteger(value.last_clear.mission)&&value.last_clear.mission>=1&&value.last_clear.mission<=100&&typeof value.last_clear.first==='boolean'&&list(value.last_clear.records,key=>['time','health','hits'].includes(key)))&&
       (value.last_encounter===undefined||object(value.last_encounter)&&Number.isInteger(value.last_encounter.mission)&&value.last_encounter.mission>=1&&value.last_encounter.mission<=100&&text(value.last_encounter.room_name)&&['cleared','defeated','completed'].includes(value.last_encounter.outcome)&&nonnegative(value.last_encounter.seconds)&&nonnegative(value.last_encounter.player_hp)&&nonnegative(value.last_encounter.player_max_hp))&&
+      (value.last_charge_spend===undefined||object(value.last_charge_spend)&&text(value.last_charge_spend.skill_id)&&text(value.last_charge_spend.skill_name)&&Number.isInteger(value.last_charge_spend.charges)&&value.last_charge_spend.charges>=1&&value.last_charge_spend.charges<=3)&&
       (value.slow_source===undefined||['ice','poison','thorns'].includes(value.slow_source))&&hazardDefeat(value.defeated_by_hazard)&&hazardDefeat(value.last_encounter?.defeated_by_hazard)&&
       (value.room_baseline===undefined||object(value.room_baseline))&&
       (value.room_splits===undefined||splits(value.room_splits))&&

@@ -21,5 +21,12 @@ test('real empty and charged finishers update persisted sequence counters',async
   await page.waitForTimeout(400);await page.keyboard.press('q');await expect.poll(async()=>(await read()).resource).toBe(1);
   await expect(page.locator('[data-ability-role="finisher"]')).toBeEnabled({timeout:15000});await page.keyboard.press('e');
   await expect.poll(async()=>(await read()).stats.charged_finishers).toBe(1);expect((await read()).stats.charges_spent).toBe(1);
-  await page.keyboard.press('Escape');await page.reload();const restored=await read();expect(restored.stats.empty_finishers).toBe(1);expect(restored.stats.charged_finishers).toBe(1);
+  const spent=(await read()).last_charge_spend;expect(spent.charges).toBe(1);expect(spent.skill_name).toBe('Resolute Bash');await expect(page.locator('#rift-last-charge-spend')).toHaveText('Last charge spend: Resolute Bash consumed 1 charge.');
+  await page.keyboard.press('Escape');await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-last-charge-spend')).toHaveText('Last charge spend: Resolute Bash consumed 1 charge.');const restored=await read();expect(restored.last_charge_spend).toEqual(spent);expect(restored.stats.empty_finishers).toBe(1);expect(restored.stats.charged_finishers).toBe(1);
+});
+
+test('charge spend protocol supports legacy snapshots and rejects malformed spends',async({page})=>{
+ await page.goto('/abyss/rift?scenario=spawn-hazards');await expect(page.locator('#rift-start')).toBeEnabled();const data=await(await page.request.get('/api/abyss/rift')).json();
+ expect(await page.evaluate(data=>[undefined,{skill_id:'a',skill_name:'A',charges:3},{skill_id:'a',skill_name:'A',charges:0},{skill_id:'a',skill_name:'A',charges:4},{skill_id:'a',skill_name:'A',charges:1.5},{skill_id:'a',skill_name:7,charges:1},null].map(spend=>{const value=structuredClone(data);value.run.last_charge_spend=spend;try{RiftProtocol.validate(value,'GET');return true;}catch(_){return false;}}),data)).toEqual([true,true,false,false,false,false,false]);
+ await expect(page.locator('#rift-last-charge-spend')).toBeHidden();
 });
