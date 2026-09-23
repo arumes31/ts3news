@@ -61,6 +61,9 @@ func (r *Run) classCast(skill Skill) (int, string) {
 
 func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, marked string) {
 	e := &r.Enemies[index]
+	if e.HP <= 0 {
+		return
+	}
 	if skill.Role == "builder" {
 		if r.Marked != e.ID {
 			r.event("mark_target", e.X, e.Y-30, 0)
