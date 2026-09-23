@@ -82,6 +82,18 @@ type Level struct {
 // rulesets. Every mission has different collision geometry and hazard timing.
 func Campaign() []Level {
 	regions := []string{"Mossbound Ruins", "Ember Forge", "Glacial Crossing", "Storm Spires", "Venom Mire", "Drowned Temple", "Bloodrust Barracks", "Moonlit Necropolis", "Starless Rift", "Obsidian Citadel"}
+	landmarks := [10][3]string{
+		{"Ivy Arch", "Rootbound Court", "Elderstone Throne"},
+		{"Cinder Steps", "Bellows Hall", "Anvil Seat"},
+		{"Rime Passage", "Frozen Basin", "Ice Crown"},
+		{"Thunder Stair", "Gale Terrace", "Lightning Pinnacle"},
+		{"Bog Lanterns", "Spore Hollow", "Witchroot Altar"},
+		{"Tidal Steps", "Sunken Cloister", "Pearl Sanctum"},
+		{"Iron Pickets", "Drill Yard", "Crimson Standard"},
+		{"Mourner's Arch", "Moonwell Court", "Silent Mausoleum"},
+		{"Shattered Threshold", "Echo Crossing", "Null Spire"},
+		{"Glass Rampart", "Blackstone Hall", "Onyx Dais"},
+	}
 	names := []string{"Pilgrim's Gate", "Broken Well", "Pillar Watch", "Crossroads", "Twin Bastions", "Serpent Walk", "Hidden Alcoves", "Shattered Bridge", "Sentinel Rows", "Crown Arena"}
 	tactics := []string{"An open approach with scattered cover", "Circle the well to flank the patrol", "Weave between staggered pillars", "Choose your crossing between four posts", "Use the gap between twin barricades", "Jump low walls along the winding route", "Draw defenders out of their alcoves", "Cross the broken spans between pulses", "Switch lanes between sentry lines", "Circle the ring and challenge its guardian"}
 	colors := []string{"#a6ce7b", "#ff9b53", "#8bdfff", "#c6a1ff", "#bcdf64", "#65ded2", "#ed8d7c", "#bec4ff", "#be98ff", "#ffc77c"}
@@ -135,7 +147,7 @@ func Campaign() []Level {
 			if layout == 9 {
 				level.Tactic += ". Tier 1: defend both lane wards and defeat the patrol. Tier 2: stay near the spirit and clear threats along its escort route"
 			}
-			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
+			for room, suffix := range landmarks[region] {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 0 && id > 1 && room == 1 {
 					arena.Objective = "interrupt_ritual"

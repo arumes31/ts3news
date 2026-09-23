@@ -24,7 +24,8 @@
     svg.replaceChildren(drawing);
     const guidance=run.practice?'Practice arena: no checkpoint banking.':exit?'Exit marked on map.':run.status==='cleared'?'Bank & leave is available from anywhere.':['complete','banked','defeated','expired'].includes(run.status)?'Expedition finished.':'Clear the tier, then bank and leave from anywhere.';
     svg.setAttribute('aria-label','Current arena: '+arena.name+'. '+enemies.length+' enemies, '+active+' active hazards. Player '+Math.round(run.player.x)+', '+Math.round(run.player.y)+(exit?'. Exit '+Math.round(exit.x)+', '+Math.round(exit.y):'. '+guidance));
-    copy.textContent='○ You · △ Enemies · Red zones: active hazards. '+guidance;
+    const title=document.createElement('strong');title.textContent=arena.name;
+    copy.replaceChildren(title,document.createElement('br'),document.createTextNode('○ You · △ Enemies · Red zones: active hazards. '+guidance));
   }
   window.RiftMinimap={update};
 })();
