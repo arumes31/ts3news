@@ -16,6 +16,21 @@
   const regionRows = [0,.179,.363,.559,.755,1];
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
   const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0, rangeSkill: null };
+  // Include nearby boss sprite extents without moving the player out of view.
+  function cameraFrame(run){
+    if(!run)return {target:220,min:0,max:640,bosses:[]};
+    const base=Math.max(0,Math.min(640,run.player.x-350));
+    const nearby=run.enemies.filter(actor=>actor.kind==='boss'&&actor.hp>0&&Math.abs(actor.x-run.player.x)<=600).sort((a,b)=>Math.abs(a.x-run.player.x)-Math.abs(b.x-run.player.x));
+    let left=run.player.x-64,right=run.player.x+64;const bosses=[];
+    for(const boss of nearby){
+      const nextLeft=Math.min(left,boss.x-104),nextRight=Math.max(right,boss.x+104);
+      if(nextRight-nextLeft>960)continue;
+      left=nextLeft;right=nextRight;bosses.push(boss.id);
+    }
+    if(!bosses.length)return {target:base,min:0,max:640,bosses};
+    const low=Math.max(-104,right-960),high=Math.min(744,left);
+    return {target:Math.max(low,Math.min(high,base)),min:low,max:high,bosses};
+  }
   renderer.atlasDiagnostics=new URLSearchParams(location.search).get('riftAtlasDebug')==='1'?{frames:0,errors:[]}:null;
   if(renderer.atlasDiagnostics)renderer.checkAtlasBounds=function(img,sx,sy,sw,sh){
     const valid=[sx,sy,sw,sh].every(Number.isFinite)&&sx>=0&&sy>=0&&sw>0&&sh>0&&sx+sw<=img.width+.001&&sy+sh<=img.height+.001;
@@ -314,7 +329,7 @@
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
-    if(run.paused)camera=Math.max(0,Math.min(640,run.player.x-350));
+    if(run.paused)camera=cameraFrame(run).target;
     [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
@@ -655,15 +670,18 @@
     ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#091914';ctx.fillRect(0,0,960,540);
     const impactAge=wallNow-impactAt,shake=snapshot&&!snapshot.paused&&motion>0?display.shakeIntensity*motion*4*Math.max(0,1-impactAge/200):0;
     if(shake>0)ctx.translate(Math.sin(impactAge*.19)*shake,Math.cos(impactAge*.23)*shake*.6);
-    const targetCamera = snapshot ? Math.max(0,Math.min(640,snapshot.player.x-350)) : 220;
+    const framing=cameraFrame(snapshot),targetCamera=framing.target;
     if(!snapshot?.paused)camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
+    camera=Math.max(framing.min,Math.min(framing.max,camera));
+    renderer.cameraFraming={x:camera,bosses:framing.bosses};
+    const backgroundX=Math.min(0,-camera*.35),backgroundWidth=Math.max(1184,960-backgroundX);
     // Slow background parallax retains the full walkable foreground.
     const region = snapshot?.level && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level.region : previewLevel?.region;
     const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
     if(region !== undefined){
       const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
-      drawAtlas(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
-    }else drawAtlas(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
+      drawAtlas(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,backgroundX,0,backgroundWidth,540);
+    }else drawAtlas(background,0,0,background.width,background.height,backgroundX,0,backgroundWidth,540);
     if(region===3&&!renderer.reduced&&motion>0&&display.flashIntensity>0){
       const phase=decorationTime%8000-1000;
       if(phase>=0&&phase<240){
