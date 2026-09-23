@@ -652,3 +652,10 @@
 #rift-boss-phase{display:block;margin:3px 0;color:#f3dda7;font:10px/1.4 ui-monospace,monospace}
 
 #rift-objective{overflow-wrap:anywhere;min-width:0}
+
+#rift-boss-intro{padding:14px 18px;background:#283326;border-block:1px solid #90774d;display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#f2dfb0}
+#rift-boss-intro[hidden]{display:none}
+#rift-boss-intro>div{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+#rift-boss-intro p{margin:5px 0;font-size:13px;line-height:1.5}
+#rift-boss-intro small{flex-basis:100%;font-size:11px;color:#cec7ad}
+.rift-clean-screenshot #rift-boss-intro{display:none!important}

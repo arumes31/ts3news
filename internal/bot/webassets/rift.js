@@ -130,7 +130,7 @@
     if(!value)return;
     if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
     else if(!clearedAt) { clearedAt = performance.now(); countdownAnnounced = -1; }
-    run=value;window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
+    run=value;window.RiftBossIntro.update(run);window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
     if(gamePaused)root.dataset.paused='';else delete root.dataset.paused;
