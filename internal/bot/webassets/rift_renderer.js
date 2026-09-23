@@ -307,7 +307,7 @@
       if (event.id <= seen) return;
       seen = event.id;
       if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||event.kind==='boss_phase'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
-      if (event.kind !== 'area') effects.push({ ...event, started: animationTime });
+      if (event.kind !== 'area') effects.push({ ...event, visualFacing: run.player.facing, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
       const dx = run.player ? (event.x - run.player.x) : 0;
@@ -847,6 +847,12 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='slash'&&!renderer.reduced&&motion>0&&now-e.started<250){
+        const progress=(now-e.started)/250;
+        ctx.save();ctx.translate(e.x-camera,e.y);ctx.scale(e.visualFacing<0?-1:1,1);
+        ctx.strokeStyle='#f7dfac';ctx.lineWidth=3;ctx.globalAlpha=(1-progress)*.8;
+        ctx.beginPath();ctx.arc(0,0,32,-1.3+progress*.7,1.1+progress*.7);ctx.stroke();ctx.restore();
+      }
       if(e.kind==='pickup'&&!renderer.reduced&&motion>0&&display.lootSparkle){
         const x=e.x-camera,y=e.y,targetX=run.player.x-camera,targetY=run.player.y-18;
         const midX=(x+targetX)/2,midY=Math.min(y,targetY)-28,t=Math.min(1,age*1.5),u=1-t;
