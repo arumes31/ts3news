@@ -816,6 +816,7 @@ func (r *Run) cast(id string) {
 		p.PoseTime = .4
 		isUlt := skill.Kind == "ultimate" || (r.Build.Ultimate != nil && skill.ID == r.Build.Ultimate.ID)
 		if isUlt {
+			r.Stats.UltimateCasts++
 			p.Pose = "ultimate_anticipation"
 			p.PoseTime = .55
 			p.Cooldown = .55

@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartUltimates int                 `json:"start_ultimates"`
 	StartFinishers int                 `json:"start_finishers"`
 	Banked         bool                `json:"banked,omitempty"`
 	Difficulty     string              `json:"difficulty,omitempty"`
@@ -40,6 +41,9 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 	if builder && finisher {
 		entries = append(entries, ObjectiveProgress{ID: "finisher", Name: "Class finisher", Description: "Use at least one charged class finisher and clear all three tiers. Empty finishers do not count.", Target: 1, Status: "active"})
 	}
+	if build.Ultimate != nil {
+		entries = append(entries, ObjectiveProgress{ID: "save_ultimate", Name: "Ultimate in reserve", Description: "Clear all three tiers without casting an ultimate. Other abilities are allowed.", Status: "active"})
+	}
 	return entries
 }
 
@@ -47,7 +51,7 @@ func (r *Run) beginObjectives() {
 	if r.Objectives != nil && r.Objectives.Finished {
 		r.LastObjectives = r.Objectives
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, Entries: ObjectiveOptions(r.Build)}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, Entries: ObjectiveOptions(r.Build)}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -79,6 +83,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "save_ultimate":
+			e.Current = float64(max(0, r.Stats.UltimateCasts-o.StartUltimates))
+			if e.Current > 0 {
+				reason = "Cast an ultimate."
 			}
 		case "finisher":
 			e.Current = float64(max(0, r.Stats.ChargedFinishers-o.StartFinishers))
