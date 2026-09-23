@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,enemyIndicators:true,skillRange:false,largeActionBar:false};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,layoutGrid:false,enemyIndicators:true,skillRange:false,largeActionBar:false};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -55,6 +55,7 @@
     ['hazardContrast','rift-hazard-contrast','Strong hazard outlines'],['hazardPatterns','rift-hazard-patterns','Hazard fill patterns'],['projectileShapes','rift-projectile-shapes','Hostile vs friendly projectile shapes'],['cameraSmooth','rift-camera-smoothing','Smooth camera'],
     ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD'],
     ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)'],
+    ['layoutGrid','rift-layout-grid','Arena layout grid (50-unit world coordinates)'],
     ['largeActionBar','rift-large-action-bar','Large-target action bar'],
     ['enemyIndicators','rift-enemy-indicators','Off-screen enemy direction indicators'],
     ['skillRange','rift-show-skill-range','Equipped skill range indicators']
