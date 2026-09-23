@@ -325,7 +325,17 @@
       }
     }
   };
+  const hazardCueEnds=new Map();
+  function admitHazardCue(kind){
+    // Include the delayed note and source-release tail in each cue's lifetime.
+    const rule=kind==='hazard_warning'?{limit:2,seconds:.26}:kind==='hazard_deactivation'?{limit:1,seconds:.24}:null;
+    if(!rule)return true;
+    const now=audio.context?.currentTime||0,ends=(hazardCueEnds.get(kind)||[]).filter(end=>end>now);
+    if(ends.length>=rule.limit)return false;
+    ends.push(now+rule.seconds);hazardCueEnds.set(kind,ends);return true;
+  }
   function playCue(kind, pan, attenuation = 1.0) {
+    if(!admitHazardCue(kind))return false;
     const now = performance.now();
     if (audio.isImpactCue(kind)) {
       if (audio.shouldThrottleImpact(kind, now)) {
@@ -524,7 +534,7 @@
     }
     return true;
   };
-  function stopVoices(){recentImpactTimes.clear();for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
+  function stopVoices(){hazardCueEnds.clear();recentImpactTimes.clear();for(const [source,cleanup] of [...sources]){try{source.stop();}catch(_){}cleanup();}}
   const trackedAmbienceNodes = new Set();
   const pendingAmbienceTimers = new Set();
   function trackAmbienceNode(node) {
