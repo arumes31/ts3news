@@ -213,6 +213,7 @@
       message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
       $('rift-result-actions').hidden=!run.level||run.status==='expired';
+      $('rift-retry-boss').hidden=!lost||!run.level||!run.encounter_plan?.[run.room]?.some(enemy=>enemy.kind==='boss');
       $('rift-replay').hidden=!run.level||!['complete','banked'].includes(run.status)||run.room!==2;
       $('rift-replay').textContent='Replay mission '+(run.level?.id||1);
       root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=false);
@@ -492,6 +493,10 @@
     resetInput();window.RiftLoadouts.openReference();
   }
   const loadoutPreview=document.createElement('button');loadoutPreview.type='button';loadoutPreview.id='rift-loadout-preview';loadoutPreview.textContent='Skill reference · Alt+Shift+L';loadoutPreview.setAttribute('aria-keyshortcuts','Alt+Shift+L');loadoutPreview.addEventListener('click',openLoadoutReference);$('rift-loadout-order').after(loadoutPreview);
+  $('rift-retry-boss').addEventListener('click',async()=>{
+ if(!ready||busy||starting||practice||run?.status!=='defeated')return;
+ if(await send('retry_boss')){message('Boss room ready.','Health, mana and cooldowns restored. Banked rewards are safe. Failed attempts still count toward mission time.','Resume boss fight','RETRY');$('rift-start').focus();}
+ });
   $('rift-replay').addEventListener('click',()=>{
     if(!ready||busy||starting||!run?.level||!['complete','banked'].includes(run.status)||run.room!==2)return;
     selectedLevel=run.level.id;campaignKey='';updateCampaign();begin();

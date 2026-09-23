@@ -17,7 +17,7 @@ import (
 func TestRiftPracticeScopeRejectsEconomicActionsBeforeStorage(t *testing.T) {
 	b := &Bot{}
 	for _, mode := range []string{"movement", "jump", "combo", "guard", "hazard", "boss"} {
-		for _, kind := range []string{"bank", "next", "advance", "exit"} {
+		for _, kind := range []string{"bank", "next", "advance", "exit", "retry_boss"} {
 			if _, err := b.updateRiftMode(context.Background(), "owner", riftRequest{Kind: kind}, rift.Build{}, time.Now(), mode); err == nil {
 				t.Fatal("practice economic action accepted")
 			}

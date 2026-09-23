@@ -292,7 +292,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns":
 		return true
 	}
 	return false
@@ -320,7 +320,7 @@ func decodeRift(saved string) (*rift.Run, error) {
 func validRiftModeAction(mode, kind string) bool {
 	if mode == "" {
 		switch kind {
-		case "start", "step", "pause", "resume", "bank", "next", "advance", "exit":
+		case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss":
 			return true
 		}
 		return false
@@ -476,6 +476,10 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 		case "practice_reset":
 			if err := resetRiftPractice(run, req, now); err != nil {
 				return nil, err
+			}
+		case "retry_boss":
+			if err := run.RetryBossEncounter(now); err != nil {
+				return nil, errRiftConflict
 			}
 		case "step":
 			run.Step(req.Input, now)

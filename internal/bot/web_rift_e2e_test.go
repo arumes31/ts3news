@@ -132,6 +132,19 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "boss-retry" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("boss-retry", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Room = 2
+			run.Enemies = append([]rift.Actor{}, run.EncounterPlan[2]...)
+			run.BankedGold = 50
+			run.Epoch = "fixture"
+			run.Player.HP = 0
+			run.Step(rift.Input{}, now.Add(100*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "boss-windup" {
 			mu.Lock()
 			run := rift.NewRunAtLevel("boss-windup", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 1)
@@ -273,6 +286,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			case "practice_reset":
 				if err := resetRiftPractice(run, req, time.Now()); err != nil {
 					http.Error(w, err.Error(), 400)
+					return
+				}
+			case "retry_boss":
+				if err := run.RetryBossEncounter(time.Now()); err != nil {
+					http.Error(w, err.Error(), 409)
 					return
 				}
 			case "step":
