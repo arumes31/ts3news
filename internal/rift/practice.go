@@ -9,16 +9,17 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
-	BossStart     *Actor  `json:"boss_start,omitempty"`
-	Dodges        int     `json:"dodges,omitempty"`
-	PulseCycle    int     `json:"pulse_cycle,omitempty"`
-	PulseHits     int     `json:"pulse_hits,omitempty"`
-	PulseResolved bool    `json:"pulse_resolved,omitempty"`
-	Mode          string  `json:"mode"`
-	GoalX         float64 `json:"goal_x"`
-	Completed     bool    `json:"completed"`
-	Hits          int     `json:"hits"`
-	Arena         Arena   `json:"arena"`
+	SlowTelegraphs bool    `json:"slow_telegraphs,omitempty"`
+	BossStart      *Actor  `json:"boss_start,omitempty"`
+	Dodges         int     `json:"dodges,omitempty"`
+	PulseCycle     int     `json:"pulse_cycle,omitempty"`
+	PulseHits      int     `json:"pulse_hits,omitempty"`
+	PulseResolved  bool    `json:"pulse_resolved,omitempty"`
+	Mode           string  `json:"mode"`
+	GoalX          float64 `json:"goal_x"`
+	Completed      bool    `json:"completed"`
+	Hits           int     `json:"hits"`
+	Arena          Arena   `json:"arena"`
 }
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
@@ -82,6 +83,7 @@ func (r *Run) ResetPractice(now time.Time) error {
 	if err != nil {
 		return err
 	}
+	fresh.Practice.SlowTelegraphs = r.Practice.SlowTelegraphs
 	fresh.Revision = r.Revision
 	fresh.StartKey = r.StartKey
 	fresh.Epoch = r.Epoch

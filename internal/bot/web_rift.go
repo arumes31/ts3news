@@ -25,15 +25,16 @@ import (
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
 
 type riftRequest struct {
-	BossName  string     `json:"boss_name,omitempty"`
-	BossPhase int        `json:"boss_phase,omitempty"`
-	LevelID   int        `json:"level_id,omitempty"`
-	Kind      string     `json:"kind"`
-	RunID     string     `json:"run_id"`
-	RequestID string     `json:"request_id"`
-	Revision  int        `json:"revision"`
-	Skills    []string   `json:"skills,omitempty"`
-	Input     rift.Input `json:"input"`
+	SlowTelegraphs *bool      `json:"slow_telegraphs,omitempty"`
+	BossName       string     `json:"boss_name,omitempty"`
+	BossPhase      int        `json:"boss_phase,omitempty"`
+	LevelID        int        `json:"level_id,omitempty"`
+	Kind           string     `json:"kind"`
+	RunID          string     `json:"run_id"`
+	RequestID      string     `json:"request_id"`
+	Revision       int        `json:"revision"`
+	Skills         []string   `json:"skills,omitempty"`
+	Input          rift.Input `json:"input"`
 }
 
 func (s *WebServer) handleRiftPage(w http.ResponseWriter, r *http.Request, uid string) {

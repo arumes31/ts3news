@@ -19,5 +19,8 @@ func (r *Run) NextBossAttack(boss Actor) BossAttackPlan {
 	if boss.ArtKey != "" && (boss.Attacks+1)%2 == 0 {
 		plan.Kind, plan.Recovery = "projectile", 1.6
 	}
+	if r.Practice != nil && r.Practice.SlowTelegraphs {
+		plan.Windup *= 2
+	}
 	return plan
 }

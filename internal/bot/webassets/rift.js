@@ -201,7 +201,7 @@
     if(practice){
       put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
       for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=practice!=='boss';
-      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP':practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+hazardPracticePhase(run):practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
       setSafeDisabled($('rift-practice-reset'),!ready||starting||practiceToolPending);practiceToolButtons();
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
@@ -224,7 +224,7 @@
     busy=true;if(kind!=='step')setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
-    if(practice==='boss'&&['start','practice_reset'].includes(kind)){body.boss_name=$('rift-practice-boss').value;body.boss_phase=Number($('rift-practice-phase').value);}
+    if(practice==='boss'&&['start','practice_reset'].includes(kind)){body.boss_name=$('rift-practice-boss').value;body.boss_phase=Number($('rift-practice-phase').value);body.slow_telegraphs=$('rift-practice-slow').checked;}
     if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
     root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>setSafeDisabled(btn,true));
     try {
@@ -364,7 +364,7 @@
     let artworkFailed=false;
     try{
       const [,data]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),request('GET')]);
-      build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);}}ready=true;
+      build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}

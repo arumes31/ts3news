@@ -14,23 +14,25 @@ func TestRiftBossPracticeSelectionAndReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := run.Enemies[0].Name
-	req := riftRequest{Kind: "start", RequestID: "boss-practice-request", BossName: name, BossPhase: 3}
+	slow := true
+	req := riftRequest{SlowTelegraphs: &slow, Kind: "start", RequestID: "boss-practice-request", BossName: name, BossPhase: 3}
 	if !validRiftRequest(req) {
 		t.Fatal("valid selection rejected")
 	}
 	run, err = newRiftPractice(req, "boss", run.Build, "boss", now)
-	if err != nil || run.Enemies[0].Phase != 3 {
+	if err != nil || run.Enemies[0].Phase != 3 || !run.Practice.SlowTelegraphs {
 		t.Fatalf("selected start failed: %v", err)
 	}
 	run.Revision = 8
 	run.Epoch = "test"
 	run.StartKey = "start-key"
+	slow = false
 	req.Kind = "practice_reset"
 	req.BossPhase = 2
 	if err = resetRiftPractice(run, req, now); err != nil {
 		t.Fatal(err)
 	}
-	if run.Enemies[0].Phase != 2 || run.Revision != 8 || run.Epoch != "test" || run.StartKey != "start-key" {
+	if run.Practice.SlowTelegraphs || run.Enemies[0].Phase != 2 || run.Revision != 8 || run.Epoch != "test" || run.StartKey != "start-key" {
 		t.Fatal("reset lost phase or request identity")
 	}
 	before := *run
