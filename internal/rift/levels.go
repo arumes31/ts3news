@@ -27,6 +27,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	MaxAttackers      int               `json:"max_attackers,omitempty"`
 	HighCover         []Obstacle        `json:"high_cover,omitempty"`
 	Name              string            `json:"name"`
 	Obstacles         []Obstacle        `json:"obstacles"`
@@ -98,6 +99,7 @@ func Campaign() []Level {
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
+				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()
 				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionExtraEnemies(id), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {

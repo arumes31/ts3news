@@ -980,6 +980,22 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	r.event(kind, p.X, p.Y-30, damage)
 }
 
+// canStartEnemyAttack counts telegraphs and strikes, not movement or recovery.
+func (r *Run) canStartEnemyAttack() bool {
+	limit := r.Arena().MaxAttackers
+	if limit <= 0 {
+		limit = 3
+	}
+	limit = min(limit, 8)
+	active := 0
+	for _, enemy := range r.Enemies {
+		if enemy.HP > 0 && (enemy.Windup > 0 || enemy.Pose == "attack" && enemy.PoseTime > 0) {
+			active++
+		}
+	}
+	return active < limit
+}
+
 const treasureEscapeMargin = 55.0
 
 func (r *Run) enemyTick(i int, dt float64) {
@@ -1113,7 +1129,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.PoseTime == 0 {
 			e.Pose = "run"
 		}
-	} else if e.Cooldown == 0 {
+	} else if e.Cooldown == 0 && r.canStartEnemyAttack() {
 		e.Windup = EnemyTraining(e.Kind).WindupSeconds
 		e.Pose = "windup"
 		e.TargetX = p.X
