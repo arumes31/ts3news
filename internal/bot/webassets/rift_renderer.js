@@ -543,6 +543,19 @@
         }
       }
       if(!display.cleanScreenshot&&unit.art_key&&(display.enemyNames==='all'||display.enemyNames==='boss'&&unit.kind==='boss')){const displayName=(unit.kind==='boss'&&unit.name&&unit.name.length>26)?unit.name.slice(0,24)+'…':unit.name;const textY=y-size*.9-18;ctx.font=(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#e9efce';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText(displayName,x-camera,textY);ctx.fillText(displayName,x-camera,textY);}
+      if (!display.cleanScreenshot && unit.kind === 'treasure' && unit.fleeing && unit.hp > 0) {
+        const panicLift = renderer.reduced || motion === 0 ? 0 : Math.sin(decorationTime / 160) * 2;
+        const panicY = y - jump - size * .9 - 32 - panicLift;
+        ctx.save();
+        ctx.font = 'bold ' + (10 * display.textScale) + 'px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffd477';
+        ctx.strokeStyle = '#0a1715';
+        ctx.lineWidth = 3;
+        ctx.strokeText('FLEEING!', drawX, panicY);
+        ctx.fillText('FLEEING!', drawX, panicY);
+        ctx.restore();
+      }
       if(!display.cleanScreenshot&&unit.kind==='boss'&&unit.windup>0){const attack=unit.attack_name||(unit.art_key&&(unit.attacks+1)%2===0?'Aimed Volley':'Ground Slam');const attackY=y-size*.9-30;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe599';ctx.strokeStyle='#0a1715';ctx.lineWidth=3;ctx.strokeText('⚡ '+attack+' ('+unit.windup.toFixed(1)+'s)',x-camera,attackY);ctx.fillText('⚡ '+attack+' ('+unit.windup.toFixed(1)+'s)',x-camera,attackY);}
       if(snapshot.marked===unit.id){
         const targetX = drawX;
