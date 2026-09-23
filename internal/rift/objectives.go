@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartHazards   int                 `json:"start_hazards"`
 	StartUltimates int                 `json:"start_ultimates"`
 	StartFinishers int                 `json:"start_finishers"`
 	Banked         bool                `json:"banked,omitempty"`
@@ -32,6 +33,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "no_damage", Name: "Untouched", Description: "Clear all three tiers without taking health damage.", Status: "active"},
 		{ID: "basic_only", Name: "Basic attacks only", Description: "Clear all three tiers without using abilities. Movement, jumping and guarding are allowed.", Status: "active"},
 		{ID: "guard", Name: "Guard mastery", Description: "Block at least five attacks and clear all three tiers.", Target: 5, Status: "active"},
+		{ID: "hazard_avoidance", Name: "Safe footing", Description: "Clear all three tiers without triggering an active floor hazard. Jumping avoids hazards; shields do not.", Status: "active"},
 	}
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
@@ -51,7 +53,7 @@ func (r *Run) beginObjectives() {
 	if r.Objectives != nil && r.Objectives.Finished {
 		r.LastObjectives = r.Objectives
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, Entries: ObjectiveOptions(r.Build)}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, Entries: ObjectiveOptions(r.Build)}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -83,6 +85,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "hazard_avoidance":
+			e.Current = float64(max(0, r.Stats.HazardContacts-o.StartHazards))
+			if e.Current > 0 {
+				reason = "Triggered an active floor hazard."
 			}
 		case "save_ultimate":
 			e.Current = float64(max(0, r.Stats.UltimateCasts-o.StartUltimates))

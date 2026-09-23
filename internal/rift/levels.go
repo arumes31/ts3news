@@ -461,6 +461,7 @@ func (r *Run) hazardTick() {
 		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 {
 			continue
 		}
+		r.Stats.HazardContacts++
 		r.SkillTimers[key] = 1
 		r.SkillTimers["hazard-hit"] = .35
 		region := 0

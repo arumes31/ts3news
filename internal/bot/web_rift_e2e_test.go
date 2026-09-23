@@ -132,6 +132,17 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "hazard-objective" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("hazard-objective", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Level.Rooms[0].Hazards = []rift.Hazard{{Obstacle: rift.Obstacle{X: 100, Y: 380, W: 180, H: 60}, Kind: "fire", Period: 6, Duration: 2}}
+			run.Clock = 1.3
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

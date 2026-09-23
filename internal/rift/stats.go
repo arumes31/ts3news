@@ -5,6 +5,7 @@ import "math"
 // CombatStats records confirmed action-mode outcomes, never client estimates.
 // It travels with the expedition snapshot and survives seamless room changes.
 type CombatStats struct {
+	HazardContacts   int                `json:"hazard_contacts"`
 	UltimateCasts    int                `json:"ultimate_casts"`
 	PausedSeconds    float64            `json:"paused_seconds"`
 	TreasureGoblins  int                `json:"treasure_goblins"`

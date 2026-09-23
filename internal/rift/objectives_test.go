@@ -9,7 +9,7 @@ import (
 
 func TestMissionObjectivesTrackFailuresAndCompletion(t *testing.T) {
 	r := NewRunAtLevel("objectives", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
-	if r.Objectives == nil || len(r.Objectives.Entries) != 4 {
+	if r.Objectives == nil || len(r.Objectives.Entries) != 5 {
 		t.Fatal("objectives missing")
 	}
 	r.Stats.Seconds = 181
