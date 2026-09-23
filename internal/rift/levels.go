@@ -240,21 +240,37 @@ func contains(o Obstacle, x, y, radius float64) bool {
 	return x > o.X-radius && x < o.X+o.W+radius && y > o.Y-radius && y < o.Y+o.H+radius
 }
 
+// actorClearance is the ground footprint used by collision and navigation.
+func actorClearance(a *Actor) float64 {
+	if a.ID == "player" {
+		return 10
+	}
+	switch a.Kind {
+	case "boss":
+		return 18
+	case "treasure", "wolf":
+		return 6
+	default:
+		return 10
+	}
+}
+
 func settle(a *Actor, obstacles []Obstacle) {
+	radius := actorClearance(a)
 	for _, o := range obstacles {
-		if !contains(o, a.X, a.Y, 10) {
+		if !contains(o, a.X, a.Y, radius) {
 			continue
 		}
-		distances := []float64{a.X - o.X + 10, o.X + o.W + 10 - a.X, a.Y - o.Y + 10, o.Y + o.H + 10 - a.Y}
+		distances := []float64{a.X - o.X + radius, o.X + o.W + radius - a.X, a.Y - o.Y + radius, o.Y + o.H + radius - a.Y}
 		switch slices.Index(distances, slices.Min(distances)) {
 		case 0:
-			a.X = o.X - 10
+			a.X = o.X - radius
 		case 1:
-			a.X = o.X + o.W + 10
+			a.X = o.X + o.W + radius
 		case 2:
-			a.Y = o.Y - 10
+			a.Y = o.Y - radius
 		case 3:
-			a.Y = o.Y + o.H + 10
+			a.Y = o.Y + o.H + radius
 		}
 	}
 	a.X = clamp(a.X, 35, Width-35)
@@ -318,8 +334,9 @@ func (r *Run) clearPursuitPath(from, to *Actor) bool {
 	if from.Jump > .1 {
 		obstacles = arena.HighCover
 	}
+	radius := actorClearance(from) + 2
 	for _, o := range obstacles {
-		clearance := Obstacle{X: o.X - 12, Y: o.Y - 12, W: o.W + 24, H: o.H + 24}
+		clearance := Obstacle{X: o.X - radius, Y: o.Y - radius, W: o.W + radius*2, H: o.H + radius*2}
 		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, clearance); hit {
 			return false
 		}
@@ -342,18 +359,19 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	if a.Jump > .1 {
 		obstacles = arena.HighCover
 	}
+	radius := actorClearance(a)
 	settle(a, obstacles)
 	for _, o := range obstacles {
-		if navigate && dx != 0 && contains(o, a.X+dx, a.Y, 12) {
+		if navigate && dx != 0 && contains(o, a.X+dx, a.Y, radius+2) {
 			// Keep the bypass until the actor is beyond this obstacle in X.
 			if a.Y < o.Y+o.H/2 {
-				a.RouteY = o.Y - 14
+				a.RouteY = o.Y - radius - 4
 			} else {
-				a.RouteY = o.Y + o.H + 14
+				a.RouteY = o.Y + o.H + radius + 4
 			}
-			a.RouteX = o.X + o.W + 15
+			a.RouteX = o.X + o.W + radius + 5
 			if dx < 0 {
-				a.RouteX = o.X - 15
+				a.RouteX = o.X - radius - 5
 			}
 		}
 	}
@@ -366,7 +384,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	}
 	nextX := clamp(a.X+dx, 35, Width-35)
 	for _, o := range obstacles {
-		if contains(o, nextX, a.Y, 10) {
+		if contains(o, nextX, a.Y, radius) {
 			nextX = a.X
 			break
 		}
@@ -374,7 +392,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	a.X = nextX
 	nextY := clamp(a.Y+dy, 315, 490)
 	for _, o := range obstacles {
-		if contains(o, a.X, nextY, 10) {
+		if contains(o, a.X, nextY, radius) {
 			nextY = a.Y
 			break
 		}
