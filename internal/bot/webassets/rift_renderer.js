@@ -733,7 +733,19 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
-      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss') {
+      const rangedWindup = e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0;
+      if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
+        ctx.save();
+        ctx.strokeStyle = '#ffbd81';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath();
+        ctx.moveTo(e.x - camera, e.y - 30);
+        ctx.lineTo(run.player.x - camera, run.player.y - 30);
+        ctx.stroke();
+        ctx.restore();
+      }
+      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup) {
         const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam');
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,e.target_y,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,e.target_y+4);
