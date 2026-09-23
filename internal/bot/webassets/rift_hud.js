@@ -431,6 +431,13 @@
     const costWarning=$('rift-health-cost-warning');costWarning.hidden=run.build.class!=='voidwalker'||!finisher||!(run.resource>0)||run.player.hp<=0;
     if(!costWarning.hidden){const after=run.player.hp-window.RiftAbilities.healthCost(run,finisher),low=after<=run.player.max_hp*.25;attr(costWarning,'data-low',String(low));put(costWarning,(low?'Low-health cast: ':'Charged finisher: ')+run.player.hp.toFixed(1)+' → '+after.toFixed(1)+' HP. Self-cost stops at 1 HP; incoming damage can still defeat you.');}
     const builder=run.build.signatures?.find(s=>s.role==='builder');
+    const lowResource=$('rift-low-resource');lowResource.hidden=run.status!=='fighting'||run.player.hp<=0||(run.resource||0)>=2;
+    if(!lowResource.hidden){
+      const tips={vanguard:'A frontal perfect guard can also add one charge per guard raise.',berserker:'Charged finishers gain execution damage against targets at half health or less.',marksman:'Land the builder on your intended target to set up precision piercing.',beastmaster:'Mark your intended target before the pack attack; its bonus uses your equipped pets.',elementalist:'Land the builder, then hit the marked target with a charged finisher for a reaction.',chronomancer:'Spend charges while other ability or jump cooldowns are running to benefit from rewind.',oracle:'Your healing builder still builds Grace at full health.',geomancer:'Charged finishers add armor piercing against tough targets.',bloodblade:'Your charged finisher restores health for each charge spent.',voidwalker:'Spending charges costs health; check the health-cost preview before casting.',runesmith:'Spending charges grants a barrier, even without a relic.',alchemist:'Spending mixture charges restores health; a marked target also takes extra armor piercing.'};
+      const prefix=(run.build.resource||'Class charges')+': '+(run.resource||0)+'/3. ';
+      if(!builder||!finisher)put(lowResource,prefix+'Unlock and equip your class builder and finisher in Abyss.');
+      else{const key=window.RiftControls.label('signature'+run.build.signatures.indexOf(builder));put(lowResource,prefix+'Build with '+builder.name+' ('+key+'). Builder: '+reason(builder,run,playing)+'. '+(run.resource>0?'One charge already enables a charged finisher; build up to three if you want to spend more. ':'Build at least one charge before spending it. ')+(tips[run.build.class]||''));}
+    }
     const mixture=$('rift-alchemist-sequence');mixture.hidden=run.build.class!=='alchemist';
     if(!mixture.hidden){
       if(!builder||!finisher)put(mixture,'Mixture sequence: equip both your class builder and finisher in Abyss.');
