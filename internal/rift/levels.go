@@ -304,7 +304,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 func (h Hazard) Phase(clock float64) float64 { return math.Mod(clock+h.Offset, h.Period) }
 
 func (r *Run) hazardTick() {
-	if r.Status != "fighting" {
+	if r.Status != "fighting" || r.Player.HP <= 0 {
 		return
 	}
 	if r.SkillTimers == nil {
@@ -331,15 +331,19 @@ func (r *Run) hazardTick() {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)
-		if r.SkillTimers[key] > 0 {
+		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 {
 			continue
 		}
 		r.SkillTimers[key] = 1
+		r.SkillTimers["hazard-hit"] = .35
 		region := 0
 		if r.Level != nil {
 			region = r.Level.Region
 		}
 		r.hurtPlayer(12+float64(region), r.Player.X, r.Player.Y)
+		if r.Player.HP <= 0 {
+			return
+		}
 		switch h.Kind {
 		case "ice", "thorns", "poison":
 			r.SkillTimers["slowed"] = 1.4
