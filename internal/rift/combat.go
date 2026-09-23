@@ -1044,6 +1044,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.Pose = "knockdown"
 		return
 	}
+	if e.Kind == "knight" && e.Pose == "attack" && e.PoseTime > 0 {
+		return
+	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
 	if e.RouteY != 0 && r.clearPursuitPath(e, p) {
@@ -1104,7 +1107,12 @@ func (r *Run) enemyTick(i int, dt float64) {
 				e.Cooldown = 2.3
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
-				if math.Abs(dx) < 85 && math.Abs(dy) < 33 && r.clearMeleePath(e, p) {
+				inReach := math.Abs(dx) < 85 && math.Abs(dy) < 33 && r.clearMeleePath(e, p)
+				if e.Kind == "knight" && (!inReach || p.Jump >= .25) {
+					e.Cooldown = 2.2
+					e.PoseTime = .8
+				}
+				if inReach {
 					if p.Jump < .25 {
 						power := e.Damage
 						if power <= 0 {
