@@ -386,6 +386,8 @@
       }
       if($('rift-boss-name'))$('rift-boss-name').title=boss.name;
       meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp,bossThreshold);
+      const phase=Math.max(1,Math.min(3,boss.phase||1));
+      put($('rift-boss-phase'),'Phase '+phase+(phase===1?' · Next: phase 2 at 50% HP':phase===2?' · Next: phase 3 at 25% HP':' · Final phase'));
       const bossAttackNode=$('rift-boss-attack');
       if(bossAttackNode){
         if(boss.windup>0){
