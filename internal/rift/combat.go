@@ -88,8 +88,8 @@ type Actor struct {
 // HurtCue returns the creature-family hurt audio cue identifier.
 func (a Actor) HurtCue() string {
 	switch a.Kind {
-	case "totem":
-		return "totem_hurt"
+	case "totem", "generator":
+		return a.Kind + "_hurt"
 	case "goblin", "knight", "archer", "treasure", "boss", "wolf", "spore":
 		return a.Kind + "_hurt"
 	default:
@@ -632,7 +632,7 @@ func (r *Run) tick(in Input, dt float64) {
 			e := &r.Enemies[i]
 			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
-				if e.HP == 0 && e.Kind != "totem" && p.Jump > .1 && r.Practice == nil {
+				if e.HP == 0 && !e.isObjectiveProp() && p.Jump > .1 && r.Practice == nil {
 					r.Stats.AerialFinishes++
 				}
 				if r.Combo == 3 {
@@ -956,9 +956,13 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if r.Marked == e.ID {
 			r.Marked = ""
 		}
-		if e.Kind == "totem" {
-			r.event("totem_break", e.X, e.Y, 0)
-			r.updateTotemObjective()
+		if e.isObjectiveProp() {
+			r.event(e.Kind+"_break", e.X, e.Y, 0)
+			if e.Kind == "generator" {
+				r.disableGenerator(e.ID)
+			} else {
+				r.updateTotemObjective()
+			}
 			return
 		}
 		r.recordPriorityDefeat(*e)
@@ -1082,7 +1086,7 @@ func (r *Run) canStartEnemyAttack(candidate *Actor) bool {
 const treasureEscapeMargin = 55.0
 
 func (r *Run) enemyTick(i int, dt float64) {
-	if r.Enemies[i].Kind == "totem" {
+	if r.Enemies[i].isObjectiveProp() {
 		e := &r.Enemies[i]
 		e.PoseTime = math.Max(0, e.PoseTime-dt)
 		if e.PoseTime == 0 {

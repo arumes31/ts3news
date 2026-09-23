@@ -19,6 +19,8 @@ type Obstacle struct {
 }
 
 type Hazard struct {
+	Disabled    bool   `json:"disabled,omitempty"`
+	GeneratorID string `json:"generator_id,omitempty"`
 	Obstacle
 	Kind     string  `json:"kind"`
 	Period   float64 `json:"period"`
@@ -113,6 +115,9 @@ func Campaign() []Level {
 			if layout == 6 {
 				level.Tactic += ". Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
 			}
+			if layout == 7 {
+				level.Tactic += ". Tier 2: destroy the generators to shut down linked floor hazards"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
@@ -129,6 +134,9 @@ func Campaign() []Level {
 				}
 				if layout == 6 && room == 1 {
 					arena.Objective = "carry_relic"
+				}
+				if layout == 7 && room == 1 {
+					arena.Objective = "disable_generators"
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()
@@ -469,6 +477,9 @@ func (r *Run) hazardTick() {
 		r.SkillTimers = map[string]float64{}
 	}
 	for i, h := range r.Arena().Hazards {
+		if h.Disabled {
+			continue
+		}
 		phase := h.Phase(r.Clock)
 		warnKey := fmt.Sprintf("hazard-warn-%d", i)
 		activeKey := fmt.Sprintf("hazard-active-%d", i)

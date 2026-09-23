@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='carry_relic'){
+    if(roomGoal?.kind==='disable_generators'){
+      const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='generator'&&e.hp>0);
+      put($('rift-room-objective-progress'),'Generators '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'All hazards off':'Shut down the hazards'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.kind!=='generator'&&e.hp>0)?'Hazards disabled. Defeat the remaining patrol.':'Generators and patrol cleared. Bank the tier loot to continue.'):'Destroy each generator with attacks or spells. Its linked floor hazard stays off. Generators grant no monster loot or kill credit.');
+      put($('rift-room-objective-directions'),ended?'':remaining.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='carry_relic'){
       const ended=!['fighting','cleared'].includes(run.status),target=roomGoal.carrying?roomGoal.zone:roomGoal.relic;
       put($('rift-room-objective-progress'),'Relic · '+(ended?'Expedition ended':roomGoal.complete?'Delivered':roomGoal.carrying?'Carrying · 30% slower':'Find the relic')+(gamePaused&&!ended&&!roomGoal.complete?' · Paused':''));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Movement restored. Defeat the patrol to secure this tier.':'Relic delivered and patrol cleared. Bank the tier loot to continue.'):roomGoal.carrying?'Carry it to the exit seal. Attacks and jumps remain available. Land inside the seal to deliver.':'Walk over the relic to pick it up. Carrying reduces movement speed by 30%.');

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, totem_break:4, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -75,7 +75,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic'];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -368,11 +368,11 @@
     ctx.save(); ctx.globalAlpha = alpha*(row===5?1:display.effectIntensity); drawAtlas(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
   }
   function actor(unit, now) {
-    if(unit.kind==='totem'){
+    if(unit.kind==='totem'||unit.kind==='generator'){
       if(unit.hp<=0)return;
       const x=unit.x-camera,y=unit.y,hit=unit.pose==='hit'&&unit.pose_time>0;
       ctx.save();
-      ctx.drawImage(images.totem,x-35+(hit&&!renderer.reduced?Math.sin(animationTime/25)*2*motion:0),y-82,70,84);
+      ctx.drawImage(images[unit.kind],x-35+(hit&&!renderer.reduced?Math.sin(animationTime/25)*2*motion:0),y-82,70,84);
       if(!display.cleanScreenshot){
         ctx.fillStyle='#241d30';ctx.fillRect(x-25,y-90,50,5);
         ctx.fillStyle='#cb9bff';ctx.fillRect(x-25,y-90,50*unit.hp/unit.max_hp,5);
@@ -755,6 +755,13 @@
       ctx.stroke();ctx.restore();
     });
     (arena?.hazards||[]).forEach(h=>{
+      if(h.disabled){
+        ctx.save();ctx.strokeStyle='#75a796';ctx.lineWidth=1;ctx.setLineDash([3,5]);ctx.strokeRect(h.x-camera,h.y,h.w,h.h);ctx.setLineDash([]);
+        if(!display.cleanScreenshot){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.strokeText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);ctx.fillText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);}
+        ctx.restore();return;
+      }
+      if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
+
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
       const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;

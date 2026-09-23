@@ -219,6 +219,35 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "generators" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("generator-room", selectedBuild, now, riftMobCatalog(now), 8)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Obstacles = nil
+			run.Level.Rooms[1].HighCover = nil
+			index := 0
+			for i := range run.Enemies {
+				e := &run.Enemies[i]
+				if e.Kind != "generator" {
+					e.HP = 0
+					continue
+				}
+				e.X, e.Y = 225+float64(index)*250, 350
+				h := &run.Level.Rooms[1].Hazards[index]
+				h.X, h.Y, h.W, h.H = 200+float64(index)*250, 390, 90, 50
+				index++
+			}
+			run.Player.X, run.Player.Y = 180, 350
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "relic" {
 			mu.Lock()
 			now := time.Now()

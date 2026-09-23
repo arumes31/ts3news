@@ -455,6 +455,9 @@
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
       case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
+      case 'generator_hurt': h(.12,.06,3400,pan); t(420,180,.15,.045,'triangle'); break;
+      case 'generator_break': h(.4,.12,2400,pan); t(440,70,.5,.07,'sawtooth'); break;
+      case 'generator_shutdown': t(660,110,.65,.055,'sine'); break;
       case 'relic_pickup': [330,440,660].forEach((f,i)=>t(f,f,.3,.05,'sine',i*.09)); break;
       case 'relic_delivered': [523,659,784,1047].forEach((f,i)=>t(f,f,.5,.06,'triangle',i*.1)); break;
       case 'totem_hurt': h(.12,.07,2200,pan); t(160,95,.15,.05,'triangle'); break;

@@ -45,6 +45,10 @@ func (r *Run) beginRoomObjective() {
 	if r.Practice != nil {
 		return
 	}
+	if r.Arena().Objective == "disable_generators" {
+		r.beginGeneratorObjective()
+		return
+	}
 	if r.Arena().Objective == "carry_relic" {
 		r.beginRelicObjective()
 		return

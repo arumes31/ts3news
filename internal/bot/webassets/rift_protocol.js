@@ -15,7 +15,7 @@
   const drop=value=>point(value)&&text(value.id)&&nonnegative(value.gold)&&(!value.gear||object(value.gear)&&text(value.gear.Name)&&text(value.gear.Slot));
   const projectile=value=>point(value)&&finite(value.vx)&&finite(value.vy)&&text(value.kind)&&(value.enemy===undefined||typeof value.enemy==='boolean');
   const event=value=>point(value)&&nonnegative(value.id)&&text(value.kind)&&(value.value===undefined||finite(value.value));
-  const arena=value=>object(value)&&text(value.name)&&optionalList(value.obstacles,box)&&optionalList(value.hazards,h=>box(h)&&text(h.kind)&&finite(h.period)&&h.period>0&&nonnegative(h.offset)&&nonnegative(h.duration));
+  const arena=value=>object(value)&&text(value.name)&&optionalList(value.obstacles,box)&&optionalList(value.hazards,h=>box(h)&&text(h.kind)&&finite(h.period)&&h.period>0&&nonnegative(h.offset)&&nonnegative(h.duration)&&(h.disabled===undefined||typeof h.disabled==='boolean')&&(h.generator_id===undefined||text(h.generator_id)&&h.generator_id.length>0));
   function level(value){return object(value)&&Number.isInteger(value.id)&&value.id>0&&text(value.name)&&text(value.region_name)&&text(value.tactic)&&text(value.difficulty)&&Number.isInteger(value.region)&&value.region>=0&&value.region<10&&list(value.rooms,arena)&&value.rooms.length===3;}
   const splits=value=>Array.isArray(value)&&value.length===3&&value.every(seconds=>seconds===null||nonnegative(seconds));
   const attempt=value=>object(value)&&(value.splits===undefined||splits(value.splits))&&Number.isInteger(value.mission)&&value.mission>=1&&value.mission<=100&&['completed','defeated','exited','expired'].includes(value.outcome)&&Number.isSafeInteger(value.at_ms)&&value.at_ms>=0&&value.at_ms<=8640000000000000&&text(value.class)&&nonnegative(value.seconds)&&nonnegative(value.hp)&&nonnegative(value.max_hp)&&(value.hits===undefined||Number.isSafeInteger(value.hits)&&value.hits>=0);
@@ -26,7 +26,15 @@
   const waveObjective=value=>object(value)&&value.kind==='survive_waves'&&text(value.name)&&text(value.description)&&value.target===3&&Number.isInteger(value.wave)&&value.wave>=1&&value.wave<=3&&typeof value.complete==='boolean'&&(!value.complete||value.wave===3)&&nonnegative(value.next_wave_seconds)&&value.next_wave_seconds<=2.5&&(value.wave<3||value.next_wave_seconds===0)&&list(value.waves,group=>list(group,actor)&&group.length>0)&&value.waves.length===3&&new Set(value.waves.flat().map(enemy=>enemy.id)).size===value.waves.flat().length;
   const totemObjective=value=>object(value)&&value.kind==='destroy_totems'&&text(value.name)&&text(value.description)&&value.target===3&&Number.isInteger(value.collected)&&value.collected>=0&&value.collected<=3&&value.complete===(value.collected===3);
   const relicObjective=value=>object(value)&&value.kind==='carry_relic'&&text(value.name)&&text(value.description)&&value.target===1&&[0,1].includes(value.collected)&&value.complete===(value.collected===1)&&typeof value.carrying==='boolean'&&point(value.relic)&&value.relic.id===1&&typeof value.relic.collected==='boolean'&&value.relic.collected===(value.carrying||value.complete)&&!(value.carrying&&value.complete)&&point(value.zone)&&value.zone.radius_x===45&&value.zone.radius_y===28;
-  const roomObjective=value=>relicObjective(value)||totemObjective(value)||sigilObjective(value)||circleObjective(value)||waveObjective(value);
+  const generatorObjective=value=>object(value)&&value.kind==='disable_generators'&&text(value.name)&&text(value.description)&&Number.isInteger(value.target)&&value.target>=1&&value.target<=3&&Number.isInteger(value.collected)&&value.collected>=0&&value.collected<=value.target&&value.complete===(value.collected===value.target);
+  const roomObjective=value=>generatorObjective(value)||relicObjective(value)||totemObjective(value)||sigilObjective(value)||circleObjective(value)||waveObjective(value);
+  function generatorLinks(run){
+    if(run.room_objective?.kind!=='disable_generators')return true;
+    const hazards=run.level?.rooms?.[run.room]?.hazards;
+    if(!Array.isArray(hazards)||!list(run.enemies,actor))return false;
+    const generators=run.enemies.filter(e=>e.kind==='generator');
+    return hazards.length===run.room_objective.target&&generators.length===hazards.length&&new Set(generators.map(e=>e.id)).size===generators.length&&new Set(hazards.map(h=>h?.generator_id)).size===hazards.length&&hazards.every(h=>object(h)&&generators.some(e=>e.id===h.generator_id&&(h.disabled===true)===(e.hp===0)))&&hazards.filter(h=>h.disabled).length===run.room_objective.collected;
+  }
   function run(value){
     if(!object(value))return false;
     if(value.schema!==1)throw new Error('This expedition uses an unsupported save version. Reload the page to get the current game before recovering.');
@@ -34,7 +42,7 @@
     return text(value.id)&&value.id.length>0&&Number.isInteger(value.revision)&&value.revision>=0&&
       Number.isInteger(value.room)&&value.room>=0&&value.room<3&&typeof value.paused==='boolean'&&
       (value.room_objective?.kind!=='destroy_totems'||list(value.enemies,actor)&&value.enemies.filter(e=>e.kind==='totem').length===3&&new Set(value.enemies.filter(e=>e.kind==='totem').map(e=>e.id)).size===3&&value.enemies.filter(e=>e.kind==='totem'&&e.hp===0).length===value.room_objective.collected)&&
-      build(value.build)&&actor(value.player)&&nonnegative(value.player.mana)&&list(value.enemies,actor)&&
+      generatorLinks(value)&&build(value.build)&&actor(value.player)&&nonnegative(value.player.mana)&&list(value.enemies,actor)&&
       list(value.projectiles,projectile)&&list(value.drops,drop)&&optionalList(value.events,event)&&
       list(value.banked_items,text)&&optionalList(value.banked_loot,item=>object(item)&&text(item.name)&&Number.isSafeInteger(item.rarity)&&item.rarity>=0)&&(value.banked_at_ms===undefined||Number.isSafeInteger(value.banked_at_ms)&&value.banked_at_ms>=0&&value.banked_at_ms<=8640000000000000)&&nonnegative(value.gold)&&nonnegative(value.banked_gold)&&nonnegative(value.clock)&&nonnegative(value.counter)&&
       object(value.skill_timers)&&Object.values(value.skill_timers).every(nonnegative)&&
