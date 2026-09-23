@@ -46,7 +46,7 @@ func (r *Run) healPlayer(amount float64) {
 	healed := math.Max(0, r.Player.HP-before)
 	r.Stats.Healing += healed
 	if healed > 0 {
-		r.event("heal", r.Player.X, r.Player.Y-35, healed)
+		r.eventAtHeight("heal", r.Player.X, r.Player.Y-35, healed, r.Player.Elevation)
 	}
 }
 
@@ -72,7 +72,7 @@ func (r *Run) addBarrier(amount float64, skillID string) {
 			}
 			r.BarrierSources[skillID] += added
 		}
-		r.event("barrier", r.Player.X, r.Player.Y-35, added)
+		r.eventAtHeight("barrier", r.Player.X, r.Player.Y-35, added, r.Player.Elevation)
 	}
 }
 

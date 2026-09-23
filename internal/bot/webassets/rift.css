@@ -686,3 +686,5 @@
 @media(max-width:600px){#rift-minimap{flex-direction:column;align-items:stretch;gap:2px;padding:4px 8px}#rift-minimap svg{width:100%;max-width:100%}#rift-minimap p{font-size:10px}}
 
 #rift-minimap [data-kind=objective]{fill:#91d9e4;stroke:#1a3540;stroke-width:.7}
+
+#rift-minimap [data-kind=platform],#rift-room-previews [data-terrain=platform]{fill:#829679;stroke:#d9e9cc;stroke-width:1}

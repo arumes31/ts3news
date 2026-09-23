@@ -8,6 +8,7 @@
     const drawing=document.createDocumentFragment();
     drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor'},'Walkable arena bounds'));
     const rect=(o,kind,label,phase)=>drawing.append(node('rect',{x:mx(o.x),y:my(o.y),width:mx(o.w),height:Math.round(o.h*.24*10)/10,'data-kind':kind,...(phase?{'data-phase':phase}:{})},label));
+    for(const p of arena.platforms||[])rect(p,'platform','Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
     for(const o of arena.cover||[])if(o.material==='stone'||o.hp>0)rect(o,o.material,o.material==='wood'?'Breakable wood':'Permanent stone');

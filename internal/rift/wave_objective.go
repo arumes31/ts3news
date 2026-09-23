@@ -44,6 +44,7 @@ func (r *Run) tickWaveObjective(dt float64) {
 	// Keep defeated actors for room summaries, boss records and treasure escape accounting.
 	for _, enemy := range o.Waves[o.Wave] {
 		r.Arena().settleEnemySpawn(&enemy)
+		enemy.Elevation = r.Arena().Elevation(enemy.X, enemy.Y)
 		enemy.Cooldown = math.Max(enemy.Cooldown, 1.2)
 		r.Enemies = append(r.Enemies, enemy)
 	}

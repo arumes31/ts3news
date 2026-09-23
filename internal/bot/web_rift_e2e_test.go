@@ -567,6 +567,16 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+        if r.URL.Query().Get("scenario") == "raised-platform" {
+            mu.Lock()
+            now:=time.Now()
+            run:=rift.NewRunAtLevel("raised-platform",selectedBuild,now,riftMobCatalog(now),2)
+            run.Enemies=[]rift.Actor{{ID:"watcher",Name:"Watcher",Kind:"goblin",X:1450,Y:485,HP:100,MaxHP:100,Knockdown:1000}}
+            run.Epoch="fixture"
+            run.SetPaused(true,now)
+            runs[cookie.Value]=run
+            mu.Unlock()
+        }
         if r.URL.Query().Get("scenario") == "spawn-hazards" {
             mu.Lock()
             now:=time.Now()

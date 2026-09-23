@@ -29,6 +29,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	Platforms         []RaisedPlatform  `json:"platforms,omitempty"`
 	DropEdges         []DropEdge        `json:"drop_edges,omitempty"`
 	Cover             []TerrainCover    `json:"cover,omitempty"`
 	Objective         string            `json:"objective,omitempty"`
@@ -206,6 +207,9 @@ func Campaign() []Level {
 				for h := 0; h < 1+(layout+room)%3; h++ {
 					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
 				}
+				if layout == 1 && room == 0 {
+					arena.Platforms = []RaisedPlatform{{Obstacle: Obstacle{180, 360, 180, 100}, ID: fmt.Sprintf("mission-%d-platform", id), Rise: 16, Ramp: 24, Floor: "stone"}}
+				}
 				if layout == 0 && room == 0 {
 					arena.DropEdges = []DropEdge{{ID: fmt.Sprintf("mission-%d-drop", id), X: 260, Y: 365, W: 80, LandingY: 425}}
 				}
@@ -248,6 +252,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 			a.MaxHP = a.HP
 			a.Damage *= missionDamageMultiplier(id)
 			level.Rooms[room].settleEnemySpawn(a)
+			a.Elevation = level.Rooms[room].Elevation(a.X, a.Y)
 		}
 		r.EncounterPlan[room] = actors
 	}
@@ -266,6 +271,9 @@ func (r *Run) Arena() Arena {
 }
 
 func (r *Run) FloorMaterial() string {
+	if _, floor := r.Arena().surfaceAt(r.Player.X, r.Player.Y); floor != "" {
+		return floor
+	}
 	if a := r.Arena(); a.Floor != "" {
 		return a.Floor
 	}
@@ -306,7 +314,7 @@ func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 		if r.Room == len(Rooms)-1 {
 			r.Status = "complete"
 			if r.Player.Pose != "victory" {
-				r.event("victory", r.Player.X, r.Player.Y-30, 0)
+				r.eventAtHeight("victory", r.Player.X, r.Player.Y-30, 0, r.Player.Elevation)
 			}
 			r.Player.Pose = "victory"
 			r.Player.PoseTime = 4.0
@@ -328,7 +336,7 @@ func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
 	}
 	r.Status = "complete"
 	if r.Player.Pose != "victory" {
-		r.event("victory", r.Player.X, r.Player.Y-30, 0)
+		r.eventAtHeight("victory", r.Player.X, r.Player.Y-30, 0, r.Player.Elevation)
 	}
 	r.Player.Pose = "victory"
 	r.Player.PoseTime = 4.0
@@ -530,6 +538,10 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 		}
 	}
 	a.Y = r.crossDropEdge(a, nextY)
+	a.Elevation = arena.Elevation(a.X, a.Y)
+	if a == &r.Player {
+		r.Floor = r.FloorMaterial()
+	}
 }
 
 func (h Hazard) Phase(clock float64) float64 { return math.Mod(clock+h.Offset, h.Period) }

@@ -18,7 +18,7 @@ func (r *Run) classCast(skill Skill) (int, string) {
 		before := r.Resource
 		r.Resource = min(3, r.Resource+1)
 		if r.Resource > before {
-			r.event("resource", r.Player.X, r.Player.Y-35, float64(r.Resource-before))
+			r.eventAtHeight("resource", r.Player.X, r.Player.Y-35, float64(r.Resource-before), r.Player.Elevation)
 		}
 		return 0, ""
 	}
@@ -52,7 +52,7 @@ func (r *Run) classCast(skill Skill) (int, string) {
 	case "voidwalker":
 		cost := math.Min(math.Max(0, p.HP-1), p.MaxHP*.05)
 		p.HP -= cost
-		r.event("void_cost", p.X, p.Y-35, cost)
+		r.eventAtHeight("void_cost", p.X, p.Y-35, cost, p.Elevation)
 	case "runesmith":
 		r.addBarrier(15+r.Build.Armor*2, skill.ID)
 	}
@@ -66,7 +66,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 	}
 	if skill.Role == "builder" {
 		if r.Marked != e.ID {
-			r.event("mark_target", e.X, e.Y-30, 0)
+			r.eventAtHeight("mark_target", e.X, e.Y-30, 0, e.Elevation)
 		}
 		r.Marked = e.ID
 	}
@@ -116,7 +116,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 		e.PoseTime = .45
 		e.Windup = 0
 		e.Cooldown = math.Max(e.Cooldown, 0.8)
-		r.event("boss_stagger", e.X, e.Y-30, 0)
+		r.eventAtHeight("boss_stagger", e.X, e.Y-30, 0, e.Elevation)
 	}
 	if skill.Kind == "ice" && EnemyTraining(e.Kind).Interruptible {
 		e.Windup = 0

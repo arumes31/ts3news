@@ -50,6 +50,7 @@ type Build struct {
 }
 
 type Actor struct {
+	Elevation     float64 `json:"elevation,omitempty"`
 	LedgeRoute     string  `json:"ledge_route,omitempty"`
 	LedgeRouteX    float64 `json:"ledge_route_x,omitempty"`
 	LedgeRouteSide bool    `json:"ledge_route_side,omitempty"`
@@ -111,6 +112,7 @@ func (a Actor) DeathCue() string {
 }
 
 type Projectile struct {
+	Elevation float64 `json:"elevation,omitempty"`
 	OwnerID string  `json:"owner_id,omitempty"`
 	Skill   Skill   `json:"skill"`
 	Charges int     `json:"charges"`
@@ -127,6 +129,7 @@ type Projectile struct {
 }
 
 type Drop struct {
+	Elevation float64 `json:"elevation,omitempty"`
 	Mission   int           `json:"mission,omitempty"`
 	Tier      int           `json:"tier,omitempty"`
 	ID        string        `json:"id"`
@@ -145,6 +148,7 @@ type BankedLoot struct {
 }
 
 type Event struct {
+	Elevation float64 `json:"elevation,omitempty"`
 	ActorName string  `json:"actor_name,omitempty"`
 	ID        int     `json:"id"`
 	Kind      string  `json:"kind"`
@@ -319,10 +323,14 @@ func (r *Run) spawnRoom() {
 		r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, rangedCooldownOffset(&r.Enemies[i]))
 	}
 	r.beginRoomObjective()
+	for i := range r.Enemies {
+		r.Enemies[i].Elevation = r.Arena().Elevation(r.Enemies[i].X, r.Enemies[i].Y)
+	}
 	r.observeRoomMonsters()
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
+	r.Player.Elevation = r.Arena().Elevation(r.Player.X, r.Player.Y)
 	r.heavyRecovery = 0
 	r.Floor = r.FloorMaterial()
 	r.event("area", r.Player.X, r.Player.Y, float64(r.Room))
@@ -446,8 +454,13 @@ func (r *Run) NextRoom() bool {
 }
 
 func (r *Run) event(kind string, x, y, value float64) {
+	r.eventAtHeight(kind, x, y, value, r.Arena().Elevation(x, y))
+}
+
+// eventAtHeight preserves source height when visual Y is offset from its feet.
+func (r *Run) eventAtHeight(kind string, x, y, value, elevation float64) {
 	r.Counter++
-	r.Events = append(r.Events, Event{ID: r.Counter, Kind: kind, X: x, Y: y, Value: value})
+	r.Events = append(r.Events, Event{ID: r.Counter, Kind: kind, X: x, Y: y, Value: value, Elevation: elevation})
 	if len(r.Events) > 40 {
 		r.Events = r.Events[len(r.Events)-40:]
 	}
@@ -537,7 +550,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.SkillTimers[id] = val
 	}
 	if wasSlowed && r.SkillTimers["slowed"] == 0 {
-		r.event("thaw", p.X, p.Y-25, 0)
+		r.eventAtHeight("thaw", p.X, p.Y-25, 0, p.Elevation)
 	}
 	wasGuarding := p.Guard
 	p.Guard = in.Guard && p.Jump == 0
@@ -593,7 +606,7 @@ func (r *Run) tick(in Input, dt float64) {
 			p.Pose = "recovery"
 			p.PoseTime = r.heavyRecovery
 			r.heavyRecovery = 0
-			r.event("heavy_recovery", p.X, p.Y-35, 0)
+			r.eventAtHeight("heavy_recovery", p.X, p.Y-35, 0, p.Elevation)
 		} else {
 			p.Pose = "idle"
 			if length > 0 {
@@ -632,7 +645,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.Combo = r.Combo%3 + 1
 		r.ComboTime = comboWindow
 		r.Stats.HighestCombo = max(r.Stats.HighestCombo, r.Combo)
-		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
+		r.eventAtHeight("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo), p.Elevation)
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
 			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
@@ -641,7 +654,7 @@ func (r *Run) tick(in Input, dt float64) {
 					r.Stats.AerialFinishes++
 				}
 				if r.Combo == 3 {
-					r.event("third_strike", e.X, e.Y-25, float64(r.Combo))
+					r.eventAtHeight("third_strike", e.X, e.Y-25, float64(r.Combo), e.Elevation)
 					if e.HP > 0 {
 						if !EnemyTraining(e.Kind).ResistsKnockdown {
 							e.Knockdown = .55
@@ -659,7 +672,7 @@ func (r *Run) tick(in Input, dt float64) {
 							e.PoseTime = .45
 							e.Windup = 0
 							e.Cooldown = math.Max(e.Cooldown, 0.8)
-							r.event("boss_stagger", e.X, e.Y-30, 0)
+							r.eventAtHeight("boss_stagger", e.X, e.Y-30, 0, e.Elevation)
 						}
 					}
 				}
@@ -686,13 +699,13 @@ func (r *Run) tick(in Input, dt float64) {
 		shot.X += shot.VX * dt
 		shot.Y += shot.VY * dt
 		if shot.Life <= 0 || shot.X < 0 || shot.X > Width {
-			r.event("projectile_expire", shot.X, shot.Y, 0)
+			r.eventAtHeight("projectile_expire", shot.X, shot.Y, 0, shot.Elevation)
 			continue
 		}
 		impact, coverIndex := r.projectileCoverImpact(fromX, fromY, shot.X, shot.Y)
 		if impact <= 1 {
 			r.damageTerrainCover(coverIndex, shot.Power)
-			r.event("projectile_impact", fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact, 0)
+			r.eventAtHeight("projectile_impact", fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact, 0, shot.Elevation)
 			continue
 		}
 		hit := false
@@ -716,7 +729,7 @@ func (r *Run) tick(in Input, dt float64) {
 			}
 		}
 		if hit {
-			r.event("projectile_impact", shot.X, shot.Y, 0)
+			r.eventAtHeight("projectile_impact", shot.X, shot.Y, 0, shot.Elevation)
 		} else {
 			shots = append(shots, shot)
 		}
@@ -790,7 +803,7 @@ func (r *Run) tick(in Input, dt float64) {
 		if r.Room == len(Rooms)-1 {
 			p.Pose = "victory"
 			p.PoseTime = 4.0
-			r.event("victory", p.X, p.Y-30, 0)
+			r.eventAtHeight("victory", p.X, p.Y-30, 0, p.Elevation)
 		}
 	}
 }
@@ -839,12 +852,12 @@ func (r *Run) cast(id string) {
 			p.Pose = "ultimate_anticipation"
 			p.PoseTime = .55
 			p.Cooldown = .55
-			r.event("ultimate_anticipation", p.X, p.Y-35, 0)
+			r.eventAtHeight("ultimate_anticipation", p.X, p.Y-35, 0, p.Elevation)
 		}
 		r.SkillTimers[id] = skill.Cooldown
 		charges, marked := r.classCast(skill)
 		if skill.Role == "finisher" {
-			r.event("finisher_cast", p.X, p.Y-35, float64(charges))
+			r.eventAtHeight("finisher_cast", p.X, p.Y-35, float64(charges), p.Elevation)
 		}
 		if isUlt || (skill.Role == "finisher" && charges > 0) || skill.Kind == "quake" || skill.Kind == "slam" {
 			r.heavyRecovery = .22
@@ -852,7 +865,7 @@ func (r *Run) cast(id string) {
 		} else {
 			r.heavyRecovery = 0
 		}
-		r.event(skill.Kind, p.X+p.Facing*35, p.Y-35, 0)
+		r.eventAtHeight(skill.Kind, p.X+p.Facing*35, p.Y-35, 0, p.Elevation)
 		base := skill.Damage
 		if base <= 0 {
 			base = r.Build.Damage
@@ -876,7 +889,7 @@ func (r *Run) cast(id string) {
 				}
 			}
 		default:
-			r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: p.X + p.Facing*35, Y: p.Y, VX: p.Facing * 530, Power: power, Life: 2.5, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
+			r.Projectiles = append(r.Projectiles, Projectile{Elevation: p.Elevation, ID: r.Counter, X: p.X + p.Facing*35, Y: p.Y, VX: p.Facing * 530, Power: power, Life: 2.5, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
 		}
 		return
 	}
@@ -926,10 +939,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		recoilDist = 6.5
 	}
 	e.RecoilX = hitDir * recoilDist
-	r.event(effect, e.X, e.Y-30, damage)
+	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
 		r.interruptRitual(e.ID)
-		r.event(e.HurtCue(), e.X, e.Y-30, damage)
+		r.eventAtHeight(e.HurtCue(), e.X, e.Y-30, damage, e.Elevation)
 	}
 	if e.Kind == "boss" && e.HP > 0 && e.MaxHP > 0 {
 		if e.Phase < 1 {
@@ -938,10 +951,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		previousPhase := e.Phase
 		if e.Phase < 3 && e.HP <= e.MaxHP*float64(bossPhaseTraining[2].AtHealthPercent)/100 && prevHP > e.MaxHP*float64(bossPhaseTraining[2].AtHealthPercent)/100 {
 			e.Phase = 3
-			r.event("boss_phase", e.X, e.Y-30, 3)
+			r.eventAtHeight("boss_phase", e.X, e.Y-30, 3, e.Elevation)
 		} else if e.Phase < 2 && e.HP <= e.MaxHP*float64(bossPhaseTraining[1].AtHealthPercent)/100 && prevHP > e.MaxHP*float64(bossPhaseTraining[1].AtHealthPercent)/100 {
 			e.Phase = 2
-			r.event("boss_phase", e.X, e.Y-30, 2)
+			r.eventAtHeight("boss_phase", e.X, e.Y-30, 2, e.Elevation)
 		}
 		if e.Phase != previousPhase {
 			e.Windup = 0
@@ -993,7 +1006,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if r.Level != nil {
 			mission = r.Level.ID
 		}
-		r.Drops = append(r.Drops, Drop{Mission: mission, Tier: r.Room + 1, ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
+		r.Drops = append(r.Drops, Drop{Elevation: r.Arena().Elevation(e.X, e.Y), Mission: mission, Tier: r.Room + 1, ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
 	}
 }
 
@@ -1042,7 +1055,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		absorbed := r.absorbBarrier(damage)
 		damage -= absorbed
 		if absorbed > 0 {
-			r.event("shield_absorb", p.X, p.Y-30, absorbed)
+			r.eventAtHeight("shield_absorb", p.X, p.Y-30, absorbed, p.Elevation)
 		}
 		if kind != "perfect_guard" {
 			kind = "block"
@@ -1072,7 +1085,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		p.RecoilX = hitDir * recoilDist
 	}
 	r.heavyRecovery = 0
-	r.event(kind, p.X, p.Y-30, damage)
+	r.eventAtHeight(kind, p.X, p.Y-30, damage, p.Elevation)
 }
 
 // canStartEnemyAttack counts telegraphs and strikes, not movement or recovery.
@@ -1212,8 +1225,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 				if power <= 0 {
 					power = 18
 				}
-				r.Projectiles = append(r.Projectiles, Projectile{OwnerID: e.ID, ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
-				r.event(shot, e.X, e.Y-30, 0)
+				r.Projectiles = append(r.Projectiles, Projectile{Elevation: e.Elevation, OwnerID: e.ID, ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
+				r.eventAtHeight(shot, e.X, e.Y-30, 0, e.Elevation)
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
 				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 {
