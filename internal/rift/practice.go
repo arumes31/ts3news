@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	TargetHint     string  `json:"target_hint,omitempty"`
 	ClassHits      int     `json:"class_hits,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	SlowTelegraphs bool    `json:"slow_telegraphs,omitempty"`
@@ -67,6 +68,9 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	}
 	if mode == "combo" || mode == "class" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
+	}
+	if mode == "class" {
+		r.configureClassTarget()
 	}
 	if mode == "guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}

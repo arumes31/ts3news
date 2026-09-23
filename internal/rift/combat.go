@@ -940,7 +940,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		damage *= 1.15
 	}
 	armor := e.Armor
-	if e.ArtKey == "" && e.Kind == "knight" {
+	if e.ArtKey == "" && e.Kind == "knight" && !(r.Practice != nil && r.Practice.Mode == "class" && e.ID == "practice-target") {
 		armor = .3
 	}
 	if e.ArtKey == "" && e.Kind == "boss" {
@@ -1004,7 +1004,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			r.Practice.Hits++
 		}
 		if r.Practice.Mode != "boss" {
-			e.HP = e.MaxHP
+			r.restorePracticeTarget(e)
 		}
 		return
 	}

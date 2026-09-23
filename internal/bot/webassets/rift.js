@@ -439,7 +439,7 @@
     const current=run?.build||build,signatures=current?.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
     if(!builder||!finisher){put($('rift-practice-instructions'),'Unlock and equip a class builder and finisher in Abyss before starting this drill.');return false;}
     const key=s=>controls.label('signature'+signatures.indexOf(s));
-    put($('rift-practice-instructions'),'Use '+builder.name+' ('+key(builder)+') to build charges, then land '+finisher.name+' ('+key(finisher)+') on the training target. Face the target and stay in its lane. '+(current.skills.length?'Your equipped skills are also available: '+current.skills.map(s=>s.name).join(', ')+'. ':'')+'One charged finisher hit completes the drill.');return true;
+    put($('rift-practice-instructions'),'Use '+builder.name+' ('+key(builder)+') to build charges, then land '+finisher.name+' ('+key(finisher)+') on the training target. Face the target and stay in its lane. '+(current.skills.length?'Your equipped skills are also available: '+current.skills.map(s=>s.name).join(', ')+'. ':'')+'One charged finisher hit completes the drill.'+(run?.practice?.target_hint?' '+run.enemies[0].name+': '+run.practice.target_hint:''));return true;
   }
   function classPrimer(){
     classPracticeInstructions();
