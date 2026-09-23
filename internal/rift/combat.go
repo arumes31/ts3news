@@ -878,12 +878,20 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if e.Phase < 1 {
 			e.Phase = 1
 		}
+		previousPhase := e.Phase
 		if e.Phase < 3 && e.HP <= e.MaxHP*0.25 && prevHP > e.MaxHP*0.25 {
 			e.Phase = 3
 			r.event("boss_phase", e.X, e.Y-30, 3)
 		} else if e.Phase < 2 && e.HP <= e.MaxHP*0.5 && prevHP > e.MaxHP*0.5 {
 			e.Phase = 2
 			r.event("boss_phase", e.X, e.Y-30, 2)
+		}
+		if e.Phase != previousPhase {
+			e.Windup = 0
+			e.AttackName = ""
+			e.Cooldown = math.Max(e.Cooldown, 1)
+			e.Pose = "stagger"
+			e.PoseTime = math.Max(e.PoseTime, .6)
 		}
 	}
 	if r.Practice != nil {
