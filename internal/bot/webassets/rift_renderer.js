@@ -377,6 +377,21 @@
     const arena=run?.practice?.arena||run?.level?.rooms?.[run.room];let height=0;
     for(const p of arena?.platforms||[]){const distance=Math.min(x-p.x,p.x+p.w-x,y-p.y,p.y+p.h-y);height=Math.max(height,p.rise*Math.max(0,Math.min(1,distance/p.ramp)));}return height;
   }
+  function foregroundCoverOpacity(x,y,width,height,base){
+    const p=snapshot?.player;
+    if(!p||p.y>base)return 1;
+    const jump=p.jump>0?Math.sin((.65-p.jump)/.65*Math.PI)*52:0;
+    const feet=p.y-(p.elevation??surfaceHeight(p.x,p.y))-jump;
+    const overlapX=Math.min(x+width,p.x+32)-Math.max(x,p.x-32);
+    const overlapY=Math.min(y+height,feet)-Math.max(y,feet-90);
+    // Spatial falloff avoids a hard opacity toggle as the player skirts an edge.
+    return 1-.65*Math.max(0,Math.min(1,overlapX/24,overlapY/24));
+  }
+  function fadedCoverFootprint(o,opacity,tall){
+    if(opacity>=1)return;
+    ctx.save();ctx.strokeStyle='#a5d6c1';ctx.globalAlpha=1-opacity;ctx.lineWidth=2;ctx.setLineDash(tall?[]:[5,4]);
+    ctx.strokeRect(o.x-camera,o.y,o.w,o.h);ctx.restore();
+  }
   let interactionPrompts = null;
   // Capture drawing state now; draw instructions after world sprites and effects.
   function interactionPrompt(text,x,y){
@@ -1199,7 +1214,9 @@
         // Tight source bounds align the generated sprites to the actual footprint.
         const frames=[[48,107,542,434],[676,107,541,434],[16,906,600,242],[657,733,574,399]],frame=frames[index],width=c.w+12,height=broken?30:c.h+74;
         ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(c.x+c.w/2-camera,c.y+c.h-2,c.w*.56,7,0,0,Math.PI*2);ctx.fill();
-        ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);
+        const opacity=broken?1:foregroundCoverOpacity(c.x-6,c.y+c.h-height,width,height,c.y+c.h);
+        ctx.save();ctx.globalAlpha=opacity;
+        ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
         if(!display.cleanScreenshot&&!broken){const dx=c.x+c.w/2-run.player.x,dy=c.y+c.h/2-run.player.y,targeted=Math.abs(dx)<150&&Math.abs(dy)<65&&dx*run.player.facing>=-8;if(targeted){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#f5e4c3';ctx.strokeStyle='#201a14';ctx.lineWidth=3;const label=c.material==='stone'?'STONE · PERMANENT':'WOOD '+Math.ceil(c.hp)+' / '+c.max_hp;interactionPrompt(label,c.x+c.w/2-camera,c.y+c.h-height-13);if(c.material==='wood'){ctx.fillStyle='#30241b';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w,4);ctx.fillStyle='#dca766';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w*c.hp/c.max_hp,4);}}}
         return;
       }
@@ -1211,7 +1228,9 @@
       // Each sprite's base lies at 90% of its atlas cell. Align it with
       // the collision footprint so jumping and circling cover read clearly.
       const width=o.w+14,height=o.h+(unit.tall?100:38);
-      drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
+      const opacity=foregroundCoverOpacity(o.x-7,o.y+o.h-height*.9,width,height,o.y+o.h);
+      ctx.save();ctx.globalAlpha=opacity;
+      drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);ctx.restore();fadedCoverFootprint(o,opacity,unit.tall);
       if(!display.cleanScreenshot&&nearbyCover?.obstacle===o){ctx.save();ctx.strokeStyle=unit.tall?'#d6e5e9':'#a5e9ce';ctx.lineWidth=unit.tall?3:2;ctx.setLineDash(unit.tall?[]:[5,4]);ctx.strokeRect(o.x-camera,o.y,o.w,o.h);ctx.setLineDash([]);ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=unit.tall?'#e2edf1':'#beffe4';ctx.strokeStyle='#102419';ctx.lineWidth=3;const label=unit.tall?'TALL · BLOCKS SHOTS':'LOW · VAULT';interactionPrompt(label,o.x+o.w/2-camera,o.y+o.h-height*.9-8);ctx.restore();}
     });
     run.projectiles.forEach(shot=>{
