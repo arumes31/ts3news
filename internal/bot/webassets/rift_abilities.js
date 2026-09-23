@@ -69,6 +69,9 @@
     ring.style.setProperty('--cooldown-progress',(duration?Math.min(1,remaining/duration)*100:0)+'%');
     ring.hidden=!cooling;
     const cost=healthCost(run,skill),name=skill.name+(identity?' · '+identity[1]:'')+(cost>0?' · Spends '+cost.toFixed(1)+' HP':'');
+    let healthLabel=button.querySelector('.rift-health-cost-label');
+    if(cost>0&&!healthLabel){healthLabel=document.createElement('span');healthLabel.className='rift-health-cost-label';healthLabel.setAttribute('aria-hidden','true');(button.querySelector('.rift-ability-identity')||button).append(healthLabel);}
+    if(healthLabel){healthLabel.hidden=cost<=0;healthLabel.textContent='−'+cost.toFixed(1)+' HP';}
     button.setAttribute('aria-label',name+' · '+reason);
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';

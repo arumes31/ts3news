@@ -428,6 +428,8 @@
     put($('rift-charge-benefit'),window.RiftAbilities.chargeBenefits(run));
     $('rift-health-cost').hidden=run.build.class!=='voidwalker'||!finisher;
     if(!$('rift-health-cost').hidden)put($('rift-health-cost'),'Finisher health cost: '+window.RiftAbilities.healthCost(run,finisher).toFixed(1)+' HP'+(run.resource>0?' · leaves at least 1 HP':' · no charges to spend'));
+    const costWarning=$('rift-health-cost-warning');costWarning.hidden=run.build.class!=='voidwalker'||!finisher||!(run.resource>0)||run.player.hp<=0;
+    if(!costWarning.hidden){const after=run.player.hp-window.RiftAbilities.healthCost(run,finisher),low=after<=run.player.max_hp*.25;attr(costWarning,'data-low',String(low));put(costWarning,(low?'Low-health cast: ':'Charged finisher: ')+run.player.hp.toFixed(1)+' → '+after.toFixed(1)+' HP. Self-cost stops at 1 HP; incoming damage can still defeat you.');}
     const builder=run.build.signatures?.find(s=>s.role==='builder');
     coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
