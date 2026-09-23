@@ -302,6 +302,7 @@
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
+    if(run.paused)camera=Math.max(0,Math.min(640,run.player.x-350));
     [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
@@ -334,7 +335,7 @@
     const row = unit.id === 'player' ? index%6 : ({goblin:0,archer:1,knight:2,boss:3,wolf:4,spore:5}[unit.kind] ?? 0);
     const size = unit.kind === 'boss' ? 168 : shared&&['rat','bat','slime','spider','goblin'].includes(shared.rig) ? 80 : unit.kind === 'wolf' ? 63 : 101;
     let x = unit.x, y = unit.y;
-    if (previous && snapshot && unit.hp > 0) {
+    if (previous && snapshot && !snapshot.paused && unit.hp > 0) {
       const old = unit.id === 'player' ? previous.player : previous.enemies.find(e => e.id === unit.id);
       const t = Math.min(1,(now-received)/110);
       if (old) { x = old.x+(x-old.x)*t; y = old.y+(y-old.y)*t; }
@@ -619,7 +620,7 @@
     const impactAge=wallNow-impactAt,shake=snapshot&&!snapshot.paused&&motion>0?display.shakeIntensity*motion*4*Math.max(0,1-impactAge/200):0;
     if(shake>0)ctx.translate(Math.sin(impactAge*.19)*shake,Math.cos(impactAge*.23)*shake*.6);
     const targetCamera = snapshot ? Math.max(0,Math.min(640,snapshot.player.x-350)) : 220;
-    camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
+    if(!snapshot?.paused)camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
     // Slow background parallax retains the full walkable foreground.
     const region = snapshot?.level && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level.region : previewLevel?.region;
     const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
