@@ -384,6 +384,20 @@
       ctx.save();ctx.globalAlpha=1;ctx.strokeStyle=valid?'#55e7e2':'#ff4fc3';ctx.lineWidth=1;ctx.setLineDash([]);ctx.strokeRect(dx,dy,dw,dh);ctx.restore();
     }
   }
+  const victoryStances={
+    vanguard:{name:'Shield salute',frame:7,angle:0,lift:0,color:'#b8d9ff'},
+    berserker:{name:'Battle triumph',frame:15,angle:-.08,lift:0,color:'#ffb08d'},
+    marksman:{name:'Archer salute',frame:8,angle:-.04,lift:0,color:'#cdeaa0'},
+    beastmaster:{name:'Pack salute',frame:15,angle:.06,lift:0,color:'#dac28e'},
+    elementalist:{name:'Arcane ascent',frame:11,angle:0,lift:7,color:'#cbb5ff'},
+    chronomancer:{name:'Time suspended',frame:11,angle:-.06,lift:5,color:'#9ce4e3'},
+    oracle:{name:'Grace blessing',frame:15,angle:0,lift:4,color:'#fff0b0'},
+    geomancer:{name:'Stone resolve',frame:7,angle:.04,lift:0,color:'#d8bf94'},
+    bloodblade:{name:'Crimson salute',frame:8,angle:.08,lift:0,color:'#ffa3b4'},
+    voidwalker:{name:'Void ascension',frame:11,angle:.06,lift:9,color:'#baa1ff'},
+    runesmith:{name:'Rune salute',frame:7,angle:-.06,lift:0,color:'#ffd391'},
+    alchemist:{name:'Mixture toast',frame:11,angle:-.1,lift:0,color:'#a9e7b4'}
+  };
   function sprite(row, col, x, y, size, flip, alpha, atlas = 'heroesA') {
     const img = images[atlas]; if (!img) return;
     ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.translate(Math.round(x),Math.round(y)); ctx.scale(flip < 0 ? -1 : 1,1);
@@ -551,7 +565,9 @@
     if (unit.jump > 0) col = 6;
     if (unit.pose === 'hit' && !unit.guard) col = 12;
     if (unit.knockdown > 0) col = 13;
-    if (unit.id === 'player' && (unit.pose === 'victory' || snapshot.status === 'complete' || (snapshot.status === 'cleared' && snapshot.room === 3)) && unit.pose !== 'run') col = 15;
+    const celebrating=unit.id==='player'&&(unit.pose==='victory'||snapshot.status==='complete'||(snapshot.status==='cleared'&&snapshot.room===3))&&unit.pose!=='run';
+    const stance=celebrating?(victoryStances[snapshot.build?.class]||victoryStances.vanguard):null;
+    if(stance)col=stance.frame;
     const jump = unit.jump > 0 ? Math.sin((.65-unit.jump)/.65*Math.PI)*52 : 0;
     const landSquash = unit.pose === 'land' && !renderer.reduced ? 2 : 0;
     const recoverySquash = unit.pose === 'recovery' && !renderer.reduced ? 2 : 0;
@@ -592,7 +608,9 @@
     }
     ctx.save();
     if(unit.id!=='player'&&unit.pose==='hit'&&!renderer.reduced)ctx.filter='brightness('+(1+.5*Math.max(0,Math.min(1,(unit.pose_time||0)/.2)))+')';
-    if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
+    const victoryLift=stance?stance.lift+(!renderer.reduced&&motion>0?Math.sin(decorationTime/420)*1.5*motion:0):0;
+    if(stance){ctx.translate(drawX,y);ctx.rotate(stance.angle*(unit.facing||1));ctx.translate(-drawX,-y);}
+    if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift,size,unit.facing,1,atlas);
     ctx.restore();
     if(unit.id==='player'&&snapshot.room_objective?.kind==='carry_relic'&&snapshot.room_objective.carrying)ctx.drawImage(images.relic,drawX-18,y-jump-112,36,36);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
@@ -626,16 +644,16 @@
       ctx.stroke();
       ctx.restore();
     }
-    if (unit.id === 'player' && (unit.pose === 'victory' || snapshot.status === 'complete' || (snapshot.status === 'cleared' && snapshot.room === 3))) {
-      renderer.lastVictoryPose = { x: Math.round(drawX), y: Math.round(y), pose: unit.pose, poseTime: unit.pose_time, reduced: !!renderer.reduced };
+    if (stance) {
+      renderer.lastVictoryPose = { x: Math.round(drawX), y: Math.round(y), pose: unit.pose, poseTime: unit.pose_time, reduced: !!renderer.reduced, subclass:snapshot.build?.class, stance:stance.name, frame:col, angle:stance.angle, lift:victoryLift, color:stance.color };
       ctx.save();
       const auraPulse = renderer.reduced ? 0 : Math.sin(animationTime / 180) * 3;
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.22)';
+      ctx.fillStyle = stance.color+'38';
       ctx.beginPath();
       ctx.ellipse(drawX, y + 2, 28 + auraPulse, 8 + auraPulse * 0.25, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(255, 235, 120, 0.75)';
+      ctx.strokeStyle = stance.color+'bf';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.ellipse(drawX, y + 2, 28 + auraPulse, 8 + auraPulse * 0.25, 0, 0, Math.PI * 2);
@@ -648,7 +666,7 @@
           const mx = drawX + Math.sin(m * 1.8 + animationTime / 250) * 18;
           const my = y - mProgress * 55;
           const mAlpha = Math.sin(mProgress * Math.PI) * 0.8;
-          ctx.fillStyle = 'rgba(255, 240, 160, ' + mAlpha + ')';
+          ctx.fillStyle = stance.color;ctx.globalAlpha=mAlpha;
           ctx.beginPath();
           ctx.arc(mx, my, 2 * (1 - mProgress * 0.3), 0, Math.PI * 2);
           ctx.fill();
