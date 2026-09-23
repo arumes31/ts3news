@@ -45,3 +45,30 @@ func TestProjectileImpactEvent(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectileExpiryCleanupEvent(t *testing.T) {
+	for _, x := range []float64{400, -1, Width + 1} {
+		r := testRun()
+		life := 2.0
+		if x == 400 {
+			life = 0
+		}
+		r.Projectiles = []Projectile{{X: x, Y: 400, Life: life, Power: 10}}
+		r.Step(Input{}, time.Unix(100, 100_000_000))
+		if len(r.Projectiles) != 0 {
+			t.Fatal("expired projectile survived")
+		}
+		count := 0
+		for _, event := range r.Events {
+			if event.Kind == "projectile_expire" {
+				count++
+				if event.X != x || event.Y != 400 {
+					t.Fatal("wrong cleanup position")
+				}
+			}
+		}
+		if count != 1 {
+			t.Fatalf("cleanup events at %v: got %d, want 1", x, count)
+		}
+	}
+}

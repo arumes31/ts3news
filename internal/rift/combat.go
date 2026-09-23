@@ -596,6 +596,7 @@ func (r *Run) tick(in Input, dt float64) {
 		shot.X += shot.VX * dt
 		shot.Y += shot.VY * dt
 		if shot.Life <= 0 || shot.X < 0 || shot.X > Width {
+			r.event("projectile_expire", shot.X, shot.Y, 0)
 			continue
 		}
 		hit := false

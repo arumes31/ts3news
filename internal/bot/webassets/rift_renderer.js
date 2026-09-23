@@ -313,7 +313,7 @@
       const dx = run.player ? (event.x - run.player.x) : 0;
       const dy = run.player ? ((event.y || run.player.y) - run.player.y) : 0;
       const dist = Math.hypot(dx, dy);
-      window.RiftAudio.play(event.kind, dx / 700, extraArg, floorMat, dist);
+      if(event.kind!=='projectile_expire')window.RiftAudio.play(event.kind, dx / 700, extraArg, floorMat, dist);
     });
     if (effects.length > 40) effects = effects.slice(-40);
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
@@ -847,6 +847,13 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='projectile_expire'&&!renderer.reduced&&motion>0&&age<.4){
+        const x=e.x-camera,y=e.y-28,progress=age/.4;
+        if(x>=0&&x<=960&&y>=0&&y<=540){
+          ctx.save();ctx.strokeStyle='#b9ccd1';ctx.lineWidth=1.5;ctx.globalAlpha=(1-progress)*.6*display.effectIntensity;
+          ctx.beginPath();ctx.arc(x,y,3+progress*9,0,Math.PI*2);ctx.stroke();ctx.restore();
+        }
+      }
       if(e.kind==='projectile_impact'&&!renderer.reduced&&motion>0&&age<.4){
         const x=e.x-camera,y=e.y-28,progress=age/.4;
         if(x>=-24&&x<=984&&y>=-24&&y<=564){
