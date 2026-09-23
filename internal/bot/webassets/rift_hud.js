@@ -412,6 +412,7 @@
     put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
+    put($('rift-charge-benefit'),window.RiftAbilities.chargeBenefits(run));
     $('rift-health-cost').hidden=run.build.class!=='voidwalker'||!finisher;
     if(!$('rift-health-cost').hidden)put($('rift-health-cost'),'Finisher health cost: '+window.RiftAbilities.healthCost(run,finisher).toFixed(1)+' HP'+(run.resource>0?' · leaves at least 1 HP':' · no charges to spend'));
     const builder=run.build.signatures?.find(s=>s.role==='builder');

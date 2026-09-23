@@ -1,0 +1,12 @@
+const {test,expect}=require('@playwright/test');
+test('charge previews disclose class effects, caps and conditional bonuses',async({page})=>{
+ await page.goto('/abyss/rift?scenario=spawn-hazards');await expect(page.locator('#rift-start')).toBeEnabled();const {run}=await(await page.request.get('/api/abyss/rift')).json();
+ const expected={vanguard:'+30 percentage points',berserker:'50% HP or below',bloodblade:'48.0 HP recovery',marksman:'+60 percentage points',beastmaster:'damage ×1.3 from 3 pets',elementalist:'damage ×1.2 against the marked target',chronomancer:'up to 1.5s',oracle:'damage ×1.15',geomancer:'+45 percentage points',voidwalker:'spend 20.0 HP',runesmith:'+35.0 barrier',alchemist:'36.0 HP recovery'};
+ for(const [cls,copy] of Object.entries(expected)){
+  await page.evaluate(({run,cls})=>{run.build.class=cls;run.build.pets=5;run.build.relic=true;run.build.armor=10;run.resource=3;run.player.max_hp=400;run.player.hp=200;run.barrier=0;run.build.signatures=[{id:'preview',role:'finisher',name:'Finisher',kind:'slash',cost:0,cooldown:0}];RiftHUD.update(run,false);},{run,cls});
+  await expect(page.locator('#rift-charge-benefit')).toContainText(copy);await expect(page.locator('#rift-charge-benefit')).toContainText('damage ×1.6 before class bonuses');
+ }
+ const previews=await page.evaluate(run=>{const out=[];run.build.signatures=[{role:'finisher',kind:'slash'}];run.build.class='bloodblade';run.player.max_hp=400;run.player.hp=399;for(const resource of [0,1,2,3]){run.resource=resource;out.push(RiftAbilities.chargeBenefits(run));}run.build.class='runesmith';run.barrier=199;out.push(RiftAbilities.chargeBenefits(run));run.build.class='voidwalker';run.player.hp=1;out.push(RiftAbilities.chargeBenefits(run));run.build.signatures=[];out.push(RiftAbilities.chargeBenefits(run));return out;},run);
+ expect(previews[0]).toContain('No charge bonus');for(let i=1;i<=3;i++){expect(previews[i]).toContain('×'+(1+i*.2).toFixed(1));expect(previews[i]).toContain('1.0 HP recovery');}expect(previews[4]).toContain('+1.0 barrier');expect(previews[5]).toContain('spend 0.0 HP');expect(previews[6]).toContain('Equip a class finisher');
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#rift-charge-benefit').scrollIntoViewIfNeeded();await page.locator('#rift-charge-benefit').screenshot({path:'test-results/charge-benefit-mobile.png'});
+});

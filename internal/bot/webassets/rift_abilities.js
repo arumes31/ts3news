@@ -2,6 +2,32 @@
   'use strict';
   const roles={builder:['＋','Builder'],finisher:['◆','Finisher'],ultimate:['★','Ultimate']};
   const healthCost=(run,skill)=>run.build?.class==='voidwalker'&&skill?.role==='finisher'&&run.resource>0?Math.min(Math.max(0,run.player.hp-1),run.player.max_hp*.05):0;
+  function chargeBenefits(run){
+    const skill=run.build.signatures?.find(s=>s.role==='finisher');
+    if(!skill)return 'Equip a class finisher in Abyss to spend charges.';
+    const charges=Math.max(0,Math.min(3,run.resource||0));
+    if(!charges)return 'No charge bonus yet. Build charges before your finisher.';
+    const b=run.build,p=run.player,parts=[];
+    if(!['shield','heal'].includes(skill.kind))parts.push('finisher damage ×'+(1+charges*.2).toFixed(1)+' before class bonuses and defenses');
+    const recover=percent=>Math.min(Math.max(0,p.max_hp-p.hp),p.max_hp*percent*charges).toFixed(1)+' HP recovery now (capped at full health)';
+    switch(b.class){
+      case 'vanguard':parts.push('+30 percentage points of armor piercing');break;
+      case 'berserker':parts.push('damage ×1.25 against enemies at 50% HP or below');break;
+      case 'bloodblade':parts.push(recover(.04));break;
+      case 'marksman':parts.push('+60 percentage points of armor piercing against the marked target');break;
+      case 'beastmaster':parts.push('damage ×'+(1+Math.min(3,b.pets||0)*.1).toFixed(1)+' from '+Math.min(3,b.pets||0)+' pets');break;
+      case 'elementalist':parts.push('damage ×1.2 against the marked target');break;
+      case 'chronomancer':parts.push('reduce other ability and jump cooldowns by up to 1.5s');break;
+      case 'oracle':parts.push('damage ×1.15');break;
+      case 'geomancer':parts.push('+45 percentage points of armor piercing');break;
+      case 'voidwalker':parts.push('spend '+healthCost(run,skill).toFixed(1)+' HP; damage ×1.25 if above 1 HP at impact; +25 percentage points of armor piercing against the marked target');break;
+      case 'runesmith':parts.push('+'+Math.max(0,Math.min(15+(b.armor||0)*2,p.max_hp*.5-(run.barrier||0))).toFixed(1)+' barrier now (capped at 50% maximum HP)');if(b.relic)parts.push('damage ×1.15 with equipped relic');break;
+      case 'alchemist':parts.push(recover(.03),'+35 percentage points of armor piercing against the marked target');break;
+    }
+    if(parts.some(part=>part.includes('armor piercing')))parts.push('total armor piercing capped at 100%');
+    if(!['shield','heal'].includes(skill.kind))parts.push('boss hits stagger for 0.45s');
+    return charges+' charges spent: '+(parts.length?parts.join('; '):'no additional charge effect for this ability')+'.';
+  }
   function describe(skill,build){
     const ref=skill.reference;if(!ref)return 'Combat details unavailable for this skill.';
     const lines=[];
@@ -41,5 +67,5 @@
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
   }
-  window.RiftAbilities={update,healthCost,describe};
+  window.RiftAbilities={update,healthCost,describe,chargeBenefits};
 })();
