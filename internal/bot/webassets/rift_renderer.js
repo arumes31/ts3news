@@ -624,6 +624,15 @@
       const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
       ctx.drawImage(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
     }else ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
+    if(region===5&&!renderer.reduced&&motion>0){
+      ctx.save();ctx.strokeStyle='#76c7cb';ctx.lineWidth=1;ctx.globalAlpha=.16;
+      for(let i=0;i<8;i++){
+        const x=90+i*139-camera*.35,y=340+(i*47)%160;
+        const radius=24+Math.sin(decorationTime*.001+i)*5;
+        ctx.beginPath();ctx.ellipse(x,y,radius,3,0,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
     if (snapshot && snapshot.room === 1) { ctx.fillStyle='#61532316';ctx.fillRect(0,0,960,540); }
     if (!renderer.reduced && display.particles) {
       for(let i=0;i<Math.round(22*display.particleIntensity);i++) {
