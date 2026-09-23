@@ -110,7 +110,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds"
 			}
 			if layout == 4 {
-				level.Tactic += ". Tier 2: survive three waves of Abyss reinforcements"
+				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements"
 			}
 			if layout == 5 {
 				level.Tactic += ". Tier 2: destroy three ritual totems and defeat the patrol"
@@ -140,6 +140,9 @@ func Campaign() []Level {
 				}
 				if layout == 3 && room == 1 {
 					arena.Objective = "hold_circle"
+				}
+				if layout == 4 && room == 0 {
+					arena.Objective = "escape_collapse"
 				}
 				if layout == 4 && room == 1 {
 					arena.Objective = "survive_waves"

@@ -22,32 +22,38 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
-	Channels        []RitualChannel   `json:"channels,omitempty"`
-	Escort          *Actor            `json:"escort,omitempty"`
-	EscortMoving    bool              `json:"escort_moving"`
-	BeaconTime      float64           `json:"beacon_time"`
-	Targets         []string          `json:"targets,omitempty"`
-	Relic           *ObjectivePickup  `json:"relic,omitempty"`
-	Carrying        bool              `json:"carrying"`
-	Waves           [][]Actor         `json:"waves,omitempty"`
-	Wave            int               `json:"wave"`
-	NextWaveSeconds float64           `json:"next_wave_seconds"`
-	Zone            *ObjectiveZone    `json:"zone,omitempty"`
-	Seconds         float64           `json:"seconds"`
-	Contested       bool              `json:"contested"`
-	Charging        bool              `json:"charging"`
-	Kind            string            `json:"kind"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	Target          int               `json:"target"`
-	Collected       int               `json:"collected"`
-	Complete        bool              `json:"complete"`
-	Pickups         []ObjectivePickup `json:"pickups"`
+	CollapseX           float64           `json:"collapse_x"`
+	CollapseHitCooldown float64           `json:"collapse_hit_cooldown"`
+	Channels            []RitualChannel   `json:"channels,omitempty"`
+	Escort              *Actor            `json:"escort,omitempty"`
+	EscortMoving        bool              `json:"escort_moving"`
+	BeaconTime          float64           `json:"beacon_time"`
+	Targets             []string          `json:"targets,omitempty"`
+	Relic               *ObjectivePickup  `json:"relic,omitempty"`
+	Carrying            bool              `json:"carrying"`
+	Waves               [][]Actor         `json:"waves,omitempty"`
+	Wave                int               `json:"wave"`
+	NextWaveSeconds     float64           `json:"next_wave_seconds"`
+	Zone                *ObjectiveZone    `json:"zone,omitempty"`
+	Seconds             float64           `json:"seconds"`
+	Contested           bool              `json:"contested"`
+	Charging            bool              `json:"charging"`
+	Kind                string            `json:"kind"`
+	Name                string            `json:"name"`
+	Description         string            `json:"description"`
+	Target              int               `json:"target"`
+	Collected           int               `json:"collected"`
+	Complete            bool              `json:"complete"`
+	Pickups             []ObjectivePickup `json:"pickups"`
 }
 
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "escape_collapse" {
+		r.beginCollapseObjective()
 		return
 	}
 	if r.Arena().Objective == "interrupt_ritual" {

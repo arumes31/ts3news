@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -948,6 +948,19 @@
       });
     }else{
       renderer.lastOffscreen=[];
+    }
+    if(run.room_objective?.kind==='escape_collapse'){
+      const goal=run.room_objective,edge=goal.collapse_x-camera,z=goal.zone,x=z.x-camera;
+      ctx.save();
+      if(!goal.complete&&goal.collapse_x>0){
+        ctx.fillStyle='#281218aa';ctx.fillRect(-camera,300,goal.collapse_x,220);ctx.strokeStyle='#ffa377';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(edge,300);ctx.lineTo(edge,520);ctx.stroke();
+        ctx.strokeStyle='#ee865b99';ctx.lineWidth=1;
+        for(let y=310;y<520;y+=32){ctx.beginPath();ctx.moveTo(edge-38,y);ctx.lineTo(edge-13,y+9);ctx.lineTo(edge-29,y+19);ctx.lineTo(edge,y+28);ctx.stroke();}
+        if(!display.cleanScreenshot){ctx.font='bold 12px monospace';ctx.textAlign='left';ctx.fillStyle='#ffd2ad';ctx.strokeStyle='#281218';ctx.lineWidth=4;const tx=Math.max(20,Math.min(780,edge+12));ctx.strokeText('COLLAPSE →',tx,305);ctx.fillText('COLLAPSE →',tx,305);}
+      }
+      ctx.strokeStyle='#b5f5dc';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,z.y,z.radius_x,z.radius_y,0,0,Math.PI*2);ctx.stroke();
+      if(!display.cleanScreenshot){ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#d5ffea';ctx.strokeStyle='#10251d';ctx.lineWidth=4;const label=goal.complete?'ESCAPED':'ESCAPE EXIT';ctx.strokeText(label,x,z.y-42);ctx.fillText(label,x,z.y-42);if(x>936){ctx.textAlign='right';ctx.strokeText('EXIT →',935,340);ctx.fillText('EXIT →',935,340);}}
+      ctx.restore();
     }
     if(run.room_objective?.kind==='interrupt_ritual'&&!run.room_objective.complete){
       for(const channel of run.room_objective.channels){

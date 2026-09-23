@@ -455,6 +455,9 @@
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
       case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
+      case 'collapse_start': t(180,45,1,.065,'triangle'); break;
+      case 'collapse_hit': t(90,35,.35,.07,'triangle'); break;
+      case 'collapse_escaped': [392,587,784].forEach((f,i)=>t(f,f,.6,.045,'sine',i*.12)); break;
       case 'ritual_warning': t(220,440,.7,.05,'triangle'); break;
       case 'ritual_interrupt': t(660,220,.25,.05,'sine'); break;
       case 'ritual_pulse': t(110,55,.5,.07,'triangle'); break;

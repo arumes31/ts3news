@@ -732,6 +732,7 @@ func (r *Run) tick(in Input, dt float64) {
 			}
 		}
 	}
+	r.tickCollapseObjective(dt)
 	if p.HP <= 0 {
 		p.Pose = "defeat"
 		p.Knockdown = 0

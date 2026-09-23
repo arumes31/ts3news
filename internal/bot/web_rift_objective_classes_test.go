@@ -221,6 +221,7 @@ func TestRiftWaveRoomsSupportEverySubclass(t *testing.T) {
 				now := time.Unix(100, 0)
 				catalog := content.AbyssMobCatalog()
 				run := rift.NewRunAtLevel("class-waves", build, now, catalog, 5)
+				run.Player.X, run.Player.Y = run.RoomObjective.Zone.X, run.RoomObjective.Zone.Y
 				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
 				for i := range run.Enemies {
 					run.Enemies[i].HP = 0
@@ -581,6 +582,41 @@ func TestRiftRitualRoomsSupportEverySubclass(t *testing.T) {
 				}
 				if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != len(channelIDs) || len(run.Drops) != len(channelIDs) {
 					t.Fatal("subclass ritual completion or reward accounting failed")
+				}
+			})
+		}
+	}
+}
+
+func TestRiftCollapseRoomsSupportEverySubclassAndRegion(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				for level := 5; level <= 95; level += 10 {
+					build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Escape", 24)
+					now := time.Unix(100, 0)
+					run := rift.NewRunAtLevel("class-collapse", build, now, content.AbyssMobCatalog(), level)
+					if run.RoomObjective == nil || run.RoomObjective.Kind != "escape_collapse" {
+						t.Fatal("collapse missing")
+					}
+					run.Level.Rooms[0].Hazards = nil
+					for i := range run.Enemies {
+						run.Enemies[i].Knockdown = 100
+					}
+					for n := 0; n < 1400 && run.Status == "fighting"; n++ {
+						input := rift.Input{}
+						dy := run.RoomObjective.Zone.Y - run.Player.Y
+						if math.Abs(dy) > 4 {
+							input.Y = math.Copysign(1, dy)
+						} else {
+							input.X = 1
+						}
+						now = now.Add(20 * time.Millisecond)
+						run.Step(input, now)
+					}
+					if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != 0 || len(run.Drops) != 0 {
+						t.Fatalf("mission %d escape failed: status=%s player=(%.1f,%.1f) edge=%.1f", level, run.Status, run.Player.X, run.Player.Y, run.RoomObjective.CollapseX)
+					}
 				}
 			})
 		}

@@ -219,6 +219,19 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "collapse" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("collapse-room", selectedBuild, now, riftMobCatalog(now), 5)
+			run.Level.Rooms[0].Hazards = nil
+			for i := range run.Enemies {
+				run.Enemies[i].Knockdown = 100
+			}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "ritual" {
 			mu.Lock()
 			now := time.Now()
@@ -401,6 +414,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Lock()
 			now := time.Now()
 			run := rift.NewRunAtLevel("wave-room", selectedBuild, now, riftMobCatalog(now), 5)
+			run.Player.X, run.Player.Y = run.RoomObjective.Zone.X, run.RoomObjective.Zone.Y
 			for i := range run.Enemies {
 				run.Enemies[i].HP = 0
 			}

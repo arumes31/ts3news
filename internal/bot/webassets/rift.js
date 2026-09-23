@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='interrupt_ritual'){
+    if(roomGoal?.kind==='escape_collapse'){
+      const ended=!['fighting','cleared'].includes(run.status),caught=run.player.x<=roomGoal.collapse_x;
+      put($('rift-room-objective-progress'),'Collapse · '+(ended?'Expedition ended':roomGoal.complete?'Escaped':gamePaused?'Paused':roomGoal.seconds<3?'Starts in '+(3-roomGoal.seconds).toFixed(1)+'s':caught?'Caught in the collapse':'Keep moving to the exit'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'You escaped. Bank collected loot to continue.':'Stay ahead of the advancing edge and land inside the exit seal. Fight for loot if time permits; surviving enemies grant no rewards.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Exit: '+(roomGoal.zone.x<run.player.x?'left':'right')+(Math.abs(roomGoal.zone.y-run.player.y)<24?'':roomGoal.zone.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='interrupt_ritual'){
       const ended=!['fighting','cleared'].includes(run.status),channels=roomGoal.channels.map(c=>({...c,enemy:run.enemies.find(e=>e.id===c.enemy_id)})).filter(c=>c.enemy.hp>0),next=channels.length?Math.min(...channels.map(c=>8-c.seconds)):0;
       put($('rift-room-objective-progress'),'Ritual '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Interrupted':gamePaused?'Paused':'Next pulse in '+next.toFixed(1)+'s'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Ritual ended. Defeat the remaining patrol and bank the tier loot.':'Hit a channeler to reset its eight-second charge. Leave the pulse ring before discharge. Defeat every channeler.');
