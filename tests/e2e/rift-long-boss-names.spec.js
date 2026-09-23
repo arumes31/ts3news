@@ -84,3 +84,18 @@ test('mobile viewport at 390px keeps long boss names readable without covering h
   });
   expect(isOverflowing).toBe(false);
 });
+
+
+for(const width of [320,768])test('unbroken boss name preserves health and phase layout at '+width+'px',async({page})=>{
+ await page.setViewportSize({width,height:900});
+ await page.goto('/abyss/rift?scenario=long-boss-name');await expect(page.locator('#rift-start')).toBeEnabled();
+ const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const name='AncientColossus'.repeat(20);
+ await page.evaluate(({run,name})=>{document.getElementById('rift-overlay').hidden=true;const boss=run.enemies.find(e=>e.kind==='boss');boss.name=name;boss.phase=3;boss.windup=.5;boss.attack_name='Ground Slam';window.RiftHUD.update(run,true);},{run,name});
+ const bossName=page.locator('#rift-boss-name'),meter=page.locator('#rift-boss .hp'),phase=page.locator('#rift-boss-phase');
+ await expect(bossName).toHaveAttribute('title',name);await expect(meter).toBeVisible();await expect(phase).toBeVisible();
+ const n=await bossName.boundingBox(),m=await meter.boundingBox(),p=await phase.boundingBox();
+ expect(m.width).toBeGreaterThan(40);expect(m.height).toBeGreaterThanOrEqual(8);
+ expect(n.y+n.height).toBeLessThanOrEqual(m.y+.5);expect(m.y+m.height).toBeLessThanOrEqual(p.y+.5);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
