@@ -6,6 +6,9 @@ func TestEnemyTrainingMatchesActualWindupAndResistance(t *testing.T) {
 	for _, kind := range []string{"goblin", "knight", "archer", "treasure", "boss"} {
 		r := testRun()
 		r.Enemies = []Actor{{ID: "trainer", Kind: kind, X: r.Player.X + 60, Y: r.Player.Y, HP: 100, MaxHP: 100}}
+		if kind == "archer" {
+			r.Enemies[0].X = r.Player.X + 250
+		}
 		if kind == "treasure" {
 			r.Enemies[0].X = 55
 			r.Player.X = 60

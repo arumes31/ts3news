@@ -1119,6 +1119,20 @@ func (r *Run) enemyTick(i int, dt float64) {
 		}
 		return
 	}
+	if e.Kind == "archer" && math.Abs(dx) < 150 && math.Abs(dy) <= 24 && r.clearProjectilePath(e, p) {
+		speed := e.Speed
+		if speed <= 0 {
+			speed = 80
+		}
+		beforeX := e.X
+		r.moveActor(e, -math.Copysign(speed*dt, dx), 0, false)
+		if e.X != beforeX {
+			if e.PoseTime == 0 {
+				e.Pose = "run"
+			}
+			return
+		}
+	}
 	rangeX := 65.0
 	if e.Kind == "archer" {
 		rangeX = 430

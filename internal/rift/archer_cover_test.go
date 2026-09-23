@@ -31,6 +31,7 @@ func TestArcherSeeksClearShotAroundTallCover(t *testing.T) {
 		t.Fatal("archer never found a clear shot")
 	}
 	low := archerBehindCover(false)
+	low.Enemies[0].X = 350
 	low.enemyTick(0, .05)
 	if low.Enemies[0].Windup == 0 {
 		t.Fatal("low cover incorrectly blocked archer aim")
