@@ -44,7 +44,7 @@
     window.addEventListener('riftmotionchange',animate);
     render.cleanup=()=>{clearInterval(timer);clearTimeout(announceTimer);root.removeEventListener('toggle',onToggle);document.removeEventListener('visibilitychange',animate);window.removeEventListener('riftmotionchange',animate);};
     poseSelect.onchange=()=>{tick=0;paint();};
-    function close(){window.RiftAudio.cancelPreview();selected=null;panel.hidden=true;animate();if(opener&&!opener.closest('article').hidden)opener.focus();else search.focus();}
+    function close(){window.RiftAudio.cancelPreview();selected=null;panel.hidden=true;animate();if(opener?.isConnected&&!opener.hidden&&!opener.closest('article')?.hidden)opener.focus();else search.focus();}
     document.getElementById('rift-monster-close').onclick=close;
     panel.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}};
     function showRecord(){
@@ -78,6 +78,8 @@
       }
       refreshBookmark();showRecord();animate();title.focus();
     }
+    render.hasBoss=name=>roster.some(unit=>unit.kind==='boss'&&unit.name===name);
+    render.openBoss=(name,source)=>{const unit=roster.find(unit=>unit.kind==='boss'&&unit.name===name);if(!unit)return false;root.open=true;inspect(unit,source);panel.scrollIntoView({block:'nearest'});return true;};
     const comparison=document.getElementById('rift-monster-comparison'),left=document.getElementById('rift-compare-left'),right=document.getElementById('rift-compare-right');
     for(const select of [left,right]){const saved=select.value;select.replaceChildren(new Option('Choose a creature',''));for(const unit of roster)select.append(new Option(unit.name,unit.art_key));if(roster.some(unit=>unit.art_key===saved))select.value=saved;}
     function compare(){
@@ -124,5 +126,5 @@
     search.oninput=()=>filter(false);[tier,element,style].forEach(select=>select.onchange=()=>filter(true));
     document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter(true);search.focus();};onToggle();
   }
-  window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets};
+  window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets,hasBoss:name=>!!render.hasBoss?.(name),openBoss:(name,source)=>render.openBoss?.(name,source)||false};
 })();

@@ -203,6 +203,13 @@
     emptyNode.hidden=true;
     detailsNode.hidden=false;
 
+    const bossGuide=$('rift-result-bestiary');
+    if(bossGuide){
+      const bossName=encounter.defeated_by_boss||encounter.boss_name;
+      bossGuide.hidden=!bossName||!window.RiftBestiary?.hasBoss(bossName);
+      bossGuide.onclick=()=>window.RiftBestiary.openBoss(bossName,bossGuide);
+    }
+
     const isCleared=encounter.outcome==='cleared';
     const isDefeated=encounter.outcome==='defeated';
     const outcomeLabel=isCleared?(encounter.boss_encounter?'Boss defeated':'Room secured'):isDefeated?'Defeated':'Expedition complete';
