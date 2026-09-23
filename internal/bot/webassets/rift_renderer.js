@@ -964,6 +964,9 @@
       const x=h.x-camera,color={spikes:'#d6dce4',fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
+      if(h.tile&&!warning&&!active){
+        ctx.save();ctx.globalAlpha=.35;ctx.fillStyle='#427d65';ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=.9;ctx.strokeStyle='#addec7';ctx.lineWidth=2;ctx.strokeRect(x+2,h.y+2,h.w-4,h.h-4);ctx.restore();
+      }
       if(h.kind==='spikes'){
         const extension=renderer.reduced?(active?1:0):phase<1.2?Math.max(0,(phase-1.02)/.18):active?1:Math.max(0,1-(phase-1.2-h.duration)/.18);
         ctx.save();ctx.globalAlpha=1;

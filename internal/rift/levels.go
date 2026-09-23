@@ -19,6 +19,7 @@ type Obstacle struct {
 }
 
 type Hazard struct {
+	Tile        bool   `json:"tile,omitempty"`
 	Jumpable    bool   `json:"jumpable"`
 	Disabled    bool   `json:"disabled,omitempty"`
 	GeneratorID string `json:"generator_id,omitempty"`
@@ -124,6 +125,9 @@ func Campaign() []Level {
 			}
 			if layout == 2 {
 				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol"
+			}
+			if layout == 8 {
+				level.Tactic += ". Tier 3: cross checkerboard tiles as the safe group alternates"
 			}
 			if layout == 3 {
 				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds. Tier 3: linked hazards pulse one at a time from left to right"
@@ -245,6 +249,14 @@ func Campaign() []Level {
 				}
 				if layout == 0 && room == 0 {
 					arena.DropEdges = []DropEdge{{ID: fmt.Sprintf("mission-%d-drop", id), X: 260, Y: 365, W: 80, LandingY: 425}}
+				}
+				if layout == 8 && room == 2 {
+					arena.Hazards = nil
+					for row := 0; row < 2; row++ {
+						for col := 0; col < 4; col++ {
+							arena.Hazards = append(arena.Hazards, Hazard{Tile: true, Jumpable: true, Kind: kinds[region], Obstacle: Obstacle{560+float64(col)*76, 350+float64(row)*58, 60, 40}, Period: 6, Duration: 1, Offset: float64((row+col)%2)*3})
+						}
+					}
 				}
 				if region == 6 && room == 0 {
 					arena.Hazards[0].Kind = "spikes"
