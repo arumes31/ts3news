@@ -293,6 +293,15 @@ func obstacleImpact(x1, y1, x2, y2 float64, o Obstacle) (float64, bool) {
 	return enter, true
 }
 
+func (r *Run) clearProjectilePath(from, to *Actor) bool {
+	for _, wall := range r.Arena().HighCover {
+		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, wall); hit {
+			return false
+		}
+	}
+	return true
+}
+
 // clearMeleePath rejects segments that touch or cross a solid arena obstacle.
 func (r *Run) clearMeleePath(from, to *Actor) bool {
 	for _, o := range r.Arena().solidObstacles() {

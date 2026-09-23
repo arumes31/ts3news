@@ -1071,6 +1071,12 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.PoseTime = .4
 			e.Cooldown = 1.6
 			if e.Kind == "archer" || e.Kind == "boss" && e.ArtKey != "" && e.Attacks%2 == 0 {
+				if e.Kind == "archer" && !r.clearProjectilePath(e, p) {
+					e.Pose = "idle"
+					e.PoseTime = 0
+					e.Cooldown = .3
+					return
+				}
 				distance := math.Max(1, math.Hypot(dx, dy))
 				r.Counter++
 				shot := e.Shot
@@ -1117,7 +1123,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.Kind == "boss" {
 		rangeX = 190
 	}
-	if math.Abs(dx) > rangeX || math.Abs(dy) > 24 {
+	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
+	if math.Abs(dx) > rangeX || math.Abs(dy) > 24 || blocked {
 		speed := 80.0
 		if e.Speed > 0 {
 			speed = e.Speed
