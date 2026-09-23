@@ -16,6 +16,16 @@
   const regionRows = [0,.179,.363,.559,.755,1];
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
   const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0, rangeSkill: null };
+  renderer.atlasDiagnostics=new URLSearchParams(location.search).get('riftAtlasDebug')==='1'?{frames:0,errors:[]}:null;
+  if(renderer.atlasDiagnostics)renderer.checkAtlasBounds=function(img,sx,sy,sw,sh){
+    const valid=[sx,sy,sw,sh].every(Number.isFinite)&&sx>=0&&sy>=0&&sw>0&&sh>0&&sx+sw<=img.width+.001&&sy+sh<=img.height+.001;
+    if(!valid){
+      const errors=renderer.atlasDiagnostics.errors;
+      errors.push({image:img.src||'(unloaded)',source:[sx,sy,sw,sh],size:[img.width,img.height]});
+      if(errors.length>32)errors.shift();
+    }
+    return valid;
+  };
   renderer.setRangeSkill = function(skill){ renderer.rangeSkill = skill; };
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
@@ -323,14 +333,23 @@
     if (effects.length > 40) effects = effects.slice(-40);
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
   };
+  function drawAtlas(img,sx,sy,sw,sh,dx,dy,dw,dh){
+    const diagnostics=renderer.atlasDiagnostics;
+    const valid=!diagnostics||renderer.checkAtlasBounds(img,sx,sy,sw,sh);
+    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+    if(diagnostics){
+      diagnostics.frames++;
+      ctx.save();ctx.globalAlpha=1;ctx.strokeStyle=valid?'#55e7e2':'#ff4fc3';ctx.lineWidth=1;ctx.setLineDash([]);ctx.strokeRect(dx,dy,dw,dh);ctx.restore();
+    }
+  }
   function sprite(row, col, x, y, size, flip, alpha, atlas = 'heroesA') {
     const img = images[atlas]; if (!img) return;
     ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.translate(Math.round(x),Math.round(y)); ctx.scale(flip < 0 ? -1 : 1,1);
-    ctx.drawImage(img,col*img.width/16,row*img.height/6,img.width/16,img.height/6,-size/2,-size*.91,size,size); ctx.restore();
+    drawAtlas(img,col*img.width/16,row*img.height/6,img.width/16,img.height/6,-size/2,-size*.91,size,size); ctx.restore();
   }
   function fx(row, frame, x, y, size, alpha) {
     const img = images.effects; if (!img) return;
-    ctx.save(); ctx.globalAlpha = alpha*(row===5?1:display.effectIntensity); ctx.drawImage(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
+    ctx.save(); ctx.globalAlpha = alpha*(row===5?1:display.effectIntensity); drawAtlas(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
   }
   function actor(unit, now) {
     const shared=unit.art_key?bestiary.profile(unit):null;
@@ -607,7 +626,7 @@
         ctx.translate(staggerTremor, 0);
         ctx.rotate(-0.18);
       }
-      ctx.drawImage(img,source.x*img.width,source.y*img.height,source.width*img.width,source.height*img.height,-size/2,-size*.91,size,size);ctx.restore();
+      drawAtlas(img,source.x*img.width,source.y*img.height,source.width*img.width,source.height*img.height,-size/2,-size*.91,size,size);ctx.restore();
     }
     if(alpha===1&&profile.element!=='physical'){ctx.globalAlpha=.6;ctx.fillStyle=profile.palette[0];ctx.beginPath();ctx.ellipse(x,y+1,size*.28,4,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
   }
@@ -630,8 +649,8 @@
     const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
     if(region !== undefined){
       const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
-      ctx.drawImage(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
-    }else ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
+      drawAtlas(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
+    }else drawAtlas(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
     if(region===3&&!renderer.reduced&&motion>0&&display.flashIntensity>0){
       const phase=decorationTime%8000-1000;
       if(phase>=0&&phase<240){
@@ -844,7 +863,7 @@
       if(legendary){ctx.strokeStyle='#ffc66d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y-25);ctx.lineTo(x+25,y);ctx.lineTo(x,y+25);ctx.lineTo(x-25,y);ctx.closePath();ctx.stroke();}
       if(display.lootSparkle)fx(5,0,x,y,34,.7);
       const icon=drop.gear?window.RiftLoot.icon(drop.gear.Slot):8,img=images.items,size=drop.gear?36:25;
-      ctx.drawImage(img,icon%4*img.width/4,Math.floor(icon/4)*img.height/4,img.width/4,img.height/4,x-size/2,y-size/2,size,size);
+      drawAtlas(img,icon%4*img.width/4,Math.floor(icon/4)*img.height/4,img.width/4,img.height/4,x-size/2,y-size/2,size,size);
     });
     for(const label of (!display.cleanScreenshot&&display.optionalCombatText)?window.RiftLoot.floorLabels(run.drops||[],camera):[]){
       if(label.moved){ctx.strokeStyle='#80927b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(label.drop.x-camera,label.drop.y-26);ctx.lineTo(label.x,label.y+17);ctx.stroke();}
@@ -860,7 +879,7 @@
       // Each sprite's base lies at 90% of its atlas cell. Align it with
       // the collision footprint so jumping and circling cover read clearly.
       const width=o.w+14,height=o.h+38;
-      ctx.drawImage(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
+      drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
     });
     run.projectiles.forEach(p=>{
       if(display.projectileShapes!==false){
