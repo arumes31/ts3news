@@ -155,3 +155,14 @@ test('escaped treasure is a separate persistent encounter outcome',async({page})
  await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Test ruins',room:0,room_name:'Gate',outcome:'cleared',seconds:12,player_hp:100,player_max_hp:100,enemies:1};window.RiftHUD.updateLastEncounter(run);},run);
  await expect(stats.locator('dt').filter({hasText:'Treasure goblins escaped'})).toHaveCount(0);
 });
+
+
+test('defeat recap identifies the fatal boss rather than the room boss',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+ const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Ruins',room:0,room_name:'Gate',outcome:'defeated',seconds:12,player_hp:0,player_max_hp:100,enemies:0,boss_name:'Moss King',defeated_by_boss:'Void Queen'};window.RiftHUD.updateLastEncounter(run);},run);
+ const stats=page.locator('#rift-last-encounter-stats');
+ await expect(stats.locator('dt').filter({hasText:'Defeated by boss'}).locator('xpath=following-sibling::dd[1]')).toHaveText('Void Queen');
+ await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Ruins',room:0,room_name:'Gate',outcome:'defeated',seconds:12,player_hp:0,player_max_hp:100,enemies:0,boss_name:'Moss King'};window.RiftHUD.updateLastEncounter(run);},run);
+ await expect(stats.locator('dt').filter({hasText:'Defeated by boss'})).toHaveCount(0);
+});

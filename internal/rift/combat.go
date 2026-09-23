@@ -149,6 +149,7 @@ type Event struct {
 
 // EncounterSummary preserves an accessible structured summary of the last encounter.
 type EncounterSummary struct {
+	DefeatedByBoss  string  `json:"defeated_by_boss,omitempty"`
 	TreasureEscaped int     `json:"treasure_escaped,omitempty"`
 	Mission         int     `json:"mission"`
 	MissionName     string  `json:"mission_name"`
@@ -186,6 +187,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	DefeatedByBoss      string                   `json:"defeated_by_boss,omitempty"`
 	MonsterRecords      map[string]MonsterRecord `json:"monster_records,omitempty"`
 	Practice            *PracticeState           `json:"practice,omitempty"`
 	ClearStreak         int                      `json:"clear_streak,omitempty"`
@@ -263,6 +265,7 @@ func NewRun(id string, build Build, now time.Time) *Run {
 }
 
 func (r *Run) spawnRoom() {
+	r.DefeatedByBoss = ""
 	hits := r.Stats.HitsTaken
 	r.RoomStartHits = &hits
 	seconds := r.Stats.Seconds
@@ -378,6 +381,7 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	}
 
 	r.LastEncounter = &EncounterSummary{
+		DefeatedByBoss:  r.DefeatedByBoss,
 		TreasureEscaped: treasureEscaped,
 		Mission:         missionID,
 		MissionName:     missionName,
@@ -664,7 +668,7 @@ func (r *Run) tick(in Input, dt float64) {
 		if shot.Enemy {
 			if math.Abs(shot.X-p.X) < projectilePlayerRadiusX && math.Abs(shot.Y-p.Y) < projectilePlayerRadiusY {
 				if p.Jump < .1 {
-					r.hurtPlayer(shot.Power, shot.X, shot.Y)
+					r.hurtPlayerFromEnemy(shot.Power, shot.X, shot.Y, shot.OwnerID)
 					hit = true
 				} else {
 					r.event("dodge", p.X, p.Y, 0)
@@ -1133,7 +1137,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 				r.event("slam", e.TargetX, e.TargetY, 0)
 				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 {
 					if p.Jump < .1 {
-						r.hurtPlayer(max(32, e.Damage*1.4), e.X, e.Y)
+						r.hurtPlayerFromEnemy(max(32, e.Damage*1.4), e.X, e.Y, e.ID)
 					} else {
 						r.event("dodge", p.X, p.Y, 0)
 					}
@@ -1152,7 +1156,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 						if power <= 0 {
 							power = 19 + float64(r.Room)*4
 						}
-						r.hurtPlayer(power, e.X, e.Y)
+						r.hurtPlayerFromEnemy(power, e.X, e.Y, e.ID)
 					} else {
 						r.event("dodge", p.X, p.Y, 0)
 					}

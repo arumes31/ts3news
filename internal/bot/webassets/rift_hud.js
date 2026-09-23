@@ -237,6 +237,10 @@
       ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
     ];
 
+    if(isDefeated&&encounter.defeated_by_boss){
+      rows.push(['Defeated by boss',encounter.defeated_by_boss]);
+    }
+
     if((encounter.treasure_escaped||0)>0){
       rows.push(['Treasure goblins escaped',String(encounter.treasure_escaped)+' · No loot or defeat credit']);
     }
