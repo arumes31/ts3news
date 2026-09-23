@@ -110,7 +110,7 @@
     if(!run||!run.player||!['fighting','cleared'].includes(run.status))return null;
     const p=run.player;
     const arena=run.practice?.arena||run.level?.rooms?.[run.room];
-    if(arena&&Array.isArray(arena.hazards)){
+    if(run.status==='fighting'&&arena&&Array.isArray(arena.hazards)){
       for(let i=0;i<arena.hazards.length;i++){
         const h=arena.hazards[i];
         if(h.disabled)continue;
@@ -140,7 +140,7 @@
       }
     }
     for(const e of run.enemies||[]){
-      if(e.hp>0&&e.windup>0&&e.kind==='boss'){
+      if(run.status==='fighting'&&e.hp>0&&e.windup>0&&e.kind==='boss'){
         const dx=(p.x-e.target_x)/125,dy=(p.y-e.target_y)/62;
         if(dx*dx+dy*dy<=1){
           const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam');

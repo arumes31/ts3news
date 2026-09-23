@@ -79,3 +79,9 @@ test('airborne hazard status respects explicit jumpability',async({page})=>{
  expect(states.map(s=>s.state)).toEqual(['evading','active','active']);
  expect(states[1].label).toBe('In area effect: Poison hazard (Active)');expect(states[2].label).toBe(states[1].label);
 });
+
+test('cleared rooms suppress hazard warnings but retain a remaining slow',async({page})=>{
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+ const states=await page.evaluate(()=>[.5,1.4].flatMap(clock=>[0,.8].map(slowed=>RiftHUD.detectPlayerAreaEffects({status:'cleared',clock,player:{x:150,y:400,jump:0},enemies:[{kind:'boss',hp:100,windup:1,target_x:150,target_y:400}],slow_source:'ice',skill_timers:{slowed},practice:{arena:{hazards:[{x:100,y:350,w:100,h:100,kind:'fire',period:7,offset:0,duration:1,jumpable:true}]}}}))));
+ expect(states.map(s=>s?.state||null)).toEqual([null,'debuff',null,'debuff']);expect(states[1].label).toBe('Area effect: Slowed by Ice (0.8s)');
+});
