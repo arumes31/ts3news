@@ -618,7 +618,9 @@ func (r *Run) tick(in Input, dt float64) {
 				}
 			}
 		}
-		if !hit {
+		if hit {
+			r.event("projectile_impact", shot.X, shot.Y, 0)
+		} else {
 			shots = append(shots, shot)
 		}
 	}

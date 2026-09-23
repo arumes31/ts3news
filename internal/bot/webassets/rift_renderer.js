@@ -847,6 +847,14 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='projectile_impact'&&!renderer.reduced&&motion>0&&age<.4){
+        const x=e.x-camera,y=e.y-28,progress=age/.4;
+        if(x>=-24&&x<=984&&y>=-24&&y<=564){
+          ctx.save();ctx.strokeStyle='#ffe1b5';ctx.lineWidth=2;ctx.globalAlpha=(1-progress)*display.effectIntensity;
+          for(let i=0;i<6;i++){const angle=i*Math.PI/3,inner=4+progress*8,outer=inner+8*(1-progress);ctx.beginPath();ctx.moveTo(x+Math.cos(angle)*inner,y+Math.sin(angle)*inner);ctx.lineTo(x+Math.cos(angle)*outer,y+Math.sin(angle)*outer);ctx.stroke();}
+          ctx.restore();
+        }
+      }
       if(e.kind==='slash'&&!renderer.reduced&&motion>0&&now-e.started<250){
         const progress=(now-e.started)/250;
         ctx.save();ctx.translate(e.x-camera,e.y);ctx.scale(e.visualFacing<0?-1:1,1);
