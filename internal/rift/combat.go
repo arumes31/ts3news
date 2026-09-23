@@ -931,6 +931,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.HP <= 0 {
 		return
 	}
+	if r.BerserkerFury() {
+		damage *= 1.15
+	}
 	armor := e.Armor
 	if e.ArtKey == "" && e.Kind == "knight" {
 		armor = .3
