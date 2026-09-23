@@ -581,3 +581,26 @@ func TestLoadingResumeGapDoesNotEnterClearTime(t *testing.T) {
 		}
 	}
 }
+
+func TestHealingGuardChipDoesNotCreateFlawlessRoom(t *testing.T) {
+	r := NewRunAtLevel("healed-room", Build{HP: 240}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
+	r.Player.Guard = true
+	r.Player.Facing = 1
+	r.hurtPlayer(10, r.Player.X+20, r.Player.Y)
+	if r.Stats.HitsTaken != 1 {
+		t.Fatal("guard chip must count as a damaging hit")
+	}
+	r.healPlayer(r.Player.MaxHP)
+	if r.Player.HP != r.Player.MaxHP {
+		t.Fatal("test did not restore full health")
+	}
+	r.Enemies = nil
+	r.Level.Rooms[0].Hazards = nil
+	r.tick(Input{}, 0)
+	if r.Status != "cleared" {
+		t.Fatal("room failed to clear")
+	}
+	if len(r.History[1].FlawlessTiers) != 0 {
+		t.Fatal("healing erased the room's damage history")
+	}
+}
