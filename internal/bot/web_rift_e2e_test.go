@@ -219,6 +219,22 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "rune_gate" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("rune-gate-room", selectedBuild, now, riftMobCatalog(now), 9)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			e := &run.Enemies[0]
+			e.HP = 1
+			e.X, e.Y = run.Player.X+30, run.Player.Y
+			e.Knockdown = 100
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if scenario := r.URL.Query().Get("scenario"); scenario == "lantern" || scenario == "lantern_failure" {
 			mu.Lock()
 			now := time.Now()
@@ -374,7 +390,17 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			for i := range run.Enemies {
 				run.Enemies[i].HP = 0
 			}
-			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			now = now.Add(20 * time.Millisecond)
+			run.Step(rift.Input{}, now)
+			for _, id := range run.RoomObjective.Sequence {
+				for _, seal := range run.RoomObjective.Pickups {
+					if seal.ID == id {
+						run.Player.X, run.Player.Y = seal.X, seal.Y
+						now = now.Add(20 * time.Millisecond)
+						run.Step(rift.Input{}, now)
+					}
+				}
+			}
 			run.FinishCheckpoint("advance", riftMobCatalog(now))
 			run.Level.Rooms[1].Hazards = nil
 			run.Level.Rooms[1].Obstacles = nil

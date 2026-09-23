@@ -122,7 +122,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 1: protect the ward lantern from nearby enemies. Tier 2: destroy the generators to shut down linked floor hazards"
 			}
 			if layout == 8 {
-				level.Tactic += ". Tier 2: defeat marked targets; survivors retreat without loot"
+				level.Tactic += ". Tier 1: clear the patrol, then open the rune gate in the displayed seal order. Tier 2: defeat marked targets; survivors retreat without loot"
 			}
 			if layout == 1 {
 				level.Tactic += ". Tier 2: capture three moving beacons, then defeat the patrol"
@@ -164,6 +164,9 @@ func Campaign() []Level {
 				}
 				if layout == 7 && room == 1 {
 					arena.Objective = "disable_generators"
+				}
+				if layout == 8 && room == 0 {
+					arena.Objective = "rune_gate"
 				}
 				if layout == 8 && room == 1 {
 					arena.Objective = "marked_hunt"

@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='protect_lantern'){
+    if(roomGoal?.kind==='rune_gate'){
+      const ended=!['fighting','cleared'].includes(run.status),combat=run.enemies.some(e=>e.hp>0),next=roomGoal.pickups.find(p=>p.id===roomGoal.sequence[roomGoal.collected]);
+      put($('rift-room-objective-progress'),'Rune gate '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Open':gamePaused?'Paused':combat?'Defeat the patrol':'Next seal: '+next.id));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Gate open. Bank collected loot to continue.':'Order: '+roomGoal.sequence.join(' → ')+'. '+(combat?'Seals activate after the patrol is defeated.':'Step on each seal in order. A wrong seal resets progress without damage. Floor hazards are off.'));
+      put($('rift-room-objective-directions'),ended||roomGoal.complete||combat?'':'Seal '+next.id+': '+(next.x<run.player.x?'left':'right')+(Math.abs(next.y-run.player.y)<24?'':next.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='protect_lantern'){
       const ended=!['fighting','cleared'].includes(run.status),lamp=roomGoal.lantern;
       put($('rift-room-objective-progress'),'Lantern '+Math.ceil(lamp.hp)+'% · '+(lamp.hp<=0?'Extinguished':ended?'Expedition ended':roomGoal.complete?'Protected':gamePaused?'Paused':roomGoal.contested?'Under threat':'Keep enemies away'));
       put($('rift-room-objective-help'),lamp.hp<=0?'The lantern went out. The expedition ended.':ended?'This tier was not secured.':roomGoal.complete?'Lantern protected and patrol defeated. Bank the loot to continue.':'Enemies inside the ring drain five light per second each, up to three enemies. Draw them away or defeat them. Losing all light ends the expedition.');

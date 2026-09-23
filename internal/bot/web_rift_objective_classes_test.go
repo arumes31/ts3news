@@ -411,6 +411,14 @@ func TestRiftHuntRoomsSupportEverySubclass(t *testing.T) {
 					run.Enemies[i].HP = 0
 				}
 				step(rift.Input{})
+				for _, id := range run.RoomObjective.Sequence {
+					for _, seal := range run.RoomObjective.Pickups {
+						if seal.ID == id {
+							run.Player.X, run.Player.Y = seal.X, seal.Y
+							step(rift.Input{})
+						}
+					}
+				}
 				run.FinishCheckpoint("advance", catalog)
 				run.Level.Rooms[1].Hazards = nil
 				run.Level.Rooms[1].Obstacles = nil
@@ -752,6 +760,46 @@ func TestRiftLanternDefenseSupportsEverySubclassAndRegion(t *testing.T) {
 					if run.Status != "cleared" || !run.RoomObjective.Complete || run.RoomObjective.Lantern.HP <= 0 || run.Stats.Kills != 1 || len(run.Drops) != 1 {
 						t.Fatalf("mission %d lantern defense failed", level)
 					}
+				}
+			})
+		}
+	}
+}
+
+func TestRiftRuneGateSupportsEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Walker", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-gate", build, now, catalog, 9)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				if run.RoomObjective == nil {
+					t.Fatal("campaign rune gate missing")
+				}
+				run.Level.Rooms[0].Obstacles = nil
+				run.Level.Rooms[0].HighCover = nil
+				run.Level.Rooms[0].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for _, id := range run.RoomObjective.Sequence {
+					pickup := run.RoomObjective.Pickups[id-1]
+					for n := 0; n < 1000 && !run.RoomObjective.Pickups[pickup.ID-1].Collected; n++ {
+						dx, dy := pickup.X-run.Player.X, pickup.Y-run.Player.Y
+						input := rift.Input{}
+						if math.Abs(dx) > 5 {
+							input.X = math.Copysign(1, dx)
+						}
+						if math.Abs(dy) > 5 {
+							input.Y = math.Copysign(1, dy)
+						}
+						step(input)
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete {
+					t.Fatal("subclass could not open rune gate through movement")
 				}
 			})
 		}
