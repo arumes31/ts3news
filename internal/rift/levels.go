@@ -605,7 +605,7 @@ func (r *Run) hazardTick() {
 		if r.Level != nil {
 			region = r.Level.Region
 		}
-		r.hurtPlayer(12+float64(region), r.Player.X, r.Player.Y)
+		r.hurtPlayerFromHazard(12+float64(region), r.Player.X, r.Player.Y)
 		if r.Player.HP <= 0 {
 			return
 		}

@@ -167,6 +167,8 @@ type EncounterBossState struct {
 
 // EncounterSummary preserves an accessible structured summary of the last encounter.
 type EncounterSummary struct {
+	HazardDamageTaken float64 `json:"hazard_damage_taken"`
+	EnemyDamageTaken float64 `json:"enemy_damage_taken"`
 	Bosses          []EncounterBossState `json:"bosses,omitempty"`
 	DefeatedByBoss  string               `json:"defeated_by_boss,omitempty"`
 	TreasureEscaped int                  `json:"treasure_escaped,omitempty"`
@@ -193,6 +195,8 @@ type EncounterSummary struct {
 
 // RoomBaseline tracks starting metrics at the beginning of each room to calculate encounter deltas.
 type RoomBaseline struct {
+	HazardDamageTaken float64 `json:"hazard_damage_taken"`
+	EnemyDamageTaken float64 `json:"enemy_damage_taken"`
 	Seconds        float64 `json:"seconds"`
 	DamageDealt    float64 `json:"damage_dealt"`
 	DamageTaken    float64 `json:"damage_taken"`
@@ -298,6 +302,8 @@ func (r *Run) spawnRoom() {
 		Seconds:        r.Stats.Seconds,
 		DamageDealt:    r.Stats.DamageDealt,
 		DamageTaken:    r.Stats.DamageTaken,
+		HazardDamageTaken: r.Stats.HazardDamageTaken,
+		EnemyDamageTaken: r.Stats.EnemyDamageTaken,
 		HitsTaken:      r.Stats.HitsTaken,
 		GuardBlocked:   r.Stats.GuardBlocked,
 		BarrierBlocked: r.Stats.BarrierBlocked,
@@ -374,6 +380,7 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	}
 	damageDealt := r.Stats.DamageDealt
 	damageTaken := r.Stats.DamageTaken
+	hazardDamageTaken, enemyDamageTaken := r.Stats.HazardDamageTaken, r.Stats.EnemyDamageTaken
 	hitsTaken := r.Stats.HitsTaken
 	guardBlocked := r.Stats.GuardBlocked
 	barrierBlocked := r.Stats.BarrierBlocked
@@ -384,6 +391,8 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	if r.RoomBaseline != nil {
 		damageDealt = max(0, damageDealt-r.RoomBaseline.DamageDealt)
 		damageTaken = max(0, damageTaken-r.RoomBaseline.DamageTaken)
+		hazardDamageTaken = max(0, hazardDamageTaken-r.RoomBaseline.HazardDamageTaken)
+		enemyDamageTaken = max(0, enemyDamageTaken-r.RoomBaseline.EnemyDamageTaken)
 		hitsTaken = max(0, hitsTaken-r.RoomBaseline.HitsTaken)
 		guardBlocked = max(0, guardBlocked-r.RoomBaseline.GuardBlocked)
 		barrierBlocked = max(0, barrierBlocked-r.RoomBaseline.BarrierBlocked)
@@ -435,6 +444,8 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		BossName:        bossName,
 		DamageDealt:     damageDealt,
 		DamageTaken:     damageTaken,
+		HazardDamageTaken: hazardDamageTaken,
+		EnemyDamageTaken: enemyDamageTaken,
 		HitsTaken:       hitsTaken,
 		GuardBlocked:    guardBlocked,
 		BarrierBlocked:  barrierBlocked,

@@ -184,6 +184,8 @@
         boss_name:boss?.name||'',
         damage_dealt:stats.damage_dealt||0,
         damage_taken:stats.damage_taken||0,
+        hazard_damage_taken:stats.hazard_damage_taken||0,
+        enemy_damage_taken:stats.enemy_damage_taken||0,
         hits_taken:stats.hits_taken||0,
         guard_blocked:stats.guard_blocked||0,
         barrier_blocked:stats.barrier_blocked||0,
@@ -241,10 +243,14 @@
       ['Enemies defeated',String(encounter.enemies||0)+(encounter.boss_name?' (Boss: '+encounter.boss_name+')':'')],
       ['Damage dealt',numbers.format(encounter.damage_dealt||0)],
       ['Damage taken',numbers.format(encounter.damage_taken||0)+' ('+(encounter.hits_taken||0)+' '+((encounter.hits_taken===1)?'hit':'hits')+')'],
+      ['HP lost to hazards',numbers.format(encounter.hazard_damage_taken||0)],
+      ['HP lost to enemies',numbers.format(encounter.enemy_damage_taken||0)],
       ['Guarded damage',numbers.format(encounter.guard_blocked||0)],
       ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
     ];
 
+    const unclassified=Math.max(0,(encounter.damage_taken||0)-(encounter.hazard_damage_taken||0)-(encounter.enemy_damage_taken||0));
+    if(unclassified>.001)rows.push(['Damage without source records',numbers.format(unclassified)]);
     if(isDefeated){
       for(const boss of encounter.bosses||[]){
         const percent=boss.max_hp>0?Math.round(boss.hp/boss.max_hp*100):0;
@@ -449,7 +455,9 @@
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
-    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Treasure goblins defeated',stats.treasure_goblins],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent],['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
+    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Treasure goblins defeated',stats.treasure_goblins],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['HP lost to hazards',stats.hazard_damage_taken],['HP lost to enemies',stats.enemy_damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent],['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
+    const unclassifiedDamage=Math.max(0,(stats.damage_taken||0)-(stats.hazard_damage_taken||0)-(stats.enemy_damage_taken||0));
+    if(unclassifiedDamage>.001)values.push(['Damage without source records',unclassifiedDamage]);
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
     let attributed=0,attributedMana=0,attributedHealing=0,attributedBarrier=0;for(const [skill,kind] of abilityUses){const casts=stats.skill_uses?.[skill.id]||0,mana=stats.skill_mana?.[skill.id]||0,healing=stats.skill_healing?.[skill.id]||0,barrier=stats.skill_barrier?.[skill.id]||0;attributed+=casts;attributedMana+=mana;attributedHealing+=healing;attributedBarrier+=barrier;const name=skill.name+' ('+kind+')';values.push(['Casts · '+name,casts],['Mana · '+name,mana],['Hits · '+name,stats.skill_hits?.[skill.id]||0],['Healing · '+name,healing],['Absorbed · '+name,barrier]);}
     if((stats.skills_cast||0)>attributed)values.push(['Earlier casts without per-skill records',stats.skills_cast-attributed]);

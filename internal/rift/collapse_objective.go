@@ -21,7 +21,7 @@ func (r *Run) tickCollapseObjective(dt float64) {
 		r.event("collapse_start", o.CollapseX, r.Player.Y, 0)
 	}
 	if o.CollapseX > 0 && r.Player.X <= o.CollapseX && o.CollapseHitCooldown == 0 {
-		r.hurtPlayer(math.Max(15, r.Player.MaxHP*.12), r.Player.X, r.Player.Y)
+		r.hurtPlayerFromHazard(math.Max(15, r.Player.MaxHP*.12), r.Player.X, r.Player.Y)
 		o.CollapseHitCooldown = 1
 		r.event("collapse_hit", r.Player.X, r.Player.Y, 0)
 	}
