@@ -1097,6 +1097,7 @@
       if(label.moved){ctx.strokeStyle='#80927b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(label.drop.x-camera,label.drop.y-26);ctx.lineTo(label.x,label.y+17);ctx.stroke();}
       ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
     }
+    const nearbyCover=window.RiftHUD.nearbyCover(run);
     const units=[...run.enemies,run.player];
     if(run.room_objective?.kind==='split_defense')units.push(...run.room_objective.lanes.map(l=>l.ward));
     if(run.room_objective?.kind==='protect_lantern')units.push(run.room_objective.lantern);
@@ -1126,6 +1127,7 @@
       // the collision footprint so jumping and circling cover read clearly.
       const width=o.w+14,height=o.h+(unit.tall?100:38);
       drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
+      if(!display.cleanScreenshot&&nearbyCover?.obstacle===o){ctx.save();ctx.strokeStyle=unit.tall?'#d6e5e9':'#a5e9ce';ctx.lineWidth=unit.tall?3:2;ctx.setLineDash(unit.tall?[]:[5,4]);ctx.strokeRect(o.x-camera,o.y,o.w,o.h);ctx.setLineDash([]);ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=unit.tall?'#e2edf1':'#beffe4';ctx.strokeStyle='#102419';ctx.lineWidth=3;const label=unit.tall?'TALL · BLOCKS SHOTS':'LOW · VAULT';ctx.strokeText(label,o.x+o.w/2-camera,o.y+o.h-height*.9-8);ctx.fillText(label,o.x+o.w/2-camera,o.y+o.h-height*.9-8);ctx.restore();}
     });
     run.projectiles.forEach(p=>{
       if(display.projectileShapes!==false){

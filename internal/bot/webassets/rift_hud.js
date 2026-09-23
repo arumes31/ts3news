@@ -282,7 +282,17 @@
       }
     }
   }
+  function nearbyCover(run){
+    const arena=run.level?.rooms?.[run.room];if(!arena)return null;
+    const candidates=[...(arena.obstacles||[]).map(obstacle=>({kind:'low',obstacle})),...(arena.high_cover||[]).map(obstacle=>({kind:'tall',obstacle})),...(arena.cover||[]).filter(c=>c.material==='stone'||c.hp>0).map(obstacle=>({kind:obstacle.material,obstacle}))];
+    let nearest=null,distance=96;
+    for(const candidate of candidates){const o=candidate.obstacle,x=Math.max(o.x,Math.min(run.player.x,o.x+o.w)),y=Math.max(o.y,Math.min(run.player.y,o.y+o.h)),d=Math.hypot(x-run.player.x,y-run.player.y);if(d<distance){distance=d;nearest=candidate;}}
+    return nearest;
+  }
   function update(run,playing,replay=false){
+    const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!cover||!['fighting','cleared'].includes(run.status);
+    if(cover){hint.dataset.kind=cover.kind;put(hint,cover.kind==='low'?'Low cover · Move + '+(window.RiftControls?.label('jump')||'Space')+' to vault · Projectiles pass over':cover.kind==='wood'?'Wooden barricade · Break with attacks · Blocks projectiles':cover.kind==='stone'?'Stone cover · Walk around · Blocks projectiles':'Tall cover · Walk around · Blocks projectiles');}
+
     lastObservedRun=run;
     updateSkillRangeSignal(run);
     const runIdentity=[run.id,run.level?.id,run.room].join(':');
@@ -459,5 +469,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
+  window.RiftHUD={nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
 })();

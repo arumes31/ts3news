@@ -872,3 +872,29 @@ func TestRiftTerrainCoverBreaksForEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftVaultSupportsEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Vaulter", 24)
+				now := time.Unix(100, 0)
+				run := rift.NewRunAtLevel("class-vault", build, now, content.AbyssMobCatalog(), 1)
+				run.Level.Rooms[0] = rift.Arena{Obstacles: []rift.Obstacle{{X: 300, Y: 380, W: 80, H: 40}}}
+				for i := range run.Enemies {
+					run.Enemies[i].Knockdown = 100
+				}
+				run.Player.X, run.Player.Y = 285, 400
+				now = now.Add(20 * time.Millisecond)
+				run.Step(rift.Input{Jump: true}, now)
+				for n := 0; n < 34; n++ {
+					now = now.Add(20 * time.Millisecond)
+					run.Step(rift.Input{X: 1}, now)
+				}
+				if run.Player.X < 395 || run.Player.Jump != 0 {
+					t.Fatalf("subclass failed vault: %.1f, jump %.2f", run.Player.X, run.Player.Jump)
+				}
+			})
+		}
+	}
+}
