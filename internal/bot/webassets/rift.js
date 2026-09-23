@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='rescue_companions'){
+    if(roomGoal?.kind==='protect_lantern'){
+      const ended=!['fighting','cleared'].includes(run.status),lamp=roomGoal.lantern;
+      put($('rift-room-objective-progress'),'Lantern '+Math.ceil(lamp.hp)+'% · '+(lamp.hp<=0?'Extinguished':ended?'Expedition ended':roomGoal.complete?'Protected':gamePaused?'Paused':roomGoal.contested?'Under threat':'Keep enemies away'));
+      put($('rift-room-objective-help'),lamp.hp<=0?'The lantern went out. The expedition ended.':ended?'This tier was not secured.':roomGoal.complete?'Lantern protected and patrol defeated. Bank the loot to continue.':'Enemies inside the ring drain five light per second each, up to three enemies. Draw them away or defeat them. Losing all light ends the expedition.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Lantern: '+(lamp.x<run.player.x?'left':'right')+(Math.abs(lamp.y-run.player.y)<24?'':lamp.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='rescue_companions'){
       const ended=!['fighting','cleared'].includes(run.status),captives=roomGoal.captives.filter(c=>!c.freed);
       put($('rift-room-objective-progress'),'Companions '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Rescued':gamePaused?'Paused':'Break the cages'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Companions rescued. Clear the remaining patrol and bank the loot.':'Attacks and spells break the cages without harming the captive spirits. Cages grant no monster kills or loot.');
@@ -281,7 +286,7 @@
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
       if(audio.bossMusicActive)audio.fadeBossMusic?.(1.8);
       const lost=run.status==='defeated';
-      message(lost?'The rift takes its toll.':'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
+      message(lost?(run.room_objective?.kind==='protect_lantern'&&run.room_objective.lantern.hp<=0?'The lantern went out.':'The rift takes its toll.'):'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
       $('rift-result-actions').hidden=!run.level||run.status==='expired';
       $('rift-retry-boss').hidden=!lost||!run.level||!run.encounter_plan?.[run.room]?.some(enemy=>enemy.kind==='boss');

@@ -219,6 +219,29 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if scenario := r.URL.Query().Get("scenario"); scenario == "lantern" || scenario == "lantern_failure" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("lantern-room", selectedBuild, now, riftMobCatalog(now), 8)
+			run.Level.Rooms[0].Hazards = nil
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			lamp := run.RoomObjective.Lantern
+			e := &run.Enemies[0]
+			e.HP, e.MaxHP = selectedBuild.Damage*3, selectedBuild.Damage*3
+			e.Armor = 0
+			e.X, e.Y = lamp.X, lamp.Y
+			e.Knockdown = 100
+			run.Player.X, run.Player.Y = lamp.X-50, lamp.Y
+			if scenario == "lantern_failure" {
+				lamp.HP = 10
+			}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "rescue" {
 			mu.Lock()
 			now := time.Now()

@@ -119,7 +119,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 1: break both cages to rescue captive companions. Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
 			}
 			if layout == 7 {
-				level.Tactic += ". Tier 2: destroy the generators to shut down linked floor hazards"
+				level.Tactic += ". Tier 1: protect the ward lantern from nearby enemies. Tier 2: destroy the generators to shut down linked floor hazards"
 			}
 			if layout == 8 {
 				level.Tactic += ". Tier 2: defeat marked targets; survivors retreat without loot"
@@ -158,6 +158,9 @@ func Campaign() []Level {
 				}
 				if layout == 6 && room == 1 {
 					arena.Objective = "carry_relic"
+				}
+				if layout == 7 && room == 0 {
+					arena.Objective = "protect_lantern"
 				}
 				if layout == 7 && room == 1 {
 					arena.Objective = "disable_generators"

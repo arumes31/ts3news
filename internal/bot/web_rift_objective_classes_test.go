@@ -718,3 +718,42 @@ func TestRiftRescueRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftLanternDefenseSupportsEverySubclassAndRegion(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				for level := 8; level <= 98; level += 10 {
+					build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Defender", 24)
+					now := time.Unix(100, 0)
+					run := rift.NewRunAtLevel("class-lantern", build, now, content.AbyssMobCatalog(), level)
+					if run.RoomObjective == nil || run.RoomObjective.Kind != "protect_lantern" {
+						t.Fatal("lantern missing")
+					}
+					run.Level.Rooms[0].Hazards = nil
+					for i := range run.Enemies {
+						run.Enemies[i].HP = 0
+					}
+					enemy := &run.Enemies[0]
+					enemy.HP, enemy.MaxHP = build.Damage*2, build.Damage*2
+					enemy.X, enemy.Y = run.RoomObjective.Lantern.X, run.RoomObjective.Lantern.Y
+					enemy.Knockdown = 100
+					for n := 0; n < 1200 && run.Status == "fighting"; n++ {
+						input := rift.Input{Attack: true}
+						dy := enemy.Y - run.Player.Y
+						if math.Abs(dy) > 4 {
+							input.Y = math.Copysign(1, dy)
+						} else if enemy.X-run.Player.X > 35 {
+							input.X = 1
+						}
+						now = now.Add(20 * time.Millisecond)
+						run.Step(input, now)
+					}
+					if run.Status != "cleared" || !run.RoomObjective.Complete || run.RoomObjective.Lantern.HP <= 0 || run.Stats.Kills != 1 || len(run.Drops) != 1 {
+						t.Fatalf("mission %d lantern defense failed", level)
+					}
+				}
+			})
+		}
+	}
+}

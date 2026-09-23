@@ -733,7 +733,8 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	r.tickCollapseObjective(dt)
-	if p.HP <= 0 {
+	r.tickLanternObjective(dt)
+	if p.HP <= 0 || r.lanternExtinguished() {
 		p.Pose = "defeat"
 		p.Knockdown = 0
 		r.Status = "defeated"

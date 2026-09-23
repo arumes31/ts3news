@@ -22,6 +22,7 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
+	Lantern             *Actor            `json:"lantern,omitempty"`
 	Captives            []RescueCaptive   `json:"captives,omitempty"`
 	BondActive          bool              `json:"bond_active"`
 	CollapseX           float64           `json:"collapse_x"`
@@ -52,6 +53,10 @@ type RoomObjective struct {
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "protect_lantern" {
+		r.beginLanternObjective()
 		return
 	}
 	if r.Arena().Objective == "rescue_companions" {
