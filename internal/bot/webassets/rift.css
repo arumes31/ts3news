@@ -695,3 +695,5 @@
 #rift-hazard-legend canvas { width: 84px; height: 36px; flex: none; border: 1px solid currentColor; }
 
 #rift-class-primer{padding:12px 16px;border-bottom:1px solid var(--rift-line);background:#172a21;color:#cbd8bf}#rift-class-primer strong{font-size:13px;color:#e6c58a}#rift-class-primer p{margin:5px 0 0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+
+#rift-app .rift-ability-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;text-align:left}#rift-app .rift-ability-identity .rift-role-mark{font-size:9px;line-height:1.2;white-space:nowrap}

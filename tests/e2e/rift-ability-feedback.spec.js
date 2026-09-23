@@ -8,6 +8,7 @@ test('ability roles and cooldowns have visual and accessible feedback',async({pa
   await expect(page.locator('[data-ability-role="builder"]')).toHaveAccessibleName(/Builder/);
   await expect(page.locator('[data-ability-role="finisher"]')).toHaveAccessibleName(/Finisher/);
   await expect(page.locator('[data-ability-role="ultimate"]')).toHaveAccessibleName(/Ultimate/);
+  for(const role of ['builder','finisher','ultimate']){const marker=page.locator('[data-ability-role="'+role+'"] .rift-role-mark');await expect(marker).toBeVisible();await expect(marker).toContainText(role[0].toUpperCase()+role.slice(1));}
   await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
   await page.evaluate(()=>{const button=document.querySelector('#rift-skills button');window.RiftAbilities.update(button,{id:'guard',name:'Iron Guard',cost:10,cooldown:8},{skill_timers:{guard:4},player:{mana:100}},'4.0 seconds cooldown');});
   await expect(guard.locator('.rift-cooldown-ring')).toHaveCSS('--cooldown-progress','50%');
@@ -15,4 +16,5 @@ test('ability roles and cooldowns have visual and accessible feedback',async({pa
   await page.evaluate(()=>{const button=document.querySelector('#rift-skills button');window.RiftAbilities.update(button,{id:'guard',name:'Iron Guard',cost:10,cooldown:8},{skill_timers:{},player:{mana:0}},'10 more mana needed');});
   await expect(guard.locator('.rift-cooldown-ring')).toBeHidden();await expect(guard).toHaveAccessibleName(/more mana needed/);
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.locator('#rift-signatures').scrollIntoViewIfNeeded();await page.locator('#rift-signatures').screenshot({path:'test-results/class-button-roles-mobile.png'});
 });
