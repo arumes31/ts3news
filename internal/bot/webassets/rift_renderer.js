@@ -294,10 +294,12 @@
   renderer.feed = function (run, replay) { return renderer.snapshot(run, replay); };
   renderer.renderActor = function (unit, now) { return actor(unit, now || performance.now()); };
   renderer.snapshot = function (run, replay) {
+    const entering=!replay&&(!snapshot||runID!==run.id||snapshot.room!==run.room||snapshot.level?.id!==run.level?.id);
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
     if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
     else previous = snapshot;
-    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; transitionAt=animationTime; }
+    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; }
+    if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
     [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
@@ -1267,7 +1269,13 @@
     const isMovingFootstep = (run.player.pose === 'run' && now - footstep > 320) || (run.player.pose === 'guard_walk' && now - footstep > 460);
     if(run.status==='fighting' && !run.paused && isMovingFootstep && run.player.jump===0){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}
     window.RiftAudio.tick();
-    if(now-transitionAt<500&&!renderer.reduced){ctx.fillStyle='#091914';ctx.globalAlpha=Math.max(0,.65*(1-(now-transitionAt)/500))*display.flashIntensity;ctx.fillRect(0,0,960,540);ctx.globalAlpha=1;}
+    if(now-transitionAt<500&&!renderer.reduced&&display.flashIntensity>0){
+      const fade=Math.max(0,1-(now-transitionAt)/500)*display.flashIntensity;
+      const color=/^#[0-9a-f]{6}$/i.test(run.level?.color||'')?run.level.color:'#a6ce7b';
+      ctx.save();ctx.fillStyle='#091914';ctx.globalAlpha=.65*fade;ctx.fillRect(0,0,960,540);
+      ctx.fillStyle=color;ctx.globalAlpha=.12*fade;ctx.fillRect(0,0,960,540);
+      ctx.strokeStyle=color;ctx.globalAlpha=.8*fade;ctx.lineWidth=4;ctx.strokeRect(6,6,948,528);ctx.restore();
+    }
   }
   renderer.ready.then(()=>requestAnimationFrame(render)).catch(()=>{});
   window.RiftRenderer=renderer;
