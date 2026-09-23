@@ -12,22 +12,24 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
-	StartDodges    int                 `json:"start_dodges"`
-	StartNonMelee  int                 `json:"start_non_melee"`
-	StartAerial    int                 `json:"start_aerial"`
-	StartTreasure  int                 `json:"start_treasure"`
-	StartHazards   int                 `json:"start_hazards"`
-	StartUltimates int                 `json:"start_ultimates"`
-	StartFinishers int                 `json:"start_finishers"`
-	Banked         bool                `json:"banked,omitempty"`
-	Difficulty     string              `json:"difficulty,omitempty"`
-	Mission        int                 `json:"mission"`
-	Finished       bool                `json:"finished"`
-	StartSeconds   float64             `json:"start_seconds"`
-	StartDamage    float64             `json:"start_damage"`
-	StartSkills    int                 `json:"start_skills"`
-	StartGuards    int                 `json:"start_guards"`
-	Entries        []ObjectiveProgress `json:"entries"`
+	RewardPerObjective int64               `json:"reward_per_objective,omitempty"`
+	RewardGold         int64               `json:"reward_gold,omitempty"`
+	StartDodges        int                 `json:"start_dodges"`
+	StartNonMelee      int                 `json:"start_non_melee"`
+	StartAerial        int                 `json:"start_aerial"`
+	StartTreasure      int                 `json:"start_treasure"`
+	StartHazards       int                 `json:"start_hazards"`
+	StartUltimates     int                 `json:"start_ultimates"`
+	StartFinishers     int                 `json:"start_finishers"`
+	Banked             bool                `json:"banked,omitempty"`
+	Difficulty         string              `json:"difficulty,omitempty"`
+	Mission            int                 `json:"mission"`
+	Finished           bool                `json:"finished"`
+	StartSeconds       float64             `json:"start_seconds"`
+	StartDamage        float64             `json:"start_damage"`
+	StartSkills        int                 `json:"start_skills"`
+	StartGuards        int                 `json:"start_guards"`
+	Entries            []ObjectiveProgress `json:"entries"`
 }
 
 // ObjectiveOptions supplies both mission tracking and the pre-run preview.
@@ -81,7 +83,7 @@ func (r *Run) beginObjectives() {
 		}
 		entries = filtered
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, StartDodges: r.Stats.Dodges, Entries: entries}
+	r.Objectives = &MissionObjectives{RewardPerObjective: 5, Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, StartDodges: r.Stats.Dodges, Entries: entries}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.

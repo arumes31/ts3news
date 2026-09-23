@@ -76,6 +76,10 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				run.Stats.HitsTaken = 2
 				run.Player.HP = 120
 			}
+			// Keep this older receipt test on the legacy, no-bonus offer.
+			if run.Objectives != nil {
+				run.Objectives.RewardPerObjective = 0
+			}
 			run.Status = "cleared"
 			run.Epoch = "2"
 			run.Revision = 4

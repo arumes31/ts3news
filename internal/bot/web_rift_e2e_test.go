@@ -546,7 +546,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
-		if r.URL.Query().Get("scenario") == "objective-results" {
+		if scenario := r.URL.Query().Get("scenario"); scenario == "objective-results" || scenario == "objective-rewards" {
 			mu.Lock()
 			now := time.Now()
 			run := rift.NewRunAtLevel("objective-results", selectedBuild, now, riftMobCatalog(now), 1)
@@ -560,6 +560,10 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			run.Epoch = "fixture"
 			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
 			run.SetPaused(true, now.Add(20*time.Millisecond))
+			if scenario == "objective-rewards" {
+				run.Gold = 30
+				run.Drops = []rift.Drop{{ID: "fight-gold", Gold: 30, Collected: true}}
+			}
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
@@ -746,6 +750,12 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 						d.Banked = true
 						d.Collected = true
 					}
+				}
+				run.UpdateObjectives()
+				if bonus := run.PendingObjectiveGold(); bonus > 0 {
+					run.Objectives.RewardGold = bonus
+					run.BankedObjectiveGold += bonus
+					run.BankedGold += bonus
 				}
 				run.Gold = 0
 				run.LastMS = time.Now().UnixMilli()

@@ -16,6 +16,11 @@
    parent.append(row);
   }
  }
+ function pendingGold(run){
+  const o=run?.objectives;
+  if(run?.practice||run?.status!=='cleared'||run.room!==2||!o?.finished||o.banked||o.reward_gold||o.reward_per_objective!==5)return 0;
+  return o.entries.filter(e=>e.status==='complete').length*o.reward_per_objective;
+ }
  function update(run,paused){
   lastRun=run;lastPaused=paused;
   root.hidden=!toggle.checked||!!run?.practice||!!document.getElementById('rift-app').dataset.practice;
@@ -24,6 +29,8 @@
   const next=JSON.stringify([current,previous,run?.objective_history,paused,!!run,options],(name,value)=>name==='current'&&typeof value==='number'?Math.floor(value):value);
   if(next===key)return;key=next;
   caption.textContent=current?'Mission '+current.mission+' · '+(current.finished?'Results · '+(current.banked?'Banked':'Not banked'):paused?'Paused':'In progress'):run?'Tracking starts with your next mission.':'Before you enter: optional goals for all three tiers.';
+  document.getElementById('rift-objective-reward-terms').textContent=current&&!current.reward_per_objective?'This saved mission has no objective bonus offer. Failures do not end your mission.':'Earn 5 gold per completed objective when you bank the final tier. Objective bonuses are separate from fight loot. Failures do not end your mission.';
+  document.getElementById('rift-objective-reward-total').textContent=current?.banked?'Objective bonus banked: '+(current.reward_gold||0)+' gold.':pendingGold(run)?'Objective bonus ready to bank: '+pendingGold(run)+' gold.':'';
   rows(list,current?.entries||options,!current);
   const history=document.getElementById('rift-objective-history'),historyList=document.getElementById('rift-objective-history-list');historyList.replaceChildren();
   for(const [difficulty,counts] of Object.entries(run?.objective_history||{}).sort(([a],[b])=>a.localeCompare(b))){
@@ -31,7 +38,7 @@
   }
   history.hidden=!historyList.children.length;
   last.hidden=!previous;
-  if(previous){document.getElementById('rift-objectives-last-title').textContent='Previous mission '+previous.mission+' objectives · '+(previous.banked?'Banked':'Not banked');rows(lastList,previous.entries,false);}
+  if(previous){document.getElementById('rift-objectives-last-title').textContent='Previous mission '+previous.mission+' objectives · '+(previous.banked?'Banked · Objective bonus: '+(previous.reward_gold||0)+' gold':'Not banked');rows(lastList,previous.entries,false);}
  }
- window.RiftObjectives={init(values){options=values;key='';update(null,false);},update};
+ window.RiftObjectives={pendingGold,init(values){options=values;key='';update(null,false);},update};
 })();

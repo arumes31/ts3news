@@ -388,6 +388,7 @@ func loadRiftMode(ctx context.Context, database *sql.DB, uid, mode string) (*rif
 		run.PastExpeditions.Gold += run.BankedGold
 		run.PastExpeditions.Gear += len(run.BankedItems)
 		run.BankedGold = 0
+		run.BankedObjectiveGold = 0
 		run.BankedItems = []string{}
 	}
 	run.UpdateObjectives()
@@ -587,7 +588,16 @@ func bankRift(ctx context.Context, tx *sql.Tx, uid, requestID string, run *rift.
 			return err
 		}
 	}
-	run.BankedGold += gold
+	run.UpdateObjectives()
+	bonus := run.PendingObjectiveGold()
+	if bonus > 0 {
+		if _, err := tx.ExecContext(ctx, "/* economy:bot.bankRiftObjectives */ UPDATE users SET gold=gold+$1 WHERE client_uid=$2", bonus, uid); err != nil {
+			return err
+		}
+		run.Objectives.RewardGold = bonus
+		run.BankedObjectiveGold += bonus
+	}
+	run.BankedGold += gold + bonus
 	run.Gold = 0
 	return nil
 }

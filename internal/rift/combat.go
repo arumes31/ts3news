@@ -248,6 +248,7 @@ type Run struct {
 	AttemptHistory      []AttemptRecord          `json:"attempt_history,omitempty"`
 	LastClear           *ClearResult             `json:"last_clear,omitempty"`
 	PastExpeditions     CareerTotals             `json:"past_expeditions"`
+	BankedObjectiveGold int64 `json:"banked_objective_gold,omitempty"`
 	BankedGold          int64                    `json:"banked_gold"`
 	BankedLoot          []BankedLoot             `json:"banked_loot,omitempty"`
 	BankedItems         []string                 `json:"banked_items"`
