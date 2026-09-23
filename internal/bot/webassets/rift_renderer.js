@@ -846,6 +846,20 @@
     interactionPrompts=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    // The decorative floor continues past the playable space; mark its real rim.
+    ctx.save();ctx.fillStyle='#071a1640';
+    ctx.fillRect(25-camera,305,1550,10);ctx.fillRect(25-camera,490,1550,12);
+    ctx.fillRect(25-camera,315,10,175);ctx.fillRect(1565-camera,315,10,175);
+    ctx.strokeStyle='#071a168f';ctx.lineWidth=4;ctx.strokeRect(35-camera,315,1530,175);
+    ctx.strokeStyle='#b5c9a885';ctx.lineWidth=1;ctx.strokeRect(35-camera,315,1530,175);
+    ctx.strokeStyle='#b5c9a860';ctx.lineWidth=1;ctx.beginPath();
+    for(let x=45;x<1565;x+=24){ctx.moveTo(x-camera,307);ctx.lineTo(x+6-camera,313);ctx.moveTo(x-camera,492);ctx.lineTo(x+6-camera,498);}
+    ctx.stroke();
+    if(run.player.x<50||run.player.x>1550||run.player.y<330||run.player.y>475){
+      ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#dce6cf';ctx.strokeStyle='#102419';ctx.lineWidth=3;
+      interactionPrompt('ARENA EDGE',Math.max(70,Math.min(890,run.player.x-camera)),run.player.y<330?292:run.player.y>475?518:run.player.y-100);
+    }
+    ctx.restore();
     if(display.layoutGrid&&!display.cleanScreenshot){
       ctx.save();
       ctx.beginPath();ctx.rect(35-camera,315,1530,175);ctx.clip();
