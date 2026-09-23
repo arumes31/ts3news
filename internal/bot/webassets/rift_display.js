@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-app');
-  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,layoutGrid:false,enemyIndicators:true,skillRange:false,largeActionBar:false};
+  const defaults={optionalCombatText:true,shakeIntensity:0,personalRecords:true,damageNumbers:true,enemyNames:'all',healthBars:true,particles:true,lootMotion:true,hazardContrast:false,hazardPatterns:true,projectileShapes:true,textScale:1,compactHUD:false,cameraSmooth:true,fps:60,hazardLabels:true,damageMotion:true,lootSparkle:true,particleIntensity:1,motionIntensity:1,flashIntensity:1,effectIntensity:1,cleanScreenshot:false,layoutGrid:false,minimap:true,enemyIndicators:true,skillRange:false,largeActionBar:false};
   const choices={shakeIntensity:[0,0.5,1],enemyNames:['all','boss','none'],textScale:[1,1.15,1.25],fps:[30,60],particleIntensity:[0,0.5,1],motionIntensity:[0,0.5,1],flashIntensity:[0,0.5,1],effectIntensity:[0.35,0.65,1]};
   const values={...defaults};
   try{
@@ -56,6 +56,7 @@
     ['compactHUD','rift-compact-hud','Compact HUD'],['personalRecords','rift-personal-records','Personal records in HUD'],
     ['cleanScreenshot','rift-clean-screenshot','Clean screenshot mode (hide HUD)'],
     ['layoutGrid','rift-layout-grid','Arena layout grid (50-unit world coordinates)'],
+    ['minimap','rift-show-minimap','Arena minimap'],
     ['largeActionBar','rift-large-action-bar','Large-target action bar'],
     ['enemyIndicators','rift-enemy-indicators','Off-screen enemy direction indicators'],
     ['skillRange','rift-show-skill-range','Equipped skill range indicators']
@@ -66,6 +67,7 @@
     root.classList.toggle('rift-hide-records',!values.personalRecords);
     root.style.setProperty('--rift-hud-scale',values.textScale);root.classList.toggle('rift-compact-hud',values.compactHUD);
     root.classList.toggle('rift-clean-screenshot',values.cleanScreenshot);
+    root.classList.toggle('rift-hide-minimap',!values.minimap);
     root.classList.toggle('rift-large-action-bar',Boolean(values.largeActionBar));
     const screenshotBtn=document.getElementById('rift-screenshot-toggle');
     if(screenshotBtn)screenshotBtn.setAttribute('aria-pressed',String(values.cleanScreenshot));

@@ -681,3 +681,8 @@
 #rift-terrain-hint{flex-basis:100%;color:#baf0d8;font-size:11px}#rift-terrain-hint[data-kind=tall],#rift-terrain-hint[data-kind=stone]{color:#d6e5e9}
 
 #rift-room-previews [data-terrain=ledge]{fill:#314c49;stroke:#a5e9ce;stroke-width:4}
+
+#rift-minimap{display:flex;align-items:center;gap:14px;padding:6px 12px;border:1px solid var(--rift-line);border-bottom:0;background:#10211c}#rift-minimap svg{display:block;width:320px;max-width:55%;flex-shrink:0}#rift-minimap p{margin:0;font:11px/1.5 ui-monospace,monospace;color:#c4d7c8}#rift-minimap .map-floor{fill:#203c31;stroke:#708e79;stroke-width:1}#rift-minimap [data-kind=cover]{fill:#92977a}#rift-minimap [data-kind=stone]{fill:#b1bec4}#rift-minimap [data-kind=wood]{fill:#b5824c}#rift-minimap [data-kind=ledge]{fill:#335f57;stroke:#a5e9ce;stroke-width:.8}#rift-minimap [data-kind=hazard]{fill:#adc38520;stroke:#829c80;stroke-width:.6}#rift-minimap [data-phase=active]{fill:#db674e;stroke:#ffe5d2;stroke-width:1.2}#rift-minimap [data-phase=warning]{fill:#be91363a;stroke:#ffd17e;stroke-width:1;stroke-dasharray:2 1}#rift-minimap [data-phase=off]{fill:none;stroke:#53685a}#rift-minimap [data-kind=enemy]{fill:#ffac7b;stroke:#17241c;stroke-width:.6}#rift-minimap [data-kind=player]{fill:#e4fff0;stroke:#15281d;stroke-width:1}#rift-minimap [data-kind=exit]{fill:#173b2b;stroke:#b8ffac;stroke-width:1.1}.rift-hide-minimap #rift-minimap,.rift-clean-screenshot #rift-minimap{display:none!important}
+@media(max-width:600px){#rift-minimap{flex-direction:column;align-items:stretch;gap:2px;padding:4px 8px}#rift-minimap svg{width:100%;max-width:100%}#rift-minimap p{font-size:10px}}
+
+#rift-minimap [data-kind=objective]{fill:#91d9e4;stroke:#1a3540;stroke-width:.7}

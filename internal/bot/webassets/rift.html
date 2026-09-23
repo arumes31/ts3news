@@ -143,6 +143,7 @@
       <div class="rift-combat-overview"><strong id="rift-objective">Choose an expedition</strong><span id="rift-terrain-hint" hidden></span><span id="rift-enemy-count">No active enemies</span><span id="rift-combat-time">0:00 combat</span><span id="rift-latency" class="rift-latency" role="status" aria-label="Connection latency: waiting for request" data-state="normal">-- ms</span><span id="rift-catchup" class="rift-catchup" role="status" hidden>⚡ Catching up…</span><span id="rift-saved-at" class="rift-saved-at" role="status" aria-label="Last confirmed save time">Save: --</span><strong id="rift-paused-badge" hidden>Paused</strong><span id="rift-pending-hud" title="Unbanked drops include items still on the battlefield. Clear the room and bank to keep them.">Unbanked: 0 gold · 0 gear</span></div>
       <aside id="rift-boss-intro" aria-label="Boss introduction" hidden><div><strong id="rift-boss-intro-name" role="status"></strong><p>Slams: jump or move clear. Volleys: evade or face the shot to guard.</p></div><button id="rift-boss-intro-skip" type="button" aria-describedby="rift-boss-intro-note">Skip intro</button><small id="rift-boss-intro-note">Skipped bosses are remembered on this device. Combat continues normally.</small></aside>
       <aside id="rift-room-objective" aria-label="Required room objective" hidden><strong id="rift-room-objective-progress" role="status"></strong><p id="rift-room-objective-help"></p><p id="rift-room-objective-directions"></p></aside>
+      <section id="rift-minimap" aria-label="Current arena minimap" hidden><svg viewBox="0 0 320 54" role="img" aria-label="Current arena map"></svg><p></p></section>
       <div class="rift-viewport" id="rift-viewport">
         <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. Space jumps, J attacks, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
         <div id="rift-transition" class="rift-transition" aria-live="off" hidden>Tier secured · Banking rewards…</div>
@@ -251,6 +252,7 @@
 <script defer src="{{asset "/static/rift_mission.js"}}"></script>
 <script defer src="{{asset "/static/rift_loadout.js"}}"></script>
 <script defer src="{{asset "/static/rift_records.js"}}"></script>
+<script defer src="{{asset "/static/rift_minimap.js"}}"></script>
 <script defer src="{{asset "/static/rift_hud.js"}}"></script>
 <script defer src="{{asset "/static/rift_abilities.js"}}"></script>
 <script defer src="{{asset "/static/rift_protocol.js"}}"></script>

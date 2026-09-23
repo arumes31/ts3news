@@ -290,6 +290,7 @@
     return nearest;
   }
   function update(run,playing,replay=false){
+    window.RiftMinimap.update(run);
     const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!cover||!['fighting','cleared'].includes(run.status);
     if(cover){hint.dataset.kind=cover.kind;put(hint,cover.kind==='ledge'?'One-way ledge · Move down to drop safely · Return around either end':cover.kind==='low'?'Low cover · Move + '+(window.RiftControls?.label('jump')||'Space')+' to vault · Projectiles pass over':cover.kind==='wood'?'Wooden barricade · Break with attacks · Blocks projectiles':cover.kind==='stone'?'Stone cover · Walk around · Blocks projectiles':'Tall cover · Walk around · Blocks projectiles');}
 
