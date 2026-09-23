@@ -246,6 +246,9 @@ func Campaign() []Level {
 				if layout == 0 && room == 0 {
 					arena.DropEdges = []DropEdge{{ID: fmt.Sprintf("mission-%d-drop", id), X: 260, Y: 365, W: 80, LandingY: 425}}
 				}
+				if region == 6 && room == 0 {
+					arena.Hazards[0].Kind = "spikes"
+				}
 				if region == 1 {
 					arena.SteamVents = []Obstacle{{350, 235, 90, 65}, {1110, 235, 90, 65}}
 				}

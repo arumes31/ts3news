@@ -105,6 +105,7 @@
   renderer.atlasProgress = atlasProgress;
   renderer.getCriticalAtlasKeys = () => criticalAtlasKeys.slice();
   const hazardPatternProfiles = {
+    spikes: { kind: 'spikes', pattern: 'triangle-studs', label: 'Triangular studs' },
     fire: { kind: 'fire', pattern: 'diagonal-stripes', label: 'Diagonal stripes' },
     ice: { kind: 'ice', pattern: 'diamond-grid', label: 'Diamond cross-hatch' },
     poison: { kind: 'poison', pattern: 'polka-dots', label: 'Bubble stippling' },
@@ -187,6 +188,11 @@
     ctx.save();
     ctx.globalAlpha = active ? 0.75 : 0.4;
     switch (kind) {
+      case 'spikes': {
+        ctx.strokeStyle=color;ctx.lineWidth=1.5;
+        for(let py=y+8;py<y+h;py+=14)for(let px=x+8;px<x+w;px+=16){ctx.beginPath();ctx.moveTo(px-4,py+3);ctx.lineTo(px,py-4);ctx.lineTo(px+4,py+3);ctx.closePath();ctx.stroke();}
+        break;
+      }
       case 'fire': {
         ctx.lineWidth = active ? 2.5 : 1.5;
         ctx.strokeStyle = active ? '#fff0b0' : color;
@@ -955,9 +961,19 @@
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
 
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
-      const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
+      const x=h.x-camera,color={spikes:'#d6dce4',fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
+      if(h.kind==='spikes'){
+        const extension=renderer.reduced?(active?1:0):phase<1.2?Math.max(0,(phase-1.02)/.18):active?1:Math.max(0,1-(phase-1.2-h.duration)/.18);
+        ctx.save();ctx.globalAlpha=1;
+        for(let row=0;row<2;row++)for(let sx=x+12;sx<x+h.w-6;sx+=22){
+          const sy=h.y+h.h*(row?.78:.35),height=16*extension;
+          ctx.fillStyle='#394148';ctx.fillRect(sx-5,sy,10,3);
+          if(height>0){ctx.fillStyle='#cbd3dd';ctx.strokeStyle='#53606c';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(sx-5,sy);ctx.lineTo(sx,sy-height);ctx.lineTo(sx+5,sy);ctx.closePath();ctx.fill();ctx.stroke();}
+        }
+        ctx.restore();
+      }
       if(h.kind==='poison'&&phase>=1.2&&phase<1.2+h.duration+.45){
         const fading=Math.max(0,phase-1.2-h.duration)/.45,drift=renderer.reduced?0:Math.sin(phase*3)*2*motion;
         ctx.save();ctx.beginPath();ctx.rect(x,h.y,h.w,h.h);ctx.clip();ctx.fillStyle='#b8d778';ctx.globalAlpha=.24*(1-fading);
@@ -979,7 +995,7 @@
         interactionPrompt(label,x+h.w/2,h.y-6,true);
       }
       if(warning||active)hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color});
-      if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
+      if(active&&h.kind!=='spikes'&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
       ctx.restore();
     });
     run.enemies.forEach(e => {

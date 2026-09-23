@@ -15,7 +15,7 @@ test('differentiates all hazard types with distinct tactile patterns and exposes
     return { kinds, profiles };
   });
 
-  const expectedKinds = ['fire', 'ice', 'poison', 'thorns', 'rune', 'radiant', 'void'];
+  const expectedKinds = ['fire', 'ice', 'poison', 'thorns', 'rune', 'radiant', 'void', 'spikes'];
   expect(patternData.kinds).toEqual(expect.arrayContaining(expectedKinds));
 
   // Verify each hazard kind has a distinct, meaningful pattern
