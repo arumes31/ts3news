@@ -816,6 +816,13 @@
     effects=effects.filter(e=>now-e.started<750);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
+      if(e.kind==='pickup'&&!renderer.reduced&&motion>0&&display.lootSparkle){
+        const x=e.x-camera,y=e.y,targetX=run.player.x-camera,targetY=run.player.y-18;
+        const midX=(x+targetX)/2,midY=Math.min(y,targetY)-28,t=Math.min(1,age*1.5),u=1-t;
+        ctx.save();ctx.strokeStyle='#ffe9a6';ctx.lineWidth=2;ctx.globalAlpha=(1-age)*.65;
+        ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(midX,midY,targetX,targetY);ctx.stroke();
+        ctx.fillStyle='#ffe9a6';ctx.beginPath();ctx.arc(u*u*x+2*u*t*midX+t*t*targetX,u*u*y+2*u*t*midY+t*t*targetY,3,0,Math.PI*2);ctx.fill();ctx.restore();
+      }
       if(e.kind==='arrival'){
         const still=renderer.reduced||motion===0,radius=still?32:18+age*44;
         ctx.save();ctx.strokeStyle='#b8f2dc';ctx.lineWidth=2;ctx.globalAlpha=still?.65:(1-age)*.8;
