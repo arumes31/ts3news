@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartDodges    int                 `json:"start_dodges"`
 	StartNonMelee  int                 `json:"start_non_melee"`
 	StartAerial    int                 `json:"start_aerial"`
 	StartTreasure  int                 `json:"start_treasure"`
@@ -42,6 +43,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "melee_only", Name: "Close combat", Description: "Clear all three tiers using only basic attacks, slash abilities, heals and shields. Projectile, quake and area-ultimate casts fail this goal, even on a miss.", Status: "active"},
 		{ID: "ranged_priority", Name: "Ranged enemies first", Description: "Clear all three tiers, defeating every archer or spellcaster before other enemies in its tier. Offered when the mission contains ranged enemies.", Status: "active"},
 		{ID: "elite_priority", Name: "Elites first", Description: "Clear all three tiers, defeating elite minions, elites and minibosses before other enemies in each tier. Bosses are excluded. Offered when the mission contains elites.", Status: "active"},
+		{ID: "limited_dodge", Name: "Measured evasion", Description: "Clear all three tiers with at most three airborne dodges of enemy attacks. Empty jumps and floor hazards do not count.", Target: 3, Status: "active"},
 	}
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
@@ -79,7 +81,7 @@ func (r *Run) beginObjectives() {
 		}
 		entries = filtered
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, Entries: entries}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, StartDodges: r.Stats.Dodges, Entries: entries}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -111,6 +113,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "limited_dodge":
+			e.Current = float64(max(0, r.Stats.Dodges-o.StartDodges))
+			if e.Current > e.Target {
+				reason = "Exceeded three airborne dodges of enemy attacks."
 			}
 		case "melee_only":
 			e.Current = float64(max(0, r.Stats.NonMeleeCasts-o.StartNonMelee))

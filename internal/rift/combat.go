@@ -693,7 +693,7 @@ func (r *Run) tick(in Input, dt float64) {
 					r.hurtPlayerFromEnemy(shot.Power, shot.X, shot.Y, shot.OwnerID)
 					hit = true
 				} else {
-					r.event("dodge", p.X, p.Y, 0)
+					r.recordDodge()
 					hit = true
 				}
 			}
@@ -1177,7 +1177,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 					if p.Jump < .1 {
 						r.hurtPlayerFromEnemy(max(32, e.Damage*1.4), e.X, e.Y, e.ID)
 					} else {
-						r.event("dodge", p.X, p.Y, 0)
+						r.recordDodge()
 					}
 				}
 				if math.Abs(p.X-e.TargetX) >= 125 || math.Abs(p.Y-e.TargetY) >= 62 || p.Jump >= .1 {
@@ -1198,7 +1198,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 						}
 						r.hurtPlayerFromEnemy(power, e.X, e.Y, e.ID)
 					} else {
-						r.event("dodge", p.X, p.Y, 0)
+						r.recordDodge()
 					}
 				}
 			}

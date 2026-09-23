@@ -183,6 +183,21 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "dodge-objective" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("dodge-objective", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Enemies = []rift.Actor{{ID: "distant", Kind: "goblin", X: 1400, Y: 500, HP: 100, MaxHP: 100, Knockdown: 100}}
+			run.Level.Rooms[0].HighCover = nil
+			run.Level.Rooms[0].Hazards = nil
+			for i := 0; i < 4; i++ {
+				run.Projectiles = append(run.Projectiles, rift.Projectile{ID: 1000 + i, Enemy: true, X: 40, Y: run.Player.Y, VX: 300, Life: 2, Power: 10})
+			}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

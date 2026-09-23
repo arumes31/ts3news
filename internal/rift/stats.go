@@ -5,6 +5,7 @@ import "math"
 // CombatStats records confirmed action-mode outcomes, never client estimates.
 // It travels with the expedition snapshot and survives seamless room changes.
 type CombatStats struct {
+	Dodges           int                `json:"dodges"`
 	NonMeleeCasts    int                `json:"non_melee_casts"`
 	AerialFinishes   int                `json:"aerial_finishes"`
 	HazardContacts   int                `json:"hazard_contacts"`
@@ -99,4 +100,10 @@ func (r *Run) absorbBarrier(damage float64) float64 {
 	r.Barrier -= absorbed
 	r.Stats.BarrierBlocked += absorbed
 	return absorbed
+}
+
+// recordDodge records an enemy attack that actually intersected an airborne player.
+func (r *Run) recordDodge() {
+	r.Stats.Dodges++
+	r.event("dodge", r.Player.X, r.Player.Y, 0)
 }
