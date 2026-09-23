@@ -1,7 +1,10 @@
 (function(){
  'use strict';
  const root=document.getElementById('rift-optional-objectives'),list=document.getElementById('rift-objectives-list'),caption=document.getElementById('rift-objectives-caption'),last=document.getElementById('rift-objectives-last'),lastList=document.getElementById('rift-objectives-last-list');
- let options=[],key='';
+ let options=[],key='',lastRun=null,lastPaused=false;
+ const toggle=document.getElementById('rift-show-objectives');
+ try{toggle.checked=localStorage.getItem('riftShowObjectives')!=='false';}catch(_){}
+ toggle.addEventListener('change',()=>{try{localStorage.setItem('riftShowObjectives',String(toggle.checked));}catch(_){}key='';update(lastRun,lastPaused);});
  function text(tag,value,parent){const el=document.createElement(tag);el.textContent=value;parent.append(el);return el;}
  function rows(parent,entries,preview){
   parent.replaceChildren();
@@ -14,7 +17,8 @@
   }
  }
  function update(run,paused){
-  root.hidden=!!run?.practice||!!document.getElementById('rift-app').dataset.practice;
+  lastRun=run;lastPaused=paused;
+  root.hidden=!toggle.checked||!!run?.practice||!!document.getElementById('rift-app').dataset.practice;
   if(root.hidden)return;
   const current=run?.objectives,previous=run?.last_objectives;
   const next=JSON.stringify([current,previous,run?.objective_history,paused,!!run,options],(name,value)=>name==='current'&&typeof value==='number'?Math.floor(value):value);
