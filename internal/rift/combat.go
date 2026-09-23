@@ -232,6 +232,7 @@ type Run struct {
 	LastMS              int64                    `json:"last_ms"`
 	Counter             int                      `json:"counter"`
 	Combo               int                      `json:"combo"`
+	ComboTime           float64                  `json:"combo_time,omitempty"`
 	Floor               string                   `json:"floor,omitempty"`
 	jumpAir             float64
 	jumpDist            float64
@@ -435,7 +436,20 @@ func (r *Run) Step(in Input, now time.Time) {
 	}
 }
 
+const comboWindow = 1.2
+
 func (r *Run) tick(in Input, dt float64) {
+	if r.Combo > 0 {
+		// Older saves have a partial combo but no remaining-time field.
+		if r.ComboTime <= 0 {
+			r.ComboTime = comboWindow
+		}
+		r.ComboTime = math.Max(0, r.ComboTime-dt)
+		if r.ComboTime < .000001 {
+			r.Combo = 0
+			r.ComboTime = 0
+		}
+	}
 	r.Clock += dt
 	if r.Status == "fighting" {
 		r.Stats.Seconds += dt
@@ -553,6 +567,7 @@ func (r *Run) tick(in Input, dt float64) {
 		p.Pose = "attack"
 		p.PoseTime = .32
 		r.Combo = r.Combo%3 + 1
+		r.ComboTime = comboWindow
 		r.Stats.HighestCombo = max(r.Stats.HighestCombo, r.Combo)
 		r.event("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo))
 		for i := range r.Enemies {
