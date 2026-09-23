@@ -7,6 +7,9 @@ import (
 )
 
 func newRiftPractice(req riftRequest, id string, build rift.Build, mode string, now time.Time) (*rift.Run, error) {
+	if !rift.ValidHazardIntensity(req.HazardIntensity) || req.HazardIntensity != "" && mode != "hazard" {
+		return nil, errors.New("invalid hazard practice intensity")
+	}
 	var run *rift.Run
 	var err error
 	if mode == "boss" && (req.BossName != "" || req.BossPhase != 0) {
@@ -17,16 +20,25 @@ func newRiftPractice(req riftRequest, id string, build rift.Build, mode string, 
 	if err == nil && mode == "boss" && req.SlowTelegraphs != nil {
 		run.Practice.SlowTelegraphs = *req.SlowTelegraphs
 	}
+	if err == nil && mode == "hazard" {
+		err = run.ConfigureHazardPractice(req.HazardIntensity)
+	}
 	return run, err
 }
 
 func resetRiftPractice(run *rift.Run, req riftRequest, now time.Time) error {
+	if !rift.ValidHazardIntensity(req.HazardIntensity) || req.HazardIntensity != "" && (run.Practice == nil || run.Practice.Mode != "hazard") {
+		return errors.New("invalid hazard practice intensity")
+	}
 	if req.BossName == "" && req.BossPhase == 0 {
 		if err := run.ResetPractice(now); err != nil {
 			return err
 		}
 		if run.Practice.Mode == "boss" && req.SlowTelegraphs != nil {
 			run.Practice.SlowTelegraphs = *req.SlowTelegraphs
+		}
+		if req.HazardIntensity != "" {
+			return run.ConfigureHazardPractice(req.HazardIntensity)
 		}
 		return nil
 	}

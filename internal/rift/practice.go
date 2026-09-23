@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	SlowTelegraphs bool    `json:"slow_telegraphs,omitempty"`
 	BossStart      *Actor  `json:"boss_start,omitempty"`
 	Dodges         int     `json:"dodges,omitempty"`
@@ -82,6 +83,11 @@ func (r *Run) ResetPractice(now time.Time) error {
 	}
 	if err != nil {
 		return err
+	}
+	if r.Practice.Mode == "hazard" {
+		if err := fresh.ConfigureHazardPractice(r.Practice.HazardIntensity); err != nil {
+			return err
+		}
 	}
 	fresh.Practice.SlowTelegraphs = r.Practice.SlowTelegraphs
 	fresh.Revision = r.Revision

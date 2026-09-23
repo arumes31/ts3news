@@ -25,6 +25,7 @@ import (
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
 
 type riftRequest struct {
+	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	SlowTelegraphs *bool      `json:"slow_telegraphs,omitempty"`
 	BossName       string     `json:"boss_name,omitempty"`
 	BossPhase      int        `json:"boss_phase,omitempty"`
