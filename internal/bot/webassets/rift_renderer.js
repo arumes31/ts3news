@@ -313,7 +313,8 @@
       sample.width=84;sample.height=36;sample.dataset.kind=profile.kind;sample.setAttribute('aria-hidden','true');
       const sampleContext=sample.getContext('2d');sampleContext.fillStyle='#000000';sampleContext.fillRect(0,0,84,36);
       sampleContext.save();sampleContext.beginPath();sampleContext.rect(0,0,84,36);sampleContext.clip();drawHazardPattern(sampleContext,profile.kind,0,0,84,36,false,'#ffffff');sampleContext.restore();
-      name.append(sample,document.createTextNode(profile.kind.charAt(0).toUpperCase()+profile.kind.slice(1)));description.textContent=profile.label;
+      name.append(sample,document.createTextNode(profile.kind.charAt(0).toUpperCase()+profile.kind.slice(1)));const effects={ice:'Slowing still lasts 1.4 seconds.',poison:'Slowing still lasts 1.4 seconds.',thorns:'Slowing still lasts 1.4 seconds.',void:'The pull still moves you toward the zone center.'};
+      description.textContent=profile.label+'. Guard reduces damage. '+(effects[profile.kind]||'No additional contact effect.');
       hazardLegend.append(name,description);
     }
   }
