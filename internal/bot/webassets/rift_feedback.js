@@ -39,6 +39,7 @@
       seen=event.id;
       if(labels[event.kind] || (event.kind==='land'&&event.value>=0.85)){
         let baseLabel=event.kind==='land' ? 'Hard impact landing' : labels[event.kind];
+        if(event.kind==='boss_death'&&event.actor_name)baseLabel=event.actor_name+' defeated';
         if(event.kind==='rare_item'||event.kind==='rare_discovery'){
           if(event.value>=4)baseLabel='Legendary item discovered';
           else if(event.value>=3)baseLabel='Epic item discovered';
@@ -50,6 +51,7 @@
         }
         let cueKey = isDir ? (event.kind==='land'?'land_heavy':event.kind)+'_dir' : (event.kind==='land'?'land_heavy':event.kind);
         if(event.kind==='rare_item'||event.kind==='rare_discovery')cueKey+='_'+Math.round(event.value||0);
+        if(event.kind==='boss_death')cueKey+='_'+event.id;
         cue(cueKey,text,false,isDir);
       }
     }

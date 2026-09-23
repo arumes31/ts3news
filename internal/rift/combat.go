@@ -139,11 +139,12 @@ type BankedLoot struct {
 }
 
 type Event struct {
-	ID    int     `json:"id"`
-	Kind  string  `json:"kind"`
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	Value float64 `json:"value,omitempty"`
+	ActorName string  `json:"actor_name,omitempty"`
+	ID        int     `json:"id"`
+	Kind      string  `json:"kind"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Value     float64 `json:"value,omitempty"`
 }
 
 // EncounterSummary preserves an accessible structured summary of the last encounter.
@@ -415,7 +416,7 @@ func (r *Run) NextRoom() bool {
 
 func (r *Run) event(kind string, x, y, value float64) {
 	r.Counter++
-	r.Events = append(r.Events, Event{r.Counter, kind, x, y, value})
+	r.Events = append(r.Events, Event{ID: r.Counter, Kind: kind, X: x, Y: y, Value: value})
 	if len(r.Events) > 40 {
 		r.Events = r.Events[len(r.Events)-40:]
 	}
@@ -920,6 +921,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			r.Stats.Bosses++
 		}
 		r.event(e.DeathCue(), e.X, e.Y, 0)
+		if e.Kind == "boss" {
+			r.Events[len(r.Events)-1].ActorName = e.Name
+		}
 		mission := 1
 		if r.Level != nil {
 			mission = r.Level.ID
