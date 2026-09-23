@@ -19,7 +19,8 @@
   // Include nearby boss sprite extents without moving the player out of view.
   function cameraFrame(run){
     if(!run)return {target:220,min:0,max:640,bosses:[]};
-    const base=Math.max(0,Math.min(640,run.player.x-350));
+    const arena=run.practice?.arena||run.level?.rooms?.[run.room],lead=arena?.camera_lead||350;
+    const base=Math.max(0,Math.min(640,run.player.x-lead));
     const nearby=run.enemies.filter(actor=>actor.kind==='boss'&&actor.hp>0&&Math.abs(actor.x-run.player.x)<=600).sort((a,b)=>Math.abs(a.x-run.player.x)-Math.abs(b.x-run.player.x));
     let left=run.player.x-64,right=run.player.x+64;const bosses=[];
     for(const boss of nearby){
@@ -30,7 +31,7 @@
     if(!bosses.length){
       // A 96-unit tracking band absorbs short reversals, including at room edges.
       // Paused snapshots retain explicit framing for previews and saved resumes.
-      const target=run.paused?base:Math.max(0,Math.min(640,Math.max(run.player.x-398,Math.min(run.player.x-302,camera))));
+      const target=run.paused?base:Math.max(0,Math.min(640,Math.max(run.player.x-lead-48,Math.min(run.player.x-lead+48,camera))));
       return {target,min:0,max:640,bosses};
     }
     const low=Math.max(-104,right-960),high=Math.min(744,left);

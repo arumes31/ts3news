@@ -29,6 +29,8 @@ type Hazard struct {
 }
 
 type Arena struct {
+	// CameraLead is the preferred player screen X; zero preserves the default 350.
+	CameraLead        float64           `json:"camera_lead,omitempty"`
 	Platforms         []RaisedPlatform  `json:"platforms,omitempty"`
 	DropEdges         []DropEdge        `json:"drop_edges,omitempty"`
 	Cover             []TerrainCover    `json:"cover,omitempty"`
@@ -179,9 +181,11 @@ func Campaign() []Level {
 				}
 				if layout == 9 && room == 0 {
 					arena.Objective = "split_defense"
+					arena.CameraLead = 430
 				}
 				if layout == 9 && room == 1 {
 					arena.Objective = "escort_spirit"
+					arena.CameraLead = 280
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()
