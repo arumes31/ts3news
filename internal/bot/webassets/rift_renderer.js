@@ -6,6 +6,8 @@
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
   const deaths = new Map();
+  const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
+  let decals=[];
   let animationTime = 0, decorationTime = 0, motion = 1;
   let previewStyle = 'vanguard';
   let previewLevel = null, transitionAt = -1000, impactAt=-Infinity;
@@ -297,9 +299,9 @@
   renderer.snapshot = function (run, replay) {
     const entering=!replay&&(!snapshot||runID!==run.id||snapshot.room!==run.room||snapshot.level?.id!==run.level?.id);
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
-    if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; previous = null; deaths.clear(); }
+    if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; decals=[]; previous = null; deaths.clear(); }
     else previous = snapshot;
-    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; deaths.clear(); camera=0; }
+    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
     if(run.paused)camera=Math.max(0,Math.min(640,run.player.x-350));
@@ -308,6 +310,7 @@
       if (event.id <= seen) return;
       seen = event.id;
       if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||event.kind==='boss_phase'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
+      if(!replay&&event.value>0&&decalColors[event.kind])decals.push({kind:event.kind,x:event.x,y:event.y+30,started:animationTime});
       if (event.kind !== 'area') effects.push({ ...event, visualFacing: run.player.facing, started: animationTime });
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
@@ -316,6 +319,7 @@
       const dist = Math.hypot(dx, dy);
       if(event.kind!=='projectile_expire')window.RiftAudio.play(event.kind, dx / 700, extraArg, floorMat, dist);
     });
+    if(decals.length>40)decals=decals.slice(-40);
     if (effects.length > 40) effects = effects.slice(-40);
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
   };
@@ -655,6 +659,27 @@
     if(!display.cleanScreenshot&&run.practice&&['movement','jump'].includes(run.practice.mode)){
       ctx.save();ctx.strokeStyle='#e3f9ac';ctx.lineWidth=4;ctx.setLineDash([10,7]);ctx.beginPath();ctx.moveTo(run.practice.goal_x-camera,250);ctx.lineTo(run.practice.goal_x-camera,535);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e3f9ac';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('FINISH',run.practice.goal_x-camera,240);ctx.restore();
     }
+    decals=decals.filter(d=>now-d.started<1800);
+    if(!renderer.reduced&&motion>0)decals.forEach(d=>{
+      const x=d.x-camera;if(x<-30||x>990)return;
+      ctx.save();ctx.translate(x,d.y);ctx.scale(1,.4);ctx.strokeStyle=decalColors[d.kind];ctx.lineWidth=2;
+      ctx.globalAlpha=.55*(1-(now-d.started)/1800)*display.effectIntensity;
+      ctx.beginPath();
+      if(d.kind==='ice'){
+        for(let i=0;i<6;i++){const a=i*Math.PI/3;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*22,Math.sin(a)*22);}
+      }else if(d.kind==='poison'){
+        for(let i=0;i<3;i++){const a=i*Math.PI*2/3,cx=Math.cos(a)*10,cy=Math.sin(a)*10;ctx.moveTo(cx+9,cy);ctx.arc(cx,cy,9,0,Math.PI*2);}
+      }else if(d.kind==='radiant'){
+        ctx.moveTo(0,-25);ctx.lineTo(22,0);ctx.lineTo(0,25);ctx.lineTo(-22,0);ctx.closePath();
+      }else if(d.kind==='rune'){
+        ctx.rect(-17,-17,34,34);ctx.moveTo(-17,-17);ctx.lineTo(17,17);ctx.moveTo(17,-17);ctx.lineTo(-17,17);
+      }else{
+        if(d.kind==='fire')ctx.setLineDash([7,4]);
+        ctx.arc(0,0,22,0,Math.PI*2);
+        if(d.kind==='void'){ctx.moveTo(11,0);ctx.arc(0,0,11,0,Math.PI*2);}
+      }
+      ctx.stroke();ctx.restore();
+    });
     (arena?.hazards||[]).forEach(h=>{
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
       const x=h.x-camera,color={fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
