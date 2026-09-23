@@ -30,6 +30,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	SteamVents []Obstacle `json:"steam_vents,omitempty"`
 	// CameraLead is the preferred player screen X; zero preserves the default 350.
 	CameraLead        float64           `json:"camera_lead,omitempty"`
 	Platforms         []RaisedPlatform  `json:"platforms,omitempty"`
@@ -244,6 +245,9 @@ func Campaign() []Level {
 				}
 				if layout == 0 && room == 0 {
 					arena.DropEdges = []DropEdge{{ID: fmt.Sprintf("mission-%d-drop", id), X: 260, Y: 365, W: 80, LandingY: 425}}
+				}
+				if region == 1 {
+					arena.SteamVents = []Obstacle{{350, 235, 90, 65}, {1110, 235, 90, 65}}
 				}
 				level.Rooms = append(level.Rooms, arena)
 			}

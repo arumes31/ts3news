@@ -865,6 +865,19 @@
     const hazardOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    // Rear scenery only: all actors, pickups, attacks and warnings draw afterward.
+    for(const vent of arena?.steam_vents||[]){
+      const x=vent.x-camera,y=vent.y+vent.h;
+      ctx.save();ctx.fillStyle='#39463d';ctx.fillRect(x+vent.w*.3,y-4,vent.w*.4,4);
+      ctx.strokeStyle='#88958a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+vent.w*.3,y-4);ctx.lineTo(x+vent.w*.7,y-4);ctx.stroke();
+      ctx.beginPath();ctx.rect(x,vent.y,vent.w,vent.h);ctx.clip();ctx.fillStyle='#ced8c8';
+      for(let puff=0;puff<5;puff++){
+        const rise=renderer.reduced||motion===0?(puff+.5)/5:((decorationTime*.00022+puff/5)%1);
+        ctx.globalAlpha=.18*(1-rise);
+        ctx.beginPath();ctx.ellipse(x+vent.w*(.5+Math.sin(puff*2)*.12*rise),y-rise*vent.h,vent.w*(.12+rise*.22),6+rise*12,0,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
     // The decorative floor continues past the playable space; mark its real rim.
     ctx.save();ctx.fillStyle='#071a1640';
     ctx.fillRect(25-camera,305,1550,10);ctx.fillRect(25-camera,490,1550,12);
