@@ -33,7 +33,7 @@
     const lootKnown=level.rooms.every(room=>typeof room.loot_rarity_ceiling==='string'&&room.loot_rarity_ceiling.length>0);
     $('rift-mission-loot').textContent=lootKnown?'Loot rarity ceiling: '+level.rooms.map((room,index)=>'Tier '+(index+1)+' — '+room.loot_rarity_ceiling).join(' · ')+'. These are upper limits, not guaranteed rarities. Bank collected loot at a checkpoint to keep it.':'Loot rarity limits were not saved with this expedition.';
     const encounters=level.rooms.map(room=>room.encounter),known=encounters.every(encounter=>encounter&&Number.isInteger(encounter.enemies)&&encounter.enemies>=0&&Number.isFinite(encounter.health_multiplier)&&Number.isFinite(encounter.damage_multiplier));
-    $('rift-mission-difficulty').textContent=known?level.difficulty+' · '+Math.min(...encounters.map(encounter=>encounter.enemies))+'–'+Math.max(...encounters.map(encounter=>encounter.enemies))+' initial enemies per tier · '+encounters.reduce((sum,encounter)=>sum+encounter.enemies,0)+' across the mission. Enemy identities vary; multipliers below apply to each monster’s Brawl template before defenses and combat effects.':level.difficulty+' · Encounter estimates were not saved with this expedition.';
+    $('rift-mission-difficulty').textContent=known?level.difficulty+' · '+Math.min(...encounters.map(encounter=>encounter.enemies))+'–'+Math.max(...encounters.map(encounter=>encounter.enemies))+' planned enemies per tier · '+encounters.reduce((sum,encounter)=>sum+encounter.enemies,0)+' across the mission. Enemy identities vary; multipliers below apply to each monster’s Brawl template before defenses and combat effects.':level.difficulty+' · Encounter estimates were not saved with this expedition.';
     if(challenge){
       challengeStatus.hidden=false;
       challengeStatus.replaceChildren();
@@ -55,14 +55,23 @@
     level.rooms.forEach((room,index)=>{
       const obstacles=room.obstacles||[],zones=room.hazards||[];
       const card=add('article','','',route);add('h4','','Tier '+(index+1)+' · '+room.name,card);
-      if(known){const encounter=room.encounter;add('p','','Expected initial defenders: '+encounter.enemies+(index===2?' (includes the guardian)':'')+' · Health ×'+encounter.health_multiplier.toFixed(3)+' · Damage ×'+encounter.damage_multiplier.toFixed(3),card);}
+      if(known){const encounter=room.encounter;add('p','','Planned defenders: '+encounter.enemies+(room.objective==='survive_waves'?' across three waves':index===2?' (includes the guardian)':'')+' · Health ×'+encounter.health_multiplier.toFixed(3)+' · Damage ×'+encounter.damage_multiplier.toFixed(3),card);}
       const terrainSummary=obstacles.length+' cover '+(obstacles.length===1?'block':'blocks')+' · '+zones.length+' hazard '+(zones.length===1?'zone':'zones');
       const svg=document.createElementNS(namespace,'svg');svg.setAttribute('viewBox','0 300 1600 210');svg.setAttribute('role','img');svg.setAttribute('aria-label',room.name+': '+terrainSummary);card.append(svg);
       const rectangle=(terrain,kind)=>{const rect=document.createElementNS(namespace,'rect');for(const [attribute,value] of Object.entries({x:terrain.x,y:terrain.y,width:terrain.w,height:terrain.h}))rect.setAttribute(attribute,value);rect.dataset.terrain=kind;const title=document.createElementNS(namespace,'title');title.textContent=kind==='cover'?'Low cover':terrain.kind+' hazard';rect.append(title);svg.append(rect);};
       zones.forEach(hazard=>rectangle(hazard,'hazard'));obstacles.forEach(obstacle=>rectangle(obstacle,'cover'));
       const hazards=[...new Set(zones.map(hazard=>hazard.kind))];add('p','',terrainSummary+' · '+(hazards.join(', ')||'No hazards'),card);
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
-      add('p','',index===2?'Defeat the guardian and its defenders.':'Clear the patrol, then bank and continue.',card);
+      const objectives={
+        sigils:'Collect all three sigils and defeat the patrol before banking.',
+        hold_circle:'Hold the circle for 15 uncontested seconds, then defeat the patrol. Leaving keeps your progress.',
+        survive_waves:'Defeat three waves. Reinforcements arrive after a short warning; bank only after the final wave.',
+        destroy_totems:'Destroy all three ritual totems and defeat the patrol. Totems grant no monster kills or loot.',
+        carry_relic:'Carry the relic to the exit seal, then defeat the patrol. Movement is 30% slower while carrying; attacks and jumps remain available.',
+        disable_generators:'Destroy the generators to permanently disable their linked floor hazards, then defeat the patrol. Generators grant no monster kills or loot.',
+        marked_hunt:'Defeat the marked targets to secure the tier. Surviving unmarked enemies retreat without granting kills or loot.'
+      };
+      add('p','',objectives[room.objective]||(index===2?'Defeat the guardian and its defenders.':'Clear the patrol, then bank and continue.'),card);
     });
   }
   window.RiftMission={preferred,update};

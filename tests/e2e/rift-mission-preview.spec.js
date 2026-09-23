@@ -13,7 +13,7 @@ test('mission briefing shows server encounter counts and scaling across difficul
     await expect(page.locator('#rift-mission-difficulty')).toContainText(total+' across the mission');
     for(let i=0;i<3;i++){
       const preview=level.rooms[i].encounter,card=page.locator('#rift-room-previews article').nth(i);
-      await expect(card).toContainText('Expected initial defenders: '+preview.enemies);
+      await expect(card).toContainText('Planned defenders: '+preview.enemies);
       await expect(card).toContainText('Health ×'+preview.health_multiplier.toFixed(3));
       await expect(card).toContainText('Damage ×'+preview.damage_multiplier.toFixed(3));
     }
@@ -21,7 +21,7 @@ test('mission briefing shows server encounter counts and scaling across difficul
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(async()=>{const data=await(await fetch('/api/abyss/rift')).json();const level=data.levels[0];level.rooms.forEach(room=>{delete room.encounter;delete room.loot_rarity_ceiling;});window.RiftMission.update(level,data.build,true);});
   await expect(page.locator('#rift-mission-difficulty')).toContainText('not saved with this expedition');
-  await expect(page.locator('#rift-room-previews')).not.toContainText('Expected initial defenders');
+  await expect(page.locator('#rift-room-previews')).not.toContainText('Planned defenders');
   await expect(page.locator('#rift-mission-loot')).toContainText('not saved with this expedition');
 });
 
@@ -57,4 +57,14 @@ test('route preview preference survives reload and link copy uses only the missi
   await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>window.copiedMission=value}}));
   await page.locator('#rift-copy-mission').click();expect(await page.evaluate(()=>window.copiedMission)).toMatch(/\/abyss\/rift\?mission=21$/);
   await expect(page.locator('#rift-mission-link')).not.toHaveValue(/subclass/);
+});
+
+test('route briefing explains every required room objective and wave totals',async({page})=>{
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-mission-preview > summary').click();
+ const expectations=[[3,'Collect all three sigils'],[4,'15 uncontested seconds'],[5,'bank only after the final wave'],[6,'Totems grant no monster kills or loot'],[7,'30% slower while carrying'],[8,'permanently disable their linked floor hazards'],[9,'Surviving unmarked enemies retreat without granting kills or loot']];
+ for(const [id,description] of expectations){
+  await page.locator('[data-level="'+id+'"]').click();const card=page.locator('#rift-room-previews article').nth(1);await expect(card).toContainText(description);await expect(card).not.toContainText('Clear the patrol, then bank and continue.');
+  if(id===5){await expect(card).toContainText('across three waves');await expect(page.locator('#rift-mission-difficulty')).toContainText('planned enemies per tier');await expect(card).not.toContainText('initial defenders');}
+ }
+ await page.locator('[data-level="1"]').click();await expect(page.locator('#rift-room-previews article').nth(0)).toContainText('Clear the patrol, then bank and continue.');await expect(page.locator('#rift-room-previews article').nth(2)).toContainText('Defeat the guardian and its defenders.');
 });
