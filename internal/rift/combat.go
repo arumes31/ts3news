@@ -49,6 +49,7 @@ type Build struct {
 }
 
 type Actor struct {
+	Fleeing   bool    `json:"fleeing,omitempty"`
 	RouteX    float64 `json:"route_x,omitempty"`
 	RouteY    float64 `json:"route_y,omitempty"`
 	Attacks   int     `json:"attacks,omitempty"`
@@ -1056,7 +1057,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 		r.escapeEnemy(i)
 		return
 	}
-	if e.Kind == "treasure" && math.Abs(dx) < 240 {
+	if e.Kind == "treasure" && (e.Fleeing || math.Abs(dx) < 240) {
+		e.Fleeing = true
 		e.Facing = -math.Copysign(1, dx)
 		r.moveActor(e, -math.Copysign(e.Speed*dt, dx), 0, true)
 		e.Pose = "run"
