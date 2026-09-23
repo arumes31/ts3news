@@ -197,6 +197,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+ RoomObjective *RoomObjective `json:"room_objective,omitempty"`
  ObjectiveHistory map[string]map[string]int `json:"objective_history,omitempty"`
  LastObjectives *MissionObjectives `json:"last_objectives,omitempty"`
  Objectives *MissionObjectives `json:"objectives,omitempty"`
@@ -310,6 +311,7 @@ func (r *Run) spawnRoom() {
 	for i := range r.Enemies {
 		r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, rangedCooldownOffset(&r.Enemies[i]))
 	}
+	r.beginRoomObjective()
 	r.observeRoomMonsters()
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
@@ -746,7 +748,8 @@ func (r *Run) tick(in Input, dt float64) {
 	if r.Practice != nil {
 		r.practiceTick()
 	}
-	if r.Practice == nil && alive == 0 && r.Status == "fighting" {
+	r.collectRoomSigils()
+	if r.Practice == nil && alive == 0 && r.Status == "fighting" && (r.RoomObjective == nil || r.RoomObjective.Complete) {
 		r.Stats.RoomsCleared++
 		r.recordFlawlessRoom()
 		if r.RoomStartSeconds != nil && r.RoomSplits[r.Room] == nil {

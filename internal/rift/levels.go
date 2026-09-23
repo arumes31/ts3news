@@ -27,6 +27,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	Objective         string            `json:"objective,omitempty"`
 	MaxAttackers      int               `json:"max_attackers,omitempty"`
 	HighCover         []Obstacle        `json:"high_cover,omitempty"`
 	Name              string            `json:"name"`
