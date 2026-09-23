@@ -701,3 +701,5 @@
 #rift-berserker-fury[data-active="true"]{color:#ffe0b5;border:1px solid #d59b64;background:#4b3024;padding:4px 6px}
 
 #rift-app .rift-health-cost-label{color:#ffc6b2;font-size:9px;line-height:1.2;white-space:nowrap}#rift-health-cost-warning[data-low="true"]{color:#ffd1bc;border:1px solid #d5967c;background:#442923;padding:4px 6px}
+
+#rift-relic-synergy[data-state="armed"]{color:#ffe5ac;border:1px solid #b6a374;background:#353422;padding:4px 6px}
