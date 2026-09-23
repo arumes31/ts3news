@@ -2,6 +2,12 @@
   'use strict';
   const roles={builder:['＋','Builder'],finisher:['◆','Finisher'],ultimate:['★','Ultimate']};
   const healthCost=(run,skill)=>run.build?.class==='voidwalker'&&skill?.role==='finisher'&&run.resource>0?Math.min(Math.max(0,run.player.hp-1),run.player.max_hp*.05):0;
+  function oracleHealing(run){
+    const builder=run.build.signatures?.find(s=>s.role==='builder'),fraction=builder?.reference?.healing??builder?.heal??(builder?.kind==='heal'?.15:0);
+    if(!builder||!(fraction>0))return 'Healing stops at maximum HP. Excess healing is discarded; it does not become a barrier.';
+    const raw=run.player.max_hp*fraction,restored=Math.min(Math.max(0,run.player.max_hp-run.player.hp),raw),overflow=Math.max(0,raw-restored);
+    return builder.name+': '+restored.toFixed(1)+' HP restored now; '+overflow.toFixed(1)+' HP overflow discarded (no barrier). '+(run.resource>=3?'Charges full: no additional '+(run.build.resource||'class')+' charge.':'Successful cast grants 1 '+(run.build.resource||'class')+' charge even at full HP (maximum 3).');
+  }
   function chargeBenefits(run){
     const skill=run.build.signatures?.find(s=>s.role==='finisher');
     if(!skill)return 'Equip a class finisher in Abyss to spend charges.';
@@ -67,5 +73,5 @@
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
   }
-  window.RiftAbilities={update,healthCost,describe,chargeBenefits};
+  window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing};
 })();
