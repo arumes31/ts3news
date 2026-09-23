@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -49,6 +49,7 @@
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
     else if(e.kind==='block'||e.kind==='perfect_guard'){color=e.kind==='perfect_guard'?'#ffd700':'#7fd7ff';label=(e.kind==='perfect_guard'?'⭐ Perfect Guard':'🛡️ Guarded')+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='sigil_pickup'){color='#9df6d3';label='Sigil '+Math.round(e.value)+' / 3';}
     else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
     else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
     else if(e.kind==='heal'){color='#a8f0b0';label='+'+Math.round(e.value)+' HP';}
@@ -74,7 +75,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects'];
+  const criticalAtlasKeys = ['area','boss','regions','props','heroesA','heroesB','mobs','items','effects','sigil'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -899,6 +900,15 @@
     }else{
       renderer.lastOffscreen=[];
     }
+    function drawSigil(pickup){
+      const x=pickup.x-camera,y=pickup.y;
+      ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,23,9,0,0,Math.PI*2);ctx.stroke();
+      const bob=renderer.reduced||!display.lootMotion?0:Math.sin(decorationTime/250+pickup.id)*3*motion;
+      ctx.drawImage(images.sigil,x-24,y-45+bob,48,48);
+      if(!display.cleanScreenshot){ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#caffeb';ctx.strokeStyle='#081914';ctx.lineWidth=3;const label='SIGIL '+pickup.id;ctx.strokeText(label,x,y-50);ctx.fillText(label,x,y-50);}
+      if(x<24||x>936){const edge=x<24?25:935;ctx.font='bold 12px monospace';ctx.textAlign=x<24?'left':'right';ctx.fillStyle='#b8ffdf';ctx.strokeStyle='#081914';ctx.lineWidth=4;const label=(x<24?'← ':'')+'SIGIL '+pickup.id+(x>936?' →':'');ctx.strokeText(label,edge,315+pickup.id*19);ctx.fillText(label,edge,315+pickup.id*19);}
+      ctx.restore();
+    }
     (run.drops||[]).forEach(drop => {
       if(drop.collected||drop.banked)return;
       const y=drop.y-8+(renderer.reduced||!display.lootMotion?0:Math.sin(decorationTime/200)*3*motion),x=drop.x-camera;
@@ -916,7 +926,9 @@
     if(run.build?.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build?.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
     (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));
+    for(const pickup of (run.room_objective?.pickups||[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
+      if(unit.sigil){drawSigil(unit.sigil);return;}
       if(!unit.cover){actor(unit,wallNow);return;}
       const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level?.region||0],sw=img.width/4,sh=img.height/2;
       ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(o.x+o.w/2-camera,o.y+o.h-3,o.w*.58,9,0,0,Math.PI*2);ctx.fill();
@@ -1413,7 +1425,7 @@
       }
       if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

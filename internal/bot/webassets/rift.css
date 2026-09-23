@@ -668,3 +668,8 @@
 #rift-optional-objectives li[data-state=failed]{border-color:#dc9b86}
 #rift-optional-objectives li[data-state=complete]{border-color:#9dce82}
 .rift-clean-screenshot #rift-optional-objectives{display:none!important}
+
+#rift-room-objective{padding:12px 16px;background:#122c25;border-top:1px solid #77b99d;color:#d5ffea;overflow-wrap:anywhere}
+#rift-room-objective p{margin:5px 0;font-size:13px;line-height:1.5}
+#rift-room-objective-directions{color:#c7d8ce}
+.rift-clean-screenshot #rift-room-objective{display:none!important}

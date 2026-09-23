@@ -198,6 +198,26 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "sigils" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("sigil-room", selectedBuild, now, riftMobCatalog(now), 3)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Level.Rooms[1].Hazards = nil
+			run.Player.X = 400
+			run.Player.Y = 330
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "objective-results" {
 			mu.Lock()
 			now := time.Now()

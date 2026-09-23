@@ -3,13 +3,14 @@ package rift
 import (
 	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 	"time"
 	"ts3news/internal/content"
 )
 
 func sigilTestRun() *Run {
-	r := NewRunAtLevel("sigils", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), 3)
+	r := NewRunAtLevel("sigils", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
 	r.Level.Rooms[0].Objective = "sigils"
 	r.Level.Rooms[0].Hazards = nil
 	r.spawnRoom()
@@ -136,5 +137,26 @@ func TestSigilPlacementsReachableAcrossEveryArena(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestCampaignSigilRoomsAreAnnouncedAndDistributed(t *testing.T) {
+	count := 0
+	for _, level := range Campaign() {
+		for room, arena := range level.Rooms {
+			expected := level.ID%10 == 3 && room == 1
+			if (arena.Objective == "sigils") != expected {
+				t.Fatalf("unexpected room objective in mission %d tier %d", level.ID, room+1)
+			}
+			if expected {
+				count++
+				if !strings.Contains(level.Tactic, "Tier 2: gather three sigils") {
+					t.Fatal("missing mission preview")
+				}
+			}
+		}
+	}
+	if count != 10 {
+		t.Fatalf("got %d sigil rooms", count)
 	}
 }

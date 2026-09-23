@@ -2,6 +2,7 @@ package bot
 
 import (
 	"encoding/json"
+	"math"
 	"sort"
 	"testing"
 	"time"
@@ -128,6 +129,50 @@ func TestRiftObjectivesCompatibleWithEverySelectableSubclass(t *testing.T) {
 					}
 				})
 			}
+		}
+	}
+}
+
+func TestRiftSigilRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Walker", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-sigils", build, now, catalog, 3)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				if run.RoomObjective == nil {
+					t.Fatal("campaign sigil room missing")
+				}
+				run.Level.Rooms[1].Obstacles = nil
+				run.Level.Rooms[1].HighCover = nil
+				run.Level.Rooms[1].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for _, pickup := range run.RoomObjective.Pickups {
+					for n := 0; n < 1000 && !run.RoomObjective.Pickups[pickup.ID-1].Collected; n++ {
+						dx, dy := pickup.X-run.Player.X, pickup.Y-run.Player.Y
+						input := rift.Input{}
+						if math.Abs(dx) > 5 {
+							input.X = math.Copysign(1, dx)
+						}
+						if math.Abs(dy) > 5 {
+							input.Y = math.Copysign(1, dy)
+						}
+						step(input)
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete {
+					t.Fatal("subclass could not collect sigils through movement")
+				}
+			})
 		}
 	}
 }
