@@ -219,6 +219,37 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "ritual" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("ritual-room", selectedBuild, now, riftMobCatalog(now), 11)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Hazards = nil
+			channelIDs := map[string]int{}
+			for i, c := range run.RoomObjective.Channels {
+				channelIDs[c.EnemyID] = i
+			}
+			for i := range run.Enemies {
+				e := &run.Enemies[i]
+				if n, ok := channelIDs[e.ID]; ok {
+					e.X, e.Y = 400+float64(n)*400, 330
+					e.HP, e.MaxHP = selectedBuild.Damage*2, selectedBuild.Damage*2
+					e.Armor = 0
+					e.Damage = 12
+				} else {
+					e.HP = 0
+				}
+			}
+			run.Player.X, run.Player.Y = 350, 330
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "spirit" {
 			mu.Lock()
 			now := time.Now()

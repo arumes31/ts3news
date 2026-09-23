@@ -920,6 +920,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.RecoilX = hitDir * recoilDist
 	r.event(effect, e.X, e.Y-30, damage)
 	if damage > 0 {
+		r.interruptRitual(e.ID)
 		r.event(e.HurtCue(), e.X, e.Y-30, damage)
 	}
 	if e.Kind == "boss" && e.HP > 0 && e.MaxHP > 0 {
@@ -1086,6 +1087,9 @@ func (r *Run) canStartEnemyAttack(candidate *Actor) bool {
 const treasureEscapeMargin = 55.0
 
 func (r *Run) enemyTick(i int, dt float64) {
+	if r.tickRitualEnemy(i, dt) {
+		return
+	}
 	if r.Enemies[i].isObjectiveProp() {
 		e := &r.Enemies[i]
 		e.PoseTime = math.Max(0, e.PoseTime-dt)

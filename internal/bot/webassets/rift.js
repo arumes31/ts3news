@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='escort_spirit'){
+    if(roomGoal?.kind==='interrupt_ritual'){
+      const ended=!['fighting','cleared'].includes(run.status),channels=roomGoal.channels.map(c=>({...c,enemy:run.enemies.find(e=>e.id===c.enemy_id)})).filter(c=>c.enemy.hp>0),next=channels.length?Math.min(...channels.map(c=>8-c.seconds)):0;
+      put($('rift-room-objective-progress'),'Ritual '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Interrupted':gamePaused?'Paused':'Next pulse in '+next.toFixed(1)+'s'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Ritual ended. Defeat the remaining patrol and bank the tier loot.':'Hit a channeler to reset its eight-second charge. Leave the pulse ring before discharge. Defeat every channeler.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':channels.map(c=>c.enemy.name+': '+(c.enemy.x<run.player.x?'left':'right')+(Math.abs(c.enemy.y-run.player.y)<24?'':c.enemy.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='escort_spirit'){
       const ended=!['fighting','cleared'].includes(run.status),spirit=roomGoal.escort,percent=Math.min(100,Math.floor((spirit.x-350)/1100*100));
       put($('rift-room-objective-progress'),'Spirit '+percent+'% · '+(ended?'Expedition ended':roomGoal.complete?'Safe at the exit':gamePaused?'Paused':roomGoal.contested?'Clear nearby enemies':roomGoal.escort_moving?'Escorting':'Stay near the spirit'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'The spirit is safe. Defeat the remaining patrol.':'Spirit escorted and patrol cleared. Bank the tier loot to continue.'):'Stay inside the spirit’s support ring. It waits when you move away or enemies get close. Saved progress is kept.');

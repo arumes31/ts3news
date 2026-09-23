@@ -100,6 +100,9 @@ func Campaign() []Level {
 		for layout, name := range names {
 			id := region*10 + layout + 1
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
+			if layout == 0 && id > 1 {
+				level.Tactic += ". Tier 2: interrupt ritual channelers before their eight-second pulses"
+			}
 			if layout == 2 {
 				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol"
 			}
@@ -129,6 +132,9 @@ func Campaign() []Level {
 			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
+				if layout == 0 && id > 1 && room == 1 {
+					arena.Objective = "interrupt_ritual"
+				}
 				if layout == 2 && room == 1 {
 					arena.Objective = "sigils"
 				}

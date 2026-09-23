@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -563,6 +563,15 @@
       }
       ctx.restore();
     }
+      if(snapshot.room_objective?.kind==='interrupt_ritual'&&unit.hp>0){
+        const channel=snapshot.room_objective.channels.find(c=>c.enemy_id===unit.id);
+        if(channel){
+          const ty=y-jump-size*.9-34,color=channel.seconds>=6?'#ffad87':'#dab2ff';
+          ctx.save();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(drawX,ty,10,-Math.PI/2,-Math.PI/2+Math.PI*2*channel.seconds/8);ctx.stroke();
+          if(!display.cleanScreenshot){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle=color;ctx.strokeStyle='#21102f';ctx.lineWidth=3;const label='RITUAL '+(8-channel.seconds).toFixed(1)+'s';ctx.strokeText(label,drawX,ty-16);ctx.fillText(label,drawX,ty-16);}
+          ctx.restore();
+        }
+      }
       if(snapshot.room_objective?.kind==='marked_hunt'&&snapshot.room_objective.targets.includes(unit.id)&&unit.hp>0){
         const tx=drawX,ty=y-jump-size*.9-32;
         ctx.save();ctx.strokeStyle='#ffca78';ctx.fillStyle='#241707';ctx.lineWidth=2;
@@ -939,6 +948,17 @@
       });
     }else{
       renderer.lastOffscreen=[];
+    }
+    if(run.room_objective?.kind==='interrupt_ritual'&&!run.room_objective.complete){
+      for(const channel of run.room_objective.channels){
+        const enemy=run.enemies.find(e=>e.id===channel.enemy_id);if(!enemy||enemy.hp<=0)continue;
+        const x=enemy.x-camera,y=enemy.y,warning=channel.seconds>=6;
+        ctx.save();ctx.strokeStyle=warning?'#ffad87':'#dab2ff88';ctx.fillStyle=warning?'#d95d3926':'#9c5ed911';ctx.lineWidth=warning?2:1;
+        ctx.beginPath();ctx.ellipse(x,y,150,85,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.ellipse(x,y,25,14,0,0,Math.PI*2);ctx.stroke();
+        for(let n=0;n<6;n++){const a=n*Math.PI/3;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*30,y+Math.sin(a)*18);ctx.lineTo(x+Math.cos(a)*40,y+Math.sin(a)*24);ctx.stroke();}
+        ctx.restore();
+      }
     }
     if(run.room_objective?.kind==='escort_spirit'){
       const goal=run.room_objective,z=goal.zone,x=z.x-camera;
