@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -49,6 +49,7 @@
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
     else if(e.kind==='block'||e.kind==='perfect_guard'){color=e.kind==='perfect_guard'?'#ffd700':'#7fd7ff';label=(e.kind==='perfect_guard'?'⭐ Perfect Guard':'🛡️ Guarded')+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='beacon_captured'){color='#b9eaff';label='Beacon '+Math.round(e.value)+' / 3';}
     else if(e.kind==='sigil_pickup'){color='#9df6d3';label='Sigil '+Math.round(e.value)+' / 3';}
     else if(e.kind==='pickup'){color='#ffe082';label='+'+Math.round(e.value)+' gold';}
     else if(e.kind==='resource'){color='#7ef5d0';label='+'+Math.round(e.value)+' '+(snapshot?.build?.resource||'Charge');}
@@ -930,6 +931,17 @@
     }else{
       renderer.lastOffscreen=[];
     }
+    if(run.room_objective?.kind==='moving_beacons'){
+      const goal=run.room_objective,z=goal.zone,x=z.x-camera,y=z.y,color=goal.complete?'#baffd0':goal.charging?'#b9eaff':'#d1c3ff';
+      ctx.save();ctx.fillStyle='#7496cf26';ctx.strokeStyle=color;ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(x,y,z.radius_x,z.radius_y,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(x,y,z.radius_x+5,z.radius_y+5,0,-Math.PI/2,-Math.PI/2+Math.PI*2*goal.seconds/3);ctx.stroke();
+      ctx.drawImage(images.sigil,x-18,y-28,36,36);
+      ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle=color;ctx.strokeStyle='#12182c';ctx.lineWidth=4;
+      const label=goal.complete?'ALL BEACONS CAPTURED':'BEACON '+(goal.collected+1)+'/3 · '+Math.floor(goal.seconds)+'/3s';ctx.strokeText(label,x,y-z.radius_y-65);ctx.fillText(label,x,y-z.radius_y-65);
+      if(!goal.complete&&(x<24||x>936)){const edge=x<24?25:935;ctx.textAlign=x<24?'left':'right';const direction=x<24?'← BEACON':'BEACON →';ctx.strokeText(direction,edge,340);ctx.fillText(direction,edge,340);}
+      ctx.restore();
+    }
     if(run.room_objective?.kind==='carry_relic'){
       const goal=run.room_objective,z=goal.zone,x=z.x-camera,y=z.y;
       ctx.save();ctx.strokeStyle=goal.complete?'#baffd0':'#ffd17c';ctx.fillStyle='#b77e2626';ctx.lineWidth=3;
@@ -1478,7 +1490,7 @@
       }
       if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);

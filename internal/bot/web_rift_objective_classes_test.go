@@ -447,3 +447,53 @@ func TestRiftHuntRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftBeaconRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Capturer", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-beacon", build, now, catalog, 2)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				run.Level.Rooms[1].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for n := 0; n < 3000 && !run.RoomObjective.Complete; n++ {
+					o := run.RoomObjective
+					x, y := o.Zone.X, o.Zone.Y
+					if o.Collected == 1 && run.Player.Y < 460 {
+						x = 600
+						y = run.Player.Y
+						if math.Abs(run.Player.X-600) < 10 {
+							y = 480
+						}
+					}
+					if o.Collected == 2 && run.Player.X < 1100 {
+						x = 1120
+						y = 480
+					}
+					dx, dy := x-run.Player.X, y-run.Player.Y
+					input := rift.Input{}
+					if math.Abs(dx) > 5 {
+						input.X = math.Copysign(1, dx)
+					}
+					if math.Abs(dy) > 5 {
+						input.Y = math.Copysign(1, dy)
+					}
+					step(input)
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete {
+					t.Fatal("subclass could not capture moving beacons through arena geometry")
+				}
+			})
+		}
+	}
+}

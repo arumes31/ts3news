@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='marked_hunt'){
+    if(roomGoal?.kind==='moving_beacons'){
+      const ended=!['fighting','cleared'].includes(run.status),zone=roomGoal.zone;
+      put($('rift-room-objective-progress'),'Beacons '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Captured':gamePaused?'Paused':'Beacon '+(roomGoal.collected+1)+': '+Math.floor(roomGoal.seconds)+'/3 s · '+(roomGoal.charging?'Capturing':'Follow the ring')));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'All beacons captured. Defeat the patrol to secure the tier.':'Beacons and patrol cleared. Bank the tier loot to continue.'):'Stay grounded inside the moving ring for three seconds. Leaving keeps your capture progress.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Beacon: '+(zone.x<run.player.x?'left':'right')+(Math.abs(zone.y-run.player.y)<24?'':zone.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='marked_hunt'){
       const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
       put($('rift-room-objective-progress'),'Targets '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Hunt complete':gamePaused?'Paused':'Defeat the marked enemies'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Targets defeated. Survivors retreated without granting kills or loot. Bank the tier loot to continue.':'Look for gold diamond markers. Defeat those enemies to secure the tier; surviving unmarked enemies retreat without rewards.');

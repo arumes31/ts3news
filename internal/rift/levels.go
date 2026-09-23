@@ -121,6 +121,9 @@ func Campaign() []Level {
 			if layout == 8 {
 				level.Tactic += ". Tier 2: defeat marked targets; survivors retreat without loot"
 			}
+			if layout == 1 {
+				level.Tactic += ". Tier 2: capture three moving beacons, then defeat the patrol"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
@@ -143,6 +146,9 @@ func Campaign() []Level {
 				}
 				if layout == 8 && room == 1 {
 					arena.Objective = "marked_hunt"
+				}
+				if layout == 1 && room == 1 {
+					arena.Objective = "moving_beacons"
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()

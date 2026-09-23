@@ -63,6 +63,7 @@
       const hazards=[...new Set(zones.map(hazard=>hazard.kind))];add('p','',terrainSummary+' · '+(hazards.join(', ')||'No hazards'),card);
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
       const objectives={
+        moving_beacons:'Capture three moving beacons by staying grounded inside each ring for three seconds, then defeat the patrol. Leaving keeps capture progress.',
         sigils:'Collect all three sigils and defeat the patrol before banking.',
         hold_circle:'Hold the circle for 15 uncontested seconds, then defeat the patrol. Leaving keeps your progress.',
         survive_waves:'Defeat three waves. Reinforcements arrive after a short warning; bank only after the final wave.',

@@ -61,7 +61,7 @@ test('route preview preference survives reload and link copy uses only the missi
 
 test('route briefing explains every required room objective and wave totals',async({page})=>{
  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-mission-preview > summary').click();
- const expectations=[[3,'Collect all three sigils'],[4,'15 uncontested seconds'],[5,'bank only after the final wave'],[6,'Totems grant no monster kills or loot'],[7,'30% slower while carrying'],[8,'permanently disable their linked floor hazards'],[9,'Surviving unmarked enemies retreat without granting kills or loot']];
+ const expectations=[[2,'Capture three moving beacons'],[3,'Collect all three sigils'],[4,'15 uncontested seconds'],[5,'bank only after the final wave'],[6,'Totems grant no monster kills or loot'],[7,'30% slower while carrying'],[8,'permanently disable their linked floor hazards'],[9,'Surviving unmarked enemies retreat without granting kills or loot']];
  for(const [id,description] of expectations){
   await page.locator('[data-level="'+id+'"]').click();const card=page.locator('#rift-room-previews article').nth(1);await expect(card).toContainText(description);await expect(card).not.toContainText('Clear the patrol, then bank and continue.');
   if(id===5){await expect(card).toContainText('across three waves');await expect(page.locator('#rift-mission-difficulty')).toContainText('planned enemies per tier');await expect(card).not.toContainText('initial defenders');}
