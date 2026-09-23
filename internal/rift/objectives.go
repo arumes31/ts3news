@@ -39,7 +39,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "no_damage", Name: "Untouched", Description: "Clear all three tiers without taking health damage.", Status: "active"},
 		{ID: "basic_only", Name: "Basic attacks only", Description: "Clear all three tiers without using abilities. Movement, jumping and guarding are allowed.", Status: "active"},
 		{ID: "guard", Name: "Guard mastery", Description: "Block at least five attacks and clear all three tiers.", Target: 5, Status: "active"},
-		{ID: "hazard_avoidance", Name: "Safe footing", Description: "Clear all three tiers without triggering an active floor hazard. Jumping avoids hazards; shields do not.", Status: "active"},
+		{ID: "hazard_avoidance", Name: "Safe footing", Description: "Clear all three tiers without triggering an active floor hazard. Jump hazards labeled JUMP; leave zones labeled MOVE. Shields do not prevent contact.", Status: "active"},
 		{ID: "treasure_capture", Name: "Treasure hunter", Description: "Defeat at least one treasure goblin and clear all three tiers. Offered when the mission contains a goblin; escapes do not count.", Target: 1, Status: "active"},
 		{ID: "aerial_finish", Name: "Aerial finish", Description: "Defeat at least one enemy with a basic attack while airborne, then clear all three tiers. Spell and pet kills do not count.", Target: 1, Status: "active"},
 		{ID: "melee_only", Name: "Close combat", Description: "Clear all three tiers using only basic attacks, slash abilities, heals and shields. Projectile, quake and area-ultimate casts fail this goal, even on a miss.", Status: "active"},

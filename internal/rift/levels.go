@@ -19,6 +19,7 @@ type Obstacle struct {
 }
 
 type Hazard struct {
+	Jumpable    bool   `json:"jumpable"`
 	Disabled    bool   `json:"disabled,omitempty"`
 	GeneratorID string `json:"generator_id,omitempty"`
 	Obstacle
@@ -221,7 +222,7 @@ func Campaign() []Level {
 					}
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
-					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
+					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Jumpable: true, Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
 				}
 				if layout == 1 && room == 0 {
 					arena.Platforms = []RaisedPlatform{{Obstacle: Obstacle{180, 360, 180, 100}, ID: fmt.Sprintf("mission-%d-platform", id), Rise: 16, Ramp: 24, Floor: "stone"}}
@@ -591,7 +592,7 @@ func (r *Run) hazardTick() {
 				r.event("hazard_deactivation", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		}
-		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) || r.Player.Jump > .1 {
+		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)

@@ -61,7 +61,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	}
 	if mode == "hazard" {
 		r.Practice.Arena.Name = "Warning zone"
-		r.Practice.Arena.Hazards = []Hazard{{Obstacle: Obstacle{X: 110, Y: 365, W: 100, H: 90}, Kind: "fire", Period: 3.5, Duration: .45}}
+		r.Practice.Arena.Hazards = []Hazard{{Obstacle: Obstacle{X: 110, Y: 365, W: 100, H: 90}, Kind: "fire", Jumpable: true, Period: 3.5, Duration: .45}}
 	}
 	return r, nil
 }

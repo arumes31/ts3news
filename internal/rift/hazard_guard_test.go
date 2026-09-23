@@ -16,7 +16,7 @@ func TestDocumentedGuardInteractionsForEveryFloorHazard(t *testing.T) {
 			r.Player.Y = 370
 			r.Player.Facing = facing
 			r.Player.Guard = true
-			r.Level.Rooms[0] = Arena{Hazards: []Hazard{{Obstacle: Obstacle{500, 350, 100, 40}, Kind: kind, Period: 7, Duration: 1}}}
+			r.Level.Rooms[0] = Arena{Hazards: []Hazard{{Obstacle: Obstacle{500, 350, 100, 40}, Kind: kind, Jumpable: true, Period: 7, Duration: 1}}}
 			before := r.Player.HP
 			r.hazardTick()
 			if math.Abs(before-r.Player.HP-1.8) > 1e-8 || math.Abs(r.Stats.GuardBlocked-8.2) > 1e-8 {
@@ -42,7 +42,7 @@ func TestDocumentedJumpDistinguishesFloorHazardsFromCollapse(t *testing.T) {
 		r.Player.X = 520
 		r.Player.Y = 370
 		r.Player.Jump = .4
-		r.Level.Rooms[0] = Arena{Hazards: []Hazard{{Obstacle: Obstacle{500, 350, 100, 40}, Kind: kind, Period: 7, Duration: 1}}}
+		r.Level.Rooms[0] = Arena{Hazards: []Hazard{{Obstacle: Obstacle{500, 350, 100, 40}, Kind: kind, Jumpable: true, Period: 7, Duration: 1}}}
 		before := r.Player.HP
 		r.hazardTick()
 		if r.Player.HP != before || r.Stats.HazardContacts != 0 || r.SkillTimers["slowed"] != 0 || r.Player.X != 520 {

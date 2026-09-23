@@ -154,7 +154,7 @@ func TestEnemiesCanApproachAcrossEveryCampaignArena(t *testing.T) {
 
 func TestHazardsWarnThenDamageOnceAndRespectJumpPause(t *testing.T) {
 	r := NewRunAtLevel("hazard", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
-	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "ice", Period: 6, Duration: 1}}
+	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "ice", Jumpable: true, Period: 6, Duration: 1}}
 	r.Clock = .8
 	r.hazardTick()
 	if r.Player.HP != 200 {
@@ -186,7 +186,7 @@ func TestHazardsWarnThenDamageOnceAndRespectJumpPause(t *testing.T) {
 
 func TestHazardWarningEventEmittedOncePerCycle(t *testing.T) {
 	r := NewRunAtLevel("hazard-warn-test", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
-	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "fire", Period: 5, Duration: 1}}
+	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "fire", Jumpable: true, Period: 5, Duration: 1}}
 
 	// Clock at start of warning phase
 	r.Clock = 0.1
@@ -218,7 +218,7 @@ func TestHazardWarningEventEmittedOncePerCycle(t *testing.T) {
 
 func TestHazardDeactivationEventEmittedWhenActivePhaseEnds(t *testing.T) {
 	r := NewRunAtLevel("hazard-deact-test", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
-	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "ice", Period: 5, Duration: 1}}
+	r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{100, 380, 100, 60}, Kind: "ice", Jumpable: true, Period: 5, Duration: 1}}
 
 	// Active phase (1.2 to 2.2)
 	r.Clock = 1.5

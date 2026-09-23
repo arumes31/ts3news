@@ -10,7 +10,7 @@ func overlappingHazardRun() *Run {
 	r := NewRunAtLevel("hazard-safety", Build{HP: 200}, time.Unix(100, 0), content.AbyssMobCatalog(), 1)
 	r.Level.Rooms[0].Hazards = nil
 	for _, kind := range []string{"fire", "ice", "void"} {
-		r.Level.Rooms[0].Hazards = append(r.Level.Rooms[0].Hazards, Hazard{Obstacle: Obstacle{100, 380, 180, 60}, Kind: kind, Period: 6, Duration: 2})
+		r.Level.Rooms[0].Hazards = append(r.Level.Rooms[0].Hazards, Hazard{Obstacle: Obstacle{100, 380, 180, 60}, Kind: kind, Jumpable: true, Period: 6, Duration: 2})
 	}
 	r.Clock = 1.3
 	return r

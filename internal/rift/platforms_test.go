@@ -81,7 +81,7 @@ func TestRaisedPlatformDoesNotGrantJumpHazardImmunity(t *testing.T) {
 		r.Player.X, r.Player.Y = 510, 410
 		r.Player.Jump = jump
 		r.moveActor(&r.Player, 0, 0, false)
-		r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{490, 390, 40, 40}, Kind: "fire", Period: 7, Duration: 1}}
+		r.Level.Rooms[0].Hazards = []Hazard{{Obstacle: Obstacle{490, 390, 40, 40}, Kind: "fire", Jumpable: true, Period: 7, Duration: 1}}
 		r.Clock = 1.3
 		hp := r.Player.HP
 		r.hazardTick()

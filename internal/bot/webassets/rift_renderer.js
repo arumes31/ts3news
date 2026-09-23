@@ -946,7 +946,7 @@
         // The frozen combat clock also drives damage; do not count down with wall time.
         const remaining=active?1.2+h.duration-phase:warning?1.2-phase:h.period-phase+1.2;
         const seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
-        const label=active?'JUMP · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
+        const label=active?(h.jumpable===true?'JUMP':'MOVE')+' · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
         ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
         interactionPrompt(label,x+h.w/2,h.y-6,true);
       }
