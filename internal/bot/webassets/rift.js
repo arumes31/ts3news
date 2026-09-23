@@ -130,7 +130,7 @@
     if(!value)return;
     if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
     else if(!clearedAt) { clearedAt = performance.now(); countdownAnnounced = -1; }
-    run=value;window.RiftBossIntro.update(run);window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
+    run=value;classPrimer();window.RiftBossIntro.update(run);window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
     window.RiftObjectives.update(run,gamePaused);
@@ -433,7 +433,18 @@
     const preferred=window.RiftMission.preferred(window.RiftCampaignTools.preferred(),levels);
     selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:preferred;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
+  function classPrimer(){
+    const node=$('rift-class-primer'),current=run&&['fighting','cleared'].includes(run.status)?run.build:build;
+    node.hidden=playing||!current||!!practice&&practice!=='boss';
+    if(!current)return;
+    const signatures=current.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
+    put(node.querySelector('strong'),(current.class_name||current.class||'Adventurer')+' · Combat primer');
+    const key=skill=>controls.label('signature'+signatures.indexOf(skill));
+    const copy=builder&&finisher?'Use '+builder.name+' ('+key(builder)+') to build up to three '+(current.resource||'class')+' charges, then spend them with '+finisher.name+' ('+key(finisher)+').':builder?'Use '+builder.name+' ('+key(builder)+') to build class charges. Unlock your finisher in Abyss.':finisher?'Your finisher is '+finisher.name+' ('+key(finisher)+'). Equip a builder in Abyss to gain charges.':'Class abilities unlock through Abyss progression. Use basic attacks and your equipped skills.';
+    put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.');
+  }
   function loadout(){
+    classPrimer();
     renderer.build(build);
     $('rift-build').textContent=build.name+' · Level '+build.level+' · '+build.class+'\n'+build.weapon;
     $('rift-sequence').textContent=build.sequence||'';
@@ -530,7 +541,7 @@
       }
     });
   }
-  window.addEventListener('riftbindingschange',()=>{resetInput();if(run)update(run,true);});
+  window.addEventListener('riftbindingschange',()=>{resetInput();classPrimer();if(run)update(run,true);});
   window.addEventListener('riftintentchange',resetInput);
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
   $('rift-canvas').addEventListener('mousedown',event=>{
