@@ -4,6 +4,7 @@ package rift
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -104,6 +105,7 @@ func (a Actor) DeathCue() string {
 }
 
 type Projectile struct {
+	OwnerID string  `json:"owner_id,omitempty"`
 	Skill   Skill   `json:"skill"`
 	Charges int     `json:"charges"`
 	Marked  string  `json:"marked"`
@@ -636,6 +638,9 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	shots := r.Projectiles[:0]
 	for _, shot := range r.Projectiles {
+		if r.deadBossProjectile(shot) {
+			continue
+		}
 		fromX, fromY := shot.X, shot.Y
 		shot.Life -= dt
 		shot.X += shot.VX * dt
@@ -680,7 +685,7 @@ func (r *Run) tick(in Input, dt float64) {
 			shots = append(shots, shot)
 		}
 	}
-	r.Projectiles = shots
+	r.Projectiles = slices.DeleteFunc(shots, r.deadBossProjectile)
 	for i := range r.Drops {
 		d := &r.Drops[i]
 		if !d.Collected && math.Hypot(d.X-p.X, d.Y-p.Y) < 65 {
@@ -1115,7 +1120,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 				if power <= 0 {
 					power = 18
 				}
-				r.Projectiles = append(r.Projectiles, Projectile{ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
+				r.Projectiles = append(r.Projectiles, Projectile{OwnerID: e.ID, ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
 				r.event(shot, e.X, e.Y-30, 0)
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
