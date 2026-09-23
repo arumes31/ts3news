@@ -424,6 +424,16 @@
       ctx.ellipse(drawX, y + 2, size * 0.28 * shadowScale, 7 * shadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+    if(!renderer.reduced&&motion>0&&!(unit.jump>0)&&['run','guard_walk'].includes(unit.pose)){
+      const depth=.75+Math.max(0,Math.min(1,(y-250)/285))*.5;
+      ctx.save();ctx.fillStyle='#c7ad79';
+      for(let i=0;i<3;i++){
+        const phase=(decorationTime/380+i/3)%1;
+        ctx.globalAlpha=(1-phase)*.2;
+        ctx.beginPath();ctx.ellipse(drawX-(unit.facing||1)*(10+phase*24)*depth,y+3-phase*4,(2+phase*4)*depth,(1+phase*2)*depth,0,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
     if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover,size,unit.facing,1,atlas);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
     if (unit.guard && unit.pose === 'hit') fx(3,2,drawX,y-size*.4,105,.85);
