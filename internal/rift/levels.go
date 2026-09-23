@@ -133,6 +133,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 	level := Campaign()[id-1]
 	r.Level = &level
 	r.beginMissionHistory()
+	r.beginObjectives()
 	r.RoomSplits = [3]*float64{}
 	r.Room = 0
 	// The whole shared bestiary remains eligible, including future additions.
@@ -184,6 +185,7 @@ func (r *Run) FloorMaterial() string {
 // FinishCheckpoint is called only after rewards have been banked atomically.
 // Advancing keeps the same run, build and receipt, without a page reload.
 func (r *Run) FinishCheckpoint(kind string, catalog []content.Mob) {
+	defer r.updateObjectives()
 	if r.Practice != nil {
 		return
 	}
