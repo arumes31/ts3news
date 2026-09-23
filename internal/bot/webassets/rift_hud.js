@@ -410,13 +410,15 @@
       if(bossAttackNode){
         if(boss.windup>0){
           const attack=boss.attack_name||(boss.art_key&&(boss.attacks+1)%2===0?'Aimed Volley':'Ground Slam');
-          put(bossAttackNode,'⚡ '+attack+' · '+boss.windup.toFixed(1)+'s windup');
+          const volley=boss.art_key&&(boss.attacks+1)%2===0;
+          const defense=volley?'Move to evade; face the shot to guard':'Jump or move clear';
+          put(bossAttackNode,'⚡ '+attack+' · '+boss.windup.toFixed(1)+'s windup · '+defense);
           bossAttackNode.hidden=false;
           if(playing&&!run.paused){
             const attackKey=(boss.attacks||0)+':'+attack;
             if(lastAnnouncedBossAttack!==attackKey){
               lastAnnouncedBossAttack=attackKey;
-              put($('rift-announcer'),'Boss preparing '+attack+' · '+Math.ceil(boss.windup)+'s windup.');
+              put($('rift-announcer'),'Boss preparing '+attack+' · '+Math.ceil(boss.windup)+'s windup. '+defense+'.');
             }
           }
         }else if(boss.weak_point>0){
