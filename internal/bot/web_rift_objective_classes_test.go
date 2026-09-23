@@ -497,3 +497,41 @@ func TestRiftBeaconRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftSpiritRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Escort", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-spirit", build, now, catalog, 10)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				run.Level.Rooms[1].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for n := 0; n < 1800 && !run.RoomObjective.Complete; n++ {
+					spirit := run.RoomObjective.Escort
+					dx, dy := spirit.X-50-run.Player.X, spirit.Y-run.Player.Y
+					input := rift.Input{}
+					if math.Abs(dx) > 5 {
+						input.X = math.Copysign(1, dx)
+					}
+					if math.Abs(dy) > 5 {
+						input.Y = math.Copysign(1, dy)
+					}
+					step(input)
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete {
+					t.Fatalf("subclass failed escort: status=%s player=(%.2f,%.2f) spirit=(%.2f,%.2f) moving=%v contested=%v", run.Status, run.Player.X, run.Player.Y, run.RoomObjective.Escort.X, run.RoomObjective.Escort.Y, run.RoomObjective.EscortMoving, run.RoomObjective.Contested)
+				}
+			})
+		}
+	}
+}

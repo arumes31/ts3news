@@ -455,6 +455,9 @@
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
       case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
+      case 'spirit_move': t(440,660,.45,.04,'sine'); break;
+      case 'spirit_threat': t(330,220,.35,.055,'sine'); break;
+      case 'spirit_arrived': [523,784,1047].forEach((f,i)=>t(f,f,.65,.045,'sine',i*.14)); break;
       case 'beacon_charge': t(440,660,.2,.04,'sine'); break;
       case 'beacon_captured': [660,880,1100].forEach((f,i)=>t(f,f,.3,.05,'sine',i*.07)); break;
       case 'beacons_complete': [523,659,784,1047].forEach((f,i)=>t(f,f,.4,.055,'triangle',i*.1)); break;

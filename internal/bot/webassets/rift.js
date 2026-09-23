@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='moving_beacons'){
+    if(roomGoal?.kind==='escort_spirit'){
+      const ended=!['fighting','cleared'].includes(run.status),spirit=roomGoal.escort,percent=Math.min(100,Math.floor((spirit.x-350)/1100*100));
+      put($('rift-room-objective-progress'),'Spirit '+percent+'% · '+(ended?'Expedition ended':roomGoal.complete?'Safe at the exit':gamePaused?'Paused':roomGoal.contested?'Clear nearby enemies':roomGoal.escort_moving?'Escorting':'Stay near the spirit'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'The spirit is safe. Defeat the remaining patrol.':'Spirit escorted and patrol cleared. Bank the tier loot to continue.'):'Stay inside the spirit’s support ring. It waits when you move away or enemies get close. Saved progress is kept.');
+      put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Spirit: '+(spirit.x<run.player.x?'left':'right')+(Math.abs(spirit.y-run.player.y)<24?'':spirit.y<run.player.y?', up':', down'));
+    }else if(roomGoal?.kind==='moving_beacons'){
       const ended=!['fighting','cleared'].includes(run.status),zone=roomGoal.zone;
       put($('rift-room-objective-progress'),'Beacons '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Captured':gamePaused?'Paused':'Beacon '+(roomGoal.collected+1)+': '+Math.floor(roomGoal.seconds)+'/3 s · '+(roomGoal.charging?'Capturing':'Follow the ring')));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'All beacons captured. Defeat the patrol to secure the tier.':'Beacons and patrol cleared. Bank the tier loot to continue.'):'Stay grounded inside the moving ring for three seconds. Leaving keeps your capture progress.');

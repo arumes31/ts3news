@@ -219,6 +219,23 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Unlock()
 		}
 
+		if r.URL.Query().Get("scenario") == "spirit" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("spirit-room", selectedBuild, now, riftMobCatalog(now), 10)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Hazards = nil
+			run.Enemies = []rift.Actor{{ID: "spirit-threat", Name: "Spirit stalker", Kind: "goblin", HP: 1, MaxHP: 50, X: 355, Y: 330, Knockdown: 100}}
+			run.Player.X, run.Player.Y = 310, 330
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "beacons" {
 			mu.Lock()
 			now := time.Now()

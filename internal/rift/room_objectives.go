@@ -22,6 +22,8 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
+	Escort          *Actor            `json:"escort,omitempty"`
+	EscortMoving    bool              `json:"escort_moving"`
 	BeaconTime      float64           `json:"beacon_time"`
 	Targets         []string          `json:"targets,omitempty"`
 	Relic           *ObjectivePickup  `json:"relic,omitempty"`
@@ -45,6 +47,10 @@ type RoomObjective struct {
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "escort_spirit" {
+		r.beginEscortObjective()
 		return
 	}
 	if r.Arena().Objective == "moving_beacons" {
@@ -107,6 +113,7 @@ func (r *Run) collectRoomSigils() {
 
 func (r *Run) tickRoomObjective(dt float64) {
 	r.collectRoomSigils()
+	r.tickEscortObjective(dt)
 	r.tickBeaconObjective(dt)
 	r.tickHuntObjective()
 	r.tickRelicObjective()
