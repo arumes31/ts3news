@@ -872,13 +872,14 @@
     const units=[...run.enemies,run.player];
     if(run.build?.class==='beastmaster'&&run.player.hp>0){for(let i=0;i<Math.min(3,run.build?.pets||0);i++)units.push({id:'pet'+i,kind:'wolf',x:run.player.x-run.player.facing*(55+i*36),y:run.player.y+22+i*8,hp:1,max_hp:1,facing:run.player.facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});}
     (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
+    (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{
       if(!unit.cover){actor(unit,wallNow);return;}
       const o=unit.cover,img=images.props,index=[0,1,2,3,4,5,6,3,3,7][run.level?.region||0],sw=img.width/4,sh=img.height/2;
       ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(o.x+o.w/2-camera,o.y+o.h-3,o.w*.58,9,0,0,Math.PI*2);ctx.fill();
       // Each sprite's base lies at 90% of its atlas cell. Align it with
       // the collision footprint so jumping and circling cover read clearly.
-      const width=o.w+14,height=o.h+38;
+      const width=o.w+14,height=o.h+(unit.tall?100:38);
       drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);
     });
     run.projectiles.forEach(p=>{

@@ -623,11 +623,22 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	shots := r.Projectiles[:0]
 	for _, shot := range r.Projectiles {
+		fromX, fromY := shot.X, shot.Y
 		shot.Life -= dt
 		shot.X += shot.VX * dt
 		shot.Y += shot.VY * dt
 		if shot.Life <= 0 || shot.X < 0 || shot.X > Width {
 			r.event("projectile_expire", shot.X, shot.Y, 0)
+			continue
+		}
+		impact := 2.0
+		for _, wall := range r.Arena().HighCover {
+			if t, hit := obstacleImpact(fromX, fromY, shot.X, shot.Y, wall); hit {
+				impact = math.Min(impact, t)
+			}
+		}
+		if impact <= 1 {
+			r.event("projectile_impact", fromX+(shot.X-fromX)*impact, fromY+(shot.Y-fromY)*impact, 0)
 			continue
 		}
 		hit := false

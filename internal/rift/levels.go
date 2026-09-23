@@ -27,6 +27,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	HighCover         []Obstacle        `json:"high_cover,omitempty"`
 	Name              string            `json:"name"`
 	Obstacles         []Obstacle        `json:"obstacles"`
 	Hazards           []Hazard          `json:"hazards"`
@@ -103,7 +104,11 @@ func Campaign() []Level {
 					obstacle.X += float64(region*7 + room*19)
 					obstacle.Y += float64((region+room+i)%3-1) * 4
 					obstacle.W += float64(region%4) * 3
-					arena.Obstacles = append(arena.Obstacles, obstacle)
+					if layout == 2 && i == 0 {
+						arena.HighCover = append(arena.HighCover, obstacle)
+					} else {
+						arena.Obstacles = append(arena.Obstacles, obstacle)
+					}
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
 					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
@@ -146,7 +151,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 			a.HP *= missionHealthMultiplier(id)
 			a.MaxHP = a.HP
 			a.Damage *= missionDamageMultiplier(id)
-			settle(a, level.Rooms[room].Obstacles)
+			settle(a, level.Rooms[room].solidObstacles())
 		}
 		r.EncounterPlan[room] = actors
 	}
@@ -254,31 +259,42 @@ func settle(a *Actor, obstacles []Obstacle) {
 	a.Y = clamp(a.Y, 315, 490)
 }
 
+func (a Arena) solidObstacles() []Obstacle {
+	if len(a.HighCover) == 0 {
+		return a.Obstacles
+	}
+	all := make([]Obstacle, 0, len(a.Obstacles)+len(a.HighCover))
+	all = append(all, a.Obstacles...)
+	return append(all, a.HighCover...)
+}
+
+// obstacleImpact returns the first intersection along a movement segment.
+func obstacleImpact(x1, y1, x2, y2 float64, o Obstacle) (float64, bool) {
+	enter, leave := 0.0, 1.0
+	for _, axis := range [][4]float64{{x1, x2 - x1, o.X, o.X + o.W}, {y1, y2 - y1, o.Y, o.Y + o.H}} {
+		start, delta, low, high := axis[0], axis[1], axis[2], axis[3]
+		if delta == 0 {
+			if start < low || start > high {
+				return 0, false
+			}
+			continue
+		}
+		a, b := (low-start)/delta, (high-start)/delta
+		if a > b {
+			a, b = b, a
+		}
+		enter, leave = math.Max(enter, a), math.Min(leave, b)
+		if enter > leave {
+			return 0, false
+		}
+	}
+	return enter, true
+}
+
 // clearMeleePath rejects segments that touch or cross a solid arena obstacle.
 func (r *Run) clearMeleePath(from, to *Actor) bool {
-	for _, o := range r.Arena().Obstacles {
-		enter, leave := 0.0, 1.0
-		blocked := true
-		for _, axis := range [][4]float64{{from.X, to.X - from.X, o.X, o.X + o.W}, {from.Y, to.Y - from.Y, o.Y, o.Y + o.H}} {
-			start, delta, low, high := axis[0], axis[1], axis[2], axis[3]
-			if delta == 0 {
-				if start < low || start > high {
-					blocked = false
-					break
-				}
-				continue
-			}
-			a, b := (low-start)/delta, (high-start)/delta
-			if a > b {
-				a, b = b, a
-			}
-			enter, leave = math.Max(enter, a), math.Min(leave, b)
-			if enter > leave {
-				blocked = false
-				break
-			}
-		}
-		if blocked {
+	for _, o := range r.Arena().solidObstacles() {
+		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, o); hit {
 			return false
 		}
 	}
@@ -294,11 +310,10 @@ func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
 }
 
 func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
-	obstacles := r.Arena().Obstacles
+	arena := r.Arena()
+	obstacles := arena.solidObstacles()
 	if a.Jump > .1 {
-		a.X = clamp(a.X+dx, 35, Width-35)
-		a.Y = clamp(a.Y+dy, 315, 490)
-		return
+		obstacles = arena.HighCover
 	}
 	settle(a, obstacles)
 	for _, o := range obstacles {
