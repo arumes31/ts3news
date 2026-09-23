@@ -13,11 +13,11 @@ test('preview optional objectives and retain failed ability goal while paused',a
 test('completed objective results survive advancement and reload',async({page})=>{
  let banking;page.on('request',request=>{if(request.url().includes('/api/abyss/rift')&&request.method()==='POST'){const body=request.postDataJSON();if(body.kind==='advance')banking=body;}});
  await page.goto('/abyss/rift?scenario=objective-results');await expect(page.locator('#rift-start')).toBeEnabled();
- await expect(page.locator('#rift-objectives-list [data-state="complete"]')).toHaveCount(6);await expect(page.locator('#rift-objectives-caption')).toContainText('Not banked');await expect(page.locator('#rift-objective-history')).toBeHidden();
+ await expect(page.locator('#rift-objectives-list [data-state="complete"]')).toHaveCount(7);await expect(page.locator('#rift-objectives-caption')).toContainText('Not banked');await expect(page.locator('#rift-objective-history')).toBeHidden();
  await page.locator('#rift-start').click();
  await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.level.id).toBe(2);
  await page.keyboard.press('Escape');await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();
- await expect(page.locator('#rift-objectives-last-title')).toContainText('Previous mission 1');await page.locator('#rift-objectives-last-title').click();await expect(page.locator('#rift-objectives-last-list [data-state="complete"]')).toHaveCount(6);
+ await expect(page.locator('#rift-objectives-last-title')).toContainText('Previous mission 1');await page.locator('#rift-objectives-last-title').click();await expect(page.locator('#rift-objectives-last-list [data-state="complete"]')).toHaveCount(7);
  await expect(page.locator('#rift-objectives-last-title')).toContainText('Banked');
  await page.locator('#rift-objective-history > summary').click();await expect(page.locator('#rift-objective-history-list')).toContainText('Wayfarer · Swift clear — 1');
  expect(banking).toBeTruthy();const replay=await(await page.request.post('/api/abyss/rift',{data:banking})).json();expect(replay.run.objective_history.Wayfarer.timed).toBe(1);

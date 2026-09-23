@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartNonMelee  int                 `json:"start_non_melee"`
 	StartAerial    int                 `json:"start_aerial"`
 	StartTreasure  int                 `json:"start_treasure"`
 	StartHazards   int                 `json:"start_hazards"`
@@ -38,6 +39,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "hazard_avoidance", Name: "Safe footing", Description: "Clear all three tiers without triggering an active floor hazard. Jumping avoids hazards; shields do not.", Status: "active"},
 		{ID: "treasure_capture", Name: "Treasure hunter", Description: "Defeat at least one treasure goblin and clear all three tiers. Offered when the mission contains a goblin; escapes do not count.", Target: 1, Status: "active"},
 		{ID: "aerial_finish", Name: "Aerial finish", Description: "Defeat at least one enemy with a basic attack while airborne, then clear all three tiers. Spell and pet kills do not count.", Target: 1, Status: "active"},
+		{ID: "melee_only", Name: "Close combat", Description: "Clear all three tiers using only basic attacks, slash abilities, heals and shields. Projectile, quake and area-ultimate casts fail this goal, even on a miss.", Status: "active"},
 	}
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
@@ -73,7 +75,7 @@ func (r *Run) beginObjectives() {
 		}
 		entries = filtered
 	}
-	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, Entries: entries}
+	r.Objectives = &MissionObjectives{Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, Entries: entries}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -105,6 +107,11 @@ func (r *Run) UpdateObjectives() {
 			e.Current = float64(max(0, r.Stats.SkillsCast-o.StartSkills))
 			if e.Current > 0 {
 				reason = "Used an ability."
+			}
+		case "melee_only":
+			e.Current = float64(max(0, r.Stats.NonMeleeCasts-o.StartNonMelee))
+			if e.Current > 0 {
+				reason = "Cast an ability outside the melee/support allowance."
 			}
 		case "aerial_finish":
 			e.Current = float64(max(0, r.Stats.AerialFinishes-o.StartAerial))

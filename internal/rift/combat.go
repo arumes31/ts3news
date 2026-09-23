@@ -806,6 +806,9 @@ func (r *Run) cast(id string) {
 		p.Mana -= skill.Cost
 		r.Stats.ManaSpent += skill.Cost
 		r.Stats.SkillsCast++
+		if skill.Kind != "slash" && skill.Kind != "heal" && skill.Kind != "shield" {
+			r.Stats.NonMeleeCasts++
+		}
 		if r.Stats.SkillUses == nil {
 			r.Stats.SkillUses = map[string]int{}
 		}
