@@ -27,7 +27,12 @@
       if(nextRight-nextLeft>960)continue;
       left=nextLeft;right=nextRight;bosses.push(boss.id);
     }
-    if(!bosses.length)return {target:base,min:0,max:640,bosses};
+    if(!bosses.length){
+      // A 96-unit tracking band absorbs short reversals, including at room edges.
+      // Paused snapshots retain explicit framing for previews and saved resumes.
+      const target=run.paused?base:Math.max(0,Math.min(640,Math.max(run.player.x-398,Math.min(run.player.x-302,camera))));
+      return {target,min:0,max:640,bosses};
+    }
     const low=Math.max(-104,right-960),high=Math.min(744,left);
     return {target:Math.max(low,Math.min(high,base)),min:low,max:high,bosses};
   }
