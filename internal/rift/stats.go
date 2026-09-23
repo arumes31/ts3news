@@ -55,6 +55,7 @@ func (r *Run) healPlayer(amount float64) {
 func (r *Run) healPlayerBySkill(amount float64, skillID string) {
 	before := r.Stats.Healing
 	r.healPlayer(amount)
+	r.recordBloodRecovery(skillID, amount, r.Stats.Healing-before)
 	if healed := r.Stats.Healing - before; healed > 0 && skillID != "" {
 		if r.Stats.SkillHealing == nil {
 			r.Stats.SkillHealing = map[string]float64{}

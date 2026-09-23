@@ -211,6 +211,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	LastBloodRecovery *BloodRecovery `json:"last_blood_recovery,omitempty"`
 	LastCooldownReceipt *CooldownReceipt `json:"last_cooldown_receipt,omitempty"`
 	LastChargeSpend *ChargeSpend `json:"last_charge_spend,omitempty"`
 	SlowSource string `json:"slow_source,omitempty"`
