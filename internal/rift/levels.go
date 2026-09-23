@@ -128,7 +128,7 @@ func Campaign() []Level {
 				level.Tactic += ". Tier 2: capture three moving beacons, then defeat the patrol"
 			}
 			if layout == 9 {
-				level.Tactic += ". Tier 2: stay near the spirit and clear threats along its escort route"
+				level.Tactic += ". Tier 1: defend both lane wards and defeat the patrol. Tier 2: stay near the spirit and clear threats along its escort route"
 			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
@@ -173,6 +173,9 @@ func Campaign() []Level {
 				}
 				if layout == 1 && room == 1 {
 					arena.Objective = "moving_beacons"
+				}
+				if layout == 9 && room == 0 {
+					arena.Objective = "split_defense"
 				}
 				if layout == 9 && room == 1 {
 					arena.Objective = "escort_spirit"

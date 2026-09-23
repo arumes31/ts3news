@@ -805,3 +805,45 @@ func TestRiftRuneGateSupportsEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftSplitDefenseSupportsEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Defender", 24)
+				now := time.Unix(100, 0)
+				run := rift.NewRunAtLevel("class-defense", build, now, content.AbyssMobCatalog(), 10)
+				run.Level.Rooms[0].Hazards = nil
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				for i := 0; i < 2; i++ {
+					e := &run.Enemies[i]
+					w := run.RoomObjective.Lanes[i].Ward
+					e.HP = build.Damage * 2
+					e.MaxHP = e.HP
+					e.X, e.Y = w.X, w.Y
+					e.Knockdown = 100
+				}
+				for i := 0; i < 2; i++ {
+					enemy := &run.Enemies[i]
+					for n := 0; n < 1200 && enemy.HP > 0 && run.Status == "fighting"; n++ {
+						input := rift.Input{Attack: true}
+						dx, dy := enemy.X-run.Player.X, enemy.Y-run.Player.Y
+						if math.Abs(dy) > 4 {
+							input.Y = math.Copysign(1, dy)
+						}
+						if math.Abs(dx) > 35 || dx*run.Player.Facing < 0 {
+							input.X = math.Copysign(1, dx)
+						}
+						now = now.Add(20 * time.Millisecond)
+						run.Step(input, now)
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != 2 {
+					t.Fatal("subclass cannot defend both lanes")
+				}
+			})
+		}
+	}
+}

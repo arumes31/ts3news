@@ -235,6 +235,33 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if scenario := r.URL.Query().Get("scenario"); scenario == "split-defense" || scenario == "split-defense-failure" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("split-defense-room", selectedBuild, now, riftMobCatalog(now), 10)
+			run.Level.Rooms[0].Hazards = nil
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			for _, lane := range run.RoomObjective.Lanes {
+				for i := range run.Enemies {
+					e := &run.Enemies[i]
+					if e.ID == lane.EnemyIDs[0] {
+						e.HP, e.MaxHP = selectedBuild.Damage*2, selectedBuild.Damage*2
+						e.Armor = 0
+						e.X, e.Y = lane.Ward.X, lane.Ward.Y
+					}
+				}
+			}
+			if scenario == "split-defense-failure" {
+				run.RoomObjective.Lanes[1].Ward.HP = 5
+				run.Player.X = 1500
+			}
+			run.Epoch = "fixture"
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if scenario := r.URL.Query().Get("scenario"); scenario == "lantern" || scenario == "lantern_failure" {
 			mu.Lock()
 			now := time.Now()

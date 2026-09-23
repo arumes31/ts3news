@@ -735,7 +735,8 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	r.tickCollapseObjective(dt)
 	r.tickLanternObjective(dt)
-	if p.HP <= 0 || r.lanternExtinguished() {
+	r.tickDefenseObjective(dt)
+	if p.HP <= 0 || r.lanternExtinguished() || r.defenseLost() {
 		p.Pose = "defeat"
 		p.Knockdown = 0
 		r.Status = "defeated"
@@ -1151,6 +1152,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.Knockdown > 0 {
 		e.Knockdown = math.Max(0, e.Knockdown-dt)
 		e.Pose = "knockdown"
+		return
+	}
+	if r.tickDefenseEnemy(e, dt) {
 		return
 	}
 	p := &r.Player

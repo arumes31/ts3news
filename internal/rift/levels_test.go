@@ -128,6 +128,8 @@ func TestCoverJumpAndEnemyBypass(t *testing.T) {
 func TestEnemiesCanApproachAcrossEveryCampaignArena(t *testing.T) {
 	for id := 1; id <= LevelCount; id++ {
 		r := NewRunAtLevel("pursuit", Build{HP: 1e9}, time.Now(), content.AbyssMobCatalog(), id)
+		// This test isolates player pursuit; defense ward pursuit has its own regional test.
+		r.RoomObjective = nil
 		for room := 0; room < 3; room++ {
 			r.Room = room
 			for _, spawn := range r.EncounterPlan[room] {
@@ -328,4 +330,3 @@ func TestFloorMaterialByRegionAndArena(t *testing.T) {
 		t.Fatalf("expected Bloodrust Barracks floor wood, got %s", r.FloorMaterial())
 	}
 }
-

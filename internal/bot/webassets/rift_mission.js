@@ -64,6 +64,7 @@
       const timings=[...new Set(zones.map(hazard=>hazard.kind+': '+hazard.period.toFixed(1)+'s cycle, '+hazard.duration.toFixed(1)+'s active'))];add('small','',timings.join(' · '),card);
       const objectives={
         rune_gate:'Clear the patrol, then step on rune seals in the displayed order to open the gate. Wrong seals reset the sequence without damage. Floor hazards switch off for the puzzle.',
+        split_defense:'Defend upper and lower lane wards. Intercept approaching enemies; nearby fighters draw them into combat. Both wards must survive until the patrol is defeated.',
         protect_lantern:'Keep enemies outside the lantern ring or defeat them. Nearby enemies drain its light; if the lantern goes out, the expedition fails. Clear the patrol to protect it.',
         rescue_companions:'Break both cages with attacks or spells to rescue the captive spirits, then clear the patrol. Cages grant no monster kills or loot.',
         linked_guardians:'Linked guardians take 50% less damage within 240 units of each other. Separate them or defeat one to break the bond, then defeat both guardians and the patrol.',

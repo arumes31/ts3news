@@ -458,6 +458,10 @@
       case 'rune_correct': t(440,660,.35,.045,'sine'); break;
       case 'rune_wrong': t(240,120,.35,.05,'triangle'); break;
       case 'rune_gate_open': [523,659,784,1047].forEach((f,i)=>t(f,f,.6,.045,'sine',i*.12)); break;
+      case 'lane_threat': t(520,260,.45,.06,'triangle'); break;
+      case 'lane_hurt': t(220,150,.2,.05,'sine'); break;
+      case 'lane_lost': t(300,45,1,.07,'sine'); break;
+      case 'lanes_protected': [392,523,784].forEach((f,i)=>t(f,f,.5,.05,'sine',i*.13)); break;
       case 'lantern_threat': t(440,220,.5,.05,'triangle'); break;
       case 'lantern_hurt': t(260,180,.18,.04,'sine'); break;
       case 'lantern_extinguished': t(330,55,1,.06,'sine'); break;
