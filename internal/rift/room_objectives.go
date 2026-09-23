@@ -22,22 +22,29 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
-	Zone        *ObjectiveZone    `json:"zone,omitempty"`
-	Seconds     float64           `json:"seconds"`
-	Contested   bool              `json:"contested"`
-	Charging    bool              `json:"charging"`
-	Kind        string            `json:"kind"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Target      int               `json:"target"`
-	Collected   int               `json:"collected"`
-	Complete    bool              `json:"complete"`
-	Pickups     []ObjectivePickup `json:"pickups"`
+	Waves           [][]Actor         `json:"waves,omitempty"`
+	Wave            int               `json:"wave"`
+	NextWaveSeconds float64           `json:"next_wave_seconds"`
+	Zone            *ObjectiveZone    `json:"zone,omitempty"`
+	Seconds         float64           `json:"seconds"`
+	Contested       bool              `json:"contested"`
+	Charging        bool              `json:"charging"`
+	Kind            string            `json:"kind"`
+	Name            string            `json:"name"`
+	Description     string            `json:"description"`
+	Target          int               `json:"target"`
+	Collected       int               `json:"collected"`
+	Complete        bool              `json:"complete"`
+	Pickups         []ObjectivePickup `json:"pickups"`
 }
 
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "survive_waves" {
+		r.beginWaveObjective()
 		return
 	}
 	if r.Arena().Objective == "hold_circle" {
@@ -76,6 +83,7 @@ func (r *Run) collectRoomSigils() {
 
 func (r *Run) tickRoomObjective(dt float64) {
 	r.collectRoomSigils()
+	r.tickWaveObjective(dt)
 	o := r.RoomObjective
 	if o == nil || o.Kind != "hold_circle" || o.Complete || o.Zone == nil || r.Practice != nil || r.Paused || r.Status != "fighting" || r.Player.HP <= 0 {
 		return

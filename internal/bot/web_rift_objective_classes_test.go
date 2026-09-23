@@ -212,3 +212,39 @@ func TestRiftCircleRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftWaveRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Survivor", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-waves", build, now, catalog, 5)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				run.Level.Rooms[1].Hazards = nil
+				for group := range run.RoomObjective.Waves {
+					for i := range run.RoomObjective.Waves[group] {
+						enemy := &run.RoomObjective.Waves[group][i]
+						enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 205, 410, 1, 100
+					}
+				}
+				run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
+				for n := 0; n < 1500 && run.Status == "fighting"; n++ {
+					step(rift.Input{Attack: true})
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.RoomObjective.Wave != 3 {
+					t.Fatal("subclass could not defeat all waves")
+				}
+				if run.Stats.Kills != len(run.EncounterPlan[1]) {
+					t.Fatal("wave kills not recorded once per enemy")
+				}
+			})
+		}
+	}
+}

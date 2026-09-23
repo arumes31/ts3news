@@ -455,6 +455,9 @@
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;
       case 'spore_death': h(.35, .15, 800, pan); t(180, 45, .25, .12, 'sine'); t(240, 60, .15, .08, 'triangle', .04); break;
+      case 'wave_incoming': [0,.25].forEach(delay=>t(220,330,.2,.065,'triangle',delay)); break;
+      case 'wave_start': t(110,55,.35,.08,'triangle'); t(440,660,.22,.055,'sine',.1); break;
+      case 'waves_complete': [392,523,659,784].forEach((f,i)=>t(f,f,.3,.055,'triangle',i*.08)); break;
       case 'circle_charge': t(392,587,.35,.05,'sine'); break;
       case 'circle_contested': t(196,147,.2,.06,'triangle'); break;
       case 'circle_complete': [523,659,784,1047].forEach((f,i)=>t(f,f,.4,.055,'triangle',i*.09)); break;

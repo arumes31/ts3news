@@ -104,6 +104,9 @@ func Campaign() []Level {
 			if layout == 3 {
 				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds"
 			}
+			if layout == 4 {
+				level.Tactic += ". Tier 2: survive three waves of Abyss reinforcements"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
@@ -112,9 +115,12 @@ func Campaign() []Level {
 				if layout == 3 && room == 1 {
 					arena.Objective = "hold_circle"
 				}
+				if layout == 4 && room == 1 {
+					arena.Objective = "survive_waves"
+				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()
-				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionExtraEnemies(id), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
+				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionRoomExtraEnemies(id, room), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {
 					obstacle.X += float64(region*7 + room*19)
 					obstacle.Y += float64((region+room+i)%3-1) * 4
@@ -155,7 +161,7 @@ func (r *Run) setLevel(id int, catalog []content.Mob) {
 		if len(actors) == 0 {
 			continue
 		}
-		for extra := 0; extra < missionExtraEnemies(id); extra++ {
+		for extra := 0; extra < missionRoomExtraEnemies(id, room); extra++ {
 			actors = append(actors, actors[1%len(actors)])
 		}
 		for i := range actors {
@@ -493,4 +499,12 @@ func (r *Run) hazardTick() {
 		}
 		r.event(h.Kind, r.Player.X, r.Player.Y, 0)
 	}
+}
+
+func missionRoomExtraEnemies(id, room int) int {
+	extra := missionExtraEnemies(id)
+	if id%10 == 5 && room == 1 {
+		extra += 2
+	}
+	return extra
 }

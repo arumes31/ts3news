@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='hold_circle'){
+    if(roomGoal?.kind==='survive_waves'){
+      const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0;
+      put($('rift-room-objective-progress'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
+      put($('rift-room-objective-directions'),roomGoal.complete||ended?'':run.enemies.filter(enemy=>enemy.hp>0).length+' enemies remaining in this wave');
+    }else if(roomGoal?.kind==='hold_circle'){
       const zone=roomGoal.zone,inside=((run.player.x-zone.x)/zone.radius_x)**2+((run.player.y-zone.y)/zone.radius_y)**2<=1;
       const ended=!['fighting','cleared'].includes(run.status);
       const state=ended?'Expedition ended':roomGoal.complete?'Charged':gamePaused?'Paused':roomGoal.contested?'Contested':inside&&run.player.jump<=.1?'Charging':'Move onto the circle';

@@ -41,8 +41,8 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "treasure_capture", Name: "Treasure hunter", Description: "Defeat at least one treasure goblin and clear all three tiers. Offered when the mission contains a goblin; escapes do not count.", Target: 1, Status: "active"},
 		{ID: "aerial_finish", Name: "Aerial finish", Description: "Defeat at least one enemy with a basic attack while airborne, then clear all three tiers. Spell and pet kills do not count.", Target: 1, Status: "active"},
 		{ID: "melee_only", Name: "Close combat", Description: "Clear all three tiers using only basic attacks, slash abilities, heals and shields. Projectile, quake and area-ultimate casts fail this goal, even on a miss.", Status: "active"},
-		{ID: "ranged_priority", Name: "Ranged enemies first", Description: "Clear all three tiers, defeating every archer or spellcaster before other enemies in its tier. Offered when the mission contains ranged enemies.", Status: "active"},
-		{ID: "elite_priority", Name: "Elites first", Description: "Clear all three tiers, defeating elite minions, elites and minibosses before other enemies in each tier. Bosses are excluded. Offered when the mission contains elites.", Status: "active"},
+		{ID: "ranged_priority", Name: "Ranged enemies first", Description: "Clear all three tiers, defeating active archers and spellcasters before other active enemies. Offered when the mission contains ranged enemies.", Status: "active"},
+		{ID: "elite_priority", Name: "Elites first", Description: "Clear all three tiers, defeating active elite minions, elites and minibosses before other active enemies. Bosses are excluded. Offered when the mission contains elites.", Status: "active"},
 		{ID: "limited_dodge", Name: "Measured evasion", Description: "Clear all three tiers with at most three airborne dodges of enemy attacks. Empty jumps and floor hazards do not count.", Target: 3, Status: "active"},
 	}
 	builder, finisher := false, false

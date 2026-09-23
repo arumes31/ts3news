@@ -218,6 +218,29 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "waves" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("wave-room", selectedBuild, now, riftMobCatalog(now), 5)
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			run.Step(rift.Input{}, now.Add(20*time.Millisecond))
+			run.FinishCheckpoint("advance", riftMobCatalog(now))
+			run.Level.Rooms[1].Hazards = nil
+			for group := range run.RoomObjective.Waves {
+				for i := range run.RoomObjective.Waves[group] {
+					enemy := &run.RoomObjective.Waves[group][i]
+					enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 205, 410, 1, 100
+				}
+			}
+			run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
+			run.Player.X, run.Player.Y = 160, 410
+			run.Epoch = "fixture"
+			run.SetPaused(true, now.Add(20*time.Millisecond))
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "circle" {
 			mu.Lock()
 			now := time.Now()
