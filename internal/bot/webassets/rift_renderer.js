@@ -93,8 +93,9 @@
   }
   renderer.getProjectileShapeInfo = getProjectileShapeInfo;
 
+  function projectileAngle(vx,vy,isEnemy){return vx||vy?Math.atan2(vy||0,vx||0):isEnemy?Math.PI:0;}
   function drawProjectileShape(ctx, x, y, isEnemy, vx, vy, kind) {
-    const angle = Math.atan2(vy || 0, vx || (isEnemy ? -1 : 1));
+    const angle = projectileAngle(vx,vy,isEnemy);
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
@@ -808,7 +809,7 @@
           drawProjectileShape(ctx,p.x-camera,p.y-28,Boolean(p.enemy),p.vx,p.vy,p.kind);
         }
       }else{
-        if(p.kind==='arrow'){ctx.fillStyle='#d8b3e9';ctx.fillRect(p.x-camera-12,p.y-30,25,3);}
+        if(p.kind==='arrow'){ctx.save();ctx.translate(p.x-camera,p.y-30);ctx.rotate(projectileAngle(p.vx,p.vy,p.enemy));ctx.fillStyle='#d8b3e9';ctx.fillRect(-12,-1.5,25,3);ctx.restore();}
         else if(p.kind==='pack')sprite(4,2+Math.floor(now/70)%4,p.x-camera,p.y,70,p.vx,.85,'mobs');
         else fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
       }
