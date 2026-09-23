@@ -884,10 +884,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			e.Phase = 1
 		}
 		previousPhase := e.Phase
-		if e.Phase < 3 && e.HP <= e.MaxHP*0.25 && prevHP > e.MaxHP*0.25 {
+		if e.Phase < 3 && e.HP <= e.MaxHP*float64(bossPhaseTraining[2].AtHealthPercent)/100 && prevHP > e.MaxHP*float64(bossPhaseTraining[2].AtHealthPercent)/100 {
 			e.Phase = 3
 			r.event("boss_phase", e.X, e.Y-30, 3)
-		} else if e.Phase < 2 && e.HP <= e.MaxHP*0.5 && prevHP > e.MaxHP*0.5 {
+		} else if e.Phase < 2 && e.HP <= e.MaxHP*float64(bossPhaseTraining[1].AtHealthPercent)/100 && prevHP > e.MaxHP*float64(bossPhaseTraining[1].AtHealthPercent)/100 {
 			e.Phase = 2
 			r.event("boss_phase", e.X, e.Y-30, 2)
 		}
@@ -1189,7 +1189,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.Pose = "run"
 		}
 	} else if e.Cooldown == 0 && r.canStartEnemyAttack() {
-		e.Windup = EnemyTraining(e.Kind).WindupSeconds
+		e.Windup = enemyWindup(e)
 		e.Pose = "windup"
 		e.TargetX = p.X
 		e.TargetY = p.Y

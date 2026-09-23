@@ -54,6 +54,9 @@
     function statsFor(unit){
       const values=[['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
       if(unit.training)values.push(['Attack windup',unit.kind==='treasure'?'None: flees':new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s'],['Knockdown',unit.training.resists_knockdown?'Resistant':'Third basic strike can knock down'],['Interruptible',unit.training.interruptible?'Yes: third basic strike or ice':'No: resists basic-combo and ice interrupts']);
+      for(const phase of unit.training?.boss_phases||[]){
+        values.push(['Phase '+phase.phase, (phase.phase===1?'Opening':phase.at_health_percent+'% HP')+' · '+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(phase.windup_seconds)+' s windup']);
+      }
       return values;
     }
     function refreshBookmark(){if(!selected)return;const saved=bookmarks.has(selected.art_key);bookmark.setAttribute('aria-pressed',String(saved));bookmark.textContent=saved?'Remove practice bookmark':'Save for practice';}
