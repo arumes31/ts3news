@@ -8,7 +8,7 @@
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
-  let animationTime = 0, decorationTime = 0, motion = 1;
+  let animationTime = 0, decorationTime = 0, motion = 1, cameraRecovering = false;
   let previewStyle = 'vanguard';
   let previewLevel = null, transitionAt = -1000, impactAt=-Infinity;
   // Authored atlas panels have slightly different row heights. Crop inside
@@ -331,9 +331,9 @@
   renderer.snapshot = function (run, replay) {
     const entering=!replay&&(!snapshot||runID!==run.id||snapshot.room!==run.room||snapshot.level?.id!==run.level?.id);
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
-    if (changed) { impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; decals=[]; previous = null; deaths.clear(); }
+    if (changed) { cameraRecovering=false; impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; decals=[]; previous = null; deaths.clear(); }
     else previous = snapshot;
-    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; }
+    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; cameraRecovering=false; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
     if(run.paused)camera=cameraFrame(run).target;
@@ -759,8 +759,20 @@
     ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#091914';ctx.fillRect(0,0,960,540);
     const impactAge=wallNow-impactAt,shake=snapshot&&!snapshot.paused&&motion>0?display.shakeIntensity*motion*4*Math.max(0,1-impactAge/200):0;
     if(shake>0)ctx.translate(Math.sin(impactAge*.19)*shake,Math.cos(impactAge*.23)*shake*.6);
-    const framing=cameraFrame(snapshot),targetCamera=framing.target;
-    if(!snapshot?.paused)camera = display.cameraSmooth?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
+    const framing=cameraFrame(snapshot);
+    let targetCamera=framing.target;
+    if(!snapshot?.paused){
+      const player=snapshot?.player;
+      const recoiling=player&&(player.pose==='hit'&&player.pose_time>0||player.knockdown>0||Math.abs(player.recoil_x||0)>0);
+      if(recoiling){
+        cameraRecovering=true;
+        // Hold through impact unless the player or a framed boss would leave view.
+        const low=Math.max(framing.min,player.x-928),high=Math.min(framing.max,player.x-32);
+        targetCamera=Math.max(low,Math.min(high,camera));
+      }
+      camera=display.cameraSmooth||cameraRecovering?camera+(targetCamera-camera)*Math.min(1,dt*8):targetCamera;
+      if(!recoiling&&Math.abs(targetCamera-camera)<.25)cameraRecovering=false;
+    }
     camera=Math.max(framing.min,Math.min(framing.max,camera));
     renderer.cameraFraming={x:camera,bosses:framing.bosses};
     const backgroundX=Math.min(0,-camera*.35),backgroundWidth=Math.max(1184,960-backgroundX);
