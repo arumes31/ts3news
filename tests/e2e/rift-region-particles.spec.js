@@ -1,0 +1,9 @@
+const {test,expect}=require('@playwright/test');
+for(const [region,color] of [[1,'#d6aaa0'],[2,'#e1f5ff']])test('region particles follow camera and pause: '+region,async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(({run,region,color})=>{window.particlePaint=[];const ctx=document.getElementById('rift-canvas').getContext('2d'),fill=ctx.fillRect.bind(ctx);ctx.fillRect=(...args)=>{if(ctx.fillStyle===color)window.particlePaint.push(args);return fill(...args);};window.RiftDisplay.cameraSmooth=false;run.level.region=region;run.player.x=350;run.paused=true;window.particleRun=run;window.RiftRenderer.snapshot(run,true);},{run,region,color});
+ await expect.poll(()=>page.evaluate(()=>window.particlePaint.length)).toBeGreaterThan(0);const first=await page.evaluate(()=>window.particlePaint[0]);
+ await page.evaluate(async()=>{const run=window.particleRun;run.player.x=450;window.RiftRenderer.snapshot(run,true);await new Promise(requestAnimationFrame);window.particlePaint=[];});await expect.poll(()=>page.evaluate(()=>window.particlePaint.length)).toBeGreaterThan(0);const moved=await page.evaluate(()=>window.particlePaint[0]);expect((moved[0]-first[0]+1000)%1000).toBeCloseTo(965,5);expect(moved[1]).toBe(first[1]);
+ await page.evaluate(()=>{window.particleRun.paused=false;window.RiftRenderer.snapshot(window.particleRun,false);});await page.waitForTimeout(150);const drifting=await page.evaluate(()=>window.particlePaint.slice(-22)[0]);if(region===1)expect(drifting[1]).toBeLessThan(moved[1]);else expect(drifting[1]).toBeGreaterThan(moved[1]);
+ await page.evaluate(()=>{window.RiftRenderer.reduced=true;window.particlePaint=[];});await page.waitForTimeout(100);expect(await page.evaluate(()=>window.particlePaint.length)).toBe(0);
+});
