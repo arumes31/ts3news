@@ -744,16 +744,16 @@ func (r *Run) tick(in Input, dt float64) {
 		r.event("defeat", p.X, p.Y, 0)
 		return
 	}
+	if r.Practice != nil {
+		r.practiceTick()
+	}
+	r.tickRoomObjective(dt)
 	alive := 0
 	for _, e := range r.Enemies {
 		if e.HP > 0 {
 			alive++
 		}
 	}
-	if r.Practice != nil {
-		r.practiceTick()
-	}
-	r.tickRoomObjective(dt)
 	if r.Practice == nil && alive == 0 && r.Status == "fighting" && (r.RoomObjective == nil || r.RoomObjective.Complete) {
 		r.Stats.RoomsCleared++
 		r.recordFlawlessRoom()

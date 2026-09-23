@@ -553,6 +553,15 @@
       }
       ctx.restore();
     }
+      if(snapshot.room_objective?.kind==='marked_hunt'&&snapshot.room_objective.targets.includes(unit.id)&&unit.hp>0){
+        const tx=drawX,ty=y-jump-size*.9-32;
+        ctx.save();ctx.strokeStyle='#ffca78';ctx.fillStyle='#241707';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(tx,ty-10);ctx.lineTo(tx+10,ty);ctx.lineTo(tx,ty+10);ctx.lineTo(tx-10,ty);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(tx-4,ty);ctx.lineTo(tx+4,ty);ctx.moveTo(tx,ty-4);ctx.lineTo(tx,ty+4);ctx.stroke();
+        ctx.strokeStyle='#ffca7899';ctx.beginPath();ctx.ellipse(tx,y+2,27,8,0,0,Math.PI*2);ctx.stroke();
+        if(!display.cleanScreenshot){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#ffe0a6';ctx.strokeStyle='#241707';ctx.lineWidth=3;ctx.strokeText('HUNT TARGET',tx,ty-15);ctx.fillText('HUNT TARGET',tx,ty-15);}
+        ctx.restore();
+      }
     if (unit.id !== 'player' && unit.kind !== 'wolf') {
       if (unit.kind === 'boss') {
         renderer.lastBossPhaseDraw = { unitId: unit.id, phase: unit.phase || 1 };

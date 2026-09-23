@@ -22,6 +22,7 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
+	Targets         []string          `json:"targets,omitempty"`
 	Relic           *ObjectivePickup  `json:"relic,omitempty"`
 	Carrying        bool              `json:"carrying"`
 	Waves           [][]Actor         `json:"waves,omitempty"`
@@ -43,6 +44,10 @@ type RoomObjective struct {
 func (r *Run) beginRoomObjective() {
 	r.RoomObjective = nil
 	if r.Practice != nil {
+		return
+	}
+	if r.Arena().Objective == "marked_hunt" {
+		r.beginHuntObjective()
 		return
 	}
 	if r.Arena().Objective == "disable_generators" {
@@ -97,6 +102,7 @@ func (r *Run) collectRoomSigils() {
 
 func (r *Run) tickRoomObjective(dt float64) {
 	r.collectRoomSigils()
+	r.tickHuntObjective()
 	r.tickRelicObjective()
 	r.updateTotemObjective()
 	r.tickWaveObjective(dt)

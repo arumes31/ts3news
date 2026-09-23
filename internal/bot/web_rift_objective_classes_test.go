@@ -396,3 +396,54 @@ func TestRiftGeneratorRoomsSupportEverySubclass(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftHuntRoomsSupportEverySubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500}, Skills: content.AbyssClassSkills(sub.ID)}, "Hunter", 24)
+				now := time.Unix(100, 0)
+				catalog := content.AbyssMobCatalog()
+				run := rift.NewRunAtLevel("class-hunt", build, now, catalog, 9)
+				step := func(input rift.Input) { now = now.Add(20 * time.Millisecond); run.Step(input, now) }
+				for i := range run.Enemies {
+					run.Enemies[i].HP = 0
+				}
+				step(rift.Input{})
+				run.FinishCheckpoint("advance", catalog)
+				run.Level.Rooms[1].Hazards = nil
+				run.Level.Rooms[1].Obstacles = nil
+				run.Level.Rooms[1].HighCover = nil
+				for i := range run.Enemies {
+					run.Enemies[i].X = 1400
+					run.Enemies[i].Y = 490
+					run.Enemies[i].Knockdown = 100
+				}
+				for _, id := range run.RoomObjective.Targets {
+					for i := range run.Enemies {
+						e := &run.Enemies[i]
+						if e.ID != id {
+							continue
+						}
+						e.X, e.Y, e.HP = 205, 410, 1
+						for n := 0; n < 100 && e.HP > 0; n++ {
+							step(rift.Input{Attack: true})
+						}
+					}
+				}
+				if run.Status != "cleared" || !run.RoomObjective.Complete || run.Stats.Kills != run.RoomObjective.Target || len(run.Drops) != run.RoomObjective.Target {
+					t.Fatal("subclass hunt/reward isolation failed")
+				}
+				escaped := 0
+				for _, e := range run.Enemies {
+					if e.Pose == "escape" {
+						escaped++
+					}
+				}
+				if escaped != len(run.Enemies)-run.RoomObjective.Target {
+					t.Fatal("survivors did not retreat")
+				}
+			})
+		}
+	}
+}

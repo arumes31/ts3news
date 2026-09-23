@@ -118,6 +118,9 @@ func Campaign() []Level {
 			if layout == 7 {
 				level.Tactic += ". Tier 2: destroy the generators to shut down linked floor hazards"
 			}
+			if layout == 8 {
+				level.Tactic += ". Tier 2: defeat marked targets; survivors retreat without loot"
+			}
 			for room, suffix := range []string{"Approach", "Inner Court", "Guardian's Stand"} {
 				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
 				if layout == 2 && room == 1 {
@@ -137,6 +140,9 @@ func Campaign() []Level {
 				}
 				if layout == 7 && room == 1 {
 					arena.Objective = "disable_generators"
+				}
+				if layout == 8 && room == 1 {
+					arena.Objective = "marked_hunt"
 				}
 				arena.MaxAttackers = 2 + room
 				arena.LootRarityCeiling = LootRarityCap(room).String()

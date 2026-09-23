@@ -137,7 +137,12 @@
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
-    if(roomGoal?.kind==='disable_generators'){
+    if(roomGoal?.kind==='marked_hunt'){
+      const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
+      put($('rift-room-objective-progress'),'Targets '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Hunt complete':gamePaused?'Paused':'Defeat the marked enemies'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Targets defeated. Survivors retreated without granting kills or loot. Bank the tier loot to continue.':'Look for gold diamond markers. Defeat those enemies to secure the tier; surviving unmarked enemies retreat without rewards.');
+      put($('rift-room-objective-directions'),ended?'':targets.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
+    }else if(roomGoal?.kind==='disable_generators'){
       const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='generator'&&e.hp>0);
       put($('rift-room-objective-progress'),'Generators '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'All hazards off':'Shut down the hazards'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.kind!=='generator'&&e.hp>0)?'Hazards disabled. Defeat the remaining patrol.':'Generators and patrol cleared. Bank the tier loot to continue.'):'Destroy each generator with attacks or spells. Its linked floor hazard stays off. Generators grant no monster loot or kill credit.');
