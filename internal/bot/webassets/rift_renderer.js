@@ -734,10 +734,11 @@
         ctx.ellipse(targetX, targetY, rx, ry, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        if(!renderer.reduced){
-          const bx = rx * 0.82, by = ry * 0.82;
+        const precision=snapshot.build.class==='marksman'&&snapshot.resource>0&&unit.hp>0;
+        if(!renderer.reduced||precision){
+          const bx = (precision?size*.42:rx) * 0.82, by = (precision?size*.52:ry) * 0.82;
           const bLen = 6;
-          ctx.strokeStyle = '#a6ffe5';
+          ctx.strokeStyle = precision?'#ffe39b':'#a6ffe5';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(targetX - bx, targetY - by + bLen); ctx.lineTo(targetX - bx, targetY - by); ctx.lineTo(targetX - bx + bLen, targetY - by);
