@@ -632,6 +632,15 @@
       const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
       ctx.drawImage(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,-camera*.35,0,1184,540);
     }else ctx.drawImage(background,0,0,background.width,background.height,-camera*.35,0,1184,540);
+    if(region===3&&!renderer.reduced&&motion>0&&display.flashIntensity>0){
+      const phase=decorationTime%8000-1000;
+      if(phase>=0&&phase<240){
+        const cycle=Math.floor(decorationTime/8000),x=260+(cycle%3)*220-camera*.35;
+        ctx.save();ctx.strokeStyle='#b8c9ec';ctx.lineWidth=2;
+        ctx.globalAlpha=.28*(1-phase/240)*display.flashIntensity;
+        ctx.beginPath();ctx.moveTo(x,35);ctx.lineTo(x-18,83);ctx.lineTo(x+8,77);ctx.lineTo(x-12,135);ctx.stroke();ctx.restore();
+      }
+    }
     if(region===5&&!renderer.reduced&&motion>0){
       ctx.save();ctx.strokeStyle='#76c7cb';ctx.lineWidth=1;ctx.globalAlpha=.16;
       for(let i=0;i<8;i++){
