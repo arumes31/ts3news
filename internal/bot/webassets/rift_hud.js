@@ -244,6 +244,13 @@
       ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
     ];
 
+    if(isDefeated){
+      for(const boss of encounter.bosses||[]){
+        const percent=boss.max_hp>0?Math.round(boss.hp/boss.max_hp*100):0;
+        rows.push(['Boss: '+(boss.name||'Unknown boss'),numbers.format(boss.hp)+' / '+numbers.format(boss.max_hp)+' HP ('+percent+'%) · Phase '+boss.phase]);
+      }
+    }
+
     if(isDefeated&&encounter.defeated_by_boss){
       rows.push(['Defeated by boss',encounter.defeated_by_boss]);
     }

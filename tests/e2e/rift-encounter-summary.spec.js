@@ -166,3 +166,13 @@ test('defeat recap identifies the fatal boss rather than the room boss',async({p
  await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Ruins',room:0,room_name:'Gate',outcome:'defeated',seconds:12,player_hp:0,player_max_hp:100,enemies:0,boss_name:'Moss King'};window.RiftHUD.updateLastEncounter(run);},run);
  await expect(stats.locator('dt').filter({hasText:'Defeated by boss'})).toHaveCount(0);
 });
+
+
+test('boss defeat recap shows remaining health and phase for every boss',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+ const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Ruins',room:0,room_name:'Gate',outcome:'defeated',seconds:12,player_hp:0,player_max_hp:100,enemies:0,bosses:[{name:'Moss King',hp:400,max_hp:1000,phase:2},{name:'Void Queen',hp:100,max_hp:1000,phase:3}]};window.RiftHUD.updateLastEncounter(run);},run);
+ const stats=page.locator('#rift-last-encounter-stats');
+ await expect(stats.locator('dt').filter({hasText:'Boss: Moss King'}).locator('xpath=following-sibling::dd[1]')).toHaveText('400 / 1,000 HP (40%) · Phase 2');
+ await expect(stats.locator('dt').filter({hasText:'Boss: Void Queen'}).locator('xpath=following-sibling::dd[1]')).toHaveText('100 / 1,000 HP (10%) · Phase 3');
+});

@@ -147,29 +147,38 @@ type Event struct {
 	Value     float64 `json:"value,omitempty"`
 }
 
+// EncounterBossState snapshots a boss at the end of an encounter.
+type EncounterBossState struct {
+	Name  string  `json:"name"`
+	HP    float64 `json:"hp"`
+	MaxHP float64 `json:"max_hp"`
+	Phase int     `json:"phase"`
+}
+
 // EncounterSummary preserves an accessible structured summary of the last encounter.
 type EncounterSummary struct {
-	DefeatedByBoss  string  `json:"defeated_by_boss,omitempty"`
-	TreasureEscaped int     `json:"treasure_escaped,omitempty"`
-	Mission         int     `json:"mission"`
-	MissionName     string  `json:"mission_name"`
-	Room            int     `json:"room"`
-	RoomName        string  `json:"room_name"`
-	Outcome         string  `json:"outcome"` // "cleared", "defeated", "completed"
-	Seconds         float64 `json:"seconds"`
-	PlayerHP        float64 `json:"player_hp"`
-	PlayerMaxHP     float64 `json:"player_max_hp"`
-	Enemies         int     `json:"enemies"`
-	BossEncounter   bool    `json:"boss_encounter"`
-	BossName        string  `json:"boss_name,omitempty"`
-	DamageDealt     float64 `json:"damage_dealt"`
-	DamageTaken     float64 `json:"damage_taken"`
-	HitsTaken       int     `json:"hits_taken"`
-	GuardBlocked    float64 `json:"guard_blocked"`
-	BarrierBlocked  float64 `json:"barrier_blocked"`
-	Healing         float64 `json:"healing"`
-	GoldGained      int64   `json:"gold_gained"`
-	LootItems       int     `json:"loot_items"`
+	Bosses          []EncounterBossState `json:"bosses,omitempty"`
+	DefeatedByBoss  string               `json:"defeated_by_boss,omitempty"`
+	TreasureEscaped int                  `json:"treasure_escaped,omitempty"`
+	Mission         int                  `json:"mission"`
+	MissionName     string               `json:"mission_name"`
+	Room            int                  `json:"room"`
+	RoomName        string               `json:"room_name"`
+	Outcome         string               `json:"outcome"` // "cleared", "defeated", "completed"
+	Seconds         float64              `json:"seconds"`
+	PlayerHP        float64              `json:"player_hp"`
+	PlayerMaxHP     float64              `json:"player_max_hp"`
+	Enemies         int                  `json:"enemies"`
+	BossEncounter   bool                 `json:"boss_encounter"`
+	BossName        string               `json:"boss_name,omitempty"`
+	DamageDealt     float64              `json:"damage_dealt"`
+	DamageTaken     float64              `json:"damage_taken"`
+	HitsTaken       int                  `json:"hits_taken"`
+	GuardBlocked    float64              `json:"guard_blocked"`
+	BarrierBlocked  float64              `json:"barrier_blocked"`
+	Healing         float64              `json:"healing"`
+	GoldGained      int64                `json:"gold_gained"`
+	LootItems       int                  `json:"loot_items"`
 }
 
 // RoomBaseline tracks starting metrics at the beginning of each room to calculate encounter deltas.
@@ -373,14 +382,19 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		enemiesCount = kills
 	}
 
+	var bosses []EncounterBossState
 	treasureEscaped := 0
 	for _, e := range r.Enemies {
+		if e.Kind == "boss" {
+			bosses = append(bosses, EncounterBossState{Name: e.Name, HP: e.HP, MaxHP: e.MaxHP, Phase: max(1, e.Phase)})
+		}
 		if e.Kind == "treasure" && e.Pose == "escape" {
 			treasureEscaped++
 		}
 	}
 
 	r.LastEncounter = &EncounterSummary{
+		Bosses:          bosses,
 		DefeatedByBoss:  r.DefeatedByBoss,
 		TreasureEscaped: treasureEscaped,
 		Mission:         missionID,
