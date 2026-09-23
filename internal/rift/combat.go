@@ -287,6 +287,9 @@ func (r *Run) spawnRoom() {
 		r.EncounterPlan = planEncounters(r.ID, content.AbyssMobCatalog())
 	}
 	r.Enemies = append([]Actor{}, r.EncounterPlan[r.Room]...)
+	for i := range r.Enemies {
+		r.Enemies[i].Cooldown = math.Max(r.Enemies[i].Cooldown, rangedCooldownOffset(&r.Enemies[i]))
+	}
 	r.observeRoomMonsters()
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
@@ -1077,7 +1080,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.Attacks++
 			e.Pose = "attack"
 			e.PoseTime = .4
-			e.Cooldown = 1.6
+			e.Cooldown = 1.6 + rangedCooldownOffset(e)
 			if e.Kind == "archer" || e.Kind == "boss" && e.ArtKey != "" && e.Attacks%2 == 0 {
 				if !r.clearProjectilePath(e, e) || e.Kind == "archer" && !r.clearProjectilePath(e, p) {
 					e.Pose = "idle"
