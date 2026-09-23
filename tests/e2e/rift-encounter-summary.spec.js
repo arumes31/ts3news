@@ -142,3 +142,16 @@ test.describe('Proposal 0157: Accessible summary of the last encounter', () => {
     await context.close();
   });
 });
+
+
+test('escaped treasure is a separate persistent encounter outcome',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+ const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Test ruins',room:0,room_name:'Gate',outcome:'cleared',seconds:12,player_hp:100,player_max_hp:100,enemies:1,treasure_escaped:2};window.RiftHUD.updateLastEncounter(run);},run);
+ const stats=page.locator('#rift-last-encounter-stats');
+ await expect(stats.locator('dt').filter({hasText:'Treasure goblins escaped'})).toBeVisible();
+ await expect(stats).toContainText('2 · No loot or defeat credit');
+ await expect(stats.locator('dt').filter({hasText:'Enemies defeated'}).locator('xpath=following-sibling::dd[1]')).toHaveText('1');
+ await page.evaluate(run=>{run.last_encounter={mission:1,mission_name:'Test ruins',room:0,room_name:'Gate',outcome:'cleared',seconds:12,player_hp:100,player_max_hp:100,enemies:1};window.RiftHUD.updateLastEncounter(run);},run);
+ await expect(stats.locator('dt').filter({hasText:'Treasure goblins escaped'})).toHaveCount(0);
+});

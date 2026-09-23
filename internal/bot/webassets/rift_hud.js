@@ -237,6 +237,10 @@
       ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
     ];
 
+    if((encounter.treasure_escaped||0)>0){
+      rows.push(['Treasure goblins escaped',String(encounter.treasure_escaped)+' · No loot or defeat credit']);
+    }
+
     if((encounter.healing||0)>0){
       rows.push(['Healing received',numbers.format(encounter.healing)]);
     }
