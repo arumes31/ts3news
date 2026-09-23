@@ -679,3 +679,5 @@
 #rift-room-previews [data-terrain=wood]{fill:#a77540;stroke:#f0bf79;stroke-width:3}#rift-room-previews [data-terrain=stone],#rift-room-previews [data-terrain=tall]{fill:#7d8d98;stroke:#d6e5e9;stroke-width:5}
 
 #rift-terrain-hint{flex-basis:100%;color:#baf0d8;font-size:11px}#rift-terrain-hint[data-kind=tall],#rift-terrain-hint[data-kind=stone]{color:#d6e5e9}
+
+#rift-room-previews [data-terrain=ledge]{fill:#314c49;stroke:#a5e9ce;stroke-width:4}

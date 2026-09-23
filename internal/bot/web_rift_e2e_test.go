@@ -235,7 +235,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
-		if scenario := r.URL.Query().Get("scenario"); scenario == "terrain-cover" || scenario == "terrain-projectile" || scenario == "terrain-stone-projectile" || scenario == "vault-cover" {
+		if scenario := r.URL.Query().Get("scenario"); scenario == "terrain-cover" || scenario == "terrain-projectile" || scenario == "terrain-stone-projectile" || scenario == "vault-cover" || scenario == "drop-edge" || scenario == "drop-edge-pursuit" {
 			mu.Lock()
 			now := time.Now()
 			run := rift.NewRunAtLevel("terrain-cover", selectedBuild, now, riftMobCatalog(now), 1)
@@ -245,6 +245,15 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			}}
 			run.Enemies = []rift.Actor{{ID: "watcher", Name: "Watcher", Kind: "goblin", X: 1450, Y: 485, HP: 100, MaxHP: 100, Knockdown: 1000}}
 			run.Drops = []rift.Drop{{ID: "behind-wood", X: 410, Y: 410, Gold: 15}}
+            if scenario == "drop-edge" || scenario == "drop-edge-pursuit" {
+                run.Level.Rooms[0] = rift.Arena{Name:"Ledge approach",DropEdges:[]rift.DropEdge{{ID:"ledge-workshop",X:260,Y:365,W:80,LandingY:425}}}
+                run.Player.X, run.Player.Y = 300,345
+                run.Drops=[]rift.Drop{}
+                if scenario == "drop-edge-pursuit" {
+                    run.Player.Y=330
+                    run.Enemies=[]rift.Actor{{ID:"pursuer",Name:"Ledge pursuer",Kind:"goblin",X:300,Y:425,HP:100,MaxHP:100,Speed:90,Damage:1,Facing:-1}}
+                }
+            }
 			if scenario == "vault-cover" {
 				run.Level.Rooms[0].Cover = nil
 				run.Level.Rooms[0].Obstacles = []rift.Obstacle{{X: 300, Y: 380, W: 80, H: 40}}

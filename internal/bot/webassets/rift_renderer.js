@@ -426,7 +426,8 @@
     let x = unit.x, y = unit.y;
     if (previous && snapshot && !snapshot.paused && unit.hp > 0) {
       const old = unit.id === 'player' ? previous.player : previous.enemies.find(e => e.id === unit.id);
-      const t = Math.min(1,(now-received)/110);
+      let t = Math.min(1,(now-received)/110);
+      if(old && (snapshot.level?.rooms?.[snapshot.room]?.drop_edges||[]).some(edge=>old.x>=edge.x&&old.x<=edge.x+edge.w&&old.y<=edge.y&&unit.y>=edge.landing_y))t=renderer.reduced?1:t*t;
       if (old) { x = old.x+(x-old.x)*t; y = old.y+(y-old.y)*t; }
     }
     if (unit.hp <= 0) {
@@ -1096,6 +1097,20 @@
     for(const label of (!display.cleanScreenshot&&display.optionalCombatText)?window.RiftLoot.floorLabels(run.drops||[],camera):[]){
       if(label.moved){ctx.strokeStyle='#80927b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(label.drop.x-camera,label.drop.y-26);ctx.lineTo(label.x,label.y+17);ctx.stroke();}
       ctx.font='10px monospace';ctx.textAlign='center';ctx.fillStyle='#081914';ctx.fillRect(label.x-57,label.y,114,17);ctx.fillStyle=label.legendary?'#ffc66d':'#d7ecbb';ctx.fillText(label.text,label.x,label.y+12);
+    }
+    // The shaded cliff face is impassable; the outlined lower strip is safe ground.
+    for(const edge of arena?.drop_edges||[]){
+      const x=edge.x-camera,height=edge.landing_y-edge.y;
+      ctx.save();
+      ctx.fillStyle='#1b302d';ctx.fillRect(x,edge.y,edge.w,height);
+      ctx.strokeStyle='#48625b';ctx.lineWidth=1;
+      for(let row=12;row<height;row+=12){ctx.beginPath();ctx.moveTo(x,edge.y+row);ctx.lineTo(x+edge.w,edge.y+row);ctx.stroke();for(let col=(row%24?16:32);col<edge.w;col+=32){ctx.beginPath();ctx.moveTo(x+col,edge.y+row-12);ctx.lineTo(x+col,edge.y+row);ctx.stroke();}}
+      ctx.fillStyle='#92b6a1';ctx.fillRect(x-2,edge.y-3,edge.w+4,5);
+      ctx.fillStyle='#9df6d31a';ctx.fillRect(x,edge.landing_y,edge.w,18);
+      ctx.strokeStyle='#a5e9ce';ctx.setLineDash([4,3]);ctx.strokeRect(x,edge.landing_y,edge.w,18);ctx.setLineDash([]);
+      ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+edge.w/2,edge.y+12);ctx.lineTo(x+edge.w/2,edge.landing_y-12);ctx.lineTo(x+edge.w/2-6,edge.landing_y-19);ctx.moveTo(x+edge.w/2,edge.landing_y-12);ctx.lineTo(x+edge.w/2+6,edge.landing_y-19);ctx.stroke();
+      if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#caffeb';ctx.strokeStyle='#081914';ctx.lineWidth=3;ctx.strokeText('DROP ↓',x+edge.w/2,edge.y-10);ctx.fillText('DROP ↓',x+edge.w/2,edge.y-10);}
+      ctx.restore();
     }
     const nearbyCover=window.RiftHUD.nearbyCover(run);
     const units=[...run.enemies,run.player];

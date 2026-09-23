@@ -29,6 +29,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	DropEdges         []DropEdge        `json:"drop_edges,omitempty"`
 	Cover             []TerrainCover    `json:"cover,omitempty"`
 	Objective         string            `json:"objective,omitempty"`
 	MaxAttackers      int               `json:"max_attackers,omitempty"`
@@ -204,6 +205,9 @@ func Campaign() []Level {
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
 					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
+				}
+				if layout == 0 && room == 0 {
+					arena.DropEdges = []DropEdge{{ID: fmt.Sprintf("mission-%d-drop", id), X: 260, Y: 365, W: 80, LandingY: 425}}
 				}
 				level.Rooms = append(level.Rooms, arena)
 			}
@@ -504,12 +508,18 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 			dy = clamp(a.RouteY-a.Y, -math.Abs(dx), math.Abs(dx))
 		}
 	}
+	if navigate {
+		dx, dy = r.navigateDropEdge(a, dx, dy)
+	}
 	nextX := clamp(a.X+dx, 35, Width-35)
 	for _, o := range obstacles {
 		if contains(o, nextX, a.Y, radius) {
 			nextX = a.X
 			break
 		}
+	}
+	if r.dropFaceBlocksX(a, nextX) {
+		nextX = a.X
 	}
 	a.X = nextX
 	nextY := clamp(a.Y+dy, 315, 490)
@@ -519,7 +529,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 			break
 		}
 	}
-	a.Y = nextY
+	a.Y = r.crossDropEdge(a, nextY)
 }
 
 func (h Hazard) Phase(clock float64) float64 { return math.Mod(clock+h.Offset, h.Period) }

@@ -50,6 +50,9 @@ type Build struct {
 }
 
 type Actor struct {
+	LedgeRoute     string  `json:"ledge_route,omitempty"`
+	LedgeRouteX    float64 `json:"ledge_route_x,omitempty"`
+	LedgeRouteSide bool    `json:"ledge_route_side,omitempty"`
 	WeakPoint float64 `json:"weak_point,omitempty"`
 	Fleeing   bool    `json:"fleeing,omitempty"`
 	RouteX    float64 `json:"route_x,omitempty"`
