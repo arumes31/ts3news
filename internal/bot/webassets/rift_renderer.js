@@ -395,14 +395,19 @@
   }
   let interactionPrompts = null;
   // Capture drawing state now; draw instructions after world sprites and effects.
-  function interactionPrompt(text,x,y){
+  function interactionPrompt(text,x,y,backplate=false){
     if(display.cleanScreenshot)return;
     if(!interactionPrompts){ctx.strokeText(text,x,y);ctx.fillText(text,x,y);return;}
-    interactionPrompts.push({text,x,y,transform:ctx.getTransform(),font:ctx.font,align:ctx.textAlign,baseline:ctx.textBaseline,fill:ctx.fillStyle,stroke:ctx.strokeStyle,width:ctx.lineWidth,alpha:ctx.globalAlpha});
+    interactionPrompts.push({text,x,y,backplate,transform:ctx.getTransform(),font:ctx.font,align:ctx.textAlign,baseline:ctx.textBaseline,fill:ctx.fillStyle,stroke:ctx.strokeStyle,width:ctx.lineWidth,alpha:ctx.globalAlpha});
   }
   function drawInteractionPrompts(){
     for(const p of interactionPrompts||[]){
       ctx.save();ctx.setTransform(p.transform);ctx.font=p.font;ctx.textAlign=p.align;ctx.textBaseline=p.baseline;ctx.fillStyle=p.fill;ctx.strokeStyle=p.stroke;ctx.lineWidth=p.width;ctx.globalAlpha=p.alpha;
+      if(p.backplate){
+        const metrics=ctx.measureText(p.text),ascent=metrics.actualBoundingBoxAscent||10,descent=metrics.actualBoundingBoxDescent||2;
+        const left=p.align==='center'?p.x-metrics.width/2:p.align==='right'?p.x-metrics.width:p.x;
+        ctx.fillStyle='#071b16';ctx.fillRect(left-5,p.y-ascent-3,metrics.width+10,ascent+descent+6);ctx.fillStyle=p.fill;
+      }
       ctx.strokeText(p.text,p.x,p.y);ctx.fillText(p.text,p.x,p.y);ctx.restore();
     }
     interactionPrompts=null;
@@ -845,6 +850,7 @@
     }
     if (!snapshot) { const index=Math.max(0,styles.indexOf(foundations[previewStyle]||previewStyle));sprite(index%6,renderer.reduced?0:Math.floor(decorationTime/650)%2,630,400,113,-1,1,index<6?'heroesA':'heroesB');return; }
     interactionPrompts=[];
+    const hazardOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
     // The decorative floor continues past the playable space; mark its real rim.
@@ -913,7 +919,7 @@
     (arena?.hazards||[]).forEach(h=>{
       if(h.disabled||run.status!=='fighting'){
         ctx.save();ctx.strokeStyle='#75a796';ctx.lineWidth=1;ctx.setLineDash([3,5]);ctx.strokeRect(h.x-camera,h.y,h.w,h.h);ctx.setLineDash([]);
-        if(!display.cleanScreenshot&&display.hazardLabels){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.strokeText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);ctx.fillText('OFF',h.x+h.w/2-camera,h.y+h.h/2+3);}
+        if(!display.cleanScreenshot&&display.hazardLabels){ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillStyle='#b2d2c6';ctx.strokeStyle='#10221d';ctx.lineWidth=3;interactionPrompt('OFF',h.x+h.w/2-camera,h.y+h.h/2+3,true);}
         ctx.restore();return;
       }
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
@@ -930,8 +936,9 @@
         const seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
         const label=active?'JUMP · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
         ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
-        ctx.strokeText(label,x+h.w/2,h.y-6);ctx.fillText(label,x+h.w/2,h.y-6);
+        interactionPrompt(label,x+h.w/2,h.y-6,true);
       }
+      if(warning||active)hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color});
       if(active&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
       ctx.restore();
     });
@@ -1747,6 +1754,12 @@
         ctx.fillText(label,e.x-camera,e.y-drift);
       }
     });
+    // Preserve the danger footprint above large sprites without covering their bodies.
+    for(const h of hazardOverlays){
+      ctx.save();ctx.globalAlpha=1;ctx.setLineDash(h.warning?[8,4]:[]);
+      ctx.strokeStyle='#071b16';ctx.lineWidth=5;ctx.strokeRect(h.x,h.y,h.w,h.h);
+      ctx.strokeStyle=display.hazardContrast?'#fff8d8':h.color;ctx.lineWidth=display.hazardContrast?3:2;ctx.strokeRect(h.x,h.y,h.w,h.h);ctx.restore();
+    }
     drawInteractionPrompts();
     const isMovingFootstep = (run.player.pose === 'run' && now - footstep > 320) || (run.player.pose === 'guard_walk' && now - footstep > 460);
     if(run.status==='fighting' && !run.paused && isMovingFootstep && run.player.jump===0){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}
