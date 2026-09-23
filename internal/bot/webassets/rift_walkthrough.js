@@ -37,6 +37,7 @@
  $('rift-checkpoint-guide-dismiss').onclick=()=>{if(guideMode){learned[guideMode]=true;try{localStorage.setItem('riftCheckpointHelp',JSON.stringify({version:1,...learned}));}catch(_){}}guideMode=null;guide.hidden=true;$('rift-controls-open').focus({preventScroll:true});};
  function update(run){
   defeatGuide.hidden=run.status!=='defeated'||defeatDismissed;
+  const hazardHint=$('rift-hazard-defeat-hint'),hint=run.status==='defeated'?window.RiftHUD.hazardDefeatHint(run.defeated_by_hazard):'';hazardHint.textContent=hint;hazardHint.hidden=!hint;
   const mode=$('rift-auto').checked?'auto':'manual';
   if(guideRun!==run.id){guideRun=run.id;guideMode=null;}
   if(guideMode!==mode)guideMode=null;

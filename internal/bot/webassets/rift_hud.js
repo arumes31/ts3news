@@ -1,6 +1,14 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
+  function hazardDefeatHint(source){
+    if(!source||typeof source.kind!=='string')return '';
+    if(source.kind==='collapse')return 'Defeated by the advancing collapse. Stay ahead of its moving edge and reach the exit seal. Jumping does not evade collapse damage.';
+    const name=source.kind.charAt(0).toUpperCase()+source.kind.slice(1);
+    const escape=source.jumpable===true?'Leave the warning zone before the pulse, or jump while it is active.':'Leave the warning zone before the pulse. This hazard cannot be jumped.';
+    const extra=['ice','poison','thorns'].includes(source.kind)?' Guard reduces damage but does not prevent slowing.':source.kind==='void'?' Guard reduces damage but does not stop the pull.':' Guard reduces damage; it does not prevent contact.';
+    return 'Defeated by '+name+'. '+escape+extra;
+  }
   let announced='',summaryKey='',lastAnnouncedBossAttack='';
   let coachingDismissed=false;
   try{coachingDismissed=localStorage.getItem('riftClassCoachingDismissed')==='true';}catch(_){}
@@ -258,6 +266,7 @@
       }
     }
 
+    if(isDefeated&&encounter.defeated_by_hazard)rows.push(['Hazard counterplay',hazardDefeatHint(encounter.defeated_by_hazard)]);
     if(isDefeated&&encounter.defeated_by_boss){
       rows.push(['Defeated by boss',encounter.defeated_by_boss]);
     }
@@ -478,5 +487,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
+  window.RiftHUD={hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
 })();

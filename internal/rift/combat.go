@@ -167,6 +167,7 @@ type EncounterBossState struct {
 
 // EncounterSummary preserves an accessible structured summary of the last encounter.
 type EncounterSummary struct {
+	DefeatedByHazard *HazardDefeat `json:"defeated_by_hazard,omitempty"`
 	HazardDamageTaken float64 `json:"hazard_damage_taken"`
 	EnemyDamageTaken float64 `json:"enemy_damage_taken"`
 	Bosses          []EncounterBossState `json:"bosses,omitempty"`
@@ -210,6 +211,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	DefeatedByHazard *HazardDefeat `json:"defeated_by_hazard,omitempty"`
  RoomObjective *RoomObjective `json:"room_objective,omitempty"`
  ObjectiveHistory map[string]map[string]int `json:"objective_history,omitempty"`
  LastObjectives *MissionObjectives `json:"last_objectives,omitempty"`
@@ -294,6 +296,7 @@ func NewRun(id string, build Build, now time.Time) *Run {
 
 func (r *Run) spawnRoom() {
 	r.DefeatedByBoss = ""
+	r.DefeatedByHazard = nil
 	hits := r.Stats.HitsTaken
 	r.RoomStartHits = &hits
 	seconds := r.Stats.Seconds
@@ -430,6 +433,7 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	r.LastEncounter = &EncounterSummary{
 		Bosses:          bosses,
 		DefeatedByBoss:  r.DefeatedByBoss,
+		DefeatedByHazard: r.DefeatedByHazard,
 		TreasureEscaped: treasureEscaped,
 		Mission:         missionID,
 		MissionName:     missionName,
