@@ -520,6 +520,10 @@
       case 'rare_item': case 'rare_discovery': [523,659,784,1047,1318,1568].forEach((f,i)=>t(f,f*1.02,.38,.06,'sine',i*.055)); [1047,1318,1568,2093].forEach((f,i)=>t(f,f*.98,.45,.04,'triangle',.15+i*.04)); h(.35,.075,7500,pan); break;
       case 'clear': case 'bank': [392,494,587,784].forEach((f,i) => t(f,f,.4,.07,'triangle',i*.12)); break;
       case 'defeat': [294,247,196,147].forEach((f,i) => t(f,f*.95,.65,.07,'triangle',i*.16)); break;
+      case 'arrival': t(220,330,.24,.035,'sine'); t(440,660,.3,.025,'triangle',.08); break;
+      case 'barrier': t(330,495,.16,.03,'sine'); t(660,880,.18,.02,'sine',.03); break;
+      case 'resource': t(660,880,.09,.025,'triangle'); break;
+      case 'vanguard_guard': t(440,660,.12,.03,'triangle'); t(880,990,.15,.02,'sine',.04); break;
       case 'area': t(110,165,.8,.05,'sine'); t(220,247,.9,.04,'sine',.1); break;
       case 'ui': t(540,720,.07,.035,'triangle'); break;
       case 'low_health': [0,.22].forEach(delay=>t(180,120,.16,.075,'triangle',delay)); break;

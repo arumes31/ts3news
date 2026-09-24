@@ -148,3 +148,12 @@ from the Go build adapter, checks their effect-atlas rows, and requires both
 procedural arrow drawing branches. Producer/mapping structure changes require
 reviewing the validator as well. This catches missing kind registrations; actual
 visual quality still requires the browser skill preview and combat checks.
+
+For sound-name compatibility, run
+`go test ./internal/bot -run '^TestRiftSoundEventNamesHaveAudioSupport$' -count=1`.
+It scans literal combat event producers, direct UI calls, audible feedback cues,
+class entry sounds and live monster hurt/death/projectile kinds against audio
+cases. Projectile expiry is explicitly silent; directional captions with a false
+sound flag are excluded. New dynamic event construction needs corresponding
+coverage. The isolated browser test `rift-event-sound-coverage.spec.js` verifies
+actual source creation and pause cleanup for arrival/barrier/resource/guard cues.
