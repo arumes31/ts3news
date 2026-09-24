@@ -309,7 +309,23 @@
     for(const candidate of candidates){const o=candidate.obstacle,x=Math.max(o.x,Math.min(run.player.x,o.x+o.w)),y=Math.max(o.y,Math.min(run.player.y,o.y+o.h)),d=Math.hypot(x-run.player.x,y-run.player.y);if(d<distance){distance=d;nearest=candidate;}}
     return nearest;
   }
+  function bossPracticeLesson(run){
+    const node=$('rift-boss-practice-lesson');if(!node)return;
+    node.hidden=run.practice?.mode!=='boss';if(node.hidden)return;
+    const boss=run.enemies.find(enemy=>enemy.kind==='boss'&&enemy.hp>0);
+    let lesson;
+    if(run.practice.completed)lesson='Boss defeated. Reset and try another phase, or turn off longer warnings to practice normal timing.';
+    else if(!boss)lesson='Choose a boss and starting phase to practice recognizing its warnings.';
+    else if(boss.windup>0){
+      const volley=boss.art_key&&(boss.attacks+1)%2===0;
+      lesson=(boss.attack_name||(volley?'Aimed Volley':'Ground Slam'))+': '+(volley?'A projectile warning. Move out of the firing lane, or face incoming shots and guard. Keep watching shots after the warning ends.':'A ground-attack warning. Move clear of the marked area, or time your jump near impact. Jumping too early can leave you grounded when the attack lands.');
+    }else if(boss.cooldown>0)lesson='Recovery: look for an opening to attack or reposition. Projectiles already in flight can still hit you.';
+    else lesson='Watch the boss and its ground markings. Identify a ground attack or projectile warning before choosing your defense.';
+    if(run.practice.slow_telegraphs)lesson+=' Longer warnings double preparation time; projectile travel and recovery keep their normal speed.';
+    put(node,lesson);
+  }
   function update(run,playing,replay=false){
+    bossPracticeLesson(run);
     window.RiftMinimap.update(run);
     const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!cover||!['fighting','cleared'].includes(run.status);
     if(cover){hint.dataset.kind=cover.kind;put(hint,cover.kind==='ledge'?'One-way ledge · Move down to drop safely · Return around either end':cover.kind==='low'?'Low cover · Move + '+(window.RiftControls?.label('jump')||'Space')+' to vault · Projectiles pass over':cover.kind==='wood'?'Wooden barricade · Break with attacks · Blocks projectiles':cover.kind==='stone'?'Stone cover · Walk around · Blocks projectiles':'Tall cover · Walk around · Blocks projectiles');}
