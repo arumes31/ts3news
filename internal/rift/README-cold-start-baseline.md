@@ -93,3 +93,30 @@ not GPU completion, compositor presentation or end-to-end input latency. Hidden
 page intervals are excluded by resetting the interval origin on visibility loss.
 Diagnostics add measurement overhead and are not enabled by default. Record
 viewport, browser/device, selected FPS and scene alongside any reported values.
+
+
+## Input confirmation diagnostics
+
+Open `/abyss/rift?riftInputDebug=1` for a bottom-left development overlay. It
+reports the latest recognized-control-to-applied-response duration and rolling
+p95 over at most120 samples. `window.RiftInputDiagnostics` contains the lifetime
+sample count and bounded records with actions, total, queue and request milliseconds.
+It is absent without the flag. No character or response payloads are retained.
+
+Keyboard non-repeat presses, on-screen buttons, canvas mouse controls and controller
+recognition callbacks mark the latest press of each action. Controller timing
+starts at browser polling recognition, not physical button contact. A mark is
+consumed when a step actually carries its movement direction, active combat flag
+or selected skill ID. Multiple matching controls in one step form one sample,
+starting at the earliest matching mark. Held repeats and idle polling add no samples.
+Queue time includes input polling, ability buffering and request serialization;
+request time ends after the response is parsed and protocol-validated. Total time
+also includes applying the returned snapshot to the client. Pausing or resetting
+inputs invalidates pending marks and in-flight measurements; failed requests do
+not count. Buffered or blocked actions can remain pending until sent or replaced.
+
+Confirmation means an input-bearing request was validated and applied. It does
+not prove a hit, damage, successful cast, GPU presentation or physical-device input
+latency. A response can legitimately report a blocked action. This diagnostic is
+for development comparisons, adds overhead, and does not satisfy the physical
+minimum-device timing gate by itself.
