@@ -195,3 +195,10 @@ clipped plume footprint plus conservative margins. This preserves edge overlap
 and keeps decorative drawing independent from authoritative hazard behavior.
 The decoration-culling regression checks sparkles and vents at both camera
 extremes; the scene-atlas suite still exercises all 36 effect cells.
+
+Depth ordering caches only a permutation of current input indices. Each frame
+checks that permutation against current depths, breaking equal-depth ties by
+input index to retain stable ordering. It sorts again only after an inversion
+or a length change; no actor, snapshot or cover object is retained by this cache.
+`rift-depth-order-reuse.spec.js` verifies reuse while depths move without crossing,
+immediate reordering on crossing, and stable tie restoration.

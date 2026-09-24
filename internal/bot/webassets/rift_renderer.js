@@ -58,6 +58,18 @@
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
   }
+  let depthOrder=[];
+  function depthSortedUnits(units){
+    const compare=(a,b)=>(units[a].y-units[b].y)||a-b;
+    let changed=depthOrder.length!==units.length;
+    if(changed)depthOrder=units.map((_,index)=>index);
+    else for(let i=1;i<depthOrder.length;i++){
+      if(compare(depthOrder[i-1],depthOrder[i])>0){changed=true;break;}
+    }
+    if(changed)depthOrder.sort(compare);
+    // Cache indices only: each frame draws current actors and cover wrappers.
+    return depthOrder.map(index=>units[index]);
+  }
   function healthBarInView(x) { return x+40>=0 && x-40<=960; }
   function textInView(text,x) {
     if(x>=0&&x<=960)return true;
@@ -1426,7 +1438,7 @@
     (arena?.high_cover||[]).forEach(o=>{if(coverInView(o))units.push({y:o.y+o.h,cover:o,tall:true});});
     for(const pickup of (run.room_objective?.kind==='sigils'?run.room_objective.pickups:[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
-    units.sort((a,b)=>a.y-b.y).forEach(unit=>{
+    depthSortedUnits(units).forEach(unit=>{
       if(unit.terrain){
         const c=unit.terrain,broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
         // Tight source bounds align the generated sprites to the actual footprint.
