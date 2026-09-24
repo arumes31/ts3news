@@ -101,6 +101,7 @@
     if(transitionDelay&&transitionDelay.value!=='1.2'){transitionDelay.value='1.2';try{localStorage.removeItem('riftTransitionDelay');}catch(_){}transitionDelay.dispatchEvent(new Event('change'));}
     const collapse=document.getElementById('rift-campaign-start-collapsed');
     if(collapse&&collapse.checked){collapse.checked=false;try{const saved=JSON.parse(localStorage.getItem('riftCampaignView')||'{}');if(saved&&typeof saved==='object'){saved.startCollapsed=false;localStorage.setItem('riftCampaignView',JSON.stringify(saved));}}catch(_){}collapse.dispatchEvent(new Event('change'));}
+    const healthConfirm=document.getElementById('rift-confirm-health-cost');if(healthConfirm?.checked){healthConfirm.checked=false;healthConfirm.dispatchEvent(new Event('change'));}
     const readout=document.getElementById('rift-input-readout-enabled');
     if(readout&&readout.checked){readout.checked=false;try{localStorage.removeItem('riftInputReadout');}catch(_){}readout.dispatchEvent(new Event('change'));}
     const combatCaptions=document.getElementById('rift-combat-captions');
