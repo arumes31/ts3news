@@ -63,3 +63,24 @@ func TestObjectiveHistoryExcludesFailedAndUnfinishedGoals(t *testing.T) {
 		t.Fatal("early exit counted objectives")
 	}
 }
+
+func TestAttemptDifficultyIsFrozenAtRecording(t *testing.T) {
+	r := NewRunAtLevel("difficulty", testRun().Build, time.Unix(100, 0), nil, 26)
+	r.Stats.Seconds = 12
+	r.finishMissionHistory("completed")
+	r.Level.Difficulty = "Changed after completion"
+	if len(r.AttemptHistory) != 1 || r.AttemptHistory[0].Difficulty != "Veteran" {
+		t.Fatal("attempt difficulty not frozen")
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err = json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if saved.AttemptHistory[0].Difficulty != "Veteran" {
+		t.Fatal("difficulty lost on save")
+	}
+}

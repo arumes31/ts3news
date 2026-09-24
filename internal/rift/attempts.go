@@ -2,6 +2,7 @@ package rift
 
 // AttemptRecord retains a bounded recent outcome without changing personal bests.
 type AttemptRecord struct {
+	Difficulty string `json:"difficulty,omitempty"`
 	Splits  [3]*float64 `json:"splits"`
 	Mission int         `json:"mission"`
 	Outcome string      `json:"outcome"`
@@ -14,7 +15,7 @@ type AttemptRecord struct {
 }
 
 func (r *Run) attemptSnapshot(outcome string, at int64) AttemptRecord {
-	record := AttemptRecord{Splits: r.RoomSplits, Mission: r.Level.ID, Outcome: outcome, AtMS: at, Class: r.Build.Class, Seconds: max(0, r.Stats.Seconds-r.MissionStartSeconds), HP: r.Player.HP, MaxHP: r.Player.MaxHP}
+	record := AttemptRecord{Difficulty: r.Level.Difficulty, Splits: r.RoomSplits, Mission: r.Level.ID, Outcome: outcome, AtMS: at, Class: r.Build.Class, Seconds: max(0, r.Stats.Seconds-r.MissionStartSeconds), HP: r.Player.HP, MaxHP: r.Player.MaxHP}
 	if r.MissionStartHits != nil {
 		hits := r.Stats.HitsTaken - *r.MissionStartHits
 		if hits >= 0 {

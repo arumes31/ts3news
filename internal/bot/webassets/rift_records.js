@@ -8,7 +8,7 @@
   if(!latestRun)return;
   try{
    const run=latestRun,past=run.past_expeditions||{},stats=run.stats||{},at=new Date();
-   const records={version:1,exported_at:at.toISOString(),completed_missions:run.completed_levels||[],mission_history:run.mission_history||{},region_records:run.region_records||{},monster_records:run.monster_records||{},recent_attempts:run.attempt_history||[],career:{perfect_guards:(past.perfect_guards||0)+(stats.perfect_guards||0),enemies:(past.enemies||0)+(stats.kills||0),bosses:(past.bosses||0)+(stats.bosses||0),treasure_goblins:(past.treasure_goblins||0)+(stats.treasure_goblins||0),gold:(past.gold||0)+(run.banked_gold||0),gear:(past.gear||0)+(run.banked_items?.length||0)},current_expedition:{mission:run.level?.id,status:run.status,stats,room_splits:run.room_splits||[null,null,null],clear_streak:run.clear_streak||0,best_clear_streak:run.best_clear_streak||0},notes:'Recent history retains up to 50 attempts. Older records can be incomplete. Missing tier times remain null.'};
+   const records={version:1,exported_at:at.toISOString(),completed_missions:run.completed_levels||[],mission_history:run.mission_history||{},region_records:run.region_records||{},objective_history:run.objective_history||{},monster_records:run.monster_records||{},recent_attempts:run.attempt_history||[],career:{perfect_guards:(past.perfect_guards||0)+(stats.perfect_guards||0),enemies:(past.enemies||0)+(stats.kills||0),bosses:(past.bosses||0)+(stats.bosses||0),treasure_goblins:(past.treasure_goblins||0)+(stats.treasure_goblins||0),gold:(past.gold||0)+(run.banked_gold||0),gear:(past.gear||0)+(run.banked_items?.length||0)},current_expedition:{mission:run.level?.id,status:run.status,stats,room_splits:run.room_splits||[null,null,null],clear_streak:run.clear_streak||0,best_clear_streak:run.best_clear_streak||0},notes:'Recent history retains up to 50 attempts. Older records can be incomplete. Missing tier times remain null.'};
    const url=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='rift-brawl-records-'+at.toISOString().slice(0,10)+'.json';document.body.append(link);
    try{link.click();exportStatus.textContent='Record download prepared.';}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   }catch(_){exportStatus.textContent='Could not prepare the export. Try again.';}
@@ -72,12 +72,12 @@
   for(const record of [...attempts].reverse()){
    const item=document.createElement('li'),heading=document.createElement('strong'),body=document.createElement('p');
    heading.textContent='Mission '+record.mission+' · '+outcomes[record.outcome]+' · '+(record.at_ms>0?new Date(record.at_ms).toLocaleString():'Date unavailable');
-   body.textContent=(record.class?classLabel(record.class):'Subclass unavailable')+' · '+record.seconds.toFixed(1)+'s combat · End HP '+record.hp.toFixed(1)+'/'+record.max_hp.toFixed(1)+' · Damaging hits '+(record.hits??'unavailable');
+   body.textContent=(record.difficulty||'Difficulty unavailable')+' · '+(record.class?classLabel(record.class):'Subclass unavailable')+' · '+record.seconds.toFixed(1)+'s combat · End HP '+record.hp.toFixed(1)+'/'+record.max_hp.toFixed(1)+' · Damaging hits '+(record.hits??'unavailable');
    const splits=document.createElement('p');splits.textContent=splitText(record.splits);item.append(heading,body,splits);list.append(item);
   }
-  const latest=attempts.at(-1),previous=latest?[...attempts.slice(0,-1)].reverse().find(record=>record.mission===latest.mission):null;
+  const latest=attempts.at(-1),previous=latest?[...attempts.slice(0,-1)].reverse().find(record=>record.mission===latest.mission&&(record.difficulty||'')===(latest.difficulty||'')):null;
   if(!latest){comparison.textContent='No recorded attempts yet.';return;}
-  if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+'.';return;}
+  if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+' at '+(latest.difficulty||'an unknown difficulty')+'.';return;}
   comparison.textContent='Mission '+latest.mission+' compared with previous attempt ('+outcomes[previous.outcome]+' → '+outcomes[latest.outcome]+'): combat time '+delta(latest.seconds-previous.seconds)+'s; end HP '+delta(latest.hp-previous.hp)+'; damaging hits '+(latest.hits==null||previous.hits==null?'comparison unavailable':delta(latest.hits-previous.hits))+'.';
  }
  window.RiftRecords={update,init,classLabel,classIdentity};
