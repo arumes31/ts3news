@@ -68,6 +68,32 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   renderer.preview = level => { previewLevel = level; };
+  const effectLimit=40, effectPool=[];
+  function releaseEffect(effect){
+    // Erase event payloads and derived flags before retaining the reusable shell.
+    for(const key of Object.keys(effect))delete effect[key];
+    if(effectPool.length<effectLimit)effectPool.push(effect);
+  }
+  function acquireEffect(source){
+    if(effects.length===effectLimit)releaseEffect(effects.shift());
+    const effect=effectPool.pop()||{};
+    if(source)Object.assign(effect,source);
+    effects.push(effect);
+    return effect;
+  }
+  function clearEffects(){
+    effects.forEach(releaseEffect);
+    effects.length=0;
+  }
+  function retireEffects(now){
+    let kept=0;
+    for(let i=0;i<effects.length;i++){
+      const effect=effects[i];
+      if(now-effect.started<750)effects[kept++]=effect;
+      else releaseEffect(effect);
+    }
+    effects.length=kept;
+  }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
   const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_phase','victory']);
@@ -411,14 +437,14 @@
   renderer.snapshot = function (run, replay) {
     const entering=!replay&&(!snapshot||runID!==run.id||snapshot.room!==run.room||snapshot.level?.id!==run.level?.id);
     const changed = runID !== run.id || snapshot && run.counter < snapshot.counter;
-    if (changed) { cameraRecovering=false; impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; effects = []; decals=[]; previous = null; deaths.clear(); }
+    if (changed) { cameraRecovering=false; impactAt=-Infinity; runID = run.id; seen = replay ? run.counter : 0; clearEffects(); decals=[]; previous = null; deaths.clear(); }
     else previous = snapshot;
-    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; effects = []; decals=[]; deaths.clear(); camera=0; cameraRecovering=false; }
+    if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; clearEffects(); decals=[]; deaths.clear(); camera=0; cameraRecovering=false; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
     snapshot = run; received = performance.now();
     if(entering&&run.status==='fighting'&&!run.practice&&run.player.hp>0){
       const flourish=entryFlourishes[run.build?.class];
-      if(flourish){effects.push({kind:'class_entry',subclass:run.build.class,x:run.player.x,y:run.player.y-(run.player.elevation||0),started:animationTime});renderer.classEntryCount=(renderer.classEntryCount||0)+1;window.RiftAudio.play(flourish.sound,0);}
+      if(flourish){const effect=acquireEffect();effect.kind='class_entry';effect.subclass=run.build.class;effect.x=run.player.x;effect.y=run.player.y-(run.player.elevation||0);effect.started=animationTime;renderer.classEntryCount=(renderer.classEntryCount||0)+1;window.RiftAudio.play(flourish.sound,0);}
     }
     if(run.paused)camera=cameraFrame(run).target;
     const deadActors=[run.player,...run.enemies].filter(unit=>unit.hp<=0);
@@ -430,7 +456,7 @@
       seen = event.id;
       if(!replay&&(event.kind==='slam'||event.kind==='third_strike'||event.kind==='ultimate_anticipation'||event.kind==='boss_phase'||(event.kind==='finisher_cast'&&event.value>0)||event.kind==='hurt'&&event.value>0))impactAt=performance.now();
       if(!replay&&event.value>0&&decalColors[event.kind])decals.push({kind:event.kind,x:event.x,y:event.y+30-(event.elevation||0),started:animationTime});
-      if (event.kind !== 'area') effects.push({ ...event, y:event.y-(event.elevation||0), visualFacing: run.player.facing, started: animationTime });
+      if (event.kind !== 'area') { const effect=acquireEffect(event);effect.y=event.y-(event.elevation||0);effect.visualFacing=run.player.facing;effect.started=animationTime; }
       const floorMat = run.floor || run.level?.rooms?.[run.room]?.floor || 'stone';
       const extraArg = event.kind === 'hit' ? (run.build?.weapon || run.build?.class || 'blade') : event.value;
       const dx = run.player ? (event.x - run.player.x) : 0;
@@ -439,7 +465,6 @@
       if(event.kind!=='projectile_expire')window.RiftAudio.play(event.kind, dx / 700, extraArg, floorMat, dist);
     });
     if(decals.length>40)decals=decals.slice(-40);
-    if (effects.length > 40) effects = effects.slice(-40);
     // Admit newest damage labels once per snapshot, independent of spell visuals.
     let availableDamageNumbers=damageNumberBudget;
     for(let i=effects.length-1;i>=0;i--){
@@ -1519,7 +1544,7 @@
         else fx(effectRows[p.kind]??1,Math.floor(now/80)%3,p.x-camera,p.y-28,58,.95);
       }
     });
-    effects=effects.filter(e=>now-e.started<750);
+    retireEffects(now);
     effects.forEach(e=>{
       const age=(now-e.started)/750;
       if(e.kind==='class_entry'){
