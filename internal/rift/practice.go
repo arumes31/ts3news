@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	FreezeUsed bool `json:"freeze_used,omitempty"`
 	FreezeMovement bool `json:"freeze_movement,omitempty"`
 	RangedHits int `json:"ranged_hits,omitempty"`
 	PerfectGuards int `json:"perfect_guards,omitempty"`
@@ -124,6 +125,7 @@ func (r *Run) ResetPractice(now time.Time) error {
 		}
 	}
 	fresh.Practice.FreezeMovement = r.Practice.FreezeMovement
+	fresh.Practice.FreezeUsed = fresh.Practice.FreezeMovement
 	fresh.Practice.SlowTelegraphs = r.Practice.SlowTelegraphs
 	fresh.Revision = r.Revision
 	fresh.StartKey = r.StartKey
@@ -216,6 +218,7 @@ func (r *Run) PracticeTool(kind string) error {
 	switch kind {
 	case "practice_freeze":
 		r.Practice.FreezeMovement = !r.Practice.FreezeMovement
+		r.Practice.FreezeUsed = r.Practice.FreezeUsed || r.Practice.FreezeMovement
 	case "practice_health":
 		r.Player.HP = r.Player.MaxHP
 	case "practice_mana":

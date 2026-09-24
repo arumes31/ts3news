@@ -125,7 +125,7 @@
   function resetInput(){window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');if(!button)return;const isGuarding=Boolean((controls.toggleGuard&&guardLatched)||touch.has('guard'));button.setAttribute('aria-pressed',String(isGuarding));button.classList.toggle('rift-held',isGuarding);if(isGuarding)button.dataset.pressed='true';else delete button.dataset.pressed;}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
-  function practiceToolButtons(){root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'));}
+  function practiceToolButtons(){const freeze=$('rift-practice-freeze');if(freeze)freeze.setAttribute('aria-pressed',String(!!run?.practice?.freeze_movement));root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'));}
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
@@ -729,7 +729,7 @@
       if(!ready||starting||practiceToolPending||run?.status!=='fighting'||button.getAttribute('aria-disabled')==='true')return;
       practiceToolPending=true;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),true);
       try{await pause();while(busy)await new Promise(resolve=>setTimeout(resolve,20));if(run?.status==='fighting'&&!run.paused&&!await send('pause'))return;if(run?.status==='fighting'&&run.paused&&await send(button.dataset.practiceAction)){
-        $('rift-practice-tool-status').textContent=button.textContent+' applied. Drill progress is unchanged.';
+        $('rift-practice-tool-status').textContent=button.dataset.practiceAction==='practice_freeze'?(run.practice.freeze_movement?'Enemy movement frozen. Attacks and projectiles continue.':'Enemy movement resumed. Reset to start a new run without freeze assistance.'):button.textContent+' applied. Drill progress is unchanged.';
         message(drillNames[practice],$('rift-practice-instructions').textContent,'Resume drill','PRACTICE PAUSED');
       }}finally{practiceToolPending=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!ready||busy||!run);}
     }));

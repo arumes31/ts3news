@@ -48,10 +48,13 @@ func TestPracticeFreezeStopsEnemiesButPreservesPlayerAndAttacks(t *testing.T) {
 	if err := saved.PracticeTool("practice_freeze"); err != nil {
 		t.Fatal(err)
 	}
+	if !saved.Practice.FreezeUsed { t.Fatal("unfreezing erased assistance history") }
 	saved.moveActor(&saved.Enemies[0], 20, 0, true)
 	if saved.Enemies[0].X == x {
 		t.Fatal("unfreeze did not restore movement")
 	}
+	if err := saved.ResetPractice(time.Unix(300,0)); err != nil { t.Fatal(err) }
+	if saved.Practice.FreezeUsed || saved.Practice.FreezeMovement { t.Fatal("fresh unfrozen reset retained assistance") }
 	campaign := testRun()
 	if err := campaign.PracticeTool("practice_freeze"); err == nil {
 		t.Fatal("campaign accepted freeze")
