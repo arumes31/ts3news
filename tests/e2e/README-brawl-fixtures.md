@@ -75,3 +75,22 @@ node node_modules/@playwright/test/cli.js test tests/e2e/rift-touch-checkpoint.s
 
 This verifies persistence within a live fixture process. It does not establish
 survival across a server restart or production reward durability.
+
+## Terminal result fixtures
+
+Each URL below initializes a campaign result with 50 gold previously secured.
+They use isolated fixture storage and grant no real inventory rewards.
+
+| Page URL | Result |
+| --- | --- |
+| `/abyss/rift?scenario=terminal-complete` | Final tier of mission 1 completed, victory pose and replay action. |
+| `/abyss/rift?scenario=terminal-banked` | Exited at the first checkpoint with secured gold. |
+| `/abyss/rift?scenario=terminal-defeated` | First-tier player death with zero health and no unbanked drops. |
+| `/abyss/rift?scenario=terminal-expired` | Obsolete-epoch view; 50 gold is historical and spendable/banked gold is zero. |
+
+Completion, exit and defeat use the engine's transitions. Expiry supplies the
+read-side projection directly; it does not simulate a database economy reset.
+These cover all four terminal wire statuses; `fighting` and `cleared` are active
+states. Remove the scenario parameter before testing persistence, as above.
+`rift-terminal-fixtures.spec.js` checks the four result screens and reloads;
+`TestRiftTerminalFixtureRoutes` checks their server snapshots under `-tags=e2e`.

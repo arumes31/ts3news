@@ -56,6 +56,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if run := riftTerminalFixture(r.URL.Query().Get("scenario"), selectedBuild); run != nil {
+			mu.Lock()
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "practice-tools" && rift.ValidPracticeMode(r.URL.Query().Get("practice")) {
 			mode := r.URL.Query().Get("practice")
 			run, _ := rift.NewPracticeRun("practice-tools", selectedBuild, mode, time.Now())
