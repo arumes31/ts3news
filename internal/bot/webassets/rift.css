@@ -722,3 +722,6 @@
 .rift-skill-animation-canvas[hidden]{display:none}
 
 .rift-catalog-icon{display:inline-block;margin-right:.35em;color:var(--rift-gold);font-size:1.1em}
+
+#rift-result-monster-links {display:flex;flex-wrap:wrap;gap:.5rem}
+#rift-result-monster-links button {max-width:100%;white-space:normal;overflow-wrap:anywhere}

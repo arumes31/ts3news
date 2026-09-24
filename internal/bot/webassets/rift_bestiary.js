@@ -79,6 +79,8 @@
       }
       refreshBookmark();showRecord();animate();title.focus();
     }
+    render.monsterName=key=>roster.find(unit=>unit.art_key===key)?.name||'';
+    render.openMonster=(key,source)=>{const unit=roster.find(unit=>unit.art_key===key);if(!unit)return false;root.open=true;inspect(unit,source);panel.scrollIntoView({block:'nearest'});return true;};
     render.hasBoss=name=>roster.some(unit=>unit.kind==='boss'&&unit.name===name);
     render.openBoss=(name,source)=>{const unit=roster.find(unit=>unit.kind==='boss'&&unit.name===name);if(!unit)return false;root.open=true;inspect(unit,source);panel.scrollIntoView({block:'nearest'});return true;};
     const comparison=document.getElementById('rift-monster-comparison'),left=document.getElementById('rift-compare-left'),right=document.getElementById('rift-compare-right');
@@ -127,5 +129,5 @@
     search.oninput=()=>filter(false);[family,tier,element,style].forEach(select=>select.onchange=()=>filter(true));
     document.getElementById('rift-monster-clear').onclick=()=>{search.value='';family.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter(true);search.focus();};onToggle();
   }
-  window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets,hasBoss:name=>!!render.hasBoss?.(name),openBoss:(name,source)=>render.openBoss?.(name,source)||false};
+  window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets,monsterName:key=>render.monsterName?.(key)||'',openMonster:(key,source)=>render.openMonster?.(key,source)||false,hasBoss:name=>!!render.hasBoss?.(name),openBoss:(name,source)=>render.openBoss?.(name,source)||false};
 })();

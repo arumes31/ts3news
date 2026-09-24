@@ -219,6 +219,20 @@
     emptyNode.hidden=true;
     detailsNode.hidden=false;
 
+    const monsterLinks=$('rift-result-monster-links'),monsterGroup=$('rift-result-monsters');
+    if(monsterLinks&&monsterGroup){
+      const monsters=[...new Set(encounter.monster_keys||[])].map(key=>[key,window.RiftBestiary?.monsterName(key)]).filter(([,name])=>name);
+      const key=JSON.stringify(monsters);
+      if(monsterLinks.dataset.roster!==key){
+        monsterLinks.dataset.roster=key;monsterLinks.replaceChildren();
+        for(const [id,name] of monsters){
+          const button=document.createElement('button');button.type='button';button.textContent=name;
+          button.setAttribute('aria-label','Review '+name+' in bestiary');
+          button.onclick=()=>window.RiftBestiary.openMonster(id,button);monsterLinks.append(button);
+        }
+      }
+      monsterGroup.hidden=monsters.length===0;
+    }
     const bossGuide=$('rift-result-bestiary');
     if(bossGuide){
       const bossName=encounter.defeated_by_boss||encounter.boss_name;
