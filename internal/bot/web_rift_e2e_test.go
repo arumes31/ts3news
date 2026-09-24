@@ -56,6 +56,21 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "long-receipt" {
+			run, err := buildLargeRiftReceipt(selectedBuild, time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC))
+			if err != nil {
+				http.Error(w, "receipt fixture unavailable", 500)
+				return
+			}
+			run.Epoch = "fixture"
+			run.BankedAtMS = run.SavedAtMS
+			for i := range run.Enemies {
+				run.Enemies[i].HP = 0
+			}
+			mu.Lock()
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if run := riftHazardFixture(r.URL.Query().Get("scenario"), selectedBuild); run != nil {
 			mu.Lock()
 			runs[cookie.Value] = run

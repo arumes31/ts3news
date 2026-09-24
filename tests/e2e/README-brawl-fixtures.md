@@ -132,3 +132,23 @@ Invalid/out-of-range charge parameters leave the constructor's zero value.
 `TestRiftResourceFixtureAllStylesAndCharges` checks all 72 style/charge snapshots
 and their canonical signatures under `-tags=e2e`. `rift-resource-fixtures.spec.js`
 checks the displayed resource label and count for the same combinations.
+
+## Long banked-loot receipt
+
+Open `/abyss/rift?scenario=long-receipt` (optionally with `&subclass=arcanist`) for
+a completed 100-mission campaign containing more than 1,000 banked gear records.
+It uses the same generator as the large-snapshot codec regressions. Every authored
+room contributes one synthetic gear reward per spawned enemy, with mission/tier
+origins and gear constrained by that tier's rarity cap. This is a stress fixture,
+not the expected drop rate or proof of combat completion.
+
+The run ID and found-at time are fixed; the gear selection follows the current
+catalog's longest eligible names. Content edits can therefore change the receipt.
+The chosen class remains available, final enemies are defeated, and no real
+inventory is touched. The UI groups repeated item names and bounds displayed
+origins while keeping the complete saved receipt. Use search and expand a group
+to inspect origins. Remove both `scenario` and `subclass` before testing reload.
+
+`TestRiftLongReceiptFixture` verifies campaign coverage, selected build and a
+save-codec round trip. `rift-long-receipt-fixture.spec.js` verifies desktop/narrow
+layout, grouping, origin details, search and complete receipt persistence.
