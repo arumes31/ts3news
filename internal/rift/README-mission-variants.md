@@ -140,3 +140,6 @@ visual quality or release readiness; use the [release checklist](README-release.
 
 For an offline copy of every definition and objective totals, use the
 [static campaign export](../../cmd/brawl-campaign-export/README.md).
+
+For seeded encounter and entry-state inspection of one mission, use the
+[mission preview command](../../cmd/brawl-mission-preview/README.md).
