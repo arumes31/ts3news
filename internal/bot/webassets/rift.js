@@ -129,6 +129,7 @@
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
   function update(value, replay) {
     if(!value)return;
+    if(run&&(run.id!==value.id||run.room!==value.room||run.level?.id!==value.level?.id))resetInput();
     if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
     else if(!clearedAt) { clearedAt = performance.now(); countdownAnnounced = -1; }
     run=value;classPrimer();window.RiftBossIntro.update(run);window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
