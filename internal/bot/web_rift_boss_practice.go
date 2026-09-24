@@ -49,6 +49,7 @@ func resetRiftPractice(run *rift.Run, req riftRequest, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	fresh.Practice.FreezeMovement = run.Practice.FreezeMovement
 	fresh.Practice.SlowTelegraphs = run.Practice.SlowTelegraphs
 	if req.SlowTelegraphs != nil {
 		fresh.Practice.SlowTelegraphs = *req.SlowTelegraphs

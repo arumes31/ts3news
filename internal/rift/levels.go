@@ -545,6 +545,13 @@ func detourLane(a *Actor, wall Obstacle, obstacles []Obstacle) float64 {
 }
 
 func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
+	if r.Practice != nil && r.Practice.FreezeMovement {
+		for i := range r.Enemies {
+			if a == &r.Enemies[i] {
+				return
+			}
+		}
+	}
 	arena := r.Arena()
 	obstacles := arena.solidObstacles()
 	if a.Jump > .1 {
