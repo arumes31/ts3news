@@ -11,17 +11,17 @@ All row and column indices are zero-based. Uniform grids use
 `sourceX = column * imageWidth / columns` and the corresponding row formula.
 Do not divide irregularly spaced sheets into uniform rows.
 
-| Asset family | Columns × rows | Selection |
+| Asset family | Columns Ã— rows | Selection |
 | --- | --- | --- |
-| Brawl heroes A/B | 16 × 6 | Class row, expanded Brawl pose column. |
-| Brawl mobs | 16 × 6 | Rig row, expanded Brawl pose column. |
-| Brawl effects | 6 × 6 | `effectRows` event mapping, animation frame column. |
-| Brawl items | 4 × 4 | Slot icon index: column `index % 4`, row `floor(index / 4)`. |
-| Regional props | 4 × 2 | Region mapping `[0,1,2,3,4,5,6,3,3,7]`. |
-| Region backgrounds | 2 × 5 irregular rows | Region selects column `% 2` and row `floor(region / 2)`. |
-| Shared combat roles/creatures/bestiary/bosses | 8 × 8 irregular rows | `actorFrame().source` supplies normalized crop bounds. |
-| Shared class atlases | 8 × 6 | Shared class profile row and pose column. |
-| Catalog portraits | 14 × 12 | Catalog identity row/column, not a Brawl animation sequence. |
+| Brawl heroes A/B | 16 Ã— 6 | Class row, expanded Brawl pose column. |
+| Brawl mobs | 16 Ã— 6 | Rig row, expanded Brawl pose column. |
+| Brawl effects | 6 Ã— 6 | `effectRows` event mapping, animation frame column. |
+| Brawl items | 4 Ã— 4 | Slot icon index: column `index % 4`, row `floor(index / 4)`. |
+| Regional props | 4 Ã— 2 | Region mapping `[0,1,2,3,4,5,6,3,3,7]`. |
+| Region backgrounds | 2 Ã— 5 irregular rows | Region selects column `% 2` and row `floor(region / 2)`. |
+| Shared combat roles/creatures/bestiary/bosses | 8 Ã— 8 irregular rows | `actorFrame().source` supplies normalized crop bounds. |
+| Shared class atlases | 8 Ã— 6 | Shared class profile row and pose column. |
+| Catalog portraits | 14 Ã— 12 | Catalog identity row/column, not a Brawl animation sequence. |
 
 Regions use normalized row boundaries `[0,.179,.363,.559,.755,1]`.
 The renderer trims two source pixels from each region panel edge. Changing the
@@ -46,7 +46,7 @@ Brawl player rows, in order, are A: vanguard, berserker, marksman, beastmaster,
 elementalist, chronomancer; B: oracle, geomancer, bloodblade, voidwalker,
 runesmith, alchemist. Foundation classes map to their corresponding subclass
 row through `foundations`. Mob rows are goblin, archer, knight, boss, wolf, spore.
-The expanded pose sequence uses idle 0–1, run 2–5, attack 8–10, cast 11, hit 12,
+The expanded pose sequence uses idle 0â€“1, run 2â€“5, attack 8â€“10, cast 11, hit 12,
 knockdown 13 and defeat 14. Guard, jump, recovery and victory select additional
 columns or reuse these frames according to the renderer; do not replace the
 16-column sheet with the shared eight-column layout.
@@ -113,7 +113,7 @@ mask. The strict inequalities in `contains` allow exact boundary contact.
 | Treasure creature or wolf | 6 |
 | Other actors | 10 |
 
-Movement clamps actor centers to X 35–1565 in the 1600-wide world and Y 315–490.
+Movement clamps actor centers to X 35â€“1565 in the 1600-wide world and Y 315â€“490.
 Navigation adds two units when detecting the need to route around an obstacle;
 this is distinct from the actual movement clearance. Both axes are checked.
 Jump state above `.1` permits passing low cover, while tall cover remains solid.
@@ -164,3 +164,9 @@ so partial sprites, overhang, labels and camera shake remain visible. This chang
 only draw work; full arena geometry still participates in server collision and
 client interaction selection. Recheck the margin if future cover art extends
 farther beyond its authored footprint.
+
+Health bars use a conservative 40-unit horizontal margin; names and interaction
+labels use their measured text width with six units for stroke and shake. This
+keeps long edge-overlapping names visible while skipping fully off-screen text.
+The health-label browser regression covers regular enemies, bosses, generators,
+totems, cages and ward lanterns. Actor art and attack telegraphs remain independent.
