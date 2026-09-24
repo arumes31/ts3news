@@ -12,7 +12,8 @@
   const skill=value=>object(value)&&text(value.id)&&text(value.name)&&(value.icon===undefined||text(value.icon))&&nonnegative(value.cost)&&nonnegative(value.cooldown)&&(value.reference===undefined||reference(value.reference));
   const elevation=value=>value===undefined||nonnegative(value)&&value<=32;
   const actor=value=>object(value)&&elevation(value.elevation)&&text(value.id)&&text(value.name)&&text(value.kind)&&finite(value.x)&&finite(value.y)&&nonnegative(value.hp)&&nonnegative(value.max_hp)&&value.max_hp>0&&finite(value.facing);
-  const build=value=>object(value)&&text(value.name)&&text(value.class)&&list(value.skills,skill)&&list(value.gear,text)&&optionalList(value.owned_ultimates,text)&&(!value.signatures||list(value.signatures,skill))&&(!value.ultimate||skill(value.ultimate));
+  const equipment=value=>value==null||object(value)&&Object.values(value).every(item=>object(item)&&text(item.name)&&object(item.stats)&&Object.values(item.stats).every(finite));
+  const build=value=>object(value)&&text(value.name)&&text(value.class)&&list(value.skills,skill)&&list(value.gear,text)&&equipment(value.equipment)&&optionalList(value.owned_ultimates,text)&&(!value.signatures||list(value.signatures,skill))&&(!value.ultimate||skill(value.ultimate));
   const drop=value=>point(value)&&elevation(value.elevation)&&text(value.id)&&nonnegative(value.gold)&&(!value.gear||object(value.gear)&&text(value.gear.Name)&&text(value.gear.Slot));
   const projectile=value=>point(value)&&elevation(value.elevation)&&finite(value.vx)&&finite(value.vy)&&text(value.kind)&&(value.enemy===undefined||typeof value.enemy==='boolean');
   const event=value=>point(value)&&elevation(value.elevation)&&nonnegative(value.id)&&text(value.kind)&&(value.value===undefined||finite(value.value));

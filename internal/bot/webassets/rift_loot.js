@@ -44,6 +44,17 @@
     notices.dataset.confirmed='true';
     notices.hidden=!notices.childElementCount;clearTimeout(pickupTimer);pickupTimer=setTimeout(()=>{notices.hidden=true;delete notices.dataset.confirmed;notices.replaceChildren();},4000);
   }
+  function comparison(gear,parent){
+    const section=create('details','',parent);section.className='rift-gear-comparison';create('summary','Compare with expedition gear',section);
+    const equipment=run.build.equipment;
+    if(!equipment){create('p','Comparison unavailable for this older expedition. Start a new expedition to snapshot equipped gear.',section);return;}
+    const equipped=equipment[gear.Slot];
+    create('p',equipped?'Against '+equipped.name+' · '+gear.Slot:'No item equipped in '+gear.Slot+' at expedition start.',section);
+    const keys=[...new Set([...Object.keys(gear.Stats||{}),...Object.keys(equipped?.stats||{})])],deltas=[];
+    for(const key of keys){const incoming=gear.Stats?.[key]||0,current=equipped?.stats?.[key]||0;if(Number.isFinite(incoming)&&Number.isFinite(current)&&incoming!==current)deltas.push(key+' '+(incoming-current>0?'+':'')+format.format(incoming-current));}
+    create('p',deltas.length?deltas.join(' · '):'No base stat changes.',section);
+    create('small','Raw item-stat differences, not predicted Brawl damage. Affixes, durability and other bonuses are not included. Equipping in Abyss applies to a new expedition.',section);
+  }
   function bag(){
     if(!run)return;
     const items=run.drops.filter(drop=>drop.collected&&!drop.banked&&drop.gear),sort=$('rift-loot-sort').value;
@@ -64,6 +75,7 @@
       for(const [name,value] of Object.entries(gear.Stats||{}))if(typeof value==='number'&&value!==0){create('dt',name,stats);create('dd',format.format(value),stats);}
       create('dt','Maximum durability',stats);create('dd',format.format(gear.MaxDurability||0),stats);
       if(gear.Element)create('p','Element: '+gear.Element,details);
+      comparison(gear,details);
     }
   }
   function receipt(){
@@ -98,7 +110,7 @@
     for(const drop of pending){if(drop.collected)continue;const dx=drop.x-run.player.x,dy=drop.y-run.player.y,squared=dx*dx+dy*dy;if(squared<distance){distance=squared;nearest={dx,dy};}}
     const directions=['→ right','↘ lower right','↓ down','↙ lower left','← left','↖ upper left','↑ up','↗ upper right'];
     put($('rift-nearest-drop'),nearest?'Nearest drop: '+(distance<1?'here':directions[(Math.round(Math.atan2(nearest.dy,nearest.dx)/(Math.PI/4))+8)%8]):'No uncollected drops');
-    const key=run.id+':'+JSON.stringify(items.map(d=>[d.id,d.gear.ID]));if(key!==bagKey){bagKey=key;bag();}
+    const key=run.id+':'+JSON.stringify([run.build.equipment,items.map(d=>[d.id,d.gear])]);if(key!==bagKey){bagKey=key;bag();}
     put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||run.banked_items.length?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
     const next=JSON.stringify([run.id,run.banked_gold,run.banked_objective_gold,run.banked_items,run.banked_loot]);
     $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);

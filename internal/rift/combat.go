@@ -30,7 +30,13 @@ type Skill struct {
 	Cooldown float64 `json:"cooldown"`
 }
 
+type EquipmentSnapshot struct {
+	Name string `json:"name"`
+	Stats content.Stats `json:"stats"`
+}
+
 type Build struct {
+	Equipment map[content.GearSlot]EquipmentSnapshot `json:"equipment"`
 	BaseClass      string    `json:"base_class"`
 	ClassName      string    `json:"class_name"`
 	Resource       string    `json:"resource"`

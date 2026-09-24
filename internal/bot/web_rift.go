@@ -99,7 +99,7 @@ func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {
 	// Compress the RPG's very large stat range for readable action combat while
 	// retaining permanent progression and equipment differences in this mode.
 	scale := func(n int) float64 { return math.Log2(1 + float64(max(0, n))) }
-	build := rift.Build{Name: name, BaseClass: u.AbyssClass, Class: u.AbyssSubclass, Level: level, HP: 160 + scale(u.Stats.HP)*15, Damage: 12 + scale(max(u.Stats.STR, u.Stats.INT))*3, Armor: scale(u.Stats.DEF), Weapon: "Unarmed", Skills: []rift.Skill{}, Signatures: []rift.Skill{}, Gear: []string{}}
+	build := rift.Build{Name: name, BaseClass: u.AbyssClass, Class: u.AbyssSubclass, Level: level, HP: 160 + scale(u.Stats.HP)*15, Damage: 12 + scale(max(u.Stats.STR, u.Stats.INT))*3, Armor: scale(u.Stats.DEF), Weapon: "Unarmed", Skills: []rift.Skill{}, Signatures: []rift.Skill{}, Gear: []string{}, Equipment: map[content.GearSlot]rift.EquipmentSnapshot{}}
 	if build.Class == "" {
 		build.Class = u.AbyssClass
 	}
@@ -121,7 +121,8 @@ func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {
 		}
 	}
 	_, build.Relic = u.Equipped[content.SlotRelic]
-	for _, g := range u.Equipped {
+	for slot, g := range u.Equipped {
+		build.Equipment[slot] = rift.EquipmentSnapshot{Name: g.Name, Stats: g.Stats}
 		build.Gear = append(build.Gear, g.Name)
 		if g.Slot == content.SlotMainHand {
 			build.Weapon = g.Name
