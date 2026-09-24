@@ -27,7 +27,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -66,11 +66,15 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}
-	if mode == "combo" || mode == "class" {
+	if mode == "combo" || mode == "class" || mode == "skills" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
 	}
 	if mode == "class" {
 		r.configureClassTarget()
+	}
+	if mode == "skills" {
+		r.Practice.Arena.Name = "Skill testing lane"
+		r.Player.HP = r.Player.MaxHP * .6
 	}
 	if mode == "guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
@@ -117,7 +121,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
-	case "boss", "class":
+	case "boss", "class", "skills":
 		return in
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
@@ -134,6 +138,9 @@ func (r *Run) practiceInput(in Input) Input {
 func (r *Run) practiceTick() {
 	if r.Status != "fighting" {
 		return
+	}
+	if r.Practice.Mode == "skills" {
+		return // Free practice ends only when the player leaves or resets.
 	}
 	complete := r.Player.X >= r.Practice.GoalX
 	if r.Practice.Mode == "boss" {
