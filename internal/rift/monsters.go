@@ -78,11 +78,16 @@ func monsterElementEffect(element string) string {
 	return ""
 }
 
+func newRunState(id string, build Build, now time.Time) *Run {
+	r := &Run{Schema: 1, ID: id, Build: build, Status: "fighting", LastMS: now.UnixMilli(), SavedAtMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
+	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
+	return r
+}
+
 // NewRunWithCatalog freezes only this expedition's encounters. Each new run
 // reads the current catalog; a content update cannot rewrite a fight in progress.
 func NewRunWithCatalog(id string, build Build, now time.Time, catalog []content.Mob) *Run {
-	r := &Run{Schema: 1, ID: id, Build: build, Status: "fighting", LastMS: now.UnixMilli(), SavedAtMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
-	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
+	r := newRunState(id, build, now)
 	r.EncounterPlan = planEncounters(id, catalog)
 	r.spawnRoom()
 	r.event("arrival", r.Player.X, r.Player.Y, 0)

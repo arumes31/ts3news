@@ -273,8 +273,9 @@ func buildCampaign() []Level {
 }
 
 func NewRunAtLevel(id string, build Build, now time.Time, catalog []content.Mob, levelID int) *Run {
-	r := NewRunWithCatalog(id, build, now, catalog)
+	r := newRunState(id, build, now)
 	r.setLevel(max(1, min(LevelCount, levelID)), catalog)
+	r.event("arrival", r.Player.X, r.Player.Y, 0)
 	return r
 }
 
