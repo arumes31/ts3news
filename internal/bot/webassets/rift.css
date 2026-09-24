@@ -794,3 +794,12 @@
 #rift-skill-glossary > summary { min-height:48px; padding:12px 0; font-size:16px; }
 #rift-app #rift-glossary-search { width:100%; min-height:48px; font-size:16px; }
 #rift-skill-glossary button { min-height:48px; max-width:100%; overflow-wrap:anywhere; }
+
+/* Checkpoint banking must fit independently of a short mobile battlefield. */
+@media (max-width:900px) {
+  .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) { aspect-ratio:auto; }
+  .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) canvas { height:auto; }
+  .rift-viewport:not(:fullscreen) #rift-room-actions { position:relative; inset:auto; transform:none; min-width:0; width:auto; margin:12px; }
+  .rift-viewport:not(:fullscreen) #rift-room-actions > div { flex-wrap:wrap; }
+  .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) #rift-transition { position:relative; inset:auto; transform:none; margin:12px auto; }
+}
