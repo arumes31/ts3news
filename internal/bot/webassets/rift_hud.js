@@ -618,6 +618,8 @@
       if($('rift-boss-attack'))$('rift-boss-attack').hidden=true;
       lastAnnouncedBossAttack='';
     }
+    // All cooldown labels and rings share this authoritative snapshot clock.
+    // Per-button wall-clock timers would drift during pause or delayed responses.
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
