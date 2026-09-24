@@ -806,6 +806,8 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				return
 			}
 			switch req.Kind {
+			case "practice_spawn", "practice_clear":
+				if err := applyRiftPracticeEnemy(run, req, time.Now()); err != nil { http.Error(w, err.Error(), 409); return }
 			case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
 				if err := run.PracticeTool(req.Kind); err != nil {
 					http.Error(w, err.Error(), 409)

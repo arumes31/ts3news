@@ -25,6 +25,7 @@ import (
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
 
 type riftRequest struct {
+	EnemyName string `json:"enemy_name,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	SlowTelegraphs *bool      `json:"slow_telegraphs,omitempty"`
 	BossName       string     `json:"boss_name,omitempty"`
@@ -278,6 +279,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 }
 
 func validRiftRequest(r riftRequest) bool {
+	if len(r.EnemyName) > 512 || (r.Kind == "practice_spawn" && strings.TrimSpace(r.EnemyName) == "") { return false }
 	if len(r.BossName) > 512 || r.BossPhase < 0 || r.BossPhase > 3 {
 		return false
 	}
@@ -295,7 +297,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_spawn", "practice_clear", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
 		return true
 	}
 	return false
@@ -321,6 +323,7 @@ func decodeRift(saved string) (*rift.Run, error) {
 }
 
 func validRiftModeAction(mode, kind string) bool {
+	if kind == "practice_spawn" || kind == "practice_clear" { return mode == "skills" }
 	if mode == "" {
 		switch kind {
 		case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss":
@@ -474,6 +477,8 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			return nil, errRiftConflict
 		}
 		switch req.Kind {
+		case "practice_spawn", "practice_clear":
+			if err := applyRiftPracticeEnemy(run, req, now); err != nil { return nil, errRiftConflict }
 		case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
 			if err := run.PracticeTool(req.Kind); err != nil {
 				return nil, errRiftConflict
