@@ -7,8 +7,8 @@ node scripts/brawl-string-inventory.cjs --out .tmp/brawl-localization-candidates
 node --test scripts/brawl-string-inventory.test.cjs
 ```
 
-The development-only Acorn parser reads all `internal/bot/webassets/rift*.js`
-files. It never executes those files. Output includes source-file SHA256 hashes,
+The development-only Acorn and parse5 parsers read all
+`internal/bot/webassets/rift*.js` and `rift*.html` files. It never executes those files. Output includes source-file SHA256 hashes,
 string text, one-based line/column locations, parent AST context and all duplicate
 occurrences. IDs hash string kind and exact text, remaining stable when a line
 moves. Source edits change the relevant file hash; regenerate after changing copy.
@@ -27,7 +27,14 @@ translation code. Ordinary string concatenations remain separate candidates and
 need human review to define complete messages, plural rules and parameter types.
 English text in the core `statusCopy` catalog is included automatically.
 
-The initial scope is all Brawl JavaScript modules. HTML templates, Go-generated
+HTML extraction includes text nodes, title/alt/placeholder and accessible text
+attributes, plus button input values. Comments, scripts and styles are excluded.
+Go template actions are masked before HTML parsing so nested quotes in asset
+helpers cannot corrupt attribute parsing, then restored as numbered parameters.
+Template control actions can appear among candidates and require source review;
+do not translate them. Attribute locations point to the attribute start.
+
+The current scope is Brawl JavaScript modules and HTML templates. Go-generated
 mission/objective/loot text, shared Abyss content and dynamically received server
 messages are not yet included. The full localization-inventory task remains open
 until these sources and their ownership are covered. This tooling adds no runtime

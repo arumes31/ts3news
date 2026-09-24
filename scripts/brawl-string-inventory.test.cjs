@@ -20,3 +20,13 @@ test('inventory deduplicates copy while retaining locations and stable identitie
 test('parse failures are explicit rather than silently losing strings',()=>{
  assert.throws(()=>extractStrings('broken.js','const ='),/broken.js/);
 });
+
+test('HTML extraction preserves template parameters, labels and entity decoding',()=>{
+ const source='<div data-art="{{asset "/static/test.png"}}" title="Help &amp; tips">Hello {{.Name}}!<button aria-label="Jump">Go</button></div>\n<!-- Hidden comment --><script>"Not visible"</script><style>.x{}</style>';
+ const result=inventory([['rift.html',source]]);
+ const greeting=result.entries.find(entry=>entry.text==='Hello {1}!');
+ assert.ok(greeting);assert.deepEqual(greeting.occurrences[0].parameters,['.Name']);
+ assert.equal(greeting.occurrences[0].line,1);
+ for(const text of ['Help & tips','Jump','Go'])assert.ok(result.entries.some(entry=>entry.text===text));
+ assert.equal(result.entries.some(entry=>entry.text.includes('Not visible')||entry.text.includes('Hidden comment')||entry.text.includes('/static/test')),false);
+});
