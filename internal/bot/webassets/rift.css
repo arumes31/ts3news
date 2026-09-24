@@ -749,3 +749,10 @@
 /* Held combat controls must not start text selection or mobile callouts. */
 #rift-app button[data-action] { user-select: none; -webkit-user-select: none; }
 #rift-app button[data-action][data-pressed="true"] { -webkit-touch-callout: none; }
+
+
+#rift-orientation-hint { display: none; margin: 0; padding: 10px 14px; color: var(--rift-muted); font: 12px/1.5 ui-monospace, monospace; }
+@media (any-pointer: coarse) and (orientation: portrait) {
+  #rift-orientation-hint { display: block; }
+}
+.rift-clean-screenshot #rift-orientation-hint { display: none; }
