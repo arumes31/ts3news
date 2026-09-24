@@ -9,7 +9,7 @@ import (
 // startup, before any request can select a mission by its slice position.
 // This deliberately does not validate or rewrite historical saved expeditions.
 func init() {
-	if err := validateCampaignIdentity(Campaign()); err != nil {
+	if err := validateCampaignIdentity(campaignDefinitions); err != nil {
 		panic(fmt.Sprintf("invalid Brawl campaign content: %v", err))
 	}
 }

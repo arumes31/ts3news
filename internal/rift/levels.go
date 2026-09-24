@@ -81,9 +81,9 @@ type Level struct {
 	Rooms      []Arena `json:"rooms"`
 }
 
-// Campaign derives all missions from ten arena blueprints and ten regional
+// buildCampaign derives all missions from ten arena blueprints and ten regional
 // rulesets. Every mission has different collision geometry and hazard timing.
-func Campaign() []Level {
+func buildCampaign() []Level {
 	regions := []string{"Mossbound Ruins", "Ember Forge", "Glacial Crossing", "Storm Spires", "Venom Mire", "Drowned Temple", "Bloodrust Barracks", "Moonlit Necropolis", "Starless Rift", "Obsidian Citadel"}
 	landmarks := [10][3]string{
 		{"Ivy Arch", "Rootbound Court", "Elderstone Throne"},
@@ -279,7 +279,7 @@ func NewRunAtLevel(id string, build Build, now time.Time, catalog []content.Mob,
 }
 
 func (r *Run) setLevel(id int, catalog []content.Mob) {
-	level := Campaign()[id-1]
+	level := cloneCampaignLevel(campaignDefinitions[id-1])
 	r.Level = &level
 	r.beginMissionHistory()
 	r.RoomSplits = [3]*float64{}

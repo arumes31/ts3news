@@ -32,6 +32,11 @@ alone does not establish a distinct level. Regional offsets, room offsets,
 cover widths, floor materials and hazard periods are applied by `Campaign`.
 Do not duplicate those rules in the browser. `Campaign()` returns fresh content;
 callers may mutate their own expedition copy without modifying future runs.
+The package builds one private definition cache at startup. `Campaign()` deep-copies
+all definitions for callers; selecting a mission deep-copies only that level.
+The copy includes all arena slices and the encounter-preview pointer. New mutable
+fields must be added to `cloneCampaignLevel` and its isolation regression. The
+cache never contains player state, broken cover or a generated encounter plan.
 
 ## Arena contract
 
