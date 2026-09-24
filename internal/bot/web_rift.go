@@ -310,10 +310,11 @@ func riftFailure(w http.ResponseWriter, r *http.Request, err error) {
 
 func decodeRift(saved string) (*rift.Run, error) {
 	var run rift.Run
-	if len(saved) > 256_000 {
-		return nil, errors.New("rift snapshot exceeds limit")
+	payload, err := riftSnapshotJSON(saved)
+	if err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal([]byte(saved), &run); err != nil {
+	if err := json.Unmarshal(payload, &run); err != nil {
 		return nil, fmt.Errorf("decode rift: %w", err)
 	}
 	if run.Schema != 1 || run.ID == "" || run.Room < 0 || run.Room >= len(rift.Rooms) || run.SkillTimers == nil {
@@ -523,11 +524,11 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 		}
 	}
 	run.SavedAtMS = now.UnixMilli()
-	data, err := json.Marshal(run)
+	data, err := encodeRift(run)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO app_meta (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", key, string(data)); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO app_meta (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", key, data); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
