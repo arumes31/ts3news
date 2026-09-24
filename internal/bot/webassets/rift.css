@@ -705,3 +705,7 @@
 #rift-relic-synergy[data-state="armed"]{color:#ffe5ac;border:1px solid #b6a374;background:#353422;padding:4px 6px}
 
 #rift-app[data-practice]:not([data-practice=""]):not([data-practice="boss"]):not([data-practice="class"]) :is(.rift-classbar,#rift-finisher-state,#rift-ultimate-state){display:none!important}
+
+#rift-transition{width:max-content;max-width:calc(100% - 32px);white-space:normal;text-align:center;box-sizing:border-box}
+
+.rift-viewport:has(#rift-transition:not([hidden])) .rift-room-actions{bottom:94px}

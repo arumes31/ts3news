@@ -111,6 +111,9 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				run.Room = 1
 				run.Level.Rooms[1].Hazards = nil
 			}
+			if charges, err := strconv.Atoi(r.URL.Query().Get("charges")); err == nil && charges >= 0 && charges <= 3 {
+				run.Resource = charges
+			}
 			run.Status = "cleared"
 			if r.URL.Query().Get("condition") == "wounded" {
 				run.Player.HP = run.Player.MaxHP / 2

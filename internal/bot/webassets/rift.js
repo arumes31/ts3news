@@ -29,6 +29,7 @@
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
+  const transitionText=message=>message+(run?.build?.resource?' · '+run.build.resource+' '+(run.resource||0)+'/3':'');
   let lastAudioArea = -1;
   function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);audio.silence?.();try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
@@ -277,9 +278,9 @@
     controls.prompts();window.RiftHUD.update(run,playing,replay);
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
     put($('rift-clear-label'),run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured');
-    if(awaitingNewRegionPause()){const nextReg=nextRegionEntering();put($('rift-transition'),'Approaching '+(nextReg?.region_name||'new region')+' · Prepare and confirm when ready.');}
-    else if(awaitingBossConfirmation())put($('rift-transition'),'Boss tier cleared · Confirm to bank rewards and continue.');
-    if(awaitingBossRoomPause())put($('rift-transition'),'Boss room ahead · Prepare and confirm when ready.');
+    if(awaitingNewRegionPause()){const nextReg=nextRegionEntering();put($('rift-transition'),transitionText('Approaching '+(nextReg?.region_name||'new region')+' · Prepare and confirm when ready.'));}
+    else if(awaitingBossConfirmation())put($('rift-transition'),transitionText('Boss tier cleared · Confirm to bank rewards and continue.'));
+    if(awaitingBossRoomPause())put($('rift-transition'),transitionText('Boss room ahead · Prepare and confirm when ready.'));
     put($('rift-next'),awaitingNewRegionPause()?'Enter next region →':awaitingBossConfirmation()?'Confirm & continue →':awaitingBossRoomPause()?'Enter boss room →':$('rift-auto').checked?'Continue now →':run.room===2?'Bank & finish expedition':'Bank & continue →');
     setSafeDisabled($('rift-pause'),!playing&&run.status!=='fighting'&&run.status!=='cleared');
     updatePauseButton(playing);
@@ -345,7 +346,7 @@
         const remaining=Math.max(0,transitionDelay-(performance.now()-clearedAt)/1000);
         const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
         const nextLabel=next||'campaign complete';
-        $('rift-transition').textContent=remaining>0?'Next: '+nextLabel+' · '+remaining.toFixed(1)+'s':'Banking rewards…';
+        $('rift-transition').textContent=transitionText(remaining>0?'Next: '+nextLabel+' · '+remaining.toFixed(1)+'s':'Banking rewards…');
         if(countdownAnnounced===-1){
           countdownAnnounced=Math.ceil(remaining);
           put($('rift-announcer'),'Next tier: '+(next||'next chamber')+' in '+Math.ceil(transitionDelay)+' seconds. Automatic transition enabled.');
