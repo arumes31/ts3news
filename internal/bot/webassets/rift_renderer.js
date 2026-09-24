@@ -428,6 +428,8 @@
       throw new Error('Could not load '+key+' artwork. Reload to try again.');
     });
   }));
+  // Gate play on canvas atlases only. CSS mission/bestiary previews reuse these
+  // URLs, but their DOM image requests must never join the readiness promise.
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
   renderer.snapshot = function (run, replay) {
     if (!run) return;

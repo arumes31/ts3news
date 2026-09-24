@@ -120,3 +120,15 @@ not prove a hit, damage, successful cast, GPU presentation or physical-device in
 latency. A response can legitimately report a blocked action. This diagnostic is
 for development comparisons, adds overhead, and does not satisfy the physical
 minimum-device timing gate by itself.
+
+
+## Optional preview readiness
+
+Mission-card CSS thumbnails and bestiary previews do not join `RiftRenderer.ready`.
+Bestiary cards are constructed only when its details section opens. Preview URLs
+reuse the versioned canvas atlas URLs; the combat atlases themselves remain required.
+The optional-preview regression tags CSS-only consumers with a test query parameter
+to isolate their requests from canvas loads, holds those requests indefinitely,
+then verifies first play and live rendering before aborting them and confirming
+pause/resume readiness without client errors. This verifies the dependency boundary,
+not a download saving: all current combat atlases still load before first play.
