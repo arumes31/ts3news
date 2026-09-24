@@ -1,0 +1,8 @@
+const {test,expect}=require('@playwright/test');
+test('banked loot keeps original provenance through seamless mission advance and reload',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint&room=final&level=10');await expect(page.locator('#rift-start')).toBeEnabled();const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run,before=await read(),drop=before.drops.find(d=>d.gear);await page.locator('#rift-start').click();await expect.poll(async()=>(await read()).level.id).toBe(11);await page.keyboard.press('Escape');
+ const banked=(await read()).banked_loot.find(item=>item.name===drop.gear.Name);expect(banked).toMatchObject({mission:10,tier:3,origin:drop.gear.found_boss,found_at:drop.gear.found_at});
+ await page.locator('#rift-receipt > summary').click();const details=page.locator('#rift-receipt-list > li > details').first();await details.locator(':scope > summary').click();await expect(details).toContainText('Mission 10 · Tier 3');await expect(details).toContainText(drop.gear.found_boss);await expect(details).toContainText(drop.gear.found_at);
+ await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await details.scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await details.screenshot({path:'test-results/loot-origin-mobile.png'});
+ await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();expect((await read()).banked_loot).toContainEqual(banked);
+});

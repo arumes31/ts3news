@@ -580,7 +580,7 @@ func bankRift(ctx context.Context, tx *sql.Tx, uid, requestID string, run *rift.
 				return err
 			}
 			run.BankedItems = append(run.BankedItems, gear.Name)
-			run.BankedLoot = append(run.BankedLoot, rift.BankedLoot{Name: gear.Name, Rarity: int(gear.Rarity)})
+			run.BankedLoot = append(run.BankedLoot, drop.LootReceipt())
 		}
 		drop.Banked = true
 		drop.Collected = true

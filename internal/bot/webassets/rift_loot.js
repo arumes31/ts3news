@@ -87,7 +87,16 @@
     const query=normalize($('rift-receipt-search').value.trim());
     const matches=[...groups].filter(([name])=>normalize(name).includes(query)).sort(([a],[b])=>a.localeCompare(b));
     $('rift-receipt-list').replaceChildren();
-    matches.slice(0,200).forEach(([name,n])=>create('li',name+(n>1?' × '+format.format(n):''),$('rift-receipt-list')));
+    matches.slice(0,200).forEach(([name,n])=>{
+      const li=create('li','',$('rift-receipt-list')),details=create('details','',li);create('summary',name+(n>1?' × '+format.format(n):''),details);
+      const sources=new Map();
+      for(const item of records.filter(item=>item.name===name&&(!rareOnly||rarities.get(item.rarity)?.rare_or_better===true))){
+        const source=[item.mission?'Mission '+item.mission:'',item.tier?'Tier '+item.tier:'',item.origin||'',item.found_at?'Found '+item.found_at:''].filter(Boolean).join(' · ')||'Origin unavailable in this older receipt';
+        sources.set(source,(sources.get(source)||0)+1);
+      }
+      if(!sources.size)create('p','Origin unavailable in this older receipt.',details);
+      else{const list=create('ul','',details);[...sources].slice(0,200).forEach(([source,count])=>create('li',source+(count>1?' × '+format.format(count):''),list));if(sources.size>200)create('p',format.format(sources.size-200)+' additional origin entries retained in the saved receipt.',details);}
+    });
     $('rift-receipt-empty').hidden=matches.length>0;
     $('rift-receipt-empty').textContent=run.banked_items.length?'No banked items match these filters.':'No gear was banked.';
     $('rift-receipt-limit').hidden=matches.length<=200;

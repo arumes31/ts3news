@@ -151,6 +151,10 @@ type Drop struct {
 }
 
 type BankedLoot struct {
+	Mission int `json:"mission,omitempty"`
+	Tier int `json:"tier,omitempty"`
+	Origin string `json:"origin,omitempty"`
+	FoundAt string `json:"found_at,omitempty"`
 	Name   string `json:"name"`
 	Rarity int    `json:"rarity"`
 }
