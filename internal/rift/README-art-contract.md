@@ -1,0 +1,144 @@
+# Brawl atlas, anchor and collision contract
+
+Source of truth: [rift_renderer.js](../bot/webassets/rift_renderer.js),
+[shared combat art](../bot/webassets/abyss_combat_art.js), and
+[ground collision](levels.go). The measurements below describe current rendering
+and physics, not instructions to infer collision from painted pixels.
+
+## Atlas coordinates and frame selection
+
+All row and column indices are zero-based. Uniform grids use
+`sourceX = column * imageWidth / columns` and the corresponding row formula.
+Do not divide irregularly spaced sheets into uniform rows.
+
+| Asset family | Columns × rows | Selection |
+| --- | --- | --- |
+| Brawl heroes A/B | 16 × 6 | Class row, expanded Brawl pose column. |
+| Brawl mobs | 16 × 6 | Rig row, expanded Brawl pose column. |
+| Brawl effects | 6 × 6 | `effectRows` event mapping, animation frame column. |
+| Brawl items | 4 × 4 | Slot icon index: column `index % 4`, row `floor(index / 4)`. |
+| Regional props | 4 × 2 | Region mapping `[0,1,2,3,4,5,6,3,3,7]`. |
+| Region backgrounds | 2 × 5 irregular rows | Region selects column `% 2` and row `floor(region / 2)`. |
+| Shared combat roles/creatures/bestiary/bosses | 8 × 8 irregular rows | `actorFrame().source` supplies normalized crop bounds. |
+| Shared class atlases | 8 × 6 | Shared class profile row and pose column. |
+| Catalog portraits | 14 × 12 | Catalog identity row/column, not a Brawl animation sequence. |
+
+Regions use normalized row boundaries `[0,.179,.363,.559,.755,1]`.
+The renderer trims two source pixels from each region panel edge. Changing the
+sheet's separators requires changing these boundaries and reviewing every panel.
+
+Shared combat sheets use these measured row boundaries in the 1254-pixel
+reference coordinate system, scaled proportionally to actual image height:
+
+| Sheet | Row boundaries |
+| --- | --- |
+| roles | 0, 158, 318, 476, 638, 783, 924, 1086, 1254 |
+| creatures | 0, 144, 298, 441, 617, 789, 947, 1076, 1254 |
+| bestiary | 0, 143, 281, 435, 591, 758, 900, 1056, 1254 |
+| bosses | 0, 155, 312, 466, 625, 786, 941, 1085, 1254 |
+
+Shared pose columns are idle `[0,1]`, attack `[2,3]`, cast `[4,5]`, hurt `[6]`,
+defeat `[7]`. Their row order follows the `rigs` array in the shared provider,
+eight rigs per sheet. Consumers must use its returned source rectangle; CSS
+portrait/class metadata is not interchangeable with a Brawl source rectangle.
+
+Brawl player rows, in order, are A: vanguard, berserker, marksman, beastmaster,
+elementalist, chronomancer; B: oracle, geomancer, bloodblade, voidwalker,
+runesmith, alchemist. Foundation classes map to their corresponding subclass
+row through `foundations`. Mob rows are goblin, archer, knight, boss, wolf, spore.
+The expanded pose sequence uses idle 0–1, run 2–5, attack 8–10, cast 11, hit 12,
+knockdown 13 and defeat 14. Guard, jump, recovery and victory select additional
+columns or reuse these frames according to the renderer; do not replace the
+16-column sheet with the shared eight-column layout.
+
+Effect rows are 0 for physical impacts, 1 for fire/slam/quake, 2 for ice/pack,
+3 for protection/healing/radiant/rune, 4 for void/poison/ultimate, and 5 for loot
+and completion effects. These are themes, not an exhaustive event list;
+`effectRows` contains the exact mappings and some effects are drawn procedurally.
+
+Terrain cover uses four measured source rectangles rather than a uniform grid:
+`[48,107,542,434]`, `[676,107,541,434]`, `[16,906,600,242]`,
+`[657,733,574,399]` in `(x,y,width,height)` pixels. Preserve or remeasure these
+when changing the terrain-cover sheet. Area/boss backgrounds, objective images
+and the platform surface are whole-image drawings, not pose atlases.
+
+## Intended foot and base anchors
+
+Actor rendering places a square destination at `(-size/2, -size*.91)` around the
+actor's draw origin. Thus its intended foot anchor is normalized **(0.5, 0.91)**
+in both local Brawl cells and shared combat source rectangles. Leave transparent
+space below the feet; aligning feet to the very bottom makes actors appear to
+float relative to their ground position. Horizontal facing flips around this
+center anchor. Changing animation pose should not move the painted ground contact
+unless the animation deliberately lifts, recoils or falls.
+
+Current display sizes are 168 for bosses; 80 for shared rat/bat/slime/spider/goblin
+rigs; otherwise 63 for wolves and 101 for other actors. That ordered selection
+matters: a small shared rig takes precedence over the wolf fallback. These are
+painted sizes, not hitbox diameters.
+
+The draw origin starts at ground `(actor.x - camera, actor.y - elevation)`.
+Interpolation and recoil can adjust it; the jump animation subtracts a sine-arc
+height up to 52 display units. Landing/recovery squash, guard stride, ultimate
+hover and victory lift are visual adjustments around the same anchor. Shadows
+remain associated with the ground rather than the airborne feet. Elevation is
+separate from jump state and does not grant airborne hazard immunity.
+
+Regional cover uses normalized base **(0.5, 0.90)**. Its destination width is
+`obstacle.w + 14`; its height is `obstacle.h + 38` for low cover or
+`obstacle.h + 100` for tall cover. Drawing begins at `obstacle.x - 7 - camera`
+and `obstacle.y + obstacle.h - height*.9`, so the painted base aligns with the
+lower edge of the footprint. The tall visual can extend well above that rectangle.
+
+Terrain-cover crops instead bottom-align at `cover.y + cover.h`; destination
+width is `cover.w + 12`, with six units of horizontal overhang on each side.
+Intact art uses height `cover.h + 74`, broken art 30. Objective props (lantern,
+cage, totem, generator, spirit) use individual offsets in the actor renderer;
+they are whole images and do not inherit the 91% pose-atlas anchor.
+
+Loot and effect cells are center-anchored at **(0.5, 0.5)**. Floor loot additionally
+uses elevation, an eight-unit lift and optional visual bob. Neither that bob nor
+an effect's painted radius changes server collision.
+
+## Ground footprints, separate from artwork
+
+The server's `actorClearance` expands obstacle rectangles on both axes around an
+actor's ground point. It is an axis-aligned clearance test, not a circular pixel
+mask. The strict inequalities in `contains` allow exact boundary contact.
+
+| Actor | Obstacle clearance in world units |
+| --- | --- |
+| Player (regardless of class) | 10 |
+| Boss | 18 |
+| Treasure creature or wolf | 6 |
+| Other actors | 10 |
+
+Movement clamps actor centers to X 35–1565 in the 1600-wide world and Y 315–490.
+Navigation adds two units when detecting the need to route around an obstacle;
+this is distinct from the actual movement clearance. Both axes are checked.
+Jump state above `.1` permits passing low cover, while tall cover remains solid.
+Intact wooden cover is solid until destroyed; stone remains solid. Platforms
+and one-way descents have their own height and traversal rules in the
+[mission schema](README-mission-variants.md).
+
+Attack reach, projectile contact and hazard contact are separate combat rules.
+Do not use these clearance numbers as universal hurtboxes. Likewise, no painted
+outline, sprite scale, glow, shadow or camera zoom is authoritative collision
+geometry. Changing an asset must not silently change world-space footprints.
+
+## Review after asset changes
+
+Run the background/prop reference checks and inspect real browser crop bounds:
+
+```sh
+go test ./internal/bot -run 'TestRiftRegionBackgroundPanelsCoverCampaign|TestRiftCoverPropIndicesFitAtlas' -count=1
+node node_modules/@playwright/test/cli.js test rift-actor-atlas-bounds.spec.js rift-scene-atlas-bounds.spec.js --reporter=line
+```
+
+Use the [isolated fixture instructions](../../tests/e2e/README-brawl-fixtures.md)
+for the browser server. `?riftAtlasDebug=1` enables crop diagnostics. Bounds tests
+prove source rectangles fit images; visually inspect feet, cover bases and pose
+transitions as well. Mispainted anchors can stay inside valid crop bounds.
+Compare collision using the [author validator](../../cmd/brawl-validate/README.md),
+including walking and hazard reports. Neither crop validation nor a contact
+sheet alone proves a playable route or correct attack reach.

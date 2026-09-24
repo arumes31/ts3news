@@ -143,3 +143,6 @@ For an offline copy of every definition and objective totals, use the
 
 For seeded encounter and entry-state inspection of one mission, use the
 [mission preview command](../../cmd/brawl-mission-preview/README.md).
+
+For source crop layouts, foot placement and the separation between painted art
+and physics, see the [art contract](README-art-contract.md).
