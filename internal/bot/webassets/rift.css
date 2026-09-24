@@ -783,3 +783,7 @@
 @media (any-pointer: coarse) {
   #rift-app .rift-touch-layout-setting :is(select, button) { min-height: 48px; }
 }
+
+/* Short viewports must allow the entire recovery message and action to be reached. */
+.rift-overlay { overflow-y: auto; justify-content: safe center; touch-action: pan-y; }
+.rift-overlay > * { flex-shrink: 0; }
