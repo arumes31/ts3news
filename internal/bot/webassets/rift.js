@@ -5,6 +5,9 @@
   const keyOrder=new Map();let keySequence=0;
   let guardLatched=false,canvasMouse=false,practiceToolPending=false;
   const controls=window.RiftControls;
+  const payloadDiagnostics=new URLSearchParams(location.search).get('riftPayloadDebug')==='1'?{count:0,totalResponseBytes:0,maxResponseBytes:0,samples:[]}:null;
+  const payloadEncoder=payloadDiagnostics?new TextEncoder():null;
+  if(payloadDiagnostics)window.RiftPayloadDiagnostics=payloadDiagnostics;
   let starting = false, startIntent = 0, checkpointPending = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0, challenge = null, countdownAnnounced = -1;
@@ -96,15 +99,24 @@
     btn.setAttribute('aria-keyshortcuts',key);
   }
   async function request(method, body) {
-    const started = performance.now();
+    const started = performance.now(),requestBody=body?JSON.stringify(body):undefined;
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,signal:controller.signal});
+      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
       if(response.status===401)throw new Error('Your session expired. Sign in again, then resume this expedition.');
       if(response.status===409)throw new Error('The saved expedition changed. Recover it before continuing.');
       if(!response.ok)throw new Error('Connection interrupted. Recover the saved expedition before continuing.');
-      let data;try{data=await response.json();}catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
+      let data,responseBytes=0,runBytes=0;
+      try{
+        if(payloadDiagnostics){const raw=await response.text();responseBytes=payloadEncoder.encode(raw).byteLength;data=JSON.parse(raw);runBytes=data.run?payloadEncoder.encode(JSON.stringify(data.run)).byteLength:0;}
+        else data=await response.json();
+      }catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
       if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');
+      if(payloadDiagnostics){
+        payloadDiagnostics.count++;payloadDiagnostics.totalResponseBytes+=responseBytes;payloadDiagnostics.maxResponseBytes=Math.max(payloadDiagnostics.maxResponseBytes,responseBytes);
+        payloadDiagnostics.samples.push({method,action:body?.kind||'load',requestBytes:requestBody?payloadEncoder.encode(requestBody).byteLength:0,responseBytes,runBytes});
+        if(payloadDiagnostics.samples.length>32)payloadDiagnostics.samples.shift();
+      }
       const duration = performance.now() - started;
       if(window.RiftHUD?.updateLatency)window.RiftHUD.updateLatency(duration);
       return result;
