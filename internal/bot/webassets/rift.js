@@ -31,6 +31,27 @@
   const practice=root.dataset.practice||'', drillNames={banking:'Checkpoint banking',pickup:'Safe loot pickup',resource:'Resource management',ultimate:'Ultimate timing lane',ranged:'Ranged aiming lane',perfect_guard:'Perfect-guard timing',skills:'Skill testing lane',class:'Your class sequence',boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
+  // Core status-line and request-error copy. Parameters remain plain text.
+  const statusCopy=Object.freeze({
+    uniqueSkill:"Choose each skill only once.",
+    fixtureReady:"LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.",
+    characterReady:"Your Abyss character is ready. Choose up to three skills, then enter.",
+    screenshotEnabled:"Clean screenshot mode enabled. HUD hidden.",
+    screenshotDisabled:"HUD restored.",
+    rangeHidden:"Equipped skill range preview hidden.",
+    expeditionComplete:"Expedition complete. Your rewards are banked.",
+    checkpointReached:"Checkpoint reached. Health restored by 25%; mana refilled.",
+    fullscreenUnavailable:"Fullscreen is unavailable in this browser.",
+    fullscreenReview:"Review your controls before entering fullscreen.",
+    sessionExpired:"Your session expired. Sign in again, then resume this expedition.",
+    saveConflict:"The saved expedition changed. Recover it before continuing.",
+    connectionInterrupted:"Connection interrupted. Recover the saved expedition before continuing.",
+    responseInterrupted:"The expedition response was interrupted. Recover the saved expedition before continuing.",
+    unconfirmed:"Could not confirm the expedition.",
+    wrongDrill:"The saved drill does not match this page.",
+    practiceReady:instructions=>'Practice is ready. '+instructions,
+    showRange:name=>'Showing range for '+name
+  });
   const status = message => { $('rift-status').textContent = message; };
   const transitionText=message=>message+(run?.build?.resource?' · '+run.build.resource+' '+(run.resource||0)+'/3':'');
   let lastAudioArea = -1;
@@ -109,15 +130,15 @@
     if(method==='GET')pendingRead=controller;
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
-      if(response.status===401)throw new Error('Your session expired. Sign in again, then resume this expedition.');
-      if(response.status===409)throw new Error('The saved expedition changed. Recover it before continuing.');
-      if(!response.ok)throw new Error('Connection interrupted. Recover the saved expedition before continuing.');
+      if(response.status===401)throw new Error(statusCopy.sessionExpired);
+      if(response.status===409)throw new Error(statusCopy.saveConflict);
+      if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
       let data,responseBytes=0,runBytes=0;
       try{
         if(payloadDiagnostics){const raw=await response.text();responseBytes=payloadEncoder.encode(raw).byteLength;data=JSON.parse(raw);runBytes=data.run?payloadEncoder.encode(JSON.stringify(data.run)).byteLength:0;}
         else data=await response.json();
-      }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
-      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');
+      }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error(statusCopy.responseInterrupted);}
+      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:statusCopy.unconfirmed);const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error(statusCopy.wrongDrill);
       if(payloadDiagnostics){
         payloadDiagnostics.count++;payloadDiagnostics.totalResponseBytes+=responseBytes;payloadDiagnostics.maxResponseBytes=Math.max(payloadDiagnostics.maxResponseBytes,responseBytes);
         payloadDiagnostics.samples.push({method,action:body?.kind||'load',requestBytes:requestBody?payloadEncoder.encode(requestBody).byteLength:0,responseBytes,runBytes});
@@ -510,7 +531,7 @@
     for(let i=0;i<Math.min(3,build.skills.length);i++){
       const label=text('label','Skill '+(i+1),$('rift-loadout')),select=document.createElement('select');select.setAttribute('aria-label','Expedition skill '+(i+1));
       text('option','None',select).value='';build.skills.forEach(s=>{text('option',s.name,select).value=s.id;});select.value=run?(run.build.skills[i]?.id||''):build.skills[i].id;label.append(select);
-      select.addEventListener('change',()=>{const others=[...root.querySelectorAll('#rift-loadout select')].filter(el=>el!==select);if(select.value&&others.some(el=>el.value===select.value)){select.value='';status('Choose each skill only once.');}});
+      select.addEventListener('change',()=>{const others=[...root.querySelectorAll('#rift-loadout select')].filter(el=>el!==select);if(select.value&&others.some(el=>el.value===select.value)){select.value='';status(statusCopy.uniqueSkill);}});
     }
     window.RiftLoadouts.init(build,()=>busy||starting||!!run&&['fighting','cleared'].includes(run.status));
   }
@@ -540,9 +561,9 @@
       if(practice==='ultimate'&&!(run?.build||build).ultimate){$('rift-start').disabled=true;$('rift-start').textContent='Ultimate required';}
       if(practice==='ranged'&&![...((run?.build||build).skills||[]),...((run?.build||build).signatures||[]),(run?.build||build).ultimate].some(skill=>skill?.reference?.target==='projectile')){$('rift-start').disabled=true;$('rift-start').textContent='Ranged ability required';put($('rift-practice-instructions'),'Equip a projectile ability in Abyss, then return to ranged practice. Your current build has no ranged projectile.');}
       window.RiftLoot.banking('reloaded');
-      status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
+      status(root.dataset.fixture?statusCopy.fixtureReady:statusCopy.characterReady);
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
-      if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status('Practice is ready. '+$('rift-practice-instructions').textContent);}
+      if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status(statusCopy.practiceReady($('rift-practice-instructions').textContent));}
     }catch(error){if(generation!==loadGeneration)return;silence();ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
   }
   const moveLabels = {
@@ -624,11 +645,11 @@
   $('rift-canvas').addEventListener('lostpointercapture',()=>{for(const action of mouse)taps.delete(action);mouse.clear();});
   $('rift-canvas').addEventListener('contextmenu',event=>{if(playing&&controls.pointer(2))event.preventDefault();});
   window.addEventListener('keydown',event=>{
-    if((event.code==='F4'||(event.code==='KeyH'&&event.altKey&&event.shiftKey))&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();const active=window.RiftDisplay?.toggleScreenshot?.();status(active?'Clean screenshot mode enabled. HUD hidden.':'HUD restored.');return;}
+    if((event.code==='F4'||(event.code==='KeyH'&&event.altKey&&event.shiftKey))&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();const active=window.RiftDisplay?.toggleScreenshot?.();status(active?statusCopy.screenshotEnabled:statusCopy.screenshotDisabled);return;}
     if(event.code==='KeyR'&&event.altKey&&event.shiftKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();cycleRange();return;}
     if(event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&['Digit1','Digit2','Digit3'].includes(event.code)&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){
       const idx=Number(event.code.replace('Digit',''))-1,s=run?.build?.skills?.[idx];
-      if(s){event.preventDefault();pinnedRangeIndex=idx;pinnedRangeSkill=s;window.RiftHUD.setRequestedRange(s);status('Showing range for '+s.name);return;}
+      if(s){event.preventDefault();pinnedRangeIndex=idx;pinnedRangeSkill=s;window.RiftHUD.setRequestedRange(s);status(statusCopy.showRange(s.name));return;}
     }
     if(event.code==='KeyL'&&event.altKey&&event.shiftKey&&!event.ctrlKey&&!event.metaKey&&!event.repeat&&!event.isComposing&&!controls.opened&&!event.target.closest('input,select,textarea,[contenteditable="true"]')){event.preventDefault();openLoadoutReference();return;}
     if(controls.opened||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
@@ -650,8 +671,8 @@
   function cycleRange(){
     const skills=[...(run?.build?.skills||[]),...(run?.build?.signatures||[]),...(run?.build?.ultimate?[run.build.ultimate]:[])];if(!skills.length)return;
     pinnedRangeIndex=(pinnedRangeIndex+1)%(skills.length+1);
-    if(pinnedRangeIndex===skills.length){pinnedRangeIndex=-1;pinnedRangeSkill=null;window.RiftHUD.setRequestedRange(null);status('Equipped skill range preview hidden.');}
-    else{pinnedRangeSkill=skills[pinnedRangeIndex];window.RiftHUD.setRequestedRange(pinnedRangeSkill);status('Showing range for '+pinnedRangeSkill.name);}
+    if(pinnedRangeIndex===skills.length){pinnedRangeIndex=-1;pinnedRangeSkill=null;window.RiftHUD.setRequestedRange(null);status(statusCopy.rangeHidden);}
+    else{pinnedRangeSkill=skills[pinnedRangeIndex];window.RiftHUD.setRequestedRange(pinnedRangeSkill);status(statusCopy.showRange(pinnedRangeSkill.name));}
   }
   const rangeToggle=$('rift-range-toggle');
   if(rangeToggle)rangeToggle.addEventListener('click',cycleRange);
@@ -687,7 +708,7 @@
       }
     });
   }
-  $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?'Expedition complete. Your rewards are banked.':'Checkpoint reached. Health restored by 25%; mana refilled.');});
+  $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?statusCopy.expeditionComplete:statusCopy.checkpointReached);});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));
   async function toggleFullscreen(){
@@ -695,12 +716,12 @@
       if(document.fullscreenElement)await document.exitFullscreen();
       else await $('rift-viewport').requestFullscreen();
     }catch(_){
-      status('Fullscreen is unavailable in this browser.');
+      status(statusCopy.fullscreenUnavailable);
     }
   }
   $('rift-screenshot-toggle')?.addEventListener('click',()=>{
     const active=window.RiftDisplay?.toggleScreenshot?.();
-    status(active?'Clean screenshot mode enabled. HUD hidden.':'HUD restored.');
+    status(active?statusCopy.screenshotEnabled:statusCopy.screenshotDisabled);
   });
   $('rift-fullscreen').addEventListener('click',async()=>{
     if(document.fullscreenElement){
@@ -712,7 +733,7 @@
       if(playing)await pause();
       resetInput();
       if(!controls.opened)controls.open();
-      status('Review your controls before entering fullscreen.');
+      status(statusCopy.fullscreenReview);
       return;
     }
     await toggleFullscreen();
