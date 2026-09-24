@@ -373,6 +373,18 @@
       }
     }
   }
+  let terrainCoachingState=null;
+  function terrainCoachingAllowed(run,kind){
+    if(run.status!=='fighting')return true;
+    const seconds=run.stats?.seconds||0,key=[run.level?.id,run.room].join(':');
+    if(!terrainCoachingState||terrainCoachingState.id!==run.id||seconds<terrainCoachingState.seconds)terrainCoachingState={id:run.id,seconds,next:seconds,room:key,seen:new Set(),kind:'',until:0};
+    const state=terrainCoachingState;state.seconds=seconds;
+    if(state.room!==key){state.room=key;state.seen.clear();state.kind='';}
+    if(!state.seen.has(kind)&&seconds>=state.next){
+      state.seen.add(kind);state.kind=kind;state.until=seconds+8;state.next=seconds+20;
+    }
+    return state.kind===kind&&seconds<state.until;
+  }
   function nearbyCover(run){
     const arena=run.level?.rooms?.[run.room];if(!arena)return null;
     const candidates=[...(arena.drop_edges||[]).map(edge=>({kind:'ledge',obstacle:{x:edge.x,y:edge.y,w:edge.w,h:edge.landing_y-edge.y}})),...(arena.obstacles||[]).map(obstacle=>({kind:'low',obstacle})),...(arena.high_cover||[]).map(obstacle=>({kind:'tall',obstacle})),...(arena.cover||[]).filter(c=>c.material==='stone'||c.hp>0).map(obstacle=>({kind:obstacle.material,obstacle}))];
@@ -398,7 +410,7 @@
   function update(run,playing,replay=false){
     bossPracticeLesson(run);
     window.RiftMinimap.update(run);
-    const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!hintsEnabled||!cover||!['fighting','cleared'].includes(run.status);
+    const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!hintsEnabled||!cover||!['fighting','cleared'].includes(run.status)||!terrainCoachingAllowed(run,cover.kind);
     if(cover){hint.dataset.kind=cover.kind;put(hint,cover.kind==='ledge'?'One-way ledge · Move down to drop safely · Return around either end':cover.kind==='low'?'Low cover · Move + '+(window.RiftControls?.label('jump')||'Space')+' to vault · Projectiles pass over':cover.kind==='wood'?'Wooden barricade · Break with attacks · Blocks projectiles':cover.kind==='stone'?'Stone cover · Walk around · Blocks projectiles':'Tall cover · Walk around · Blocks projectiles');}
 
     lastObservedRun=run;
