@@ -232,7 +232,7 @@
     updateCampaign();
     $('rift-transition').hidden=run.status!=='cleared'||!playing||!$('rift-auto').checked;
     $('rift-vitals').hidden=false;put($('rift-name'),run.build.name);put($('rift-class'),run.build.class);
-    put($('rift-style'),run.build.class_name||run.build.class);
+    put($('rift-style'),window.RiftRecords.classIdentity(run.build));
     put($('rift-resource'),run.build.resource ? run.build.resource+' '+(run.resource||0)+'/3'+(run.barrier>0?' · Barrier '+Math.ceil(run.barrier):'') : 'Class abilities unlock through Abyss progression');
     put($('rift-hp'),Math.ceil(run.player.hp)+' / '+Math.ceil(run.player.max_hp));
     $('rift-hp-fill').style.width=Math.max(0,100*run.player.hp/run.player.max_hp)+'%';
@@ -447,7 +447,7 @@
     node.hidden=playing||!current||!!practice&&!['boss','class'].includes(practice);
     if(!current)return;
     const signatures=current.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
-    put(node.querySelector('strong'),(current.class_name||current.class||'Adventurer')+' · Combat primer');
+    put(node.querySelector('strong'),window.RiftRecords.classIdentity(current)+' · Combat primer');
     const key=skill=>controls.label('signature'+signatures.indexOf(skill));
     const copy=builder&&finisher?'Use '+builder.name+' ('+key(builder)+') to build up to three '+(current.resource||'class')+' charges, then spend them with '+finisher.name+' ('+key(finisher)+').':builder?'Use '+builder.name+' ('+key(builder)+') to build class charges. Unlock your finisher in Abyss.':finisher?'Your finisher is '+finisher.name+' ('+key(finisher)+'). Equip a builder in Abyss to gain charges.':'Class abilities unlock through Abyss progression. Use basic attacks and your equipped skills.';
     put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.'+(current.class==='vanguard'?' Perfect-guard an enemy attack to gain one charge per guard raise (maximum three).':'')+(current.class==='berserker'?' Fury grants +15% damage at impact while alive at 30% HP or below.':'')+(current.class==='marksman'?' A mark lasts until your finisher, a new target mark, target defeat or escape, or a new tier.':''));
@@ -457,7 +457,7 @@
     renderer.build(build);
     $('rift-build').textContent=build.name+' · Level '+build.level+' · '+build.class+'\n'+build.weapon;
     $('rift-sequence').textContent=build.sequence||'';
-    $('rift-style').textContent=build.class_name||build.class;$('rift-resource').textContent=build.resource?build.resource+' · Q builds / E spends':'Class abilities unlock through Abyss progression';
+    $('rift-style').textContent=window.RiftRecords.classIdentity(build);$('rift-resource').textContent=build.resource?build.resource+' · Q builds / E spends':'Class abilities unlock through Abyss progression';
     $('rift-gear').replaceChildren();build.gear.forEach(name=>text('li',name,$('rift-gear')));
     if(!build.gear.length)text('li','No equipment yet',$('rift-gear'));
     $('rift-loadout').replaceChildren();

@@ -18,6 +18,11 @@
  let masteryKey='';
  let classNames={};
  const classLabel=name=>Object.prototype.hasOwnProperty.call(classNames,name)?classNames[name]:name.charAt(0).toUpperCase()+name.slice(1);
+ function classIdentity(build){
+  const subclass=build?.class,base=build?.base_class;
+  const name=subclass?(Object.prototype.hasOwnProperty.call(classNames,subclass)?classLabel(subclass):build.class_name||classLabel(subclass)):'Adventurer';
+  return base&&base!==subclass?classLabel(base)+' · '+name:name;
+ }
  function init(names){classNames=Object.fromEntries(Object.entries(names||{}).filter(([id,name])=>id&&typeof name==='string'&&name));masteryKey='';lastKey='';}
  function mastery(run){
   const node=document.getElementById('rift-class-mastery');node.hidden=!!run.practice;if(run.practice)return;
@@ -57,5 +62,5 @@
   if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+'.';return;}
   comparison.textContent='Mission '+latest.mission+' compared with previous attempt ('+outcomes[previous.outcome]+' → '+outcomes[latest.outcome]+'): combat time '+delta(latest.seconds-previous.seconds)+'s; end HP '+delta(latest.hp-previous.hp)+'; damaging hits '+(latest.hits==null||previous.hits==null?'comparison unavailable':delta(latest.hits-previous.hits))+'.';
  }
- window.RiftRecords={update,init,classLabel};
+ window.RiftRecords={update,init,classLabel,classIdentity};
 })();
