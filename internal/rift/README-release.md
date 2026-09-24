@@ -65,6 +65,8 @@ node node_modules/@playwright/test/cli.js test rift- --reporter=line --output=te
   stability and memory after repeated restarts. Record device, viewport, network
   conditions, run length and measurements against an agreed release budget.
   Bounded animation caches and population caps do not establish these metrics.
+  Use the [cold-start measurement command](../../scripts/README-brawl-cold-start.md)
+  for a reproducible constrained-network readiness baseline.
 - [ ] Check every required asset on the candidate environment, including cold-cache
   loading and visible failure recovery; a warm browser cache can hide missing files.
   Run the [asset availability check](../../scripts/README-brawl-asset-health.md)
