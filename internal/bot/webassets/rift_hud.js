@@ -415,6 +415,11 @@
     const reaction=$('rift-elemental-reaction');reaction.hidden=run.build.class!=='elementalist';
     if(!reaction.hidden)put(reaction,marked&&run.resource>0?'Reaction armed: a charged finisher hitting '+marked.name+' deals ×1.2 damage before defenses.':'Reaction setup: mark an enemy with your builder, then hit it with a charged finisher.');
     const pack=$('rift-pack-target');pack.hidden=run.build.class!=='beastmaster';
+    const pets=$('rift-pet-synergy');pets.hidden=run.build.class!=='beastmaster';
+    if(!pets.hidden){
+      const count=run.build.pets||0,counted=Math.min(3,count),bonus=(1+counted*.1).toFixed(1),state=counted===0?'none':!finisher?'missing':run.resource>0?'armed':'building';attr(pets,'data-state',state);
+      put(pets,'Pets in this expedition: '+count+' · '+counted+'/3 count toward the bonus. '+(state==='none'?'No pet damage bonus.':state==='missing'?'Equip a class finisher in Abyss to use the pet bonus.':finisher.name+': charged hits deal ×'+bonus+' damage before defenses. '+(state==='armed'?'Finisher: '+reason(finisher,run,playing)+'.':'Build at least one charge to activate this bonus.'))+' Builders and empty finishers get no pet multiplier. Additional pets beyond three add no further bonus. Pet equipment changes apply to a new expedition.');
+    }
     if(!pack.hidden)put(pack,marked?'Pack target: '+marked.name+'. Face and line up your shot; it hits the first enemy in that lane.':'Pack target: none. Land a builder hit to direct the pack.');
     const precision=$('rift-precision-state');precision.hidden=run.build.class!=='marksman';
     if(!precision.hidden)put(precision,!marked?'Precision: land a builder hit to mark a target.':!(run.resource>0)?'Precision target: '+marked.name+'. Build charges before firing your finisher.':!finisher?'Precision target: '+marked.name+'. Equip a finisher in Abyss.':'Precision armed on '+marked.name+': next charged finisher gains +60 percentage points of armor piercing on this target (total capped at 100%). Finisher: '+reason(finisher,run,playing)+'.');
