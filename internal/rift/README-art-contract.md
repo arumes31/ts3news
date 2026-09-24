@@ -170,3 +170,13 @@ labels use their measured text width with six units for stroke and shake. This
 keeps long edge-overlapping names visible while skipping fully off-screen text.
 The health-label browser regression covers regular enemies, bosses, generators,
 totems, cages and ward lanterns. Actor art and attack telegraphs remain independent.
+
+The battlefield backing canvas is intentionally fixed at 960 by 540 pixels
+(518,400 pixels). CSS scales its presentation at 16:9, using pixelated image
+rendering; fullscreen contains the same canvas. Device-pixel-ratio changes do
+not multiply backing resolution or require fresh atlases. Preserve this sprite
+rendering contract unless a separately measured resolution policy replaces it.
+`rift-canvas-resolution.spec.js` checks mobile-height changes, a 3840 by 2160
+viewport and live Chromium DPR changes from 1 to 2 to 3 and back. It verifies
+continued drawing, zero canvas-size writes and no additional image requests.
+This is browser emulation evidence, not a physical-device battery benchmark.
