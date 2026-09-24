@@ -47,3 +47,21 @@ func TestSkillReferenceSerializationAndRecoveryEffects(t *testing.T) {
 		t.Fatal("projectile collision reference incorrect")
 	}
 }
+
+func TestProjectileReferenceMatchesSpawn(t *testing.T) {
+	for _, facing := range []float64{-1, 1} {
+		r := testRun()
+		s := Skill{ID: "bolt", Kind: "fire", Power: 1}
+		r.Build.Skills = []Skill{s}
+		r.Player.Facing = facing
+		r.cast(s.ID)
+		if len(r.Projectiles) != 1 {
+			t.Fatal("projectile missing")
+		}
+		shot := r.Projectiles[0]
+		ref := s.Reference()
+		if shot.VX*facing*shot.Life != ref.Travel || (shot.X-r.Player.X)*facing != ref.SpawnOffset {
+			t.Fatal("reference does not match spawned projectile")
+		}
+	}
+}

@@ -8,7 +8,7 @@
   const optionalList=(value,valid)=>value==null||list(value,valid);
   const point=value=>object(value)&&finite(value.x)&&finite(value.y);
   const box=value=>point(value)&&nonnegative(value.w)&&nonnegative(value.h);
-  const reference=value=>object(value)&&['self','area','projectile'].includes(value.target)&&nonnegative(value.horizontal)&&nonnegative(value.depth)&&nonnegative(value.healing)&&typeof value.barrier==='boolean';
+  const reference=value=>object(value)&&['self','area','projectile'].includes(value.target)&&nonnegative(value.horizontal)&&nonnegative(value.depth)&&nonnegative(value.healing)&&typeof value.barrier==='boolean'&&(value.travel===undefined||nonnegative(value.travel))&&(value.spawn_offset===undefined||nonnegative(value.spawn_offset));
   const skill=value=>object(value)&&text(value.id)&&text(value.name)&&nonnegative(value.cost)&&nonnegative(value.cooldown)&&(value.reference===undefined||reference(value.reference));
   const elevation=value=>value===undefined||nonnegative(value)&&value<=32;
   const actor=value=>object(value)&&elevation(value.elevation)&&text(value.id)&&text(value.name)&&text(value.kind)&&finite(value.x)&&finite(value.y)&&nonnegative(value.hp)&&nonnegative(value.max_hp)&&value.max_hp>0&&finite(value.facing);

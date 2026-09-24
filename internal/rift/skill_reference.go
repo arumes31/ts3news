@@ -4,19 +4,24 @@ import "encoding/json"
 
 // Projectile target extents are deliberately smaller for the player.
 const (
-	projectilePlayerRadiusX = 25.0
-	projectilePlayerRadiusY = 23.0
-	projectileEnemyRadiusX  = 35.0
-	projectileEnemyRadiusY  = 30.0
+	playerProjectileSpeed    = 530.0
+	playerProjectileLifetime = 2.5
+	playerProjectileOffset   = 35.0
+	projectilePlayerRadiusX  = 25.0
+	projectilePlayerRadiusY  = 23.0
+	projectileEnemyRadiusX   = 35.0
+	projectileEnemyRadiusY   = 30.0
 )
 
 // SkillReference exposes the targeting rules used by the action simulation.
 type SkillReference struct {
-	Target     string  `json:"target"`
-	Horizontal float64 `json:"horizontal"`
-	Depth      float64 `json:"depth"`
-	Healing    float64 `json:"healing"`
-	Barrier    bool    `json:"barrier"`
+	Travel      float64 `json:"travel,omitempty"`
+	SpawnOffset float64 `json:"spawn_offset,omitempty"`
+	Target      string  `json:"target"`
+	Horizontal  float64 `json:"horizontal"`
+	Depth       float64 `json:"depth"`
+	Healing     float64 `json:"healing"`
+	Barrier     bool    `json:"barrier"`
 }
 
 func (s Skill) Reference() SkillReference {
@@ -46,6 +51,10 @@ func (s Skill) Reference() SkillReference {
 		r.Target = "area"
 		r.Horizontal = 450
 		r.Depth = 180
+	}
+	if r.Target == "projectile" {
+		r.Travel = playerProjectileSpeed * playerProjectileLifetime
+		r.SpawnOffset = playerProjectileOffset
 	}
 	return r
 }

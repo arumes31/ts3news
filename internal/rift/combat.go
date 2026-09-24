@@ -923,7 +923,7 @@ func (r *Run) cast(id string) {
 				}
 			}
 		default:
-			r.Projectiles = append(r.Projectiles, Projectile{Elevation: p.Elevation, ID: r.Counter, X: p.X + p.Facing*35, Y: p.Y, VX: p.Facing * 530, Power: power, Life: 2.5, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
+			r.Projectiles = append(r.Projectiles, Projectile{Elevation: p.Elevation, ID: r.Counter, X: p.X + p.Facing*playerProjectileOffset, Y: p.Y, VX: p.Facing * playerProjectileSpeed, Power: power, Life: playerProjectileLifetime, Kind: skill.Kind, Skill: skill, Charges: charges, Marked: marked})
 		}
 		return
 	}

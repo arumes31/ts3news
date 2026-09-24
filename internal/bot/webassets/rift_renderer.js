@@ -1074,6 +1074,7 @@
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,targetY+4);
       }
     });
+    renderer.lastRangePreview=null;
     const activeRangeSkill = renderer.rangeSkill || (display.skillRange && run.build?.skills?.[0] ? run.build.skills[0] : null);
     if (!display.cleanScreenshot && activeRangeSkill && run.player && ['fighting','cleared'].includes(run.status)) {
       const p = run.player, px = p.x - camera, py = p.y-(p.elevation||0), ref = activeRangeSkill.reference;
@@ -1085,7 +1086,8 @@
           ctx.lineWidth = 2;
           ctx.setLineDash([6, 4]);
           ctx.beginPath();
-          ctx.ellipse(px, py, ref.horizontal, ref.depth, 0, 0, Math.PI * 2);
+          ctx.rect(px-ref.horizontal, py-ref.depth, ref.horizontal*2, ref.depth*2);
+          renderer.lastRangePreview={target:'area',shape:'rectangle',x:p.x-ref.horizontal,y:p.y-ref.depth,width:ref.horizontal*2,height:ref.depth*2};
           ctx.fill();
           ctx.stroke();
           ctx.setLineDash([]);
@@ -1098,10 +1100,14 @@
           ctx.strokeText(label, px, py - ref.depth - 6);
           ctx.fillText(label, px, py - ref.depth - 6);
         } else if (ref.target === 'projectile') {
-          const reach = 530;
-          const left = p.facing < 0 ? Math.max(0, px - reach) : px;
-          const width = p.facing < 0 ? px - left : Math.min(960 - px, reach);
+          const reach = ref.travel ?? 1325, offset = ref.spawn_offset ?? 35;
+          const facing = p.facing < 0 ? -1 : 1, spawn = p.x + facing*offset;
+          const end = spawn + facing*reach;
+          const worldLeft = Math.max(0,Math.min(spawn,end)-ref.horizontal),worldRight = Math.min(1600,Math.max(spawn,end)+ref.horizontal);
+          const left = Math.max(0,Math.min(960,worldLeft-camera));
+          const right = Math.max(0,Math.min(960,worldRight-camera)),width = Math.max(0,right-left);
           const top = py - ref.depth, height = ref.depth * 2;
+          renderer.lastRangePreview={target:'projectile',shape:'rectangle',worldLeft,worldRight,left,width,travel:reach,spawnOffset:offset,height};
           ctx.fillStyle = '#38bdf822';
           ctx.strokeStyle = '#38bdf8';
           ctx.lineWidth = 2;
@@ -1121,7 +1127,7 @@
           ctx.fillStyle = '#bae6fd';
           ctx.strokeStyle = '#071813';
           ctx.lineWidth = 3;
-          const label = activeRangeSkill.name.toUpperCase() + ' · PROJECTILE LANE (±' + ref.depth + 'd)';
+          const label = activeRangeSkill.name.toUpperCase() + ' · MAX PROJECTILE LANE (±' + ref.depth + 'd)';
           ctx.strokeText(label, left + width / 2, top - 6);
           ctx.fillText(label, left + width / 2, top - 6);
         } else if (ref.target === 'self') {

@@ -249,7 +249,7 @@
       currentSkillIDs=signature;
       replacePreservingFocus($('rift-skills'),()=>{
         run.build.skills.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',String(i+1));text('span','',btn,'rift-skill-icon');const kbd=text('kbd',String(i+1),btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',String(i+1));text('span','',btn,'rift-skill-icon');const kbd=text('kbd',String(i+1),btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -264,7 +264,7 @@
       $('rift-signatures').dataset.ids=specialIDs;
       replacePreservingFocus($('rift-signatures'),()=>{
         specials.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;const defaultKey=s===run.build.ultimate?'R':i?'E':'Q';btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',defaultKey);const kbd=text('kbd',defaultKey,btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{if(!pinnedRangeSkill)window.RiftHUD.setRequestedRange(null);});$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;const defaultKey=s===run.build.ultimate?'R':i?'E':'Q';btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',defaultKey);const kbd=text('kbd',defaultKey,btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -589,7 +589,7 @@
   });
   let pinnedRangeSkill=null,pinnedRangeIndex=-1;
   function cycleRange(){
-    const skills=run?.build?.skills||[];if(!skills.length)return;
+    const skills=[...(run?.build?.skills||[]),...(run?.build?.signatures||[]),...(run?.build?.ultimate?[run.build.ultimate]:[])];if(!skills.length)return;
     pinnedRangeIndex=(pinnedRangeIndex+1)%(skills.length+1);
     if(pinnedRangeIndex===skills.length){pinnedRangeIndex=-1;pinnedRangeSkill=null;window.RiftHUD.setRequestedRange(null);status('Equipped skill range preview hidden.');}
     else{pinnedRangeSkill=skills[pinnedRangeIndex];window.RiftHUD.setRequestedRange(pinnedRangeSkill);status('Showing range for '+pinnedRangeSkill.name);}
