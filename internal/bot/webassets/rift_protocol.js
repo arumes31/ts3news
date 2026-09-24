@@ -110,7 +110,7 @@
   }
   function validate(data,method,request){
     let valid=object(data)&&data.ok===true;
-    if(valid&&method==='GET')valid=(data.class_names===undefined||object(data.class_names)&&Object.values(data.class_names).every(text))&&optionalList(data.objective_options,objective)&&build(data.build)&&list(data.rooms,text)&&list(data.levels,level)&&data.levels.length>0&&data.levels.every((l,i)=>l.id===i+1)&&list(data.bestiary,unit=>actor(unit)&&text(unit.tier)&&text(unit.art_key)&&(unit.training===undefined||object(unit.training)&&nonnegative(unit.training.windup_seconds)&&typeof unit.training.resists_knockdown==="boolean"&&typeof unit.training.interruptible==="boolean"))&&(data.run===null||run(data.run));
+    if(valid&&method==='GET')valid=optionalList(data.class_options,c=>object(c)&&text(c.id)&&text(c.name)&&list(c.subclasses,s=>object(s)&&['id','name','resource','builder','finisher'].every(k=>text(s[k]))))&&(data.class_names===undefined||object(data.class_names)&&Object.values(data.class_names).every(text))&&optionalList(data.objective_options,objective)&&build(data.build)&&list(data.rooms,text)&&list(data.levels,level)&&data.levels.length>0&&data.levels.every((l,i)=>l.id===i+1)&&list(data.bestiary,unit=>actor(unit)&&text(unit.tier)&&text(unit.art_key)&&(unit.training===undefined||object(unit.training)&&nonnegative(unit.training.windup_seconds)&&typeof unit.training.resists_knockdown==="boolean"&&typeof unit.training.interruptible==="boolean"))&&(data.run===null||run(data.run));
     else if(valid)valid=run(data.run)&&(request.kind==='start'||data.run.id===request.run_id);
     if(!valid)throw new Error('Received an incomplete expedition update. Recover the saved expedition before continuing.');
     return data;

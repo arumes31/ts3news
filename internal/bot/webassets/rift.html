@@ -152,6 +152,7 @@
       <aside id="rift-boss-intro" aria-label="Boss introduction" hidden><div><strong id="rift-boss-intro-name" role="status"></strong><p>Slams: jump or move clear. Volleys: evade or face the shot to guard.</p></div><button id="rift-boss-intro-skip" type="button" aria-describedby="rift-boss-intro-note">Skip intro</button><small id="rift-boss-intro-note">Skipped bosses are remembered on this device. Combat continues normally.</small></aside>
       <aside id="rift-room-objective" aria-label="Required room objective" hidden><strong id="rift-room-objective-progress" role="status"></strong><p id="rift-room-objective-help"></p><p id="rift-room-objective-directions"></p></aside>
       <section id="rift-minimap" aria-label="Current arena minimap" hidden><svg viewBox="0 0 320 54" role="img" aria-label="Current arena map"></svg><p></p></section>
+      <details id="rift-class-comparison" hidden><summary>Compare subclasses</summary><p class="rift-fine">Compare Brawl playstyles without changing your build. Unlock and select classes in Abyss My Build; this expedition keeps its saved equipment and abilities.</p><div class="rift-class-comparison-grid"><section><label for="rift-compare-class-left">First subclass</label><select id="rift-compare-class-left"></select><div id="rift-compare-class-card-left"></div></section><section><label for="rift-compare-class-right">Second subclass</label><select id="rift-compare-class-right"></select><div id="rift-compare-class-card-right"></div></section></div><a href="/abyss#abyssMyBuild">Open Abyss My Build ↗</a></details>
       <aside id="rift-class-primer" aria-label="Class combat primer" hidden><strong></strong><p></p><p id="rift-signature-help" hidden></p><a id="rift-signature-help-link" href="/abyss#abyssMyBuild" hidden>Open Abyss My Build ↗</a></aside>
       <div class="rift-viewport" id="rift-viewport">
         <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. Space jumps, J attacks, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
@@ -275,5 +276,6 @@
 <script defer src="{{asset "/static/rift_haptics.js"}}"></script>
 <script defer src="{{asset "/static/rift_boss_intro.js"}}"></script>
 <script defer src="{{asset "/static/rift_objectives.js"}}"></script>
+<script defer src="{{asset "/static/rift_class_compare.js"}}"></script>
 <script defer src="{{asset "/static/rift.js"}}"></script>
 {{template "foot" .}}{{end}}

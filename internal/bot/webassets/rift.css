@@ -711,3 +711,5 @@
 .rift-viewport:has(#rift-transition:not([hidden])) .rift-room-actions{bottom:94px}
 
 #rift-effect-types{font-size:12px;line-height:1.5;padding:10px 14px;border:1px solid #405544;background:#12241e}#rift-effect-types h3{font-size:12px;margin:10px 0 4px}#rift-effect-types p{margin:4px 0}#rift-temporary-effects{padding-left:20px;margin:4px 0}
+
+#rift-class-comparison{padding:14px;border:1px solid #405544;background:#12241e;margin-bottom:12px;font-size:13px}.rift-class-comparison-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:12px 0}.rift-class-comparison-grid section{min-width:0}.rift-class-comparison-grid label{display:block;margin-bottom:5px}.rift-class-comparison-grid select{width:100%;max-width:100%;padding:8px;background:#142b21;color:#e7e6cc;border:1px solid #526b50}.rift-class-comparison-grid h3{font-size:14px}.rift-class-comparison-grid dt{font-weight:bold;color:#f6dfa5;margin-top:8px}.rift-class-comparison-grid dd{margin:3px 0;line-height:1.5}@media(max-width:600px){.rift-class-comparison-grid{grid-template-columns:1fr}}

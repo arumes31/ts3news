@@ -1,0 +1,13 @@
+const {test,expect}=require('@playwright/test');
+test('class comparison covers every subclass without modifying the expedition',async({page})=>{
+ await page.goto('/abyss/rift?subclass=beastmaster&scenario=spawn-hazards');await expect(page.locator('#rift-start')).toBeEnabled();const data=await(await page.request.get('/api/abyss/rift')).json(),before=data.run,classes=data.class_options.flatMap(c=>c.subclasses.map(s=>({...s,base:c.name}))),panel=page.locator('#rift-class-comparison');await expect(panel).toBeVisible();await panel.locator('summary').click();await expect(page.locator('#rift-compare-class-left')).toHaveValue('beastmaster');
+ await expect(page.locator('#rift-compare-class-left option')).toHaveCount(12);
+ for(const sub of classes){await page.locator('#rift-compare-class-right').selectOption(sub.id);const card=page.locator('#rift-compare-class-card-right');await expect(card.locator('h3')).toHaveText(sub.base+' · '+sub.name);for(const value of [sub.resource,sub.builder,sub.finisher])await expect(card).toContainText(value);await expect(card).not.toContainText('See equipped ability details');}
+ await page.locator('#rift-compare-class-left').selectOption('oracle');await page.locator('#rift-compare-class-right').selectOption('voidwalker');await expect(page.locator('#rift-compare-class-card-left')).toContainText('Heal yourself');await expect(page.locator('#rift-compare-class-card-right')).toContainText('spend health');
+ await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await panel.scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await panel.screenshot({path:'test-results/class-comparison-mobile.png'});expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(before);
+ await page.locator('#rift-start').click();await expect(panel).toBeHidden();await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');await expect(panel).toBeVisible();await expect(page.locator('#rift-compare-class-left')).toHaveValue('oracle');
+});
+test('comparison is unavailable without a catalog or in practice',async({page})=>{
+ await page.goto('/abyss/rift?practice=class');await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-class-comparison')).toBeHidden();
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();await page.evaluate(()=>RiftClassCompare.init([],null));await expect(page.locator('#rift-class-comparison')).toBeHidden();
+});
