@@ -66,6 +66,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer database.Close()
+			saveFailure := errors.New("disk unavailable")
 			run := rift.NewRun("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0))
 			advance := strings.HasPrefix(scenario, "advance")
 			if advance {
@@ -129,7 +130,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				}
 				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)
 				if scenario == "state failure" || scenario == "advance failure" {
-					write.WillReturnError(errors.New("disk unavailable"))
+					write.WillReturnError(saveFailure)
 					mock.ExpectRollback()
 				} else {
 					write.WillReturnResult(sqlmock.NewResult(0, 1))
@@ -163,6 +164,9 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				}
 			} else if err == nil || out != nil {
 				t.Fatal("invalid or failed settlement returned uncommitted records")
+			}
+			if (scenario == "state failure" || scenario == "advance failure") && !errors.Is(err, saveFailure) {
+				t.Fatalf("record/reward transaction did not reach intended save failure: %v", err)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal(err)
