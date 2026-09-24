@@ -803,3 +803,16 @@
   .rift-viewport:not(:fullscreen) #rift-room-actions > div { flex-wrap:wrap; }
   .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) #rift-transition { position:relative; inset:auto; transform:none; margin:12px auto; }
 }
+
+@media (max-width:600px) {
+  #rift-app :is(.rift-actionbar,.rift-signatures) .rift-action-label { font-size:14px; line-height:1.35; overflow-wrap:anywhere; max-width:100%; }
+  #rift-app :is(.rift-actionbar,.rift-signatures) :is(small,kbd,.rift-role-mark) { font-size:12px; line-height:1.35; white-space:normal; }
+  #rift-app .rift-ability-identity { max-width:100%; }
+  #rift-app .rift-signatures button { min-width:0; overflow-wrap:anywhere; }
+}
+
+@media (max-width:600px) {
+  #rift-app :is(.rift-skills,.rift-signatures) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #rift-app :is(.rift-skills,.rift-signatures) button { max-width:none; }
+  #rift-app :is(.rift-skills,.rift-signatures) button:last-child:nth-child(odd) { grid-column:1 / -1; }
+}
