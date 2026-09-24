@@ -21,7 +21,7 @@ test('shows the range of an equipped skill on request via hover, hotkey, range t
   // 1. Request range by focusing the first equipped skill button
   const skillButtons = page.locator('#rift-skills button');
   await expect(skillButtons.first()).toBeVisible();
-  const firstSkillName = await skillButtons.first().locator('span').nth(1).textContent();
+  const firstSkillName = await skillButtons.first().locator('.rift-action-label').textContent();
 
   await skillButtons.first().focus();
   await expect(skillRangeSignal).toContainText('Range: ' + firstSkillName);
@@ -37,7 +37,7 @@ test('shows the range of an equipped skill on request via hover, hotkey, range t
   await expect(skillRangeSignal).toContainText('Range: ' + firstSkillName);
 
   // 3. Cycle to next equipped skill
-  const secondSkillName = await skillButtons.nth(1).locator('span').nth(1).textContent();
+  const secondSkillName = await skillButtons.nth(1).locator('.rift-action-label').textContent();
   await rangeToggle.click();
   await expect(rangeToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(skillRangeSignal).toContainText('Range: ' + secondSkillName);

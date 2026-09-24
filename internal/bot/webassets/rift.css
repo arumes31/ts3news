@@ -720,3 +720,5 @@
 
 .rift-skill-animation-canvas{display:block;width:100%;max-width:320px;height:auto;margin-top:8px;border:1px solid #486068;border-radius:8px;image-rendering:pixelated}
 .rift-skill-animation-canvas[hidden]{display:none}
+
+.rift-catalog-icon{display:inline-block;margin-right:.35em;color:var(--rift-gold);font-size:1.1em}

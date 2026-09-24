@@ -63,6 +63,7 @@
     const entries=[...skills.map(skill=>({skill,category:'Optional skill'})),...(build.signatures||[]).map(skill=>({skill,category:skill.role==='builder'?'Class builder':'Class finisher'})),...(build.ultimate?[{skill:build.ultimate,category:'Ultimate'}]:[])];
     for(const {skill,category} of entries){
       const entry=document.createElement('article'),title=document.createElement('strong'),stats=document.createElement('p'),description=document.createElement('p'),slot=document.createElement('small');
+      const catalogIcon=document.createElement('span');catalogIcon.className='rift-catalog-icon';catalogIcon.setAttribute('aria-hidden','true');catalogIcon.textContent=skill.icon||'✦';
       entry.dataset.skill=skill.id;entry.dataset.search=(skill.name+' '+category+' '+skill.kind).toLocaleLowerCase();title.textContent=skill.name;
       stats.textContent=category+' · '+skill.cost+' MP · '+skill.cooldown+'s cooldown · Effect: '+skill.kind;
       description.className='rift-skill-description';description.textContent=window.RiftAbilities.describe(skill,build);entry.dataset.search+=' '+description.textContent.toLocaleLowerCase();
@@ -96,7 +97,7 @@
         };
         draw(start);
       };
-      entry.append(title,stats,description,slot,animation,preview,animationStatus,sound,soundStatus);$('rift-glossary-entries').append(entry);
+      entry.append(catalogIcon,title,stats,description,slot,animation,preview,animationStatus,sound,soundStatus);$('rift-glossary-entries').append(entry);
     }
     filterGlossary();
     for(let index=0;index<slots().length-1;index++){

@@ -75,6 +75,7 @@
     return 'Nearest target, '+target.name+' — '+notes.join('; ')+'.';
   }
   function update(button,skill,run,reason,ultimate=false){
+    let icon=button.querySelector('.rift-catalog-icon');if(!icon){icon=document.createElement('span');icon.className='rift-catalog-icon';icon.setAttribute('aria-hidden','true');button.prepend(icon);}if(icon.textContent!==(skill.icon||'✦'))icon.textContent=skill.icon||'✦';
     const role=ultimate?'ultimate':skill.role,identity=roles[role];
     let ring=button.querySelector('.rift-cooldown-ring');
     if(!ring){ring=document.createElement('span');ring.className='rift-cooldown-ring';ring.setAttribute('aria-hidden','true');button.append(ring);}

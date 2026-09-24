@@ -1,6 +1,10 @@
 package rift
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+	"ts3news/internal/content"
+)
 
 // Projectile target extents are deliberately smaller for the player.
 const (
@@ -65,6 +69,30 @@ func (s Skill) MarshalJSON() ([]byte, error) {
 	type plain Skill
 	return json.Marshal(struct {
 		plain
+		Icon      string         `json:"icon"`
 		Reference SkillReference `json:"reference"`
-	}{plain(s), s.Reference()})
+	}{plain(s), s.CatalogIcon(), s.Reference()})
+}
+
+// CatalogIcon resolves presentation from current content, including old saves.
+func (s Skill) CatalogIcon() string {
+	if strings.HasPrefix(s.ID, "CLASS_") {
+		if end := strings.LastIndex(s.ID, "_"); end > 6 {
+			for _, skill := range content.AbyssClassSkills(s.ID[6:end]) {
+				if skill.ID == s.ID {
+					return content.SkillIcon(skill.Type)
+				}
+			}
+		}
+	}
+	if skill, ok := content.GetSkillByID(s.ID); ok {
+		return content.SkillIcon(skill.Type)
+	}
+	if _, ok := content.GetUltimateSkillByID(s.ID); ok {
+		return content.SkillIcon(content.SkillUltimate)
+	}
+	if s.Kind == "ultimate" {
+		return content.SkillIcon(content.SkillUltimate)
+	}
+	return content.SkillIcon("")
 }
