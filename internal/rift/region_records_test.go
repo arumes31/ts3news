@@ -68,3 +68,53 @@ func TestRegionalRecordsRequireWholeOrderedRunAndSurviveSave(t *testing.T) {
 		t.Fatal("skipped mission retained attempt")
 	}
 }
+
+func TestRegionalRecordsSeparateDefinitionsAndRetainLegacy(t *testing.T) {
+	r := NewRunAtLevel("versions", Build{HP: 200}, time.Unix(100, 0), nil, 1)
+	r.RegionRecords = map[int]RegionRecord{0: {BestSeconds: 1, AtMS: 5}}
+	finish := func(seconds float64) {
+		for id := 1; id <= 10; id++ {
+			r.Level.ID = id
+			r.beginMissionHistory()
+			r.Stats.Seconds += seconds
+			r.finishMissionHistory("completed")
+		}
+	}
+	finish(10)
+	first := r.RegionRecords[0]
+	if first.BestSeconds != 100 || first.Definition == "" || r.RegionVersions[0][""].BestSeconds != 1 {
+		t.Fatal("legacy record competed or was lost")
+	}
+	r.Level.Rooms[0].Hazards[0].Period++
+	finish(20)
+	changed := r.RegionRecords[0]
+	if changed.BestSeconds != 200 || changed.Definition == first.Definition || r.RegionVersions[0][first.Definition] != first {
+		t.Fatal("different definitions competed or lost record")
+	}
+	r.Level.Rooms[0].Hazards[0].Period--
+	finish(30)
+	if r.RegionRecords[0] != first {
+		t.Fatal("returning definition lost earlier best")
+	}
+	raw, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err := json.Unmarshal(raw, &saved); err != nil {
+		t.Fatal(err)
+	}
+	next := NewRunAtLevel("inherit", Build{HP: 200}, time.Unix(200, 0), nil, 1)
+	next.InheritCampaignHistory(&saved)
+	delete(next.RegionVersions[0], first.Definition)
+	if saved.RegionVersions[0][first.Definition] != first {
+		t.Fatal("inherited versions alias")
+	}
+	r.Level.ID = 1
+	r.beginMissionHistory()
+	r.MissionDefinition = ""
+	r.recordRegionTime(10)
+	if r.RegionAttempt != nil {
+		t.Fatal("unknown definition started regional comparison")
+	}
+}

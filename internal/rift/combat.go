@@ -224,6 +224,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	RegionVersions map[int]map[string]RegionRecord `json:"region_versions,omitempty"`
 	RegionRecords map[int]RegionRecord `json:"region_records,omitempty"`
 	RegionAttempt *RegionAttempt `json:"region_attempt,omitempty"`
 	LastBloodRecovery *BloodRecovery `json:"last_blood_recovery,omitempty"`
