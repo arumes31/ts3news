@@ -511,6 +511,7 @@
     window.RiftLoadouts.init(build,()=>busy||starting||!!run&&['fighting','cleared'].includes(run.status));
   }
   async function load(){
+    ready=false;$('rift-start').disabled=true;
     const generation=++loadGeneration;
     pendingRead?.abort();
     let artworkFailed=false;
