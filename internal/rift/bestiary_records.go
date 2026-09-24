@@ -2,6 +2,7 @@ package rift
 
 // MonsterRecord contains observations made by this version, not inferred history.
 type MonsterRecord struct {
+	DamageTaken         float64  `json:"damage_taken,omitempty"`
 	FastestClearSeconds *float64 `json:"fastest_clear_seconds,omitempty"`
 	FirstSeenMS         int64    `json:"first_seen_ms"`
 	Defeats             int      `json:"defeats"`
@@ -47,6 +48,7 @@ func (r *Run) inheritMonsterRecords(previous *Run) {
 		if old, exists := combined[key]; exists {
 			record.FirstSeenMS = min(record.FirstSeenMS, old.FirstSeenMS)
 			record.Defeats += old.Defeats
+			record.DamageTaken += old.DamageTaken
 			if old.FastestClearSeconds != nil && (record.FastestClearSeconds == nil || *old.FastestClearSeconds < *record.FastestClearSeconds) {
 				seconds := *old.FastestClearSeconds
 				record.FastestClearSeconds = &seconds
@@ -85,5 +87,26 @@ func (r *Run) recordBossClear() {
 			record.FastestClearSeconds = &best
 			r.MonsterRecords[actor.ArtKey] = record
 		}
+	}
+}
+
+// recordMonsterDamage records health loss from an identified enemy, including
+// projectiles whose owner has already died. Practice never changes these records.
+func (r *Run) recordMonsterDamage(ownerID string, loss float64) {
+	if loss <= 0 || ownerID == "" || r.Practice != nil || r.Level == nil {
+		return
+	}
+	for _, actor := range r.Enemies {
+		if actor.ID != ownerID {
+			continue
+		}
+		if actor.Name == "" || actor.ArtKey != "monster:"+actor.Name {
+			return
+		}
+		r.observeMonster(actor)
+		record := r.MonsterRecords[actor.ArtKey]
+		record.DamageTaken += loss
+		r.MonsterRecords[actor.ArtKey] = record
+		return
 	}
 }

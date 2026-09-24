@@ -6,7 +6,9 @@ func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
 	before := r.Stats.DamageTaken
 	r.hurtPlayer(damage, x, y)
 	r.rewardVanguardGuard(guards)
-	r.Stats.EnemyDamageTaken += r.Stats.DamageTaken - before
+	loss := r.Stats.DamageTaken - before
+	r.Stats.EnemyDamageTaken += loss
+	r.recordMonsterDamage(ownerID, loss)
 	if !alive || r.Player.HP > 0 || ownerID == "" {
 		return
 	}
