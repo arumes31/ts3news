@@ -22,7 +22,7 @@
   hintSetting.checked=hintsEnabled;
   const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
   const missCoaching=document.createElement('p');missCoaching.id='rift-miss-coaching';missCoaching.hidden=true;missCoaching.setAttribute('role','status');hazardCoaching.after(missCoaching);
-  hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
+  hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
   function contextualHazardHint(run,replay){
     const key=[run.id,run.level?.id,run.room].join(':'),damage=run.stats?.hazard_damage_taken||0,seconds=run.stats?.seconds||0;
     if(replay||!hazardHintState||hazardHintState.key!==key||damage<hazardHintState.damage||seconds<hazardHintState.seconds){
@@ -361,7 +361,7 @@
   }
   function bossPracticeLesson(run){
     const node=$('rift-boss-practice-lesson');if(!node)return;
-    node.hidden=run.practice?.mode!=='boss';if(node.hidden)return;
+    node.hidden=!hintsEnabled||run.practice?.mode!=='boss';if(node.hidden)return;
     const boss=run.enemies.find(enemy=>enemy.kind==='boss'&&enemy.hp>0);
     let lesson;
     if(run.practice.completed)lesson='Boss defeated. Reset and try another phase, or turn off longer warnings to practice normal timing.';
@@ -377,7 +377,7 @@
   function update(run,playing,replay=false){
     bossPracticeLesson(run);
     window.RiftMinimap.update(run);
-    const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!cover||!['fighting','cleared'].includes(run.status);
+    const cover=nearbyCover(run),hint=$('rift-terrain-hint');hint.hidden=!hintsEnabled||!cover||!['fighting','cleared'].includes(run.status);
     if(cover){hint.dataset.kind=cover.kind;put(hint,cover.kind==='ledge'?'One-way ledge · Move down to drop safely · Return around either end':cover.kind==='low'?'Low cover · Move + '+(window.RiftControls?.label('jump')||'Space')+' to vault · Projectiles pass over':cover.kind==='wood'?'Wooden barricade · Break with attacks · Blocks projectiles':cover.kind==='stone'?'Stone cover · Walk around · Blocks projectiles':'Tall cover · Walk around · Blocks projectiles');}
 
     lastObservedRun=run;
@@ -531,7 +531,7 @@
         put(mixture,(run.build.resource||'Class resource')+' '+charges+'/3 · '+next+' '+(charges>0?'Spending now restores up to '+Number((charges*3).toFixed(0))+'% maximum HP, capped at full health. ':'')+target);
       }
     }
-    coaching.hidden=coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
+    coaching.hidden=!hintsEnabled||coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     const relic=$('rift-relic-synergy');relic.hidden=run.build.class!=='runesmith';
     if(!relic.hidden){const state=!run.build.relic?'missing':run.resource>0&&finisher?'armed':'equipped';attr(relic,'data-state',state);put(relic,(state==='missing'?'Relic synergy unavailable: no relic in this expedition build.':state==='equipped'?'Relic equipped: build charges and use a finisher for ×1.15 damage.':'Relic synergy armed: charged finisher damage ×1.15 before defenses. Finisher: '+reason(finisher,run,playing)+'.')+' The class barrier works with or without a relic.');}
@@ -611,5 +611,5 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
+  window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
 })();
