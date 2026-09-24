@@ -51,11 +51,25 @@ func TestRiftVisualFixtureReproducesSeededSnapshots(t *testing.T) {
 			t.Fatal("visual scene is not paused combat")
 		}
 	}
+	crowded := read("seed=crowded-v1&crowd=120", "crowded-a")
+	if len(crowded.Enemies) != 120 {
+		t.Fatalf("crowded scene has %d enemies, want 120", len(crowded.Enemies))
+	}
+	if !reflect.DeepEqual(crowded, read("seed=crowded-v1&crowd=120", "crowded-b")) {
+		t.Fatal("crowded scene differs across sessions")
+	}
+	ids := make(map[string]bool)
+	for _, actor := range crowded.Enemies {
+		if ids[actor.ID] || actor.HP <= 0 || actor.X < 35 || actor.X > 1565 || actor.Y < 315 || actor.Y > 490 {
+			t.Fatalf("invalid crowded actor: %+v", actor)
+		}
+		ids[actor.ID] = true
+	}
 	a, b := read("seed=first", "visual-a"), read("seed=second", "visual-b")
 	if reflect.DeepEqual(a.EncounterPlan, b.EncounterPlan) {
 		t.Fatal("different seeds did not select different encounters")
 	}
-	for _, query := range []string{"seed=bad!", "level=0", "level=101", "level=abc", "room=-1", "room=3"} {
+	for _, query := range []string{"seed=bad!", "level=0", "level=101", "level=abc", "room=-1", "room=3", "crowd=0", "crowd=201", "crowd=no"} {
 		if w := get("/abyss/rift?scenario=visual&"+query, "invalid-visual"); w.Code != 400 {
 			t.Fatalf("invalid %s: %d", query, w.Code)
 		}

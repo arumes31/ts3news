@@ -182,3 +182,22 @@ across independent cookie sessions, different-seed variation and invalid options
 `rift-visual-fixtures.spec.js` checks exact reseeding on reload and writes three
 viewport captures with a fixed browser context. Captures are review artifacts,
 not an assertion of pixel equality across machines.
+
+## Many-enemy rendering scene
+
+Use `/abyss/rift?scenario=visual&seed=crowded-v1&crowd=120&riftFrameDebug=1`
+on the isolated e2e fixture server. Optional `crowd` accepts integers1-200 and
+replaces the visual snapshot's enemies with shared Abyss catalog actors on a
+fixed20-column grid. IDs and positions repeat across sessions and reloads.
+Mission/room/subclass options still apply; omitted crowd retains normal content.
+
+Leave the fixture paused for reproducible render profiling. The existing resume
+button can run simulation, but this artificial placement is not validated for
+campaign balance or collision-free spawns. No player inventory is involved.
+Record commit, viewport, browser, display settings, camera position, crowd count
+and frame-diagnostic samples when comparing measurements. This scene makes the
+load reproducible; it does not assert a device-specific FPS performance budget.
+
+`TestRiftVisualFixtureReproducesSeededSnapshots` checks exact cross-session state,
+actor count/IDs/arena bounds and invalid crowd options. `rift-crowded-scene.spec.js`
+checks Chromium rendering, frame diagnostics, reload equality and page errors.
