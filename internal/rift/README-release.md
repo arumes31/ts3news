@@ -63,7 +63,9 @@ node node_modules/@playwright/test/cli.js test rift- --reporter=line --output=te
   interrupted banking, corrupt preferences and pause during advancement.
 - [ ] Measure cold readiness on a constrained connection, crowded-boss frame
   stability and memory after repeated restarts. Record device, viewport, network
-  conditions, run length and measurements against an agreed release budget.
+  conditions, run length and measurements against the
+  [minimum-device engineering budget](README-performance-budget.md). Record
+  physical-device results separately from synthetic comparisons.
   Bounded animation caches and population caps do not establish these metrics.
   Use the [cold-start measurement command](../../scripts/README-brawl-cold-start.md)
   for a reproducible constrained-network readiness baseline.
