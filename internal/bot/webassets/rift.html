@@ -152,6 +152,7 @@
       <aside id="rift-boss-intro" aria-label="Boss introduction" hidden><div><strong id="rift-boss-intro-name" role="status"></strong><p>Slams: jump or move clear. Volleys: evade or face the shot to guard.</p></div><button id="rift-boss-intro-skip" type="button" aria-describedby="rift-boss-intro-note">Skip intro</button><small id="rift-boss-intro-note">Skipped bosses are remembered on this device. Combat continues normally.</small></aside>
       <aside id="rift-room-objective" aria-label="Required room objective" hidden><strong id="rift-room-objective-progress" role="status"></strong><p id="rift-room-objective-help"></p><p id="rift-room-objective-directions"></p></aside>
       <section id="rift-minimap" aria-label="Current arena minimap" hidden><svg viewBox="0 0 320 54" role="img" aria-label="Current arena map"></svg><p></p></section>
+      <details id="rift-class-challenges"><summary>Optional class challenge track</summary><label><input id="rift-class-challenges-enabled" type="checkbox"> Track class challenges for this expedition</label><div id="rift-class-challenges-body" hidden><p id="rift-class-challenges-summary"></p><p class="rift-fine">Uses confirmed expedition counters, including progress before you enabled this view. Finisher goals count casts, including misses. New expeditions start fresh; practice does not count. No extra gold, gear, XP or combat bonuses.</p><ol id="rift-class-challenges-list"></ol><a href="/abyss#abyssMyBuild">Manage abilities in Abyss My Build ↗</a></div></details>
       <details id="rift-class-comparison" hidden><summary>Compare subclasses</summary><p class="rift-fine">Compare Brawl playstyles without changing your build. Unlock and select classes in Abyss My Build; this expedition keeps its saved equipment and abilities.</p><div class="rift-class-comparison-grid"><section><label for="rift-compare-class-left">First subclass</label><select id="rift-compare-class-left"></select><div id="rift-compare-class-card-left"></div></section><section><label for="rift-compare-class-right">Second subclass</label><select id="rift-compare-class-right"></select><div id="rift-compare-class-card-right"></div></section></div><a href="/abyss#abyssMyBuild">Open Abyss My Build ↗</a></details>
       <aside id="rift-class-primer" aria-label="Class combat primer" hidden><strong></strong><p></p><p id="rift-signature-help" hidden></p><a id="rift-signature-help-link" href="/abyss#abyssMyBuild" hidden>Open Abyss My Build ↗</a></aside>
       <div class="rift-viewport" id="rift-viewport">
@@ -277,5 +278,6 @@
 <script defer src="{{asset "/static/rift_boss_intro.js"}}"></script>
 <script defer src="{{asset "/static/rift_objectives.js"}}"></script>
 <script defer src="{{asset "/static/rift_class_compare.js"}}"></script>
+<script defer src="{{asset "/static/rift_class_challenges.js"}}"></script>
 <script defer src="{{asset "/static/rift.js"}}"></script>
 {{template "foot" .}}{{end}}
