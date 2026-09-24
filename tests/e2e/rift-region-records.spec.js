@@ -1,0 +1,7 @@
+const {test,expect}=require('@playwright/test');
+test('regional records show only complete saved runs and hide in practice',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const saved=(await(await page.request.get('/api/abyss/rift')).json()).run;await page.locator('#rift-region-records > summary').click();const list=page.locator('#rift-region-record-list');await expect(list.locator('li')).toHaveCount(10);await expect(list.locator('li').first()).toContainText('No complete regional run');
+ await page.evaluate(run=>{run.region_records={0:{best_seconds:125.5,at_ms:1700000000000},9:{best_seconds:240,at_ms:1700000000000}};RiftRecords.update(run);},saved);await expect(list.locator('li').first()).toContainText('125.5s');await expect(list.locator('li').last()).toContainText('Missions 91–100 · 240.0s');await expect(list.locator('li').nth(1)).toContainText('No complete');
+ await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#rift-region-records').scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await page.locator('#rift-region-records').screenshot({path:'test-results/region-records-mobile.png'});
+ await page.evaluate(run=>{run.practice={mode:'skills'};RiftRecords.update(run);},saved);await expect(page.locator('#rift-region-records')).toBeHidden();expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(saved);
+});

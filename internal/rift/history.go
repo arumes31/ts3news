@@ -79,12 +79,14 @@ func (r *Run) finishMissionHistory(outcome string) {
 			h.BestFinishMaxHP = r.Player.MaxHP
 		}
 		elapsed := r.Stats.Seconds - r.MissionStartSeconds
+		r.recordRegionTime(elapsed)
 		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
 			h.BestSecondsAtMS = r.LastMS
 			r.LastClear.Records = append(r.LastClear.Records, "time")
 		}
 	} else {
+		r.RegionAttempt = nil
 		r.ClearStreak = 0
 	}
 	r.History[r.Level.ID] = h
@@ -102,6 +104,7 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 	if previous.Objectives != nil && previous.Objectives.Finished {
 		r.LastObjectives = previous.Objectives
 	}
+	r.inheritRegionRecords(previous)
 	r.inheritMonsterRecords(previous)
 	r.inheritObjectiveHistory(previous)
 	r.PastExpeditions = previous.RecordedTotals()
