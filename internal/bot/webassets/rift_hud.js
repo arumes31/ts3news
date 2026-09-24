@@ -87,14 +87,16 @@
       put(signal,'Range: '+skill.name+' · Details unavailable');
       return;
     }
+    let rangeText;
     if(ref.target==='self'){
-      put(signal,'Range: '+skill.name+' · Self ('+(ref.barrier?'Barrier':'Healing')+')');
+      rangeText='Range: '+skill.name+' · Self ('+(ref.barrier?'Barrier':'Healing')+')';
     }else if(ref.target==='area'){
-      put(signal,'Range: '+skill.name+' · Area ('+ref.horizontal+'h × '+ref.depth+'d)');
+      rangeText='Range: '+skill.name+' · Area ('+ref.horizontal+'h × '+ref.depth+'d)';
     }else{
       const facing=(run?.player?.facing??1)<0?'←':'→';
-      put(signal,'Range: '+skill.name+' · Projectile (lane ±'+ref.depth+'d, facing '+facing+')');
+      rangeText='Range: '+skill.name+' · Projectile (lane ±'+ref.depth+'d, facing '+facing+')';
     }
+    put(signal,rangeText+' · '+window.RiftAbilities.aimHelp(skill,run));
   }
   function setRequestedRange(skill){
     requestedRangeSkill=skill;

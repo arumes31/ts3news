@@ -60,6 +60,20 @@
     }
     return lines.join(' ');
   }
+  function aimHelp(skill,run){
+    const ref=skill?.reference,p=run?.player;
+    if(!ref||!p)return '';
+    if(ref.target==='self')return 'Self-targeted: facing and lane depth cannot cause a miss.';
+    const target=(run.enemies||[]).filter(enemy=>enemy.hp>0).reduce((nearest,enemy)=>!nearest||Math.hypot(enemy.x-p.x,enemy.y-p.y)<Math.hypot(nearest.x-p.x,nearest.y-p.y)?enemy:nearest,null);
+    if(!target)return 'No living target nearby.';
+    const dx=target.x-p.x,dy=target.y-p.y,notes=[];
+    if(ref.target==='projectile'&&dx*(p.facing<0?-1:1)<0)notes.push('behind you: turn '+(dx<0?'left':'right')+' before casting; projectiles travel forward');
+    if(Math.abs(dy)>=ref.depth)notes.push('outside the lane: move '+(dy<0?'up':'down')+' until lane separation is less than '+ref.depth+' units');
+    if(ref.target==='area'&&Math.abs(dx)>=ref.horizontal)notes.push('too far horizontally: move closer than '+ref.horizontal+' units');
+    if(ref.target==='area')notes.push('this area skill hits in either facing direction');
+    if(!notes.length)notes.push('currently aligned; movement, cover or another enemy may still prevent a hit');
+    return 'Nearest target, '+target.name+' — '+notes.join('; ')+'.';
+  }
   function update(button,skill,run,reason,ultimate=false){
     const role=ultimate?'ultimate':skill.role,identity=roles[role];
     let ring=button.querySelector('.rift-cooldown-ring');
@@ -84,5 +98,5 @@
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
   }
-  window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing,signatureHelp};
+  window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing,signatureHelp,aimHelp};
 })();
