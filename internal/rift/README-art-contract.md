@@ -188,3 +188,10 @@ and pagehide cycles. Each cycle includes effects, region ambience, boss music
 and an unfinished crossfade. Voice and ambience registries must return to zero.
 Campaign completion permits its short result cue before the existing 1.5-second
 silence callback; pause and page exit use immediate cleanup.
+
+Effect-atlas sprites skip drawing only when their entire square plus an eight
+unit rounding/shake margin is outside the 960x540 view. Steam vents use their
+clipped plume footprint plus conservative margins. This preserves edge overlap
+and keeps decorative drawing independent from authoritative hazard behavior.
+The decoration-culling regression checks sparkles and vents at both camera
+extremes; the scene-atlas suite still exercises all 36 effect cells.

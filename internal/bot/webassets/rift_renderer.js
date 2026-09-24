@@ -456,6 +456,9 @@
   }
   function fx(row, frame, x, y, size, alpha) {
     const img = images.effects; if (!img) return;
+    // Retain partially visible sprites plus rounding and camera-shake overhang.
+    const radius=size/2+8;
+    if(x+radius<0||x-radius>960||y+radius<0||y-radius>540)return;
     ctx.save(); ctx.globalAlpha = alpha*(row===5?1:display.effectIntensity); drawAtlas(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
   }
   // A separate canvas keeps reference playback out of expedition state and audio.
@@ -987,6 +990,7 @@
     // Rear scenery only: all actors, pickups, attacks and warnings draw afterward.
     for(const vent of arena?.steam_vents||[]){
       const x=vent.x-camera,y=vent.y+vent.h;
+      if(x+vent.w+8<0||x-8>960||y+8<0||vent.y-20>540)continue;
       ctx.save();ctx.fillStyle='#39463d';ctx.fillRect(x+vent.w*.3,y-4,vent.w*.4,4);
       ctx.strokeStyle='#88958a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+vent.w*.3,y-4);ctx.lineTo(x+vent.w*.7,y-4);ctx.stroke();
       ctx.beginPath();ctx.rect(x,vent.y,vent.w,vent.h);ctx.clip();ctx.fillStyle='#ced8c8';
