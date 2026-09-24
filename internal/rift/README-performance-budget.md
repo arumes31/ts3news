@@ -104,3 +104,26 @@ and particle-off settings retain priority. Visibility loss clears streak counter
 Combat effects, telegraphs, projectiles and authoritative simulation are unaffected.
 Record whether this setting was enabled in performance reports; its existence
 does not establish that a device meets the frame budget. It defaults to off.
+
+
+## Projectile candidate microbenchmark
+
+Run `go test ./internal/rift -run '^$' -bench BenchmarkProjectileCandidates -benchmem -count=2`.
+On Windows amd64, Xeon Gold6126@2.60GHz, the September24 development run measured
+40 friendly queries per pass, including rebuilding16 horizontal buckets:
+
+| Enemies | Previous ordered scan | Reused buckets |
+| --- | --- | --- |
+|12|5.16–5.23µs|1.89–1.95µs|
+|120|57.31–57.73µs|2.95–2.99µs|
+|400|192.06–193.40µs|7.03–7.05µs|
+
+Both paths report zero allocations per warmed pass. The fixture mixes targets
+near the last grid row and misses; it measures candidate lookup only, not a full
+tick, network latency or rendering. It does not satisfy the physical-device gates.
+Buckets retain indices only and rebuild lazily after enemy movement on the first
+friendly collision query. Queries preserve enemy-list priority, check live health
+and use the skill's exact strict hitbox extents. Projectile hits currently change
+health/recoil but not enemy coordinates; future hit-time movement or spawning must
+refresh the index before another projectile query. Storage grows to the largest
+enemy list encountered by that Run and is excluded from saves and snapshots.

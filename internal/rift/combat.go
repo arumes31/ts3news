@@ -296,6 +296,7 @@ type Run struct {
 	Floor               string                   `json:"floor,omitempty"`
 	jumpAir             float64
 	jumpDist            float64
+	projectileCandidates projectileBuckets
 	heavyRecovery       float64
 }
 
@@ -751,6 +752,7 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	shots := r.Projectiles[:0]
+	candidatesReady := false
 	for _, shot := range r.Projectiles {
 		if r.deadBossProjectile(shot) {
 			continue
@@ -784,13 +786,16 @@ func (r *Run) tick(in Input, dt float64) {
 				}
 			}
 		} else {
-			for i, e := range r.Enemies {
-				if ref := shot.Skill.Reference(); e.HP > 0 && math.Abs(shot.X-e.X) < ref.Horizontal && math.Abs(shot.Y-e.Y) < ref.Depth {
-                    if r.Practice != nil && r.Practice.Mode == "ranged" && e.ID == "practice-target" && shot.Power > 0 { r.Practice.RangedHits++ }
-					r.skillHit(i, shot.Power, shot.Skill, shot.Charges, shot.Marked)
-					hit = true
-					break
+			if !candidatesReady {
+				r.projectileCandidates.reset(r.Enemies)
+				candidatesReady = true
+			}
+			if i := r.projectileCandidates.target(r.Enemies, shot); i >= 0 {
+				if r.Practice != nil && r.Practice.Mode == "ranged" && r.Enemies[i].ID == "practice-target" && shot.Power > 0 {
+					r.Practice.RangedHits++
 				}
+				r.skillHit(i, shot.Power, shot.Skill, shot.Charges, shot.Marked)
+				hit = true
 			}
 		}
 		if hit {
