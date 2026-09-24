@@ -51,6 +51,13 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   renderer.preview = level => { previewLevel = level; };
+  const damageNumberBudget = 16;
+  const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_phase','victory']);
+  function combatTextCategory(e) {
+    if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
+    return optionalTextKinds.has(e.kind)?'optional':'damage';
+  }
   function combatTextProperties(e) {
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
@@ -391,6 +398,12 @@
     });
     if(decals.length>40)decals=decals.slice(-40);
     if (effects.length > 40) effects = effects.slice(-40);
+    // Admit newest damage labels once per snapshot, independent of spell visuals.
+    let availableDamageNumbers=damageNumberBudget;
+    for(let i=effects.length-1;i>=0;i--){
+      const effect=effects[i];effect.textCategory=combatTextCategory(effect);
+      effect.showDamageNumber=effect.textCategory==='damage'&&availableDamageNumbers-- > 0;
+    }
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
   };
   function drawAtlas(img,sx,sy,sw,sh,dx,dy,dw,dh){
@@ -1907,7 +1920,7 @@
       }
       if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
-      if(!display.cleanScreenshot && (e.value>0 || e.kind==='block' || e.kind==='perfect_guard' || e.kind==='treasure_escape' || e.kind==='rare_item' || e.kind==='rare_discovery') && e.kind!=='area' && !e.kind.endsWith('_hurt') && e.kind!=='slash' && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery'].includes(e.kind)?display.optionalCombatText:display.damageNumbers)){
+      if(!display.cleanScreenshot && (e.textCategory==='optional'?display.optionalCombatText:e.showDamageNumber&&display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';
         ctx.textAlign='center';
         const {color,label}=combatTextProperties(e);
