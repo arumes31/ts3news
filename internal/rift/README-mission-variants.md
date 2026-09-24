@@ -137,3 +137,6 @@ background/prop atlas references. Inspect the reports and play the changed
 missions with [reproducible fixtures](../../tests/e2e/README-brawl-fixtures.md).
 These checks do not by themselves prove difficulty, timed escape feasibility,
 visual quality or release readiness; use the [release checklist](README-release.md).
+
+For an offline copy of every definition and objective totals, use the
+[static campaign export](../../cmd/brawl-campaign-export/README.md).
