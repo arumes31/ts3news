@@ -23,7 +23,7 @@
   const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
   const missCoaching=document.createElement('p');missCoaching.id='rift-miss-coaching';missCoaching.hidden=true;missCoaching.setAttribute('role','status');hazardCoaching.after(missCoaching);
   hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));if(lastObservedRun)updateLastEncounter(lastObservedRun);try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
-  let combatHintBudget=null;
+  let combatHintBudget=null,classHintState=null;
   function updateCombatHintBudget(run){
     const seconds=run.stats?.seconds||0;
     if(!combatHintBudget||combatHintBudget.id!==run.id||seconds<combatHintBudget.seconds)combatHintBudget={id:run.id,seconds,next:seconds};
@@ -33,6 +33,16 @@
     if(combatHintBudget.seconds<combatHintBudget.next)return false;
     combatHintBudget.next=combatHintBudget.seconds+20;
     return true;
+  }
+  function classCoachingAllowed(run){
+    if(run.status!=='fighting')return true;
+    const key=[run.id,run.level?.id,run.room].join(':'),seconds=run.stats?.seconds||0;
+    if(!classHintState||classHintState.key!==key||seconds<classHintState.seconds)classHintState={key,seconds,shown:false,until:0};
+    classHintState.seconds=seconds;
+    if(!classHintState.shown&&claimCombatHint()){
+      classHintState.shown=true;classHintState.until=seconds+8;
+    }
+    return classHintState.shown&&seconds<classHintState.until;
   }
   function contextualHazardHint(run,replay){
     const key=[run.id,run.level?.id,run.room].join(':'),damage=run.stats?.hazard_damage_taken||0,seconds=run.stats?.seconds||0;
@@ -542,7 +552,7 @@
         put(mixture,(run.build.resource||'Class resource')+' '+charges+'/3 · '+next+' '+(charges>0?'Spending now restores up to '+Number((charges*3).toFixed(0))+'% maximum HP, capped at full health. ':'')+target);
       }
     }
-    coaching.hidden=!hintsEnabled||coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3;
+    coaching.hidden=!hintsEnabled||coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3||!classCoachingAllowed(run);
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     const relic=$('rift-relic-synergy');relic.hidden=run.build.class!=='runesmith';
     if(!relic.hidden){const state=!run.build.relic?'missing':run.resource>0&&finisher?'armed':'equipped';attr(relic,'data-state',state);put(relic,(state==='missing'?'Relic synergy unavailable: no relic in this expedition build.':state==='equipped'?'Relic equipped: build charges and use a finisher for ×1.15 damage.':'Relic synergy armed: charged finisher damage ×1.15 before defenses. Finisher: '+reason(finisher,run,playing)+'.')+' The class barrier works with or without a relic.');}

@@ -10,3 +10,11 @@ test('miss and hazard coaching share a combat-time cooldown across rooms',async(
  await show(3,24,0);await expect(miss).toBeHidden();await show(4,25,0);await show(5,26,0);await show(6,27,0);await expect(hazard).toBeHidden();await expect(miss).toBeHidden();
  await show(6,43,0);await expect(hazard).toBeVisible();await expect(miss).toBeHidden();
 });
+
+test('class coaching waits for hazard advice and expires without repeating',async({page})=>{
+ await page.goto('/abyss/rift?scenario=spawn-hazards');await expect(page.locator('#rift-start')).toBeEnabled();const {run}=await(await page.request.get('/api/abyss/rift')).json();
+ const show=async(count,seconds)=>page.evaluate(({run,count,seconds})=>{run.stats.empty_finishers=count;run.stats.hazard_damage_taken=count*10;run.stats.seconds=seconds;RiftHUD.update(run,false);},{run,count,seconds});
+ const coaching=page.locator('#rift-class-coaching');
+ await show(0,0);await show(1,1);await show(2,2);await show(3,3);await expect(page.locator('#rift-hazard-coaching')).toBeVisible();await expect(coaching).toBeHidden();
+ await show(3,22);await expect(coaching).toBeHidden();await show(3,23);await expect(coaching).toBeVisible();await show(3,32);await expect(coaching).toBeHidden();await show(6,60);await expect(coaching).toBeHidden();
+});
