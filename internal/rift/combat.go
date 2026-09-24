@@ -13,6 +13,8 @@ import (
 
 const Width = 1600.0
 
+const pickupRadius = 65.0
+
 var Rooms = []string{"Mossbound Approach", "The Lantern Court", "Heart of the Ruins"}
 
 type Skill struct {
@@ -771,7 +773,7 @@ func (r *Run) tick(in Input, dt float64) {
 	r.Projectiles = slices.DeleteFunc(shots, r.deadBossProjectile)
 	for i := range r.Drops {
 		d := &r.Drops[i]
-		if !d.Collected && math.Hypot(d.X-p.X, d.Y-p.Y) < 65 {
+		if !d.Collected && math.Hypot(d.X-p.X, d.Y-p.Y) < pickupRadius {
 			d.Collected = true
 			r.Gold += d.Gold
 			if d.Gear != nil && d.Gear.Rarity >= content.RarityRare {

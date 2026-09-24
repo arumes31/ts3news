@@ -967,6 +967,13 @@
       ctx.fillStyle='#071c14df';ctx.fillRect(8,500,610,20);ctx.fillStyle='#d2ffe0';ctx.fillText(label,14,514);ctx.restore();
     }
 
+    renderer.lastPickupRadius=null;
+    if(!display.cleanScreenshot&&run.practice&&run.status==='fighting'&&run.clock<5){
+      const radius=run.practice.pickup_radius??65,x=run.player.x-camera,y=run.player.y-(run.player.elevation||0);
+      ctx.save();ctx.strokeStyle='#f2d48c';ctx.fillStyle='#f2d48c12';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#f2d48c';ctx.strokeStyle='#10201b';ctx.lineWidth=3;const label='PICKUP · '+radius+' UNITS';ctx.strokeText(label,x,y-radius-8);ctx.fillText(label,x,y-radius-8);ctx.restore();
+      renderer.lastPickupRadius={radius,x:run.player.x,y:run.player.y};
+    }
     if(!display.cleanScreenshot&&run.practice&&['movement','jump'].includes(run.practice.mode)){
       ctx.save();ctx.strokeStyle='#e3f9ac';ctx.lineWidth=4;ctx.setLineDash([10,7]);ctx.beginPath();ctx.moveTo(run.practice.goal_x-camera,250);ctx.lineTo(run.practice.goal_x-camera,535);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e3f9ac';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('FINISH',run.practice.goal_x-camera,240);ctx.restore();
     }

@@ -1,0 +1,8 @@
+const {test,expect}=require('@playwright/test');
+test('practice pickup radius follows the player, expires after five combat seconds and respects clean mode',async({page})=>{
+ await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');const saved=(await(await page.request.get('/api/abyss/rift?practice=skills')).json()).run;expect(saved.practice.pickup_radius).toBe(65);await expect(page.locator('#rift-pickup-training')).toContainText('first five combat seconds');
+ const draw=async(clock,practice=true,clean=false)=>page.evaluate(async({saved,clock,practice,clean})=>{const run=structuredClone(saved);run.clock=clock;run.player.x=450;if(!practice)delete run.practice;RiftRenderer.reduced=true;RiftDisplay.cleanScreenshot=clean;RiftRenderer.snapshot(run,true);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return RiftRenderer.lastPickupRadius;},{saved,clock,practice,clean});
+ expect(await draw(0)).toEqual({radius:65,x:450,y:saved.player.y});expect(await draw(4.99)).not.toBeNull();expect(await draw(5)).toBeNull();expect(await draw(0,false)).toBeNull();expect(await draw(0,true,true)).toBeNull();await draw(0);
+ require('fs').writeFileSync('test-results/pickup-radius.png',Buffer.from((await page.locator('#rift-canvas').evaluate(c=>c.toDataURL('image/png'))).split(',')[1],'base64'));
+ expect((await(await page.request.get('/api/abyss/rift?practice=skills')).json()).run).toEqual(saved);
+});

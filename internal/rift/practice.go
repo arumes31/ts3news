@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	PickupRadius float64 `json:"pickup_radius,omitempty"`
 	TargetHint     string  `json:"target_hint,omitempty"`
 	ClassHits      int     `json:"class_hits,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
@@ -57,7 +58,7 @@ func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 
 func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	r := NewRunWithCatalog(id, build, now, nil)
-	r.Practice = &PracticeState{Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: "stone"}}
+	r.Practice = &PracticeState{PickupRadius: pickupRadius, Mode: mode, GoalX: 900, Arena: Arena{Name: "Practice lane", Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: "stone"}}
 	r.Floor = "stone"
 	r.Enemies = []Actor{}
 	for i := range r.EncounterPlan {
