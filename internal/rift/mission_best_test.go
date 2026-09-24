@@ -56,3 +56,25 @@ func TestMissionBestsSeparateVersionsWithoutLosingProgress(t *testing.T) {
 		t.Fatal("legacy best competed or was lost")
 	}
 }
+
+func TestLegacyResumedMissionDoesNotInventComparableBests(t *testing.T) {
+	r := NewRunAtLevel("legacy", Build{HP: 100, Class: "vanguard"}, time.Unix(100, 0), nil, 1)
+	r.MissionDefinition = ""
+	h := r.History[1]
+	h.Definition = ""
+	h.BestSeconds = 50
+	h.BestFinishHP = 10
+	h.BestFinishMaxHP = 100
+	r.History[1] = h
+	r.Stats.Seconds = 1
+	r.Player.HP = 100
+	r.recordFlawlessRoom()
+	r.finishMissionHistory("completed")
+	h = r.History[1]
+	if h.BestSeconds != 50 || h.BestFinishHP != 10 || h.FewestHits != nil || len(h.FlawlessTiers) != 0 || len(r.LastClear.Records) != 0 {
+		t.Fatal("unknown legacy attempt established comparable metrics")
+	}
+	if h.Completions != 1 || h.CompletedByClass["vanguard"] != 1 || r.AttemptHistory[0].Definition != "" {
+		t.Fatal("legacy completion lost or version inferred")
+	}
+}

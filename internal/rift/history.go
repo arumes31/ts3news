@@ -55,12 +55,13 @@ func (r *Run) finishMissionHistory(outcome string) {
 	}
 	h := r.History[r.Level.ID]
 	h.LastOutcome = outcome
+	comparable := r.MissionDefinition != "" && h.Definition == r.MissionDefinition
 	if outcome == "completed" {
 		r.LastClear = &ClearResult{Mission: r.Level.ID, First: h.Completions == 0 && !slices.Contains(r.CompletedLevels, r.Level.ID), Records: []string{}}
 		r.ClearStreak++
 		r.BestClearStreak = max(r.BestClearStreak, r.ClearStreak)
 		h.Completions++
-		if r.MissionStartHits != nil {
+		if comparable && r.MissionStartHits != nil {
 			hits := r.Stats.HitsTaken - *r.MissionStartHits
 			if hits >= 0 && (h.FewestHits == nil || hits < *h.FewestHits) {
 				h.FewestHits = &hits
@@ -76,7 +77,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 			classes[r.Build.Class]++
 			h.CompletedByClass = classes
 		}
-		if r.Player.HP > h.BestFinishHP {
+		if comparable && r.Player.HP > h.BestFinishHP {
 			r.LastClear.Records = append(r.LastClear.Records, "health")
 			h.BestFinishHP = r.Player.HP
 			h.BestFinishHPAtMS = r.LastMS
@@ -84,7 +85,7 @@ func (r *Run) finishMissionHistory(outcome string) {
 		}
 		elapsed := r.Stats.Seconds - r.MissionStartSeconds
 		r.recordRegionTime(elapsed)
-		if elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
+		if comparable && elapsed > 0 && (h.BestSeconds == 0 || elapsed < h.BestSeconds) {
 			h.BestSeconds = elapsed
 			h.BestSecondsAtMS = r.LastMS
 			r.LastClear.Records = append(r.LastClear.Records, "time")
@@ -150,6 +151,9 @@ func (r *Run) recordFlawlessRoom() {
 		return
 	}
 	h := r.History[r.Level.ID]
+	if r.MissionDefinition == "" || h.Definition != r.MissionDefinition {
+		return
+	}
 	tier := r.Room + 1
 	if slices.Contains(h.FlawlessTiers, tier) {
 		return

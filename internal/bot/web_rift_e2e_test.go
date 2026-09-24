@@ -94,6 +94,10 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				4: {Attempts: 1, Completions: 1, LastStartedMS: 3000, LastOutcome: "completed", BestSeconds: 40},
 				5: {Attempts: 2, Completions: 1, LastStartedMS: 2000, LastOutcome: "completed", BestSeconds: 40},
 			}
+			for id, history := range run.History {
+				history.Definition = rift.NewRunAtLevel("history-definition", selectedBuild, time.Now(), nil, id).MissionDefinition
+				run.History[id] = history
+			}
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
