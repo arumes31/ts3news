@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	CheckpointReady bool `json:"checkpoint_ready,omitempty"`
 	ResourceCycles int `json:"resource_cycles,omitempty"`
 	UltimateTimed bool `json:"ultimate_timed,omitempty"`
 	UltimateWindow bool `json:"ultimate_window,omitempty"`
@@ -35,7 +36,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -78,7 +79,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	for i := range r.EncounterPlan {
 		r.EncounterPlan[i] = []Actor{}
 	}
-	if mode == "pickup" {
+	if mode == "pickup" || mode == "banking" {
 		r.Practice.Arena.Name = "Loot pickup demonstration"
 		r.Drops = []Drop{{ID: "practice-token-1", X: 360, Y: 410}, {ID: "practice-token-2", X: 580, Y: 350}, {ID: "practice-token-3", X: 800, Y: 480}}
 	}
@@ -158,7 +159,7 @@ func (r *Run) practiceInput(in Input) Input {
 	switch r.Practice.Mode {
 	case "boss", "class", "skills", "ranged", "ultimate", "resource":
 		return in
-	case "movement", "pickup":
+	case "movement", "pickup", "banking":
 		return Input{X: in.X, Y: in.Y}
 	case "jump", "hazard":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
@@ -181,6 +182,12 @@ func (r *Run) practiceTick() {
 	if r.Practice.Mode == "pickup" {
 		complete = len(r.Drops) == 3
 		for _, drop := range r.Drops { complete = complete && drop.Collected }
+	}
+	if r.Practice.Mode == "banking" {
+		collected, banked := len(r.Drops) == 3, len(r.Drops) == 3
+		for _, drop := range r.Drops { collected = collected && drop.Collected; banked = banked && drop.Banked }
+		if collected && r.Player.X >= r.Practice.GoalX { r.Practice.CheckpointReady = true }
+		complete = r.Practice.CheckpointReady && banked
 	}
 	if r.Practice.Mode == "resource" {
 		complete = r.Practice.ResourceCycles >= 2
@@ -244,6 +251,11 @@ func (r *Run) PracticeTool(kind string) error {
 		return errors.New("practice recovery requires an active drill")
 	}
 	switch kind {
+	case "practice_bank":
+		if r.Practice.Mode != "banking" || !r.Practice.CheckpointReady || len(r.Drops) != 3 { return errors.New("reach the practice checkpoint before banking") }
+		for _, drop := range r.Drops { if !drop.Collected { return errors.New("collect all practice tokens before banking") } }
+		for i := range r.Drops { r.Drops[i].Banked = true }
+		r.practiceTick()
 	case "practice_freeze":
 		r.Practice.FreezeMovement = !r.Practice.FreezeMovement
 		r.Practice.FreezeUsed = r.Practice.FreezeUsed || r.Practice.FreezeMovement
