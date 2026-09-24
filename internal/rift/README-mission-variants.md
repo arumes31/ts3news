@@ -11,6 +11,10 @@ The campaign combines ten regions with ten layout blueprints. Zero-based
 `region` and `layout` produce `id = region * 10 + layout + 1`. IDs are contiguous
 1–100 and their slice position is `id - 1`; selection depends on this ordering.
 Keep existing IDs stable when editing content. Display names must be unique.
+[Startup validation](campaign_identity.go) rejects missing missions, duplicate or
+out-of-range IDs, incorrect ordering, blank names, and names that collide after
+trimming surrounding whitespace and ignoring case. Invalid compiled content
+stops startup before game requests; historical saved expeditions are not rewritten.
 
 | Level key | Type | Authoring contract |
 | --- | --- | --- |
