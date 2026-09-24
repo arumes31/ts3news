@@ -180,6 +180,7 @@ type EncounterBossState struct {
 
 // EncounterSummary preserves an accessible structured summary of the last encounter.
 type EncounterSummary struct {
+	MonsterKeys []string `json:"monster_keys,omitempty"`
 	DefeatedByHazard *HazardDefeat `json:"defeated_by_hazard,omitempty"`
 	HazardDamageTaken float64 `json:"hazard_damage_taken"`
 	EnemyDamageTaken float64 `json:"enemy_damage_taken"`
@@ -443,9 +444,15 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		enemiesCount = kills
 	}
 
+	var monsterKeys []string
+	seenMonsters := make(map[string]bool)
 	var bosses []EncounterBossState
 	treasureEscaped := 0
 	for _, e := range r.Enemies {
+		if e.Name != "" && e.ArtKey == "monster:"+e.Name && !seenMonsters[e.ArtKey] {
+			seenMonsters[e.ArtKey] = true
+			monsterKeys = append(monsterKeys, e.ArtKey)
+		}
 		if e.Kind == "boss" {
 			bosses = append(bosses, EncounterBossState{Name: e.Name, HP: e.HP, MaxHP: e.MaxHP, Phase: max(1, e.Phase)})
 		}
@@ -455,6 +462,7 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	}
 
 	r.LastEncounter = &EncounterSummary{
+		MonsterKeys: monsterKeys,
 		Bosses:          bosses,
 		DefeatedByBoss:  r.DefeatedByBoss,
 		DefeatedByHazard: r.DefeatedByHazard,
