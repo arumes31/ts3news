@@ -98,8 +98,12 @@
     btn.setAttribute('aria-label',action+' expedition');
     btn.setAttribute('aria-keyshortcuts',key);
   }
-  let pendingRead=null,loadGeneration=0;
+  let pendingRead=null,pendingRequest=null,loadGeneration=0;
   async function request(method, body) {
+    const previousRequest=pendingRequest;
+    let settleRequest;
+    const settled=new Promise(resolve=>{settleRequest=resolve;});pendingRequest=settled;
+    await previousRequest;
     const started = performance.now(),requestBody=body?JSON.stringify(body):undefined;
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     if(method==='GET')pendingRead=controller;
@@ -122,7 +126,7 @@
       const duration = performance.now() - started;
       if(window.RiftHUD?.updateLatency)window.RiftHUD.updateLatency(duration);
       return result;
-    } finally { clearTimeout(timeout);if(pendingRead===controller)pendingRead=null; }
+    } finally { clearTimeout(timeout);if(pendingRead===controller)pendingRead=null;if(pendingRequest===settled)pendingRequest=null;settleRequest(); }
   }
   function input() {
     const pad=window.RiftGamepad.consume();
@@ -513,7 +517,11 @@
   async function load(){
     ready=false;$('rift-start').disabled=true;
     const generation=++loadGeneration;
+    const previousRequest=pendingRequest;
     pendingRead?.abort();
+    // Keep only the latest load after the current request (including its body) settles.
+    await previousRequest;
+    if(generation!==loadGeneration)return;
     let artworkFailed=false;
     try{
       // Cold atlas transfers can starve the initial read's bounded request timer.
