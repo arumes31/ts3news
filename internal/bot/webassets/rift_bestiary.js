@@ -13,10 +13,11 @@
     const root=list.closest('details'),panel=document.getElementById('rift-monster-detail');
     const bookmarked=document.getElementById('rift-monster-bookmarked'),bookmark=document.getElementById('rift-monster-bookmark');
     const encountered=document.getElementById('rift-monster-seen');
-    const tier=document.getElementById('rift-monster-tier'),element=document.getElementById('rift-monster-element'),style=document.getElementById('rift-monster-style');
+    const family=document.getElementById('rift-monster-family'),tier=document.getElementById('rift-monster-tier'),element=document.getElementById('rift-monster-element'),style=document.getElementById('rift-monster-style');
     const poseSelect=document.getElementById('rift-monster-pose'),preview=document.getElementById('rift-monster-preview');
     const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     const attackStyle=unit=>unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee';
+    const familyName=unit=>profile(unit).rig.split('-').map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(' ');
     const elementName=unit=>unit.element||'physical';
     const numeric=value=>new Intl.NumberFormat(undefined,{maximumFractionDigits:1}).format(Number(value)||0);
     function options(select,values){
@@ -24,7 +25,7 @@
       [...new Set(values)].sort().forEach(value=>{const option=document.createElement('option');option.value=value;option.textContent=value;select.append(option);});
       if(values.includes(saved))select.value=saved;
     }
-    options(tier,roster.map(unit=>unit.tier));options(element,roster.map(elementName));options(style,roster.map(attackStyle));
+    options(family,roster.map(familyName));options(tier,roster.map(unit=>unit.tier));options(element,roster.map(elementName));options(style,roster.map(attackStyle));
     if(render.cleanup)render.cleanup();
     document.getElementById('rift-monster-stat-details').open=!window.matchMedia('(max-width:600px)').matches;
     let selected=null,opener=null,timer=null,tick=0,built=false,announceTimer=null,lastMatchesText='',lastMatchesLabel='';
@@ -52,7 +53,7 @@
       document.getElementById('rift-monster-record').textContent=practice?'Campaign records are shown in campaign mode. Practice does not add encounters or defeats.':record?'First recorded encounter: '+new Date(record.first_seen_ms).toLocaleString()+' · Defeats: '+record.defeats+(record.fastest_clear_seconds!==undefined?' · Fastest boss room clear: '+record.fastest_clear_seconds.toFixed(2)+' s':'')+'. Older fights may be missing.':'No recorded encounter. Older fights may be missing.';
     }
     function statsFor(unit){
-      const values=[['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
+      const values=[['Creature family',familyName(unit)],['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
       if(unit.training)values.push(['Attack windup',unit.kind==='treasure'?'None: flees':new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(unit.training.windup_seconds)+' s'],['Knockdown',unit.training.resists_knockdown?'Resistant':'Third basic strike can knock down'],['Interruptible',unit.training.interruptible?'Yes: third basic strike or ice':'No: resists basic-combo and ice interrupts']);
       for(const phase of unit.training?.boss_phases||[]){
         values.push(['Phase '+phase.phase, (phase.phase===1?'Opening':phase.at_health_percent+'% HP')+' · '+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(phase.windup_seconds)+' s windup']);
@@ -99,9 +100,9 @@
     function buildCards(){
       if(built)return;built=true;
       roster.forEach(unit=>{
-        const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize(unit.name+' '+unit.tier+' '+elementName(unit)+' '+attackStyle(unit));item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
+        const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize(unit.name+' '+familyName(unit)+' '+unit.tier+' '+elementName(unit)+' '+attackStyle(unit));item.dataset.family=familyName(unit);item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
         const sprite=document.createElement('span'),pose=frame(unit,'idle',0);sprite.className='rift-monster-art';sprite.setAttribute('aria-hidden','true');sprite.style.backgroundImage='url("'+assetURL(pose.asset)+'")';sprite.style.backgroundPosition=pose.position;sprite.style.backgroundSize=pose.size;
-        const body=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=unit.name;detail.textContent=unit.tier+' · '+(unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee');
+        const body=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=unit.name;detail.textContent=familyName(unit)+' · '+unit.tier+' · '+(unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee');
         const button=document.createElement('button');button.type='button';button.textContent='Inspect';button.setAttribute('aria-label','Inspect '+unit.name);button.onclick=()=>inspect(unit,button);
         body.append(name,detail,button);item.append(sprite,body);list.append(item);
       });
@@ -119,12 +120,12 @@
       if(immediate)applyText();
       else announceTimer=setTimeout(applyText,200);
     }
-    function filter(immediate=true){let visible=0;for(const item of list.children){item.hidden=(bookmarked.checked&&!bookmarks.has(item.dataset.artKey))||(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=bookmarked.checked?'No practice bookmarks match these filters. Inspect a creature to save it for practice.':encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';const matchText=visible+' of '+roster.length+' monsters';const matchLabel=visible===0?'No monsters match current filters. 0 of '+roster.length+' monsters.':visible===roster.length?'Showing all '+roster.length+' monsters.':visible+' of '+roster.length+' monsters matching filters.';announceMonsterResults(document.getElementById('rift-monster-matches'),matchText,matchLabel,immediate);}
+    function filter(immediate=true){let visible=0;for(const item of list.children){item.hidden=(bookmarked.checked&&!bookmarks.has(item.dataset.artKey))||(encountered.checked&&!Object.hasOwn(records,item.dataset.artKey))||!item.dataset.search.includes(normalize(search.value))||(family.value&&item.dataset.family!==family.value)||(tier.value&&item.dataset.tier!==tier.value)||(element.value&&item.dataset.element!==element.value)||(style.value&&item.dataset.style!==style.value);if(!item.hidden)visible++;}const empty=document.getElementById('rift-monsters-empty');empty.hidden=visible>0;empty.textContent=bookmarked.checked?'No practice bookmarks match these filters. Inspect a creature to save it for practice.':encountered.checked?Object.keys(records).length?'No recorded creatures match these filters. Clear filters to see the full roster.':'No recorded encounters yet. Start a campaign expedition to record monsters. Older fights may be missing.':'No matching monsters. Clear filters or try another name.';const matchText=visible+' of '+roster.length+' monsters';const matchLabel=visible===0?'No monsters match current filters. 0 of '+roster.length+' monsters.':visible===roster.length?'Showing all '+roster.length+' monsters.':visible+' of '+roster.length+' monsters matching filters.';announceMonsterResults(document.getElementById('rift-monster-matches'),matchText,matchLabel,immediate);}
     encountered.onchange=()=>filter(true);
     render.refreshRecords=()=>{encountered.disabled=practice;if(practice)encountered.checked=false;showRecord();if(built)filter(true);};
     update(run);render.refreshRecords();
-    search.oninput=()=>filter(false);[tier,element,style].forEach(select=>select.onchange=()=>filter(true));
-    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter(true);search.focus();};onToggle();
+    search.oninput=()=>filter(false);[family,tier,element,style].forEach(select=>select.onchange=()=>filter(true));
+    document.getElementById('rift-monster-clear').onclick=()=>{search.value='';family.value='';tier.value='';element.value='';style.value='';encountered.checked=false;bookmarked.checked=false;filter(true);search.focus();};onToggle();
   }
   window.RiftBestiary={profile,frame,render,update,assetURL,assets:art.atlasAssets,hasBoss:name=>!!render.hasBoss?.(name),openBoss:(name,source)=>render.openBoss?.(name,source)||false};
 })();
