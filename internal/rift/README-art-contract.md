@@ -209,3 +209,12 @@ All 22 required images still complete decoding before Start becomes available.
 These are browser scheduling hints, not a reduction in asset bytes or proof of
 a cold-start speedup. `rift-atlas-priority.spec.js` verifies the hints at request
 initiation, alongside readiness, failure and legacy-fallback decode tests.
+
+Preserve exact atlas URLs across drawing and CSS previews. Base campaign assets
+come from server-versioned root data attributes (props from its preload href).
+Shared Abyss atlases use `RiftBestiary.assetURL` in both renderer and bestiary.
+Mission thumbnails reuse `data-regions`; loot icons reuse `data-items`. Avoid
+reconstructing these paths with a different version parameter. The browser
+version-reuse regression opens the bestiary and inspector, checks all generated
+monster/mission CSS URLs against the 22 renderer URLs, and requires one image
+request per required atlas pathname.
