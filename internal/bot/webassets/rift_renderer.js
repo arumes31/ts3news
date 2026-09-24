@@ -914,10 +914,11 @@
   function render(now) {
     renderRequest=null;
     scheduleRender();
-    if (!images.area || document.hidden || !ctx || now-last<1000/display.fps-1) return;
+    const frameRate=!snapshot&&display.fps===30?15:display.fps;
+    if (!images.area || document.hidden || !ctx || now-last<1000/frameRate-1) return;
     renderer.frameCount++;
     ctx.imageSmoothingEnabled = false;
-    const dt = Math.min(.05,(now-last)/1000); last = now;
+    const dt = Math.min(snapshot ? .05 : .1,(now-last)/1000); last = now;
     motion=renderer.reduced?0:display.motionIntensity;
     if (!snapshot || !snapshot.paused) { animationTime += dt*1000; decorationTime += dt*1000*motion; }
     const wallNow = now; now = animationTime;
