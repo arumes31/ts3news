@@ -132,3 +132,38 @@ to isolate their requests from canvas loads, holds those requests indefinitely,
 then verifies first play and live rendering before aborting them and confirming
 pause/resume readiness without client errors. This verifies the dependency boundary,
 not a download saving: all current combat atlases still load before first play.
+
+
+## Pixel-exact compression experiment (2026-09-24)
+
+The [lossless-art report](brawl-lossless-art-baseline.json) measures the22 atlas
+files currently required by renderer.ready:18 Rift atlases plus4 shared Abyss
+creature atlases. Source hashes identify the exact measured inputs. Pillow12.2.0
+and libwebp1.6.0 encoded RGBA images with lossless=True,method=6,exact=True.
+Every candidate was decoded and checked against every source RGBA byte, including
+fully transparent pixels. Candidates were held in memory; source art and browser
+URLs were not changed.
+
+PNG total:44,399,088 bytes. Lossless WebP total:34,393,642 bytes. Saving:10,005,446
+bytes(22.54%). Even the art-only transfer floor at200,000 B/s is171.97 seconds.
+This excludes other requests, headers, latency, decoding and rendering and is not
+a browser startup measurement. It decisively fails the3,000,000-byte readiness gate.
+
+Format conversion alone therefore cannot satisfy startup readiness. The next
+implementation must reduce the set of bytes required before play (for example,
+scene-specific atlas loading), with explicit readiness before newly needed art is
+shown. It must retain all monster/class/animation coverage and account for stage
+transitions; simply enabling Start while required artwork is missing is insufficient.
+The existing cold-start gate remains failed and must be remeasured after that work.
+
+Reproduce without rewriting any artwork:
+
+```powershell
+python scripts/measure-brawl-lossless-art.py --output .tmp/brawl-lossless-art.json
+```
+
+Requires Pillow with WebP support. Asset discovery reads the renderer critical-key
+list, template URLs and shared combat-art catalog list; mismatched source layout
+fails rather than silently reporting a partial list. Encoder duration is local
+experiment overhead, not browser decode time. The report's Pillow/libwebp versions
+must accompany comparisons.

@@ -1,0 +1,233 @@
+{
+  "pillow": "12.2.0",
+  "libwebp": "1.6.0",
+  "assets": [
+    {
+      "asset": "rift_area.png",
+      "source_sha256": "5e3ec1f4b7fa8e6be2033a1d136a21aeb3374c4fe1baa6a0a48c06aff709d317",
+      "width": 1536,
+      "height": 1024,
+      "source_bytes": 3149894,
+      "lossless_webp_bytes": 2387096,
+      "pixel_exact": true,
+      "encode_seconds": 1.977
+    },
+    {
+      "asset": "rift_boss_area.png",
+      "source_sha256": "80c8e20161053de4257d5814a34bed5a29517e3041e09d79ba55e5e6abe6f162",
+      "width": 1536,
+      "height": 1024,
+      "source_bytes": 3339584,
+      "lossless_webp_bytes": 2531836,
+      "pixel_exact": true,
+      "encode_seconds": 1.802
+    },
+    {
+      "asset": "rift_regions.png",
+      "source_sha256": "f1cb0f20605a3eca5b472e862e0046c895b5248eaf6e2294375f4e22fa4eef60",
+      "width": 1058,
+      "height": 1487,
+      "source_bytes": 3222009,
+      "lossless_webp_bytes": 2587916,
+      "pixel_exact": true,
+      "encode_seconds": 1.69
+    },
+    {
+      "asset": "rift_props.png",
+      "source_sha256": "6f93fd6ce2c6d39d50b0c27a46fcd8717535eae26b514dca1080954c1fef87d1",
+      "width": 1774,
+      "height": 887,
+      "source_bytes": 1553373,
+      "lossless_webp_bytes": 1183258,
+      "pixel_exact": true,
+      "encode_seconds": 1.174
+    },
+    {
+      "asset": "rift_heroes_a.png",
+      "source_sha256": "bfd62659f52c070f333e68fa1753e003f6e6761d1fc9132f36a9e438bc21c09b",
+      "width": 2048,
+      "height": 768,
+      "source_bytes": 2704155,
+      "lossless_webp_bytes": 2136044,
+      "pixel_exact": true,
+      "encode_seconds": 1.958
+    },
+    {
+      "asset": "rift_heroes_b.png",
+      "source_sha256": "f7ff929da32d2b9a48f63038e0790ced35382000e6a24da57d8cfdf0e9933504",
+      "width": 2048,
+      "height": 768,
+      "source_bytes": 2608798,
+      "lossless_webp_bytes": 2052384,
+      "pixel_exact": true,
+      "encode_seconds": 2.011
+    },
+    {
+      "asset": "rift_mobs.png",
+      "source_sha256": "9c9f977d0d93e06f96d0e66768258778e2388e22a7cbe3f4005505d3301d1983",
+      "width": 2048,
+      "height": 768,
+      "source_bytes": 2782428,
+      "lossless_webp_bytes": 2179840,
+      "pixel_exact": true,
+      "encode_seconds": 1.908
+    },
+    {
+      "asset": "rift_items.png",
+      "source_sha256": "e4a68719182b7446ee19b21dfbfb5d4a2e30a13de12511f6ed4c8026c41ebc7c",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 1392338,
+      "lossless_webp_bytes": 1112634,
+      "pixel_exact": true,
+      "encode_seconds": 1.293
+    },
+    {
+      "asset": "rift_effects.png",
+      "source_sha256": "bc75320baeba6b1df2c8c71b71ff7b61dc13cbe7cc02fbf887a1ae9109cb959a",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 1332867,
+      "lossless_webp_bytes": 1132282,
+      "pixel_exact": true,
+      "encode_seconds": 1.641
+    },
+    {
+      "asset": "rift_sigil.png",
+      "source_sha256": "b73c86019ffcf4df6977b4d548e47940873a55c07e2aaee25e18361d0d462d39",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 897704,
+      "lossless_webp_bytes": 650940,
+      "pixel_exact": true,
+      "encode_seconds": 1.169
+    },
+    {
+      "asset": "rift_totem.png",
+      "source_sha256": "3594051d70cc29e3ce101ebc8ac6bf155242276415cd502927677ae89f046a51",
+      "width": 1142,
+      "height": 1377,
+      "source_bytes": 1056080,
+      "lossless_webp_bytes": 704284,
+      "pixel_exact": true,
+      "encode_seconds": 0.983
+    },
+    {
+      "asset": "rift_relic.png",
+      "source_sha256": "d54e63484bb6d589731bf1679b85345164a954804dd02c7638d56cb0da1d4fdd",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 1472918,
+      "lossless_webp_bytes": 1121142,
+      "pixel_exact": true,
+      "encode_seconds": 1.102
+    },
+    {
+      "asset": "rift_generator.png",
+      "source_sha256": "119932ca5ca115c661ed073f365f5c08557b88479399eac17efa00eee7e0c0fa",
+      "width": 1122,
+      "height": 1402,
+      "source_bytes": 1175989,
+      "lossless_webp_bytes": 862268,
+      "pixel_exact": true,
+      "encode_seconds": 1.062
+    },
+    {
+      "asset": "rift_spirit.png",
+      "source_sha256": "b97a45203d5a5591c9f8299d5c9c9f01c7b94450188e4687103c03b1a1bf92c8",
+      "width": 1146,
+      "height": 1372,
+      "source_bytes": 564197,
+      "lossless_webp_bytes": 390576,
+      "pixel_exact": true,
+      "encode_seconds": 0.978
+    },
+    {
+      "asset": "rift_cage.png",
+      "source_sha256": "39d8f6b7791cfe6c191374e34069ffaa0f142a817fd9b4c07a167011849ce90b",
+      "width": 1024,
+      "height": 1536,
+      "source_bytes": 2228684,
+      "lossless_webp_bytes": 1552576,
+      "pixel_exact": true,
+      "encode_seconds": 1.746
+    },
+    {
+      "asset": "rift_lantern.png",
+      "source_sha256": "63318dbc8bd676a2f8742b6e7a43e855b0715b564c85336a391d907517e32f7a",
+      "width": 1086,
+      "height": 1448,
+      "source_bytes": 844782,
+      "lossless_webp_bytes": 595340,
+      "pixel_exact": true,
+      "encode_seconds": 0.923
+    },
+    {
+      "asset": "rift_terrain_cover.png",
+      "source_sha256": "b56b76c20d9fc85da23efb4491a9326d9c44d1af29db2e10377e352fa41ba820",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 1484178,
+      "lossless_webp_bytes": 1112256,
+      "pixel_exact": true,
+      "encode_seconds": 1.23
+    },
+    {
+      "asset": "rift_platform_surface.png",
+      "source_sha256": "ed7e60717ab0c141c7538c0dbc865c5ade4f5c00a1af48cee0f4e45e66c11a2b",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 2771164,
+      "lossless_webp_bytes": 1921056,
+      "pixel_exact": true,
+      "encode_seconds": 1.791
+    },
+    {
+      "asset": "abyss_combat_roles_v2.png",
+      "source_sha256": "85f9216d563bbe72ae8a6a072f2cbcd67469fa7751a17f0f89c0b176903d3b8a",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 2217154,
+      "lossless_webp_bytes": 1812460,
+      "pixel_exact": true,
+      "encode_seconds": 1.641
+    },
+    {
+      "asset": "abyss_combat_creatures_v2.png",
+      "source_sha256": "504f8708f1dc3c07b670c0290708efaddb025c283909f3e30a9f56e9257633dc",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 2474580,
+      "lossless_webp_bytes": 2076646,
+      "pixel_exact": true,
+      "encode_seconds": 1.648
+    },
+    {
+      "asset": "abyss_combat_bestiary_v2.png",
+      "source_sha256": "b580e089a4257b383530878438596d6c84f0c97cb09e023e1849f38466fcd214",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 2445858,
+      "lossless_webp_bytes": 2070200,
+      "pixel_exact": true,
+      "encode_seconds": 1.642
+    },
+    {
+      "asset": "abyss_combat_bosses_v2.png",
+      "source_sha256": "abbaf9b0276c44ff31275da615b009fe4c092799614c360c4077105bb3f9e1f8",
+      "width": 1254,
+      "height": 1254,
+      "source_bytes": 2680354,
+      "lossless_webp_bytes": 2220608,
+      "pixel_exact": true,
+      "encode_seconds": 1.831
+    }
+  ],
+  "source_bytes": 44399088,
+  "lossless_webp_bytes": 34393642,
+  "saved_bytes": 10005446,
+  "saved_percent": 22.54,
+  "art_only_transfer_floor_seconds_at_200000_Bps": 171.97,
+  "art_only_fits_3000000_byte_gate": false,
+  "note": "Encoding experiment, not a browser startup measurement. Excludes HTML, CSS, JS, API data, headers, latency, decoding and rendering."
+}
