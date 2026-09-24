@@ -9,7 +9,7 @@ import (
 )
 
 func TestPopulationReportCoversCampaignAndSeparatesWavesAndProps(t *testing.T) {
-	rows := populationReport(8)
+	rows := populationReport(8, 1)
 	if len(rows) != 300 {
 		t.Fatalf("rows=%d", len(rows))
 	}
@@ -62,12 +62,50 @@ func TestPopulationCommandReportsViolationsAndFormats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(records) != 301 || len(records[0]) != 10 {
+	if len(records) != 301 || len(records[0]) != 14 {
 		t.Fatal("invalid CSV shape")
 	}
 	for _, args := range [][]string{{"-max-enemies=0"}, {"-format=xml"}, {"unexpected"}} {
 		if code := execute(args, io.Discard, io.Discard); code != 2 {
 			t.Fatalf("invalid options accepted: %v", args)
 		}
+	}
+}
+
+func TestBossBudgetCanFailIndependently(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := execute([]string{"-format=json", "-max-bosses=0"}, &out, &diagnostics); code != 1 {
+		t.Fatalf("exit=%d: %s", code, diagnostics.String())
+	}
+	var rows []struct {
+		Tier       int  `json:"tier"`
+		Planned    int  `json:"planned_bosses"`
+		Entry      int  `json:"entry_bosses"`
+		BossBudget int  `json:"boss_budget"`
+		BossOver   bool `json:"boss_over_budget"`
+		EnemyOver  bool `json:"over_budget"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 300 {
+		t.Fatal("incomplete report")
+	}
+	total := 0
+	for _, row := range rows {
+		want := 0
+		if row.Tier == 3 {
+			want = 1
+		}
+		if row.Planned != want || row.Entry != want || row.BossOver != (want > 0) || row.BossBudget != 0 || row.EnemyOver {
+			t.Fatalf("wrong boss accounting: %+v", row)
+		}
+		total += row.Planned
+	}
+	if total != 100 {
+		t.Fatalf("boss count=%d", total)
+	}
+	if code := execute([]string{"-max-bosses=-1"}, io.Discard, io.Discard); code != 2 {
+		t.Fatal("negative boss budget accepted")
 	}
 }
