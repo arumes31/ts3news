@@ -787,3 +787,10 @@
 /* Short viewports must allow the entire recovery message and action to be reached. */
 .rift-overlay { overflow-y: auto; justify-content: safe center; touch-action: pan-y; }
 .rift-overlay > * { flex-shrink: 0; }
+
+#rift-app #rift-skill-descriptions { min-height:48px; margin:8px 12px; font-size:14px; }
+#rift-skill-glossary { padding:12px; }
+#rift-skill-glossary p { font-size:14px; line-height:1.6; }
+#rift-skill-glossary > summary { min-height:48px; padding:12px 0; font-size:16px; }
+#rift-app #rift-glossary-search { width:100%; min-height:48px; font-size:16px; }
+#rift-skill-glossary button { min-height:48px; max-width:100%; overflow-wrap:anywhere; }

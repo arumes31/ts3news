@@ -751,6 +751,7 @@
     if(busy||controls.opened||(run&&['fighting','cleared'].includes(run.status)&&!run.paused))return;
     resetInput();window.RiftLoadouts.openReference();
   }
+  const skillDescriptions=document.createElement('button');skillDescriptions.type='button';skillDescriptions.id='rift-skill-descriptions';skillDescriptions.textContent='Skill descriptions';skillDescriptions.setAttribute('aria-controls','rift-skill-glossary');skillDescriptions.addEventListener('click',openLoadoutReference);$('rift-actionbar').after(skillDescriptions);
   const loadoutPreview=document.createElement('button');loadoutPreview.type='button';loadoutPreview.id='rift-loadout-preview';loadoutPreview.textContent='Skill reference · Alt+Shift+L';loadoutPreview.setAttribute('aria-keyshortcuts','Alt+Shift+L');loadoutPreview.addEventListener('click',openLoadoutReference);$('rift-loadout-order').after(loadoutPreview);
   $('rift-retry-boss').addEventListener('click',async()=>{
  if(!ready||busy||starting||practice||run?.status!=='defeated')return;
