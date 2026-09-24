@@ -437,7 +437,7 @@
   function classPracticeInstructions(){
     if(practice!=='class')return;
     const current=run?.build||build,signatures=current?.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
-    if(!builder||!finisher){put($('rift-practice-instructions'),'Unlock and equip a class builder and finisher in Abyss before starting this drill.');return false;}
+    if(!builder||!finisher){put($('rift-practice-instructions'),'Unlock and equip a class builder and finisher in Abyss before starting this drill. '+window.RiftAbilities.signatureHelp(current));return false;}
     const key=s=>controls.label('signature'+signatures.indexOf(s));
     put($('rift-practice-instructions'),'Use '+builder.name+' ('+key(builder)+') to build charges, then land '+finisher.name+' ('+key(finisher)+') on the training target. Face the target and stay in its lane. '+(current.skills.length?'Your equipped skills are also available: '+current.skills.map(s=>s.name).join(', ')+'. ':'')+'One charged finisher hit completes the drill.'+(run?.practice?.target_hint?' '+run.enemies[0].name+': '+run.practice.target_hint:''));return true;
   }
@@ -448,6 +448,7 @@
     if(!current)return;
     const signatures=current.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
     put(node.querySelector('strong'),window.RiftRecords.classIdentity(current)+' · Combat primer');
+    const help=window.RiftAbilities.signatureHelp(current);$('rift-signature-help').hidden=!help;$('rift-signature-help-link').hidden=!help;put($('rift-signature-help'),help);
     const key=skill=>controls.label('signature'+signatures.indexOf(skill));
     const copy=builder&&finisher?'Use '+builder.name+' ('+key(builder)+') to build up to three '+(current.resource||'class')+' charges, then spend them with '+finisher.name+' ('+key(finisher)+').':builder?'Use '+builder.name+' ('+key(builder)+') to build class charges. Unlock your finisher in Abyss.':finisher?'Your finisher is '+finisher.name+' ('+key(finisher)+'). Equip a builder in Abyss to gain charges.':'Class abilities unlock through Abyss progression. Use basic attacks and your equipped skills.';
     put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.'+(current.class==='vanguard'?' Perfect-guard an enemy attack to gain one charge per guard raise (maximum three).':'')+(current.class==='berserker'?' Fury grants +15% damage at impact while alive at 30% HP or below.':'')+(current.class==='marksman'?' A mark lasts until your finisher, a new target mark, target defeat or escape, or a new tier.':''));

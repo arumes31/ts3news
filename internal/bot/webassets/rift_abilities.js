@@ -2,6 +2,14 @@
   'use strict';
   const roles={builder:['＋','Builder'],finisher:['◆','Finisher'],ultimate:['★','Ultimate']};
   const healthCost=(run,skill)=>run.build?.class==='voidwalker'&&skill?.role==='finisher'&&run.resource>0?Math.min(Math.max(0,run.player.hp-1),run.player.max_hp*.05):0;
+  function signatureHelp(build){
+    const skills=build?.signatures||[],builder=skills.some(s=>s.role==='builder'),finisher=skills.some(s=>s.role==='finisher');
+    if(builder&&finisher)return '';
+    const missing=!builder&&!finisher?'Builder and finisher are':!builder?'Builder is':'Finisher is';
+    const foundation=!build?.base_class||build.class===build.base_class;
+    const unlock=foundation?(!builder?'Earn your first class point in Abyss to unlock the foundation builder. ':'')+(!finisher?'The foundation finisher unlocks at three class points. ':'')+'Spend five foundation talent points in My Build to unlock a subclass, then select it. ':'Check your selected subclass and class loadout in Abyss My Build. ';
+    return missing+' missing from this build. '+unlock+'Start a new Brawl expedition after unlocking or changing class abilities; this expedition keeps its saved build. Basic attacks and equipped skills remain available.';
+  }
   function oracleHealing(run){
     const builder=run.build.signatures?.find(s=>s.role==='builder'),fraction=builder?.reference?.healing??builder?.heal??(builder?.kind==='heal'?.15:0);
     if(!builder||!(fraction>0))return 'Healing stops at maximum HP. Excess healing is discarded; it does not become a barrier.';
@@ -76,5 +84,5 @@
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
   }
-  window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing};
+  window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing,signatureHelp};
 })();
