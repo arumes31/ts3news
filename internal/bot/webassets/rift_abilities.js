@@ -74,7 +74,23 @@
     if(!notes.length)notes.push('currently aligned; movement, cover or another enemy may still prevent a hit');
     return 'Nearest target, '+target.name+' — '+notes.join('; ')+'.';
   }
+  const rejectionHints=new WeakMap();
+  function updateRejectionHint(button,reason){
+    let state=rejectionHints.get(button);
+    if(!state){
+      const hint=document.createElement('span');hint.className='rift-ability-rejection';hint.hidden=true;hint.setAttribute('aria-hidden','true');button.append(hint);
+      state={hint,reason:'',until:0};rejectionHints.set(button,state);
+      const show=()=>{if(button.disabled||!state.reason)return;state.until=performance.now()+2000;hint.textContent=state.reason;hint.hidden=false;};
+      button.addEventListener('pointerdown',show);
+      button.addEventListener('click',event=>{if(event.detail===0)show();});
+    }
+    state.reason=/seconds cooldown|more mana needed/.test(reason)?reason:'';
+    if(!state.reason)state.until=0;
+    state.hint.hidden=!state.reason||performance.now()>=state.until;
+    state.hint.textContent=state.hint.hidden?'':state.reason;
+  }
   function update(button,skill,run,reason,ultimate=false){
+    updateRejectionHint(button,reason);
     let icon=button.querySelector('.rift-catalog-icon');if(!icon){icon=document.createElement('span');icon.className='rift-catalog-icon';icon.setAttribute('aria-hidden','true');button.prepend(icon);}if(icon.textContent!==(skill.icon||'✦'))icon.textContent=skill.icon||'✦';
     const role=ultimate?'ultimate':skill.role,identity=roles[role];
     let ring=button.querySelector('.rift-cooldown-ring');

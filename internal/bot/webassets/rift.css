@@ -770,3 +770,8 @@
 @media (any-pointer: coarse) {
   #rift-app #rift-mission-search { min-height: 48px; font-size: 16px; }
 }
+
+
+#rift-app .rift-ability-rejection { display: block; position: relative; color: #ffe3a3; font: 11px/1.4 ui-monospace, monospace; white-space: normal; overflow-wrap: anywhere; }
+
+#rift-app button[data-explain-disabled]:has(.rift-ability-rejection:not([hidden])) { opacity: 1; }

@@ -6,6 +6,7 @@
   const keyOrder=new Map();let keySequence=0;
   let guardLatched=false,canvasMouse=false,practiceToolPending=false;
   const controls=window.RiftControls;
+  const coarsePointer=window.matchMedia('(any-pointer: coarse)');
   const payloadDiagnostics=new URLSearchParams(location.search).get('riftPayloadDebug')==='1'?{count:0,totalResponseBytes:0,maxResponseBytes:0,samples:[]}:null;
   const payloadEncoder=payloadDiagnostics?new TextEncoder():null;
   if(payloadDiagnostics)window.RiftPayloadDiagnostics=payloadDiagnostics;
@@ -87,15 +88,16 @@
   function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);audio.silence?.();try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
-  function setSafeDisabled(node, disabled) {
+  function setSafeDisabled(node, disabled, explain=false) {
     if(!node)return;
+    node.toggleAttribute('data-explain-disabled',disabled&&explain);
     const isFocused=document.activeElement===node;
     if(disabled){
       node.setAttribute('aria-disabled','true');
-      if(isFocused){
+      if(explain){node.disabled=false;}else if(isFocused){
         node.disabled=false;
         const onBlur=()=>{
-          if(node.getAttribute('aria-disabled')==='true')node.disabled=true;
+          if(node.getAttribute('aria-disabled')==='true'&&!node.hasAttribute('data-explain-disabled'))node.disabled=true;
           node.removeEventListener('blur',onBlur);
         };
         node.addEventListener('blur',onBlur);
@@ -327,7 +329,7 @@
     [...$('rift-skills').children].forEach((btn,i)=>{
       const s=run.build.skills[i],remaining=run.skill_timers[s.id]||0;
       put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');
-      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost);
+      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost,controlsEnabled&&coarsePointer.matches);
     });
     const specials=[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])];
     const specialIDs=specials.map(s=>s.id).join(',');
@@ -342,7 +344,7 @@
     [...$('rift-signatures').children].forEach((btn,i)=>{
       const s=specials[i],remaining=run.skill_timers[s.id]||0;
       put(btn.querySelector('small'),remaining>0?remaining.toFixed(1)+'s':s.cost+' MP');
-      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost);
+      setSafeDisabled(btn,!controlsEnabled||remaining>0||run.player.mana<s.cost,controlsEnabled&&coarsePointer.matches);
     });
     [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
     [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
