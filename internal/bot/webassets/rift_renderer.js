@@ -931,6 +931,17 @@
     }
     if(alpha===1&&profile.element!=='physical'){ctx.globalAlpha=.6;ctx.fillStyle=profile.palette[0];ctx.beginPath();ctx.ellipse(x,y+1,size*.28,4,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
   }
+  let particleScale=1,slowParticleFrames=0,healthyParticleFrames=0;
+  function adaptParticles(interval,frameRate){
+    if(!display.adaptiveParticles||renderer.reduced||!display.particles){particleScale=1;slowParticleFrames=0;healthyParticleFrames=0;return;}
+    if(interval>1500/frameRate){
+      healthyParticleFrames=0;
+      if(++slowParticleFrames>=6){particleScale=Math.max(.25,particleScale/2);slowParticleFrames=0;}
+    }else{
+      slowParticleFrames=0;
+      if(++healthyParticleFrames>=120){particleScale=Math.min(1,particleScale+.25);healthyParticleFrames=0;}
+    }
+  }
   let renderRequest=null,renderReady=false;
   function scheduleRender(){
     if(renderReady&&!document.hidden&&renderRequest===null)renderRequest=requestAnimationFrame(render);
@@ -938,6 +949,7 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){
       if(frameDiagnostics)frameDiagnostics.last=null;
+      slowParticleFrames=0;healthyParticleFrames=0;
       if(renderRequest!==null)cancelAnimationFrame(renderRequest);
       renderRequest=null;
     }else{
@@ -956,6 +968,7 @@
   function renderFrame(now){
     const frameRate=!snapshot&&display.fps===30?15:display.fps;
     if (!images.area || document.hidden || !ctx || now-last<1000/frameRate-1) return;
+    adaptParticles(last?now-last:0,frameRate);
     renderer.frameCount++;
     ctx.imageSmoothingEnabled = false;
     const dt = Math.min(snapshot ? .05 : .1,(now-last)/1000); last = now;
@@ -1009,7 +1022,7 @@
     }
     if (snapshot && snapshot.room === 1) { ctx.fillStyle='#61532316';ctx.fillRect(0,0,960,540); }
     if (!renderer.reduced && display.particles) {
-      for(let i=0;i<Math.round(22*display.particleIntensity);i++) {
+      for(let i=0;i<Math.round(22*display.particleIntensity*particleScale);i++) {
         const x=((i*157+decorationTime*.004*(i%3+1)-camera*.35)%1000+1000)%1000;
         const vertical=region===1?-decorationTime*.012:region===2?decorationTime*.018:0;
         const y=80+((i*41+vertical)%380+380)%380+Math.sin(decorationTime*.0005+i)*14*motion;

@@ -92,3 +92,15 @@ Frame-scheduling, bounded-canvas and cache-retirement regressions prove their
 specific invariants. The remaining physical-device, full-window frame, input and
 long-session/restart memory gates are unmeasured against this budget. Do not mark
 them passed from the existence of the overlay or seeded fixture.
+
+## Adaptive decoration setting
+
+The optional display checkbox `Reduce background particles during slow frames`
+scales ambient particle density only. Six consecutive rendered-frame intervals
+above1.5 times the selected frame budget halve the scale, to a minimum0.25. Each
+120 consecutive healthy intervals restores0.25, up to the selected density.
+Disabling the option restores full selected density immediately; reduced motion
+and particle-off settings retain priority. Visibility loss clears streak counters.
+Combat effects, telegraphs, projectiles and authoritative simulation are unaffected.
+Record whether this setting was enabled in performance reports; its existence
+does not establish that a device meets the frame budget. It defaults to off.
