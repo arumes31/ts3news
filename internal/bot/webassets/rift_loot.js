@@ -75,6 +75,11 @@
       for(const [name,value] of Object.entries(gear.Stats||{}))if(typeof value==='number'&&value!==0){create('dt',name,stats);create('dd',format.format(value),stats);}
       create('dt','Maximum durability',stats);create('dd',format.format(gear.MaxDurability||0),stats);
       if(gear.Element)create('p','Element: '+gear.Element,details);
+      const description=drop.gear_description||gear.lore;
+      create('p',description||'No original Abyss description supplied for this item.',details).className='rift-gear-description';
+      const primary=run.build.class_scaling,value=gear.Stats?.[primary]||0;
+      const fit=!primary?'Class stat guidance unavailable for this older build.':value>0?'Supports '+(run.build.class_name||run.build.class)+': +'+format.format(value)+' '+primary+' (class primary stat).':value<0?'Reduces '+primary+' by '+format.format(-value)+' (class primary stat).':'No '+primary+' bonus (class primary stat). Other stats and effects may still help.';
+      create('p',fit+' Gear is not class-restricted. This is stat guidance, not an upgrade rating.',details).className='rift-gear-class-fit';
       comparison(gear,details);
     }
   }
@@ -119,7 +124,7 @@
     for(const drop of pending){if(drop.collected)continue;const dx=drop.x-run.player.x,dy=drop.y-run.player.y,squared=dx*dx+dy*dy;if(squared<distance){distance=squared;nearest={dx,dy};}}
     const directions=['→ right','↘ lower right','↓ down','↙ lower left','← left','↖ upper left','↑ up','↗ upper right'];
     put($('rift-nearest-drop'),nearest?'Nearest drop: '+(distance<1?'here':directions[(Math.round(Math.atan2(nearest.dy,nearest.dx)/(Math.PI/4))+8)%8]):'No uncollected drops');
-    const key=run.id+':'+JSON.stringify([run.build.equipment,items.map(d=>[d.id,d.gear])]);if(key!==bagKey){bagKey=key;bag();}
+    const key=run.id+':'+JSON.stringify([run.build.equipment,run.build.class_scaling,items.map(d=>[d.id,d.gear,d.gear_description])]);if(key!==bagKey){bagKey=key;bag();}
     put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||run.banked_items.length?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
     const next=JSON.stringify([run.id,run.banked_gold,run.banked_objective_gold,run.banked_items,run.banked_loot]);
     $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);

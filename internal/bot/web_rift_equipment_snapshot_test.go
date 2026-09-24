@@ -28,3 +28,22 @@ func TestRiftEquipmentSnapshotKeepsOriginalStats(t *testing.T) {
 		t.Fatal("empty equipment must differ from missing old snapshot")
 	}
 }
+
+func TestRiftClassScalingMatchesCatalog(t *testing.T) {
+	for _, base := range content.AbyssClasses() {
+		styles := []string{base.ID}
+		for _, sub := range base.Subclasses {
+			styles = append(styles, sub.ID)
+		}
+		for _, id := range styles {
+			style, ok := content.AbyssCombatStyle(id)
+			if !ok {
+				t.Fatal(id)
+			}
+			build := riftBuildFromUser(UserInCombat{AbyssSubclass: id}, "Test", 1)
+			if build.ClassScaling != style.Scaling {
+				t.Fatal("class scaling differs from catalog", id)
+			}
+		}
+	}
+}

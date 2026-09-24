@@ -112,6 +112,7 @@ func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {
 	if style, ok := content.AbyssCombatStyle(build.Class); ok {
 		build.BaseClass = style.ClassID
 		build.ClassName = style.Name
+		build.ClassScaling = style.Scaling
 		build.Resource = style.Resource
 		build.Sequence = style.Sequence
 	}

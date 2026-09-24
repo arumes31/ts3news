@@ -36,6 +36,7 @@ type EquipmentSnapshot struct {
 }
 
 type Build struct {
+	ClassScaling string `json:"class_scaling,omitempty"`
 	Equipment map[content.GearSlot]EquipmentSnapshot `json:"equipment"`
 	BaseClass      string    `json:"base_class"`
 	ClassName      string    `json:"class_name"`
