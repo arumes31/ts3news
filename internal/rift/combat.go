@@ -1073,7 +1073,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if r.Level != nil {
 			mission = r.Level.ID
 		}
-		r.Drops = append(r.Drops, Drop{Elevation: r.Arena().Elevation(e.X, e.Y), Mission: mission, Tier: r.Room + 1, ID: e.ID, X: e.X, Y: e.Y, Gold: int64(15 * (r.Room + 1)), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
+		r.Drops = append(r.Drops, Drop{Elevation: r.Arena().Elevation(e.X, e.Y), Mission: mission, Tier: r.Room + 1, ID: e.ID, X: e.X, Y: e.Y, Gold: EnemyDropGold(r.Room), NeedsGear: e.Kind == "boss" || e.Kind == "knight" || e.Kind == "treasure" || i == 0})
 	}
 }
 

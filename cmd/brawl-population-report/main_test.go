@@ -62,7 +62,7 @@ func TestPopulationCommandReportsViolationsAndFormats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(records) != 301 || len(records[0]) != 14 {
+	if len(records) != 301 || len(records[0]) != 19 {
 		t.Fatal("invalid CSV shape")
 	}
 	for _, args := range [][]string{{"-max-enemies=0"}, {"-format=xml"}, {"unexpected"}} {
@@ -107,5 +107,37 @@ func TestBossBudgetCanFailIndependently(t *testing.T) {
 	}
 	if code := execute([]string{"-max-bosses=-1"}, io.Discard, io.Discard); code != 2 {
 		t.Fatal("negative boss budget accepted")
+	}
+}
+
+func TestRewardCeilingsSeparateDropsFromFinalMissionBonus(t *testing.T) {
+	var out bytes.Buffer
+	if execute([]string{"-format=json"}, &out, io.Discard) != 0 {
+		t.Fatal("report failed")
+	}
+	var rows []struct {
+		Tier    int   `json:"tier"`
+		Enemies int   `json:"planned_enemies"`
+		Gold    int64 `json:"drop_gold_ceiling"`
+		Gear    int   `json:"gear_count_ceiling"`
+		Rarity  int   `json:"gear_rarity_ceiling"`
+		Bonus   int64 `json:"objective_gold_ceiling"`
+		Total   int64 `json:"total_gold_ceiling"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 300 {
+		t.Fatal("missing rooms")
+	}
+	for _, row := range rows {
+		bonus, rarity := int64(0), 3
+		if row.Tier == 3 {
+			bonus = 65
+			rarity = 4
+		}
+		if row.Gold != int64(row.Enemies*15*row.Tier) || row.Gear != row.Enemies || row.Bonus != bonus || row.Rarity != rarity || row.Total != row.Gold+bonus {
+			t.Fatalf("incorrect reward ceiling: %+v", row)
+		}
 	}
 }

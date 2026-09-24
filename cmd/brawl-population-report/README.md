@@ -1,4 +1,4 @@
-# Brawl enemy and boss population report
+# Brawl population and reward ceiling report
 
 Run from the repository root:
 
@@ -25,6 +25,23 @@ database or running server. It does not change campaign content or saved games.
 - `boss_budget` and `boss_over_budget`: independently compare planned bosses
   against `-max-bosses` (default one). Zero can flag every boss encounter;
   negative limits are rejected.
+
+Reward columns are conservative upper bounds for one successful room clear:
+
+- `drop_gold_ceiling`: planned enemies times the runtime gold-per-defeat rule.
+- `gear_count_ceiling`: at most one gear drop per planned enemy. Actual eligibility
+  depends on monster kind and encounter index; this is not a guaranteed count.
+- `gear_rarity_ceiling`: the runtime rarity cap as a stable numeric value: 3 is
+  Epic and 4 is Legendary. It is not a sale-value estimate.
+- `objective_gold_ceiling`: zero before the final tier; at the final tier, the
+  frozen per-challenge reward times all current challenge options with equipped
+  builder/finisher and ultimate. This includes mutually incompatible challenges
+  and encounter-dependent goals, so the bound need not be achievable.
+- `total_gold_ceiling`: drop gold plus the optional objective bound. It excludes
+  selling, recycling or upgrading gear and applies before any such inventory use.
+
+Props generate no loot. Escapes, defeat, missing optional equipment and failed
+challenges can all lower actual rewards. The command never grants or banks them.
 
 Mission and tier numbers are one-based. Names and objectives identify where to
 edit content. CSV and JSON include all rooms even when some exceed the budget.

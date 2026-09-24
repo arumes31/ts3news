@@ -15,24 +15,33 @@ import (
 )
 
 type populationRow struct {
-	PlannedBosses   int    `json:"planned_bosses"`
-	EntryBosses     int    `json:"entry_bosses"`
-	BossBudget      int    `json:"boss_budget"`
-	BossOverBudget  bool   `json:"boss_over_budget"`
-	Mission         int    `json:"mission"`
-	Tier            int    `json:"tier"`
-	Name            string `json:"name"`
-	Objective       string `json:"objective"`
-	PlannedEnemies  int    `json:"planned_enemies"`
-	EntryEnemies    int    `json:"entry_enemies"`
-	ObjectiveActors int    `json:"objective_actors"`
-	Attackers       int    `json:"max_attackers"`
-	Budget          int    `json:"enemy_budget"`
-	OverBudget      bool   `json:"over_budget"`
+	DropGoldCeiling      int64  `json:"drop_gold_ceiling"`
+	GearCountCeiling     int    `json:"gear_count_ceiling"`
+	GearRarityCeiling    int    `json:"gear_rarity_ceiling"`
+	ObjectiveGoldCeiling int64  `json:"objective_gold_ceiling"`
+	TotalGoldCeiling     int64  `json:"total_gold_ceiling"`
+	PlannedBosses        int    `json:"planned_bosses"`
+	EntryBosses          int    `json:"entry_bosses"`
+	BossBudget           int    `json:"boss_budget"`
+	BossOverBudget       bool   `json:"boss_over_budget"`
+	Mission              int    `json:"mission"`
+	Tier                 int    `json:"tier"`
+	Name                 string `json:"name"`
+	Objective            string `json:"objective"`
+	PlannedEnemies       int    `json:"planned_enemies"`
+	EntryEnemies         int    `json:"entry_enemies"`
+	ObjectiveActors      int    `json:"objective_actors"`
+	Attackers            int    `json:"max_attackers"`
+	Budget               int    `json:"enemy_budget"`
+	OverBudget           bool   `json:"over_budget"`
 }
 
 func populationReport(limit, bossLimit int) []populationRow {
 	catalog := content.AbyssMobCatalog()
+	// Include every currently offered optional build challenge for a conservative
+	// bound; incompatible challenges mean this is not a promised achievable payout.
+	rewardBuild := rift.Build{Signatures: []rift.Skill{{Role: "builder"}, {Role: "finisher"}}, Ultimate: &rift.Skill{}}
+	objectiveCount := len(rift.ObjectiveOptions(rewardBuild))
 	rows := make([]populationRow, 0, rift.LevelCount*len(rift.Rooms))
 	for _, level := range rift.Campaign() {
 		run := rift.NewRunAtLevel("author-population", rift.Build{HP: 300, Damage: 20}, time.Unix(100, 0), catalog, level.ID)
@@ -62,9 +71,15 @@ func populationReport(limit, bossLimit int) []populationRow {
 				attackers = 3
 			}
 			attackers = min(attackers, 8)
+			dropGold := int64(planned) * rift.EnemyDropGold(room)
+			objectiveGold := int64(0)
+			if room == len(rift.Rooms)-1 {
+				objectiveGold = int64(objectiveCount) * run.Objectives.RewardPerObjective
+			}
 			rows = append(rows, populationRow{Mission: level.ID, Tier: room + 1, Name: level.Name, Objective: run.Arena().Objective,
 				PlannedEnemies: planned, EntryEnemies: entry, ObjectiveActors: props, Attackers: attackers, Budget: limit, OverBudget: planned > limit,
-				PlannedBosses: plannedBosses, EntryBosses: entryBosses, BossBudget: bossLimit, BossOverBudget: plannedBosses > bossLimit})
+				PlannedBosses: plannedBosses, EntryBosses: entryBosses, BossBudget: bossLimit, BossOverBudget: plannedBosses > bossLimit,
+				DropGoldCeiling: dropGold, GearCountCeiling: planned, GearRarityCeiling: int(rift.LootRarityCap(room)), ObjectiveGoldCeiling: objectiveGold, TotalGoldCeiling: dropGold + objectiveGold})
 			run.Status = "cleared"
 			run.NextRoom()
 		}
@@ -102,12 +117,12 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		err = encoder.Encode(rows)
 	} else {
 		writer := csv.NewWriter(out)
-		err = writer.Write([]string{"mission", "tier", "name", "objective", "planned_enemies", "entry_enemies", "objective_actors", "max_attackers", "enemy_budget", "over_budget", "planned_bosses", "entry_bosses", "boss_budget", "boss_over_budget"})
+		err = writer.Write([]string{"mission", "tier", "name", "objective", "planned_enemies", "entry_enemies", "objective_actors", "max_attackers", "enemy_budget", "over_budget", "planned_bosses", "entry_bosses", "boss_budget", "boss_over_budget", "drop_gold_ceiling", "gear_count_ceiling", "gear_rarity_ceiling", "objective_gold_ceiling", "total_gold_ceiling"})
 		for _, row := range rows {
 			if err != nil {
 				break
 			}
-			err = writer.Write([]string{strconv.Itoa(row.Mission), strconv.Itoa(row.Tier), row.Name, row.Objective, strconv.Itoa(row.PlannedEnemies), strconv.Itoa(row.EntryEnemies), strconv.Itoa(row.ObjectiveActors), strconv.Itoa(row.Attackers), strconv.Itoa(row.Budget), strconv.FormatBool(row.OverBudget), strconv.Itoa(row.PlannedBosses), strconv.Itoa(row.EntryBosses), strconv.Itoa(row.BossBudget), strconv.FormatBool(row.BossOverBudget)})
+			err = writer.Write([]string{strconv.Itoa(row.Mission), strconv.Itoa(row.Tier), row.Name, row.Objective, strconv.Itoa(row.PlannedEnemies), strconv.Itoa(row.EntryEnemies), strconv.Itoa(row.ObjectiveActors), strconv.Itoa(row.Attackers), strconv.Itoa(row.Budget), strconv.FormatBool(row.OverBudget), strconv.Itoa(row.PlannedBosses), strconv.Itoa(row.EntryBosses), strconv.Itoa(row.BossBudget), strconv.FormatBool(row.BossOverBudget), strconv.FormatInt(row.DropGoldCeiling, 10), strconv.Itoa(row.GearCountCeiling), strconv.Itoa(row.GearRarityCeiling), strconv.FormatInt(row.ObjectiveGoldCeiling, 10), strconv.FormatInt(row.TotalGoldCeiling, 10)})
 		}
 		writer.Flush()
 		if err == nil {
