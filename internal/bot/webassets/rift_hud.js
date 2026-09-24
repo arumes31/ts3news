@@ -23,6 +23,17 @@
   const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
   const missCoaching=document.createElement('p');missCoaching.id='rift-miss-coaching';missCoaching.hidden=true;missCoaching.setAttribute('role','status');hazardCoaching.after(missCoaching);
   hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));if(lastObservedRun)updateLastEncounter(lastObservedRun);try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
+  let combatHintBudget=null;
+  function updateCombatHintBudget(run){
+    const seconds=run.stats?.seconds||0;
+    if(!combatHintBudget||combatHintBudget.id!==run.id||seconds<combatHintBudget.seconds)combatHintBudget={id:run.id,seconds,next:seconds};
+    combatHintBudget.seconds=seconds;
+  }
+  function claimCombatHint(){
+    if(combatHintBudget.seconds<combatHintBudget.next)return false;
+    combatHintBudget.next=combatHintBudget.seconds+20;
+    return true;
+  }
   function contextualHazardHint(run,replay){
     const key=[run.id,run.level?.id,run.room].join(':'),damage=run.stats?.hazard_damage_taken||0,seconds=run.stats?.seconds||0;
     if(replay||!hazardHintState||hazardHintState.key!==key||damage<hazardHintState.damage||seconds<hazardHintState.seconds){
@@ -32,7 +43,7 @@
     if(damage>state.damage)state.hits++;
     state.damage=damage;state.seconds=seconds;
     if(!hintsEnabled||run.status!=='fighting'){hazardCoaching.hidden=true;return;}
-    if(state.hits>=3&&!state.shown){
+    if(state.hits>=3&&!state.shown&&claimCombatHint()){
       state.shown=true;state.until=seconds+8;
       put(hazardCoaching,'Repeated hazard damage: leave the warning zone before it flashes. Jump only when the hazard is marked as jumpable. Guard reduces damage but does not prevent contact.');
     }
@@ -46,7 +57,7 @@
     const state=missHintState;
     state.misses=misses;state.seconds=seconds;
     if(!hintsEnabled||run.status!=='fighting'){missCoaching.hidden=true;return;}
-    if(misses-state.baseline>=3&&!state.shown){
+    if(misses-state.baseline>=3&&!state.shown&&claimCombatHint()){
       state.shown=true;state.until=seconds+8;
       put(missCoaching,'Repeated misses: move closer, line up with the enemy’s feet and face them before swinging. Solid cover blocks melee attacks.');
     }
@@ -413,7 +424,7 @@
       }
       lastObservedMana=currentMana;
     }
-    contextualHazardHint(run,replay);contextualMissHint(run,replay);recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);window.RiftClassChallenges.update(run);updateLastEncounter(run);
+    updateCombatHintBudget(run);contextualHazardHint(run,replay);contextualMissHint(run,replay);recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);window.RiftClassChallenges.update(run);updateLastEncounter(run);
     const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
     if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
