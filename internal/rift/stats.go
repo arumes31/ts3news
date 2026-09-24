@@ -37,6 +37,7 @@ type CombatStats struct {
 	Bosses            int                `json:"bosses"`
 	PerfectGuards int `json:"perfect_guards"`
 	Guards            int                `json:"guards"`
+	BasicMisses       int                `json:"basic_misses,omitempty"`
 	Attacks           int                `json:"attacks"`
 	SkillsCast        int                `json:"skills_cast"`
 	Jumps             int                `json:"jumps"`

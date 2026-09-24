@@ -695,6 +695,7 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" {
 		r.Stats.Attacks++
+		hitTarget := false
 		p.Cooldown = .38
 		p.Pose = "attack"
 		p.PoseTime = .32
@@ -705,6 +706,7 @@ func (r *Run) tick(in Input, dt float64) {
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
 			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
+				hitTarget = true
 				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
 				if e.HP == 0 && !e.isObjectiveProp() && p.Jump > .1 && r.Practice == nil {
 					r.Stats.AerialFinishes++
@@ -734,7 +736,10 @@ func (r *Run) tick(in Input, dt float64) {
 				}
 			}
 		}
-		r.attackTerrainCover(r.Build.Damage * (1 + float64(r.Combo-1)*.2))
+		hitCover := r.attackTerrainCover(r.Build.Damage * (1 + float64(r.Combo-1)*.2))
+		if !hitTarget && !hitCover {
+			r.Stats.BasicMisses++
+		}
 	}
 	if in.Skill != "" && !p.Guard {
 		r.cast(in.Skill)

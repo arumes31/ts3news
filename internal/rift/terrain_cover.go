@@ -63,7 +63,7 @@ func (r *Run) projectileCoverImpact(x1, y1, x2, y2 float64) (float64, int) {
 	return impact, index
 }
 
-func (r *Run) attackTerrainCover(damage float64) {
+func (r *Run) attackTerrainCover(damage float64) bool {
 	arena := r.Arena()
 	p := &r.Player
 	nearest, index := math.Inf(1), -1
@@ -101,7 +101,9 @@ func (r *Run) attackTerrainCover(damage float64) {
 	if r.damageTerrainCover(index, damage) > 0 {
 		c := arena.Cover[index]
 		r.geomancerTerrainCue(c.X+c.W/2, c.Y+c.H/2)
+		return true
 	}
+	return false
 }
 
 func (r *Run) geomancerTerrainCue(x, y float64) {
