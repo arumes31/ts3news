@@ -16,6 +16,27 @@
   try{coachingDismissed=localStorage.getItem('riftClassCoachingDismissed')==='true';}catch(_){}
   const coaching=document.createElement('div');coaching.id='rift-class-coaching';coaching.hidden=true;coaching.innerHTML='<p role="status"></p><button type="button">Dismiss class coaching</button>';document.querySelector('.rift-run-statistics').before(coaching);
   coaching.querySelector('button').onclick=()=>{coachingDismissed=true;coaching.hidden=true;document.querySelector('.rift-run-statistics > summary').focus();try{localStorage.setItem('riftClassCoachingDismissed','true');}catch(_){}};
+  const hintSetting=$('rift-context-hints');
+  let hintsEnabled=true,hazardHintState=null;
+  try{hintsEnabled=localStorage.getItem('riftContextHints')!=='false';}catch(_){}
+  hintSetting.checked=hintsEnabled;
+  const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
+  hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
+  function contextualHazardHint(run,replay){
+    const key=[run.id,run.level?.id,run.room].join(':'),damage=run.stats?.hazard_damage_taken||0,seconds=run.stats?.seconds||0;
+    if(replay||!hazardHintState||hazardHintState.key!==key||damage<hazardHintState.damage||seconds<hazardHintState.seconds){
+      hazardHintState={key,damage,seconds,hits:0,shown:false,until:0};hazardCoaching.hidden=true;return;
+    }
+    const state=hazardHintState;
+    if(damage>state.damage)state.hits++;
+    state.damage=damage;state.seconds=seconds;
+    if(!hintsEnabled||run.status!=='fighting'){hazardCoaching.hidden=true;return;}
+    if(state.hits>=3&&!state.shown){
+      state.shown=true;state.until=seconds+8;
+      put(hazardCoaching,'Repeated hazard damage: leave the warning zone before it flashes. Jump only when the hazard is marked as jumpable. Guard reduces damage but does not prevent contact.');
+    }
+    hazardCoaching.hidden=!state.shown||seconds>=state.until;
+  }
   let recentBaseline=null,recentChanges=[];
   function recentDamage(run,replay){
     const current={id:run.id,seconds:run.stats?.seconds||0,damage:run.stats?.damage_taken||0,healing:run.stats?.healing||0};
@@ -377,7 +398,7 @@
       }
       lastObservedMana=currentMana;
     }
-    recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);window.RiftClassChallenges.update(run);updateLastEncounter(run);
+    contextualHazardHint(run,replay);recentDamage(run,replay);window.RiftOnboarding.update(run);window.RiftRecords.update(run);window.RiftClassChallenges.update(run);updateLastEncounter(run);
     const clear=run.last_clear;const clearNode=$('rift-clear-result');clearNode.hidden=!clear;
     if(clear){const record=run.mission_history?.[clear.mission]||{},labels={time:'clear time '+Number(record.best_seconds||0).toFixed(1)+'s',health:'finish HP '+Number(record.best_finish_hp||0).toFixed(1)+'/'+Number(record.best_finish_max_hp||0).toFixed(1),hits:'fewest damaging hits '+(record.fewest_hits??0)};put(clearNode,'Mission '+clear.mission+' · '+(clear.first?'First clear!':'Repeat clear.')+(clear.records.length?' New personal records: '+clear.records.map(key=>labels[key]).join(' · '):' No personal records improved.'));}
     const living=run.enemies.filter(e=>e.hp>0),stats=run.stats||{},boss=living.find(e=>e.kind==='boss');
