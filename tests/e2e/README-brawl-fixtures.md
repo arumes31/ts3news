@@ -94,3 +94,20 @@ These cover all four terminal wire statuses; `fighting` and `cleared` are active
 states. Remove the scenario parameter before testing persistence, as above.
 `rift-terminal-fixtures.spec.js` checks the four result screens and reloads;
 `TestRiftTerminalFixtureRoutes` checks their server snapshots under `-tags=e2e`.
+
+## Authored hazard fixtures
+
+Open `/abyss/rift?scenario=hazard-<kind>` for `fire`, `ice`, `poison`, `thorns`,
+`rune`, `radiant`, `void` or `spikes`. Each scene selects the first enabled example
+of that kind from the current campaign, enters its authored room, and keeps only
+that hazard. Geometry, period, duration, offset and jumpability are unchanged.
+The run starts paused halfway through the active pulse; resume to play the room
+with its normal enemies. Other hazards are omitted to isolate the selected type.
+
+The selector reads campaign definitions, so a future authored kind needs no new
+fixture registration. Its first-example location can change when content is
+reordered; these URLs are inspection fixtures, not version-independent visual
+baselines. Strip the scenario parameter before reload to preserve state.
+`rift-hazard-fixtures.spec.js` checks all eight browser scenes and frozen phase
+persistence. `TestRiftHazardFixtureRoutes` checks authored hazard equality and
+coverage under `-tags=e2e`; it prompts a coverage review when the kind count changes.

@@ -56,6 +56,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if run := riftHazardFixture(r.URL.Query().Get("scenario"), selectedBuild); run != nil {
+			mu.Lock()
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if run := riftTerminalFixture(r.URL.Query().Get("scenario"), selectedBuild); run != nil {
 			mu.Lock()
 			runs[cookie.Value] = run
