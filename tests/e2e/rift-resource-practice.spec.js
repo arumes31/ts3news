@@ -1,14 +1,14 @@
 const {test,expect}=require('@playwright/test');
-test('resource drill uses equipped class controls, saves completion and leaves campaign intact',async({page})=>{
+for(const subclass of ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'])test('resource drill completes with '+subclass+' and preserves campaign',async({page})=>{
  test.setTimeout(90000);
- await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
- await page.locator('#rift-practice-links a[href$="practice=resource"]').click();await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-practice-instructions')).toContainText('Iron Guard (Q)');await expect(page.locator('#rift-practice-instructions')).toContainText('Resolute Bash (E)');
+ await page.goto('/abyss/rift?scenario=checkpoint&subclass='+subclass);await expect(page.locator('#rift-start')).toBeEnabled();const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.locator('#rift-practice-links a[href$="practice=resource"]').click();await expect(page.locator('#rift-start')).toBeEnabled();const {build}=await(await page.request.get('/api/abyss/rift?practice=resource')).json();expect(build.class).toBe(subclass);for(const skill of build.signatures)await expect(page.locator('#rift-practice-instructions')).toContainText(skill.name);
  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();const read=async()=>(await(await page.request.get('/api/abyss/rift?practice=resource')).json()).run;
  for(let cycle=1;cycle<=2;cycle++){
   for(let charge=1;charge<=3;charge++){await expect(page.locator('[data-ability-role="builder"]')).toBeEnabled({timeout:15000});await page.keyboard.press('q');await expect.poll(async()=>(await read()).resource).toBe(charge);}
   await expect(page.locator('[data-ability-role="finisher"]')).toBeEnabled({timeout:15000});await page.keyboard.press('e');await expect.poll(async()=>(await read()).practice.resource_cycles).toBe(cycle);
  }
- await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');const done=await read();expect(done.gold).toBe(0);expect(done.drops).toEqual([]);
+ await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');const done=await read();expect(done.build.signatures).toEqual(build.signatures);expect(done.stats.charges_spent).toBe(6);expect(done.stats.empty_finishers).toBe(0);expect(done.gold).toBe(0);expect(done.drops).toEqual([]);
  await page.reload();await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await read()).practice.resource_cycles||0).toBe(0);expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(campaign);
  await page.setViewportSize({width:390,height:1200});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
