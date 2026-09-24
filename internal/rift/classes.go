@@ -26,6 +26,13 @@ func (r *Run) classCast(skill Skill) (int, string) {
 		return 0, ""
 	}
 	charges, marked := r.Resource, r.Marked
+	if r.Practice != nil && r.Practice.Mode == "resource" {
+		if charges == 3 {
+			r.Practice.ResourceCycles++
+		} else {
+			r.Practice.ResourceCycles = 0
+		}
+	}
 	r.Resource = 0
 	r.Marked = ""
 	r.LastMarkEnd = nil
