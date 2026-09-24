@@ -59,3 +59,22 @@ func TestRiftBestiaryPreservesCanonicalAbyssTier(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftBestiaryPicksUpNewAbyssBossWithoutRegistration(t *testing.T) {
+	original := abyssBossRoster
+	abyssBossRoster = append(append([]string{}, original...), "Future Abyss Catalog Sentinel")
+	defer func() { abyssBossRoster = original }()
+	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	matches := 0
+	for _, entry := range riftBestiary(now) {
+		if entry.Name == "Future Abyss Catalog Sentinel" {
+			matches++
+			if entry.ArtKey != "monster:"+entry.Name || entry.Kind != "boss" || entry.Training.WindupSeconds <= 0 {
+				t.Fatal("new boss missing identity, role or shared training")
+			}
+		}
+	}
+	if matches != 1 {
+		t.Fatalf("new boss appears %d times", matches)
+	}
+}

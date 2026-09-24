@@ -47,3 +47,26 @@ func TestNewCatalogEntryNeedsNoBrawlRegistration(t *testing.T) {
 		t.Fatal("active actors alias encounter plan")
 	}
 }
+
+func TestFutureCatalogTiersEnterCampaignWithoutRegistration(t *testing.T) {
+	for _, tier := range []content.MobType{content.MobCommon, content.MobEliteMinion, content.MobElite, content.MobMiniboss, content.MobBoss, content.MobLegendary, content.MobTreasureGoblin} {
+		t.Run(string(tier), func(t *testing.T) {
+			mob := content.Mob{Name: "Future " + string(tier) + " Visitor", Type: tier, Stats: content.Stats{HP: 300, STR: 40, SPD: 10}}
+			r := NewRunAtLevel("future-tier", Build{HP: 300}, time.Unix(1, 0), []content.Mob{mob}, 37)
+			found := false
+			for _, room := range r.EncounterPlan {
+				for _, actor := range room {
+					if actor.ArtKey == "monster:"+mob.Name {
+						found = true
+						if actor.Name != mob.Name || actor.Tier != string(tier) || actor.MaxHP <= 0 {
+							t.Fatal("future identity or tier lost")
+						}
+					}
+				}
+			}
+			if !found {
+				t.Fatal("new catalog entry omitted from campaign")
+			}
+		})
+	}
+}
