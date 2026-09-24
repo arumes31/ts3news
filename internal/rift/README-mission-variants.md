@@ -116,6 +116,33 @@ checkerboard hazards in Sentinel Rows. A new objective string needs engine,
 renderer, controls, completion and persistence support; adding a label does
 not implement its behavior.
 
+## Saved content-version labels
+
+A saved expedition's `mission_definition` is its frozen mission-content label.
+[record_definition.go](record_definition.go) computes `level-v1:` followed by
+64 lowercase hexadecimal SHA-256 characters over the serialized `Level` fields,
+excluding the derived `definition` field itself. The algorithm prefix versions
+the fingerprint format; it is not a deployment version.
+
+The label is captured by `beginMissionHistory` before mission play. It persists
+through saves and tier transitions and is copied into completion/attempt records.
+Selecting the next mission captures that mission's label. Runtime changes such
+as broken cover must not replace the captured label with a recomputed value.
+Personal bests are grouped by the captured definition, so changed terrain is not
+silently treated as the same challenge.
+
+Serialized `Level.definition` is a separate, derived hash of the level as it is
+serialized now. It may differ from `mission_definition` after mutable arena state
+changes. Use the saved run's frozen field for attempt provenance, not that derived
+field. Old saves with no captured label remain unknown; do not infer their initial
+content from today's catalog. Nil or unencodable definitions also remain unknown.
+
+The hash covers the complete mission definition, including names, presentation,
+terrain, objectives and encounter preview values. It does not fingerprint combat
+engine code, the selected monster catalog, player equipment, assets or a deployed
+binary. Record the build revision separately when those distinctions matter.
+`Run.schema` and the storage compression prefix describe serialization, not content.
+
 ## Saves, editing and verification
 
 `setLevel` copies the authored level into the run and freezes its encounter
