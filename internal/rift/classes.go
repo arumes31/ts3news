@@ -129,7 +129,9 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 		effect = "hit"
 	}
 	before := e.HP
+	dealtBefore := r.Stats.DamageDealt
 	r.hurtEnemyPiercing(index, damage, effect, pierce)
+	if e.ID == "practice-target" && r.Stats.DamageDealt > dealtBefore { r.recordPracticeUltimate(skill) }
 	if e.HP < before && skill.ID != "" {
 		if r.Stats.SkillHits == nil {
 			r.Stats.SkillHits = map[string]int{}

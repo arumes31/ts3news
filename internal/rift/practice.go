@@ -9,6 +9,8 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	UltimateTimed bool `json:"ultimate_timed,omitempty"`
+	UltimateWindow bool `json:"ultimate_window,omitempty"`
 	FreezeUsed bool `json:"freeze_used,omitempty"`
 	FreezeMovement bool `json:"freeze_movement,omitempty"`
 	RangedHits int `json:"ranged_hits,omitempty"`
@@ -32,13 +34,14 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
 	}
+	if mode == "ultimate" && (build.Ultimate == nil || build.Ultimate.ID == "") { return nil, errors.New("ultimate practice requires an equipped ultimate") }
 	if mode == "ranged" {
         hasProjectile := false
         for _, skill := range append(append([]Skill{}, build.Skills...), build.Signatures...) { hasProjectile = hasProjectile || skill.Reference().Target == "projectile" }
@@ -77,8 +80,13 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}
-	if mode == "combo" || mode == "class" || mode == "skills" || mode == "ranged" {
+	if mode == "ultimate" || mode == "combo" || mode == "class" || mode == "skills" || mode == "ranged" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
+	}
+	if mode == "ultimate" {
+		r.Practice.Arena.Name = "Ultimate timing lane"
+		r.Enemies[0].Name = "Ultimate timing target"
+		r.Player.HP = r.Player.MaxHP * .6
 	}
 	if mode == "class" {
 		r.configureClassTarget()
@@ -139,7 +147,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
-	case "boss", "class", "skills", "ranged":
+	case "boss", "class", "skills", "ranged", "ultimate":
 		return in
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
@@ -161,6 +169,10 @@ func (r *Run) practiceTick() {
 		return // Free practice ends only when the player leaves or resets.
 	}
 	complete := r.Player.X >= r.Practice.GoalX
+	if r.Practice.Mode == "ultimate" {
+		r.Practice.UltimateWindow = r.ultimatePracticeWindow()
+		complete = r.Practice.UltimateTimed
+	}
 	if r.Practice.Mode == "boss" {
 		complete = len(r.Enemies) == 1 && r.Enemies[0].HP <= 0
 	}

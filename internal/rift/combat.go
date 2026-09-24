@@ -915,6 +915,7 @@ func (r *Run) cast(id string) {
 			r.eventAtHeight("ultimate_anticipation", p.X, p.Y-35, 0, p.Elevation)
 		}
 		r.SkillTimers[id] = skill.Cooldown
+		if skill.Reference().Target == "self" { r.recordPracticeUltimate(skill) }
 		charges, marked := r.classCast(skill)
 		if skill.Role == "finisher" {
 			r.eventAtHeight("finisher_cast", p.X, p.Y-35, float64(charges), p.Elevation)
