@@ -19,6 +19,8 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer database.Close()
+			bonusFailure := errors.New("bonus write failed")
+			snapshotFailure := errors.New("snapshot write failed")
 			run := rift.NewRunAtLevel("bonus-run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 1)
 			run.Room = 2
 			run.Status = "cleared"
@@ -53,7 +55,7 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 				mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(30), "owner").WillReturnResult(sqlmock.NewResult(0, 1))
 				bonus := mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(10), "owner")
 				if scenario == "bonus failure" {
-					bonus.WillReturnError(errors.New("bonus write failed"))
+					bonus.WillReturnError(bonusFailure)
 					mock.ExpectRollback()
 				} else {
 					bonus.WillReturnResult(sqlmock.NewResult(0, 1))
@@ -62,7 +64,7 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 					})
 					write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)
 					if scenario == "snapshot failure" {
-						write.WillReturnError(errors.New("snapshot write failed"))
+						write.WillReturnError(snapshotFailure)
 						mock.ExpectRollback()
 					} else {
 						write.WillReturnResult(sqlmock.NewResult(0, 1))
@@ -77,6 +79,12 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 				}
 			} else if err == nil || out != nil {
 				t.Fatal("failed transaction exposed uncommitted rewards")
+			}
+			if scenario == "snapshot failure" && !errors.Is(err, snapshotFailure) {
+				t.Fatalf("did not reach failing snapshot write: %v", err)
+			}
+			if scenario == "bonus failure" && !errors.Is(err, bonusFailure) {
+				t.Fatalf("did not reach failing bonus write: %v", err)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal(err)
