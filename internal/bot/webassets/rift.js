@@ -678,6 +678,13 @@
   }
   window.addEventListener('riftbindingschange',()=>{resetInput();classPrimer();if(run)update(run,true);});
   window.addEventListener('riftintentchange',resetInput);
+  // Rotation moves touch targets beneath held fingers. Require a fresh press,
+  // but don't clear input for ordinary toolbar/keyboard height-only resizing.
+  function resetRotatedInput(){if(touchPointers.size||window.matchMedia('(any-pointer: coarse)').matches)resetInput();}
+  window.screen.orientation?.addEventListener('change',resetRotatedInput);
+  window.addEventListener('orientationchange',resetRotatedInput);
+  window.matchMedia('(orientation: portrait)').addEventListener('change',resetRotatedInput);
+
   $('rift-canvas').addEventListener('pointerdown',event=>{canvasMouse=event.pointerType==='mouse';if(playing&&canvasMouse&&controls.pointer(event.button))$('rift-canvas').setPointerCapture(event.pointerId);});
   $('rift-canvas').addEventListener('mousedown',event=>{
     const action=controls.pointer(event.button);if(!playing||controls.opened||!canvasMouse||!action||event.ctrlKey||event.metaKey||event.altKey)return;
