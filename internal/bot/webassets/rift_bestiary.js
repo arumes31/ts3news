@@ -50,7 +50,7 @@
     panel.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}};
     function showRecord(){
       if(!selected)return;const record=records[selected.art_key];
-      document.getElementById('rift-monster-record').textContent=practice?'Campaign records are shown in campaign mode. Practice does not add encounters or defeats.':record?'First recorded encounter: '+new Date(record.first_seen_ms).toLocaleString()+' · Defeats: '+record.defeats+(record.fastest_clear_seconds!==undefined?' · Fastest boss room clear: '+record.fastest_clear_seconds.toFixed(2)+' s':'')+'. Older fights may be missing.':'No recorded encounter. Older fights may be missing.';
+      document.getElementById('rift-monster-record').textContent=practice?'Campaign records are shown in campaign mode. Practice does not add encounters, defeats or damage records.':record?'First recorded encounter: '+new Date(record.first_seen_ms).toLocaleString()+' · Defeats: '+record.defeats+(record.damage_taken!==undefined?' · Recorded HP lost to this monster: '+numeric(record.damage_taken):'')+(record.fastest_clear_seconds!==undefined?' · Fastest boss room clear: '+record.fastest_clear_seconds.toFixed(2)+' s':'')+'. Older fights may be missing.':'No recorded encounter. Older fights may be missing.';
     }
     function statsFor(unit){
       const values=[['Creature family',familyName(unit)],['Abyss tier',unit.tier],['Element',elementName(unit)],['Attack style',attackStyle(unit)],['Health',numeric(unit.max_hp)],['Damage',numeric(unit.damage)],['Armor reduction',numeric(unit.armor*100)+'%'],['Speed',numeric(unit.speed)],['Projectile',unit.kind==='archer'||unit.kind==='boss'?unit.shot||'arrow':'None']];
