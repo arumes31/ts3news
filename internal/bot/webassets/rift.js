@@ -311,6 +311,7 @@
   async function send(kind) {
     if(busy)return false;
     busy=true;if(kind!=='step')setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
+    const previousReceipt=run?{id:run.id,banked_gold:run.banked_gold,banked_items:[...run.banked_items]}:null;
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     if(practice==='hazard'&&['start','practice_reset'].includes(kind))body.hazard_intensity=$('rift-hazard-intensity').value;
@@ -319,7 +320,7 @@
     root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>setSafeDisabled(btn,true));
     try {
       const data=await request('POST',body);update(data.run,false);
-      if(banking){audio.play('bank',0);window.RiftLoot.banking('confirmed');}
+      if(banking){if(window.RiftLoot.confirmBank(previousReceipt,data.run))audio.play('bank',0);window.RiftLoot.banking('confirmed');}
       return true;
     } catch(error){
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);

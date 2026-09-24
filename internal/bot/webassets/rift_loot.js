@@ -132,5 +132,17 @@
     const lines=['Rift Brawl — banked rewards',format.format(run.banked_gold)+' gold','Fight loot: '+format.format(run.banked_gold-(run.banked_objective_gold||0))+' gold','Objective bonuses: '+format.format(run.banked_objective_gold||0)+' gold',count(run.banked_items.length,'item'),...[...names].map(([name,n])=>name+(n>1?' × '+format.format(n):''))];
     try{await navigator.clipboard.writeText(lines.join('\n'));$('rift-receipt-copy-status').textContent='Receipt copied.';}catch(_){$('rift-receipt-copy-status').textContent='Copy is unavailable. Select the receipt text to copy it.';}
   };
-  window.RiftLoot={icon,legendary,floorLabels,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
+  const celebratedReceipts=new Set();let bankAnimation=null,bankHighlight=0;
+  function confirmBank(previous,current){
+    if(!previous||!current||previous.id!==current.id)return false;
+    const increased=current.banked_gold>previous.banked_gold||current.banked_items.length>previous.banked_items.length;
+    const key=JSON.stringify([current.id,current.banked_gold,current.banked_items.length]);
+    if(!increased||celebratedReceipts.has(key))return false;
+    celebratedReceipts.add(key);if(celebratedReceipts.size>100)celebratedReceipts.delete(celebratedReceipts.values().next().value);
+    const target=$('rift-banked');bankAnimation?.cancel();clearTimeout(bankHighlight);target.dataset.bankConfirmed='true';
+    if(!window.RiftRenderer.reduced&&window.RiftDisplay.motionIntensity>0)bankAnimation=target.animate([{outline:'2px solid transparent'},{outline:'2px solid #e9bd70',offset:.3},{outline:'2px solid transparent'}],{duration:650,easing:'ease-out'});
+    bankHighlight=setTimeout(()=>{delete target.dataset.bankConfirmed;bankAnimation=null;},700);
+    return true;
+  }
+  window.RiftLoot={icon,legendary,floorLabels,confirmBank,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
 })();
