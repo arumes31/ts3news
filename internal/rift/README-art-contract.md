@@ -180,3 +180,11 @@ rendering contract unless a separately measured resolution policy replaces it.
 viewport and live Chromium DPR changes from 1 to 2 to 3 and back. It verifies
 continued drawing, zero canvas-size writes and no additional image requests.
 This is browser emulation evidence, not a physical-device battery benchmark.
+
+Audio retirement is covered by `rift-audio-source-retirement.spec.js`. It wraps
+real Chromium oscillator and buffer-source creation, then verifies stop and
+disconnect calls for all started sources across repeated deactivation, silence
+and pagehide cycles. Each cycle includes effects, region ambience, boss music
+and an unfinished crossfade. Voice and ambience registries must return to zero.
+Campaign completion permits its short result cue before the existing 1.5-second
+silence callback; pause and page exit use immediate cleanup.
