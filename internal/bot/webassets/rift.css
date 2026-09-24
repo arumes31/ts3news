@@ -744,3 +744,8 @@
   #rift-app .rift-stage-top > div { max-width: 100%; flex-wrap: wrap; }
   #rift-app .rift-touch { display: flex; }
 }
+
+
+/* Held combat controls must not start text selection or mobile callouts. */
+#rift-app button[data-action] { user-select: none; -webkit-user-select: none; }
+#rift-app button[data-action][data-pressed="true"] { -webkit-touch-callout: none; }

@@ -606,6 +606,7 @@
   };
   function hold(button,value){
     button.dataset.action=value;
+    button.addEventListener('contextmenu',event=>{if(playing)event.preventDefault();});
     if(!button.hasAttribute('aria-pressed'))button.setAttribute('aria-pressed','false');
     const moveKey=button.dataset.move;
     if(moveKey&&moveLabels[moveKey]){button.setAttribute('aria-label',moveLabels[moveKey][0]);button.title=moveLabels[moveKey][0];}
