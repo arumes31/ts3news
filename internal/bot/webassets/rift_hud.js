@@ -394,6 +394,17 @@
     put($('rift-jump-ready'),(run.skill_timers.jump||0)>0?'Jump '+run.skill_timers.jump.toFixed(1)+'s':'Jump ready');
     put($('rift-combo-step'),'Strike '+(run.combo||0)+'/3');
     put($('rift-barrier-state'),run.barrier>0?'Barrier '+numbers.format(run.barrier):'No barrier');
+    const rules=run.build.sequence||'Use equipped class builders and finishers to activate class effects.';
+    put($('rift-class-rules'),window.RiftRecords.classIdentity(run.build)+': '+rules+(run.build.class==='berserker'?' Passive Fury: +15% damage while alive at 30% HP or below; healing above that threshold turns it off.':''));
+    const temporary=[];
+    if(run.barrier>0)temporary.push('Protection capacity: '+numbers.format(run.barrier)+' barrier remaining — consumed by hits, no timer.');
+    if(run.skill_timers.connection_grace>0)temporary.push('Timed protection: connection recovery '+run.skill_timers.connection_grace.toFixed(1)+'s remaining.');
+    if(run.player.guard&&run.skill_timers.perfect_guard>0)temporary.push('Timed guard window: '+run.skill_timers.perfect_guard.toFixed(2)+'s remaining; requires facing the incoming attack.');
+    if(run.skill_timers.slowed>0)temporary.push('Timed movement penalty: '+slowLabel(run)+' · '+run.skill_timers.slowed.toFixed(1)+'s remaining.');
+    if(!temporary.length)temporary.push('No temporary protection or movement penalties active.');
+    const effectsList=$('rift-temporary-effects'),effectsKey=JSON.stringify(temporary);
+    if(effectsList.dataset.effects!==effectsKey){effectsList.dataset.effects=effectsKey;effectsList.replaceChildren();for(const label of temporary){const item=document.createElement('li');item.textContent=label;effectsList.append(item);}}
+
     put($('rift-slow-state'),run.skill_timers.slowed>0?slowLabel(run)+' '+run.skill_timers.slowed.toFixed(1)+'s':'Normal speed');
     const areaNode=$('rift-area-effects');
     if(areaNode){

@@ -709,3 +709,5 @@
 #rift-transition{width:max-content;max-width:calc(100% - 32px);white-space:normal;text-align:center;box-sizing:border-box}
 
 .rift-viewport:has(#rift-transition:not([hidden])) .rift-room-actions{bottom:94px}
+
+#rift-effect-types{font-size:12px;line-height:1.5;padding:10px 14px;border:1px solid #405544;background:#12241e}#rift-effect-types h3{font-size:12px;margin:10px 0 4px}#rift-effect-types p{margin:4px 0}#rift-temporary-effects{padding-left:20px;margin:4px 0}
