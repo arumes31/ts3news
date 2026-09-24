@@ -1037,7 +1037,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++
 		}
-		if r.Practice.Mode != "boss" {
+		if r.Practice.Mode != "boss" && e.ID != "practice-enemy" {
 			r.restorePracticeTarget(e)
 		}
 		return
