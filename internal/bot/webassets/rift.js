@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
   const keys = new Set(), touch = new Set(), taps = new Set(), mouse = new Set();
+  const touchPointers=new Map();
   const keyOrder=new Map();let keySequence=0;
   let guardLatched=false,canvasMouse=false,practiceToolPending=false;
   const controls=window.RiftControls;
@@ -191,7 +192,7 @@
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||pad.x;value.y=value.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
+  function resetInput(){const captured=[...touchPointers];touchPointers.clear();for(const [id,{button}] of captured)if(button.hasPointerCapture(id))button.releasePointerCapture(id);if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');if(!button)return;const isGuarding=Boolean((controls.toggleGuard&&guardLatched)||touch.has('guard'));button.setAttribute('aria-pressed',String(isGuarding));button.classList.toggle('rift-held',isGuarding);if(isGuarding)button.dataset.pressed='true';else delete button.dataset.pressed;}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function practiceToolButtons(){const freeze=$('rift-practice-freeze');if(freeze)freeze.setAttribute('aria-pressed',String(!!run?.practice?.freeze_movement));root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'||button.dataset.practiceAction==='practice_bank'&&!run?.practice?.checkpoint_ready));}
@@ -610,7 +611,8 @@
     if(moveKey&&moveLabels[moveKey]){button.setAttribute('aria-label',moveLabels[moveKey][0]);button.title=moveLabels[moveKey][0];}
     button.addEventListener('pointerdown',event=>{
       if(!playing||button.disabled||button.getAttribute('aria-disabled')==='true')return;
-      event.preventDefault();button.setPointerCapture(event.pointerId);touch.add(value);taps.add(value);markInput(value);window.RiftIntents.press(value);
+      event.preventDefault();button.setPointerCapture(event.pointerId);touchPointers.set(event.pointerId,{button,value});
+      if(!touch.has(value)){touch.add(value);taps.add(value);markInput(value);window.RiftIntents.press(value);}
       button.classList.add('rift-held');button.setAttribute('aria-pressed','true');button.dataset.pressed='true';
       if(moveKey&&moveLabels[moveKey])button.setAttribute('aria-label',moveLabels[moveKey][1]);
     });
@@ -621,11 +623,21 @@
       }
     });
     const release=event=>{
-      if(event.type==='pointerup'&&touch.has(value)&&value==='guard'&&controls.toggleGuard)toggleGuard();
-      if(event.type!=='pointerup'&&touch.has(value)){taps.delete(value);window.RiftIntents.cancel(value);}
-      touch.delete(value);button.classList.remove('rift-held');
-      if(value!=='guard'||!controls.toggleGuard){button.setAttribute('aria-pressed','false');delete button.dataset.pressed;}
-      if(moveKey&&moveLabels[moveKey])button.setAttribute('aria-label',moveLabels[moveKey][0]);
+      const pointer=touchPointers.get(event.pointerId);
+      if(!pointer||pointer.button!==button)return;
+      touchPointers.delete(event.pointerId);
+      const remaining=[...touchPointers.values()];
+      const actionHeld=remaining.some(pointer=>pointer.value===value);
+      if(!actionHeld){
+        if(event.type==='pointerup'&&value==='guard'&&controls.toggleGuard)toggleGuard();
+        if(event.type!=='pointerup'){taps.delete(value);window.RiftIntents.cancel(value);}
+        touch.delete(value);
+      }
+      if(!remaining.some(pointer=>pointer.button===button)){
+        button.classList.remove('rift-held');
+        if(value!=='guard'||!controls.toggleGuard){button.setAttribute('aria-pressed','false');delete button.dataset.pressed;}
+        if(moveKey&&moveLabels[moveKey])button.setAttribute('aria-label',moveLabels[moveKey][0]);
+      }
       if(value==='guard')guardDisplay();
     };
     ['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
