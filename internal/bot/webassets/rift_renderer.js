@@ -360,6 +360,7 @@
     return new Promise((resolve,reject)=>{
       const img=new Image();
       img.decoding='async';
+      img.fetchPriority='high';
       img.onload=async()=>{
         try{
           // Older engines retain their load-event fallback; supported engines

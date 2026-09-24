@@ -202,3 +202,10 @@ input index to retain stable ordering. It sorts again only after an inversion
 or a length change; no actor, snapshot or cover object is retained by this cache.
 `rift-depth-order-reuse.spec.js` verifies reuse while depths move without crossing,
 immediate reordering on crossing, and stable tie restoration.
+
+Required renderer atlases set `decoding="async"` and `fetchPriority="high"`
+before assigning `src`; the props preload declares matching high priority.
+All 22 required images still complete decoding before Start becomes available.
+These are browser scheduling hints, not a reduction in asset bytes or proof of
+a cold-start speedup. `rift-atlas-priority.spec.js` verifies the hints at request
+initiation, alongside readiness, failure and legacy-fallback decode tests.
