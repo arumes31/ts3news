@@ -152,3 +152,33 @@ to inspect origins. Remove both `scenario` and `subclass` before testing reload.
 `TestRiftLongReceiptFixture` verifies campaign coverage, selected build and a
 save-codec round trip. `rift-long-receipt-fixture.spec.js` verifies desktop/narrow
 layout, grouping, origin details, search and complete receipt persistence.
+
+## Seeded visual comparisons
+
+`scenario=visual` builds a paused combat snapshot with a fixed content timestamp
+(2026-09-13 12:00 UTC). This fixes encounter selection and daily boss affinity for
+the same build, seed and authored content. It does not generate random loot.
+Start with these repeatable scene URLs:
+
+- `/abyss/rift?scenario=visual&seed=ruins-v1&level=1&room=0`
+- `/abyss/rift?scenario=visual&seed=forge-v1&level=15&room=1`
+- `/abyss/rift?scenario=visual&seed=boss-v1&level=100&room=2`
+
+Custom seeds accept 1-64 ASCII letters, digits, hyphens or underscores. Defaults
+are `ruins-v1`, mission 1 and room 0. `level` accepts 1-100; `room` accepts 0-2
+(zero-based tiers). Invalid nonempty values return 400. Add `subclass=<style>` to
+fix the selected foundation/subclass as well. Reloading the scenario deliberately
+reconstructs the same saved snapshot; changing a seed changes its encounter plan.
+
+For image comparisons, also fix viewport, browser version, locale, time zone,
+fonts, motion preferences and capture point. Wait for `RiftRenderer.ready` and
+`document.fonts.ready`. Paused simulation fixes game state, but these seeds do not
+freeze every browser animation or date-dependent page widget. Content/art edits
+can change results; record the commit alongside each baseline. These scenes are
+for visual inspection, not elapsed-time gameplay measurements after resume.
+
+`TestRiftVisualFixtureReproducesSeededSnapshots` checks exact snapshot equality
+across independent cookie sessions, different-seed variation and invalid options.
+`rift-visual-fixtures.spec.js` checks exact reseeding on reload and writes three
+viewport captures with a fixed browser context. Captures are review artifacts,
+not an assertion of pixel equality across machines.

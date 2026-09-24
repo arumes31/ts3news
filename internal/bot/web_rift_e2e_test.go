@@ -56,6 +56,16 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "visual" {
+			run, err := riftVisualFixture(r.URL.Query(), selectedBuild)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "long-receipt" {
 			run, err := buildLargeRiftReceipt(selectedBuild, time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC))
 			if err != nil {
