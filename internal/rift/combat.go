@@ -1100,7 +1100,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		damage *= .18
 		if r.SkillTimers != nil && r.SkillTimers["perfect_guard"] > 0 {
 			kind = "perfect_guard"
-			if r.Practice == nil { r.Stats.PerfectGuards++ }
+			if r.Practice == nil { r.Stats.PerfectGuards++ } else if r.Practice.Mode == "perfect_guard" { r.Practice.PerfectGuards++ }
 		} else {
 			kind = "block"
 		}

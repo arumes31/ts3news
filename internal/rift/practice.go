@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	PerfectGuards int `json:"perfect_guards,omitempty"`
 	PickupRadius float64 `json:"pickup_radius,omitempty"`
 	TargetHint     string  `json:"target_hint,omitempty"`
 	ClassHits      int     `json:"class_hits,omitempty"`
@@ -28,7 +29,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -77,7 +78,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 		r.Practice.Arena.Name = "Skill testing lane"
 		r.Player.HP = r.Player.MaxHP * .6
 	}
-	if mode == "guard" {
+	if mode == "guard" || mode == "perfect_guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
 	}
 	if mode == "hazard" {
@@ -128,7 +129,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return Input{X: in.X, Y: in.Y}
 	case "jump", "hazard":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
-	case "guard":
+	case "guard", "perfect_guard":
 		return Input{X: in.X, Y: in.Y, Guard: in.Guard}
 	case "combo":
 		return Input{X: in.X, Y: in.Y, Attack: in.Attack, Guard: in.Guard}
@@ -155,6 +156,9 @@ func (r *Run) practiceTick() {
 	}
 	if r.Practice.Mode == "combo" {
 		complete = r.Practice.Hits >= 3 && r.Combo == 3
+	}
+	if r.Practice.Mode == "perfect_guard" {
+		complete = r.Practice.PerfectGuards >= 3
 	}
 	if r.Practice.Mode == "guard" {
 		complete = r.Stats.Guards >= 3
