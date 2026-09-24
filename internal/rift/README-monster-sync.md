@@ -75,10 +75,18 @@ After adding content:
 
 ```powershell
 go test ./internal/rift -run 'TestCatalogEncountersCoverEveryTemplate|TestNewCatalogEntryNeedsNoBrawlRegistration|TestFutureCatalogTiersEnterCampaignWithoutRegistration' -count=1
-go test ./internal/bot -run 'TestRiftRosterTracksAllAbyssCatalogs|TestRiftBestiary|TestRiftBossPracticeAcceptsWholeLiveRoster' -count=1
+go test ./internal/bot -run 'TestRiftCatalogIdentityMatchesEverySharedSource|TestRiftRosterTracksAllAbyssCatalogs|TestRiftBestiary|TestRiftBossPracticeAcceptsWholeLiveRoster' -count=1
 ```
 
 For mission composition changes, also run the
 [campaign author validator](../../cmd/brawl-validate/README.md). Its population,
 reachability and hazard reports check campaign structure; they do not prove every
 monster's attack balance or visual quality.
+
+The complete identity gate compares the bestiary against every source above,
+including the depth-100 boss and every actor returned by secret encounters.
+It rejects unknown/duplicate Brawl identities, verifies canonical tier, element
+and art keys, and checks boss-pool classification across seven dates. Each
+source is also planned alone to verify identity survives encounter creation
+without relying on random full-roster coverage. Existing seeded roster tests
+continue to cover mixed-pool selection.
