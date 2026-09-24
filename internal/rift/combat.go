@@ -214,6 +214,7 @@ type Run struct {
 	LastBloodRecovery *BloodRecovery `json:"last_blood_recovery,omitempty"`
 	LastCooldownReceipt *CooldownReceipt `json:"last_cooldown_receipt,omitempty"`
 	LastChargeSpend *ChargeSpend `json:"last_charge_spend,omitempty"`
+	LastMarkEnd *MarkEnd `json:"last_mark_end,omitempty"`
 	SlowSource string `json:"slow_source,omitempty"`
 	DefeatedByHazard *HazardDefeat `json:"defeated_by_hazard,omitempty"`
  RoomObjective *RoomObjective `json:"room_objective,omitempty"`
@@ -321,6 +322,7 @@ func (r *Run) spawnRoom() {
 		Gold:           r.Gold,
 	}
 	r.Marked = ""
+	r.LastMarkEnd = nil
 	for key := range r.SkillTimers {
 		if strings.HasPrefix(key, "hazard-") || key == "slowed" {
 			delete(r.SkillTimers, key)
@@ -1010,9 +1012,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	if e.HP == 0 {
 		e.RecoilX = 0
-		if r.Marked == e.ID {
-			r.Marked = ""
-		}
+		r.endTargetMark(*e, "defeated")
 		if e.isObjectiveProp() {
 			r.event(e.Kind+"_break", e.X, e.Y, 0)
 			if e.Kind == "generator" {
@@ -1061,9 +1061,7 @@ func (r *Run) escapeEnemy(i int) {
 	}
 	e.HP = 0
 	e.Pose = "escape"
-	if r.Marked == e.ID {
-		r.Marked = ""
-	}
+	r.endTargetMark(*e, "escaped")
 	r.event(e.Kind+"_escape", e.X, e.Y, 0)
 }
 

@@ -408,7 +408,7 @@
         attr(areaNode,'data-effect-kind','none');
       }
     }
-    const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:'No marked target');
+    const marked=living.find(e=>e.id===run.marked);put($('rift-mark-state'),marked?'Marked: '+marked.name:run.last_mark_end?'Mark ended: '+run.last_mark_end.target_name+' '+(run.last_mark_end.reason==='defeated'?'was defeated':'escaped')+'. Land a builder hit to mark a new target.':'No marked target');
     put($('rift-ultimate-state'),run.build.ultimate?'Ultimate: '+run.build.ultimate.name+' · '+reason(run.build.ultimate,run,playing):'No ultimate in this expedition');
     const finisher=run.build.signatures?.find(s=>s.role==='finisher');
     const oracle=$('rift-oracle-healing');oracle.hidden=run.build.class!=='oracle';if(!oracle.hidden)put(oracle,window.RiftAbilities.oracleHealing(run));

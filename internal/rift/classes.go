@@ -28,6 +28,7 @@ func (r *Run) classCast(skill Skill) (int, string) {
 	charges, marked := r.Resource, r.Marked
 	r.Resource = 0
 	r.Marked = ""
+	r.LastMarkEnd = nil
 	if charges == 0 {
 		r.Stats.EmptyFinishers++
 		return 0, marked
@@ -65,6 +66,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 			r.eventAtHeight("mark_target", e.X, e.Y-30, 0, e.Elevation)
 		}
 		r.Marked = e.ID
+		r.LastMarkEnd = nil
 	}
 	if r.Practice != nil && r.Practice.Mode == "class" && skill.Role == "finisher" && charges > 0 && damage > 0 {
 		r.Practice.ClassHits++
