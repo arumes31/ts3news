@@ -67,6 +67,8 @@ node node_modules/@playwright/test/cli.js test rift- --reporter=line --output=te
   Bounded animation caches and population caps do not establish these metrics.
 - [ ] Check every required asset on the candidate environment, including cold-cache
   loading and visible failure recovery; a warm browser cache can hide missing files.
+  Run the [asset availability check](../../scripts/README-brawl-asset-health.md)
+  against the candidate origin, then verify decoding and rendering in a browser.
 
 ## Saves and reward durability
 
