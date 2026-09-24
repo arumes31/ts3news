@@ -131,7 +131,7 @@ geometry. Changing an asset must not silently change world-space footprints.
 Run the background/prop reference checks and inspect real browser crop bounds:
 
 ```sh
-go test ./internal/bot -run 'TestRiftRegionBackgroundPanelsCoverCampaign|TestRiftCoverPropIndicesFitAtlas' -count=1
+go test ./internal/bot -run 'TestRiftRegionBackgroundPanelsCoverCampaign|TestRiftCoverPropIndicesFitAtlas|TestRiftSkillEffectNamesHaveRendererSupport' -count=1
 node node_modules/@playwright/test/cli.js test rift-actor-atlas-bounds.spec.js rift-scene-atlas-bounds.spec.js --reporter=line
 ```
 
@@ -142,3 +142,9 @@ transitions as well. Mispainted anchors can stay inside valid crop bounds.
 Compare collision using the [author validator](../../cmd/brawl-validate/README.md),
 including walking and hazard reports. Neither crop validation nor a contact
 sheet alone proves a playable route or correct attack reach.
+
+The skill-effect contract reads emitted kind literals and signature mappings
+from the Go build adapter, checks their effect-atlas rows, and requires both
+procedural arrow drawing branches. Producer/mapping structure changes require
+reviewing the validator as well. This catches missing kind registrations; actual
+visual quality still requires the browser skill preview and combat checks.
