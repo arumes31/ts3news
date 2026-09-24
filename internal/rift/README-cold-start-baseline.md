@@ -77,3 +77,19 @@ content, server, hardware and network changes can alter the results. Three sampl
 show consistency for this setup, not population-wide latency. In-flight requests
 after readiness, image decode/frame performance, long-session memory and real
 production database latency are separate measurements.
+
+## In-session frame diagnostics
+
+Open `/abyss/rift?riftFrameDebug=1` (or append `&riftFrameDebug=1` to an existing
+query) for a development overlay at the bottom-right of the battlefield. It
+reports mean and p95 completed-frame intervals and JavaScript render duration
+in milliseconds over at most120 recent samples. Text updates at most twice per
+second. `RiftRenderer.frameDiagnostics` exposes the bounded samples and lifetime
+count for local profiling; diagnostics are null when the flag is absent.
+
+Intervals include intentional30/15 FPS limits, browser scheduling delays and
+render work. Render duration measures synchronous JavaScript canvas submission,
+not GPU completion, compositor presentation or end-to-end input latency. Hidden
+page intervals are excluded by resetting the interval origin on visibility loss.
+Diagnostics add measurement overhead and are not enabled by default. Record
+viewport, browser/device, selected FPS and scene alongside any reported values.

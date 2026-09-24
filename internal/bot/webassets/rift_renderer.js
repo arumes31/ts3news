@@ -16,6 +16,23 @@
   const regionRows = [0,.179,.363,.559,.755,1];
   let snapshot = null, previous = null, received = 0, camera = 0, seen = 0, runID = '', effects = [], last = 0, footstep = 0;
   const renderer = { reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches, ready: null, frameCount: 0, rangeSkill: null };
+  const frameDiagnostics=new URLSearchParams(location.search).get('riftFrameDebug')==='1'?{samples:[],count:0,last:null,updated:-Infinity}:null;
+  renderer.frameDiagnostics=frameDiagnostics;
+  let frameOverlay=null;
+  if(frameDiagnostics){
+    frameOverlay=document.createElement('div');frameOverlay.id='rift-frame-diagnostics';
+    frameOverlay.style.cssText='position:absolute;right:8px;bottom:8px;z-index:20;pointer-events:none;padding:6px;background:#071813eb;color:#d9f3ce;font:11px monospace;white-space:pre-line';
+    frameOverlay.textContent='Frame diagnostics: waiting for samples';canvas.parentElement.append(frameOverlay);
+  }
+  function recordFrame(now,cost){
+    const d=frameDiagnostics;
+    if(d.last!==null){d.samples.push({interval:now-d.last,render:cost});d.count++;if(d.samples.length>120)d.samples.shift();}
+    d.last=now;
+    if(!d.samples.length||now-d.updated<500)return;
+    d.updated=now;
+    const summary=key=>{const values=d.samples.map(sample=>sample[key]).sort((a,b)=>a-b);return (values.reduce((sum,value)=>sum+value,0)/values.length).toFixed(1)+' ms avg / '+values[Math.ceil(values.length*.95)-1].toFixed(1)+' ms p95';};
+    frameOverlay.textContent='Interval '+summary('interval')+'\nRender '+summary('render')+'\n'+d.samples.length+'/120 recent frames';
+  }
   // Include nearby boss sprite extents without moving the player out of view.
   function cameraFrame(run){
     if(!run)return {target:220,min:0,max:640,bosses:[]};
@@ -920,6 +937,7 @@
   }
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){
+      if(frameDiagnostics)frameDiagnostics.last=null;
       if(renderRequest!==null)cancelAnimationFrame(renderRequest);
       renderRequest=null;
     }else{
@@ -930,6 +948,12 @@
   function render(now) {
     renderRequest=null;
     scheduleRender();
+    if(!frameDiagnostics){renderFrame(now);return;}
+    const before=renderer.frameCount,started=performance.now();
+    renderFrame(now);
+    if(renderer.frameCount!==before)recordFrame(now,performance.now()-started);
+  }
+  function renderFrame(now){
     const frameRate=!snapshot&&display.fps===30?15:display.fps;
     if (!images.area || document.hidden || !ctx || now-last<1000/frameRate-1) return;
     renderer.frameCount++;
