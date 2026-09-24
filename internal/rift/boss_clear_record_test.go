@@ -62,3 +62,31 @@ func TestBossClearRecordRejectsPracticeAndUnknownTiming(t *testing.T) {
 		}
 	}
 }
+
+func TestBossClearRecordsRemainIndependentByCanonicalIdentity(t *testing.T) {
+	r := testRun()
+	r.Level = &Level{ID: 1}
+	r.Status = "cleared"
+	start := 0.0
+	r.RoomStartSeconds = &start
+	clear := func(name string, seconds float64) {
+		r.Enemies = []Actor{{Kind: "boss", Name: name, ArtKey: "monster:" + name}}
+		r.Stats.Seconds = seconds
+		r.recordBossClear()
+	}
+	clear("First boss", 12)
+	clear("Second boss", 6)
+	clear("First boss", 20)
+	if *r.MonsterRecords["monster:First boss"].FastestClearSeconds != 12 || *r.MonsterRecords["monster:Second boss"].FastestClearSeconds != 6 {
+		t.Fatal("boss identities shared a record")
+	}
+	clear("Second boss", 4)
+	if *r.MonsterRecords["monster:First boss"].FastestClearSeconds != 12 || *r.MonsterRecords["monster:Second boss"].FastestClearSeconds != 4 {
+		t.Fatal("improving one boss changed another")
+	}
+	r.Enemies = []Actor{{Kind: "boss", Name: "Untracked", ArtKey: "invalid"}}
+	r.recordBossClear()
+	if len(r.MonsterRecords) != 2 {
+		t.Fatal("noncanonical identity gained a record")
+	}
+}
