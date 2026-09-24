@@ -58,3 +58,28 @@ func TestRecordDefinitionStableAndUnknown(t *testing.T) {
 		t.Fatal("invalid definition identified")
 	}
 }
+
+func TestLevelJSONExposesStableDefinition(t *testing.T) {
+	level := Campaign()[0]
+	expected := levelDefinition(&level)
+	raw, err := json.Marshal(level)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire struct {
+		Definition string `json:"definition"`
+	}
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if wire.Definition != expected {
+		t.Fatal("wire definition does not match record identity")
+	}
+	var decoded Level
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if levelDefinition(&decoded) != expected {
+		t.Fatal("JSON roundtrip changed content identity")
+	}
+}
