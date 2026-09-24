@@ -12,6 +12,8 @@ type ClearResult struct {
 // MissionHistory contains only confirmed attempts recorded by this version.
 // Legacy completion marks are kept separately; they cannot establish timings.
 type MissionHistory struct {
+	Definition string `json:"definition,omitempty"`
+	Versions map[string]MissionBest `json:"versions,omitempty"`
 	BestSecondsAtMS  int64          `json:"best_seconds_at_ms,omitempty"`
 	BestFinishHPAtMS int64          `json:"best_finish_hp_at_ms,omitempty"`
 	FewestHitsAtMS   int64          `json:"fewest_hits_at_ms,omitempty"`
@@ -35,11 +37,12 @@ func (r *Run) beginMissionHistory() {
 		r.History = map[int]MissionHistory{}
 	}
 	h := r.History[r.Level.ID]
+	r.MissionDefinition = levelDefinition(r.Level)
+	h.selectDefinition(r.MissionDefinition)
 	h.Attempts++
 	h.LastStartedMS = r.LastMS
 	h.LastOutcome = "active"
 	r.History[r.Level.ID] = h
-	r.MissionDefinition = levelDefinition(r.Level)
 	r.MissionStartSeconds = r.Stats.Seconds
 	hits := r.Stats.HitsTaken
 	r.MissionStartHits = &hits
@@ -132,17 +135,11 @@ func (r *Run) InheritCampaignHistory(previous *Run) {
 	}
 	old := r.History[r.Level.ID]
 	if _, exists := previous.History[r.Level.ID]; exists {
-		current.Attempts += old.Attempts
-		current.Completions = old.Completions
-		current.BestSeconds = old.BestSeconds
-		current.BestSecondsAtMS = old.BestSecondsAtMS
-		current.BestFinishHPAtMS = old.BestFinishHPAtMS
-		current.FewestHitsAtMS = old.FewestHitsAtMS
-		current.FewestHits = old.FewestHits
-		current.BestFinishHP = old.BestFinishHP
-		current.BestFinishMaxHP = old.BestFinishMaxHP
-		current.CompletedByClass = old.CompletedByClass
-		current.FlawlessTiers = old.FlawlessTiers
+        old.selectDefinition(r.MissionDefinition)
+        old.Attempts += current.Attempts
+        old.LastStartedMS = current.LastStartedMS
+        old.LastOutcome = current.LastOutcome
+        current = old
 	}
 	r.History[r.Level.ID] = current
 	r.CompletedLevels = append([]int(nil), previous.CompletedLevels...)
