@@ -1,7 +1,9 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),key='riftLoadoutPresets';
-  let presets=[],skills=[],blocked=()=>true;
+  let presets=[],skills=[],blocked=()=>true,previewVersion=0;
+  function cancelSkillPreview(){previewVersion++;window.RiftAudio.cancelPreview();}
+
   try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved))presets=saved.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.skills)&&p.skills.length<=3&&p.skills.every(id=>typeof id==='string'&&id.length<=120)).slice(0,10).map(p=>({...p,name:p.name.slice(0,40)}));}catch(_){}
   const section=document.createElement('div');section.id='rift-loadout-presets';section.hidden=true;section.setAttribute('role','group');section.setAttribute('aria-label','Skill presets');
   section.innerHTML='<h4>Skill presets</h4><label for="rift-preset-list">Saved preset <select id="rift-preset-list"><option value="">Choose a preset</option></select></label><label for="rift-loadout-name">Preset name <input id="rift-loadout-name" maxlength="40" placeholder="e.g. Guardian hunter"></label><div><button type="button" id="rift-save-loadout">Save current skills</button><button type="button" id="rift-rename-loadout">Rename</button><button type="button" id="rift-delete-loadout">Delete preset</button></div><p id="rift-loadout-review"></p><button type="button" id="rift-apply-loadout">Apply reviewed skills</button><p id="rift-loadout-status" role="status"></p>';
@@ -11,7 +13,8 @@
   const transfer=document.createElement('details');transfer.innerHTML='<summary>Import or export a preset</summary><label for="rift-preset-json">Preset JSON <textarea id="rift-preset-json" maxlength="2000" rows="5" spellcheck="false"></textarea></label><button type="button" id="rift-export-loadout">Export selected preset</button><button type="button" id="rift-import-loadout">Import for review</button><p>Copy the JSON to transfer a named preset. Import saves it locally for review; it does not equip skills.</p>';section.append(transfer);
   const glossary=document.createElement('details');glossary.id='rift-skill-glossary';glossary.innerHTML='<summary>Skill reference</summary><p>Current Abyss skills. An active expedition keeps the build it started with. Character, class, gear and learned-skill changes apply when you start a new expedition, so combat stays consistent throughout the current run.</p><p id="rift-ultimate-ownership"></p><p id="rift-ultimate-selection"></p><p id="rift-class-cost-reference" hidden></p><p>Ability markers: ＋ builder · ◆ finisher · ★ ultimate.</p><label for="rift-glossary-search">Find a skill <input id="rift-glossary-search" type="search" maxlength="80"></label><p id="rift-glossary-count" role="status"></p><div id="rift-glossary-entries"></div>';section.append(glossary);
   function filterGlossary(){const query=$('rift-glossary-search').value.trim().toLocaleLowerCase(),entries=Array.from($('rift-glossary-entries').children);let count=0;entries.forEach(entry=>{entry.hidden=!entry.dataset.search.includes(query);if(!entry.hidden)count++;});$('rift-glossary-count').textContent=count?count+' of '+entries.length+' skills':'No matching skills.';}
-  $('rift-glossary-search').addEventListener('input',filterGlossary);
+  $('rift-glossary-search').addEventListener('input',()=>{cancelSkillPreview();filterGlossary();});
+  glossary.addEventListener('toggle',()=>{if(!glossary.open)cancelSkillPreview();});
   const slots=()=>Array.from($('rift-loadout').querySelectorAll('select'));
   const chosen=()=>presets.find(p=>p.id===$('rift-preset-list').value);
   const name=id=>id?(skills.find(skill=>skill.id===id)?.name||'Unavailable skill: '+id):'None';
@@ -48,6 +51,7 @@
     }catch(error){$('rift-loadout-status').textContent=error instanceof SyntaxError?'Preset JSON is invalid.':error.message;}
   };
   window.RiftLoadouts={init(build,isBlocked){
+    cancelSkillPreview();
     $('rift-class-cost-reference').hidden=build.class!=='voidwalker';$('rift-class-cost-reference').textContent='Voidwalker charged finishers spend 5% of maximum health, capped to leave at least 1 HP. Finishers without charges spend no health.';
     const owned=build.owned_ultimates;
     $('rift-ultimate-ownership').textContent=Array.isArray(owned)?(owned.length?'Owned ultimates: '+owned.join(', '):'No ultimates owned.'):'Full ultimate ownership is unavailable in this older build snapshot.';
@@ -61,7 +65,19 @@
       stats.textContent=category+' · '+skill.cost+' MP · '+skill.cooldown+'s cooldown · Effect: '+skill.kind;
       description.className='rift-skill-description';description.textContent=window.RiftAbilities.describe(skill,build);entry.dataset.search+=' '+description.textContent.toLocaleLowerCase();
       slot.className='rift-skill-slot';if(category==='Optional skill')entry.dataset.optionalSkill=skill.id;else slot.textContent='Separate from optional skill slots';
-      entry.append(title,stats,description,slot);$('rift-glossary-entries').append(entry);
+      const sound=document.createElement('button'),soundStatus=document.createElement('p');
+      sound.type='button';sound.className='rift-skill-sound';sound.textContent='Preview '+skill.name+' sound';
+      soundStatus.className='rift-skill-sound-status';soundStatus.setAttribute('role','status');
+      sound.onclick=async()=>{
+        const version=++previewVersion;sound.disabled=true;
+        $('rift-glossary-entries').querySelectorAll('.rift-skill-sound-status').forEach(status=>status.textContent='');
+        try{
+          const played=await window.RiftAudio.preview('effects',skill.kind);
+          if(version===previewVersion&&sound.isConnected&&glossary.open)soundStatus.textContent=played?(window.RiftAudio.effects===0?'Effects volume is zero. Raise it in sound settings to hear this skill.':'Previewing '+skill.name+'. Uses your current sound mix.'):(window.RiftAudio.muted?'Sound is muted. Unmute to preview.':'Audio is unavailable or blocked by the browser.');
+        }catch(_){if(version===previewVersion&&sound.isConnected)soundStatus.textContent='Audio is unavailable or blocked by the browser.';}
+        finally{sound.disabled=false;}
+      };
+      entry.append(title,stats,description,slot,sound,soundStatus);$('rift-glossary-entries').append(entry);
     }
     filterGlossary();
     for(let index=0;index<slots().length-1;index++){
