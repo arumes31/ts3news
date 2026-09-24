@@ -71,7 +71,7 @@
   function message(title, copy, button, kicker) {
     $('rift-result-actions').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
-    $('rift-overlay-kicker').textContent = kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
+    $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
   function updatePauseButton(isPlaying){
     const btn=$('rift-pause');
@@ -287,7 +287,7 @@
     updatePauseButton(playing);
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(practice){
-      put($('rift-room'),drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
+      put($('rift-room'),'Practice · '+drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
       for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=!['boss','class','skills','ranged'].includes(practice);
       put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='skills'?'Free practice · '+(run.practice.hits||0)+' basic target hits · No time limit':practice==='class'?(run.resource||0)+'/3 charges · '+(run.practice.class_hits||0)+'/1 charged finisher hits':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+(run.practice.hazard_intensity||'standard')+' · '+hazardPracticePhase(run):practice==='ranged'?(run.practice.ranged_hits||0)+'/3 projectile hits':practice==='perfect_guard'?(run.practice.perfect_guards||0)+'/3 perfect guards · Release guard between strikes':practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
       setSafeDisabled($('rift-practice-reset'),!ready||starting||practiceToolPending);practiceToolButtons();
@@ -720,6 +720,8 @@
   }
   if(practice){
     root.querySelector('.rift-tag').textContent='PRACTICE · '+drillNames[practice].toUpperCase();
+    document.title='Practice · '+drillNames[practice]+' · Abyss Brawl';
+    const practiceNote=document.createElement('p');practiceNote.id='rift-controls-practice-note';practiceNote.textContent='Practice only · No loot or campaign progress. These controls apply to your isolated drill.';$('rift-controls-title').after(practiceNote);
     $('rift-practice-guide').hidden=false;$('rift-practice-title').textContent=drillNames[practice];
     $('rift-boss-practice-options').hidden=practice!=='boss';
     $('rift-hazard-practice-options').hidden=practice!=='hazard';
