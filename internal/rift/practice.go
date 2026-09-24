@@ -35,7 +35,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -77,6 +77,10 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	r.Enemies = []Actor{}
 	for i := range r.EncounterPlan {
 		r.EncounterPlan[i] = []Actor{}
+	}
+	if mode == "pickup" {
+		r.Practice.Arena.Name = "Loot pickup demonstration"
+		r.Drops = []Drop{{ID: "practice-token-1", X: 360, Y: 410}, {ID: "practice-token-2", X: 580, Y: 350}, {ID: "practice-token-3", X: 800, Y: 480}}
 	}
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
@@ -154,7 +158,7 @@ func (r *Run) practiceInput(in Input) Input {
 	switch r.Practice.Mode {
 	case "boss", "class", "skills", "ranged", "ultimate", "resource":
 		return in
-	case "movement":
+	case "movement", "pickup":
 		return Input{X: in.X, Y: in.Y}
 	case "jump", "hazard":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
@@ -174,6 +178,10 @@ func (r *Run) practiceTick() {
 		return // Free practice ends only when the player leaves or resets.
 	}
 	complete := r.Player.X >= r.Practice.GoalX
+	if r.Practice.Mode == "pickup" {
+		complete = len(r.Drops) == 3
+		for _, drop := range r.Drops { complete = complete && drop.Collected }
+	}
 	if r.Practice.Mode == "resource" {
 		complete = r.Practice.ResourceCycles >= 2
 	}
