@@ -34,7 +34,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		mu.Lock()
 		if _, exists := builds[cookie.Value]; !exists || r.URL.Query().Has("subclass") {
 			style := r.URL.Query().Get("subclass")
-			if _, ok := content.AbyssSubclassByID(style); !ok {
+			if _, ok := content.AbyssCombatStyle(style); !ok {
 				style = "vanguard"
 			}
 			u := UserInCombat{AbyssSubclass: style, Stats: content.Stats{HP: 500, STR: 80, INT: 90, DEF: 60}, Skills: content.AbyssClassSkills(style)}

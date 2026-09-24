@@ -111,3 +111,24 @@ baselines. Strip the scenario parameter before reload to preserve state.
 `rift-hazard-fixtures.spec.js` checks all eight browser scenes and frozen phase
 persistence. `TestRiftHazardFixtureRoutes` checks authored hazard equality and
 coverage under `-tags=e2e`; it prompts a coverage review when the kind count changes.
+
+## Class-resource fixtures
+
+Use `/abyss/rift?scenario=checkpoint&subclass=<style>&charges=<0-3>` to inspect
+empty, one-charge, two-charge and full class resources. The `subclass` parameter
+accepts either an Abyss foundation class ID or a subclass ID. For example:
+
+- `/abyss/rift?scenario=checkpoint&subclass=warrior&charges=0` shows empty Momentum.
+- `/abyss/rift?scenario=checkpoint&subclass=arcanist&charges=2` shows two Spark charges.
+- `/abyss/rift?scenario=checkpoint&subclass=vanguard&charges=3` shows full Resolve.
+
+The fixture uses canonical resource labels and signature pairs for all six
+foundation classes and twelve subclasses. It is a cleared checkpoint, so it
+isolates charge display from ongoing combat. Resume through the checkpoint to
+exercise the next room; use resource practice to test earning and spending
+charges. Charge count is distinct from mana, barrier, target marks or cooldowns.
+Invalid/out-of-range charge parameters leave the constructor's zero value.
+
+`TestRiftResourceFixtureAllStylesAndCharges` checks all 72 style/charge snapshots
+and their canonical signatures under `-tags=e2e`. `rift-resource-fixtures.spec.js`
+checks the displayed resource label and count for the same combinations.
