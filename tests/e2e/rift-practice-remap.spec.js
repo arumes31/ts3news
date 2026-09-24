@@ -1,0 +1,8 @@
+const {test,expect}=require('@playwright/test');
+test('movement tutorial refreshes after rebinding and the new key completes it',async({page})=>{
+ await page.goto('/abyss/rift?practice=movement');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-controls-open').click();await page.locator('[data-remap="right"]').click();await page.keyboard.press('h');await page.locator('#rift-controls-close').click();await expect(page.locator('#rift-practice-instructions')).toContainText('with H');await expect(page.locator('#rift-overlay-copy')).toContainText('with H');
+ await page.locator('#rift-start').click();await page.keyboard.down('KeyH');await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift?practice=movement')).json()).run.practice.completed,{timeout:15000}).toBe(true);await page.keyboard.up('KeyH');await page.reload();await expect(page.locator('#rift-practice-instructions')).toContainText('with H');
+});
+for(const [mode,action,key,text] of [['jump','jump','v','jump the cover with V'],['hazard','jump','v','jump with V'],['combo','attack','f','strikes with F'],['guard','guard','c','hold C'],['perfect_guard','guard','c','Press C'],['class','signature0','t','(T)']])test('practice instructions follow '+mode+' rebindings',async({page})=>{
+ await page.goto('/abyss/rift?practice='+mode);await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-controls-open').click();await page.locator('[data-remap="'+action+'"]').click();await page.keyboard.press(key);await page.locator('#rift-controls-close').click();await expect(page.locator('#rift-practice-instructions')).toContainText(text);await expect(page.locator('#rift-overlay-copy')).toContainText(text);
+});
