@@ -898,8 +898,22 @@
     }
     if(alpha===1&&profile.element!=='physical'){ctx.globalAlpha=.6;ctx.fillStyle=profile.palette[0];ctx.beginPath();ctx.ellipse(x,y+1,size*.28,4,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
   }
+  let renderRequest=null,renderReady=false;
+  function scheduleRender(){
+    if(renderReady&&!document.hidden&&renderRequest===null)renderRequest=requestAnimationFrame(render);
+  }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){
+      if(renderRequest!==null)cancelAnimationFrame(renderRequest);
+      renderRequest=null;
+    }else{
+      last=performance.now();
+      scheduleRender();
+    }
+  });
   function render(now) {
-    requestAnimationFrame(render);
+    renderRequest=null;
+    scheduleRender();
     if (!images.area || document.hidden || !ctx || now-last<1000/display.fps-1) return;
     renderer.frameCount++;
     ctx.imageSmoothingEnabled = false;
@@ -1962,6 +1976,6 @@
       ctx.strokeStyle=color;ctx.globalAlpha=.8*fade;ctx.lineWidth=4;ctx.strokeRect(6,6,948,528);ctx.restore();
     }
   }
-  renderer.ready.then(()=>requestAnimationFrame(render)).catch(()=>{});
+  renderer.ready.then(()=>{renderReady=true;scheduleRender();}).catch(()=>{});
   window.RiftRenderer=renderer;
 })();
