@@ -1,6 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 test('campaign scenery loot effects and victory atlas rectangles stay in bounds',async({page})=>{
+ const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
  const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels).toHaveLength(100);
  const result=await page.evaluate(async data=>{
@@ -42,6 +43,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
   }finally{ctx.drawImage=draw;}
   return {errors:errors.slice(0,20),scenes,draws,victories,cells:Object.fromEntries(Object.entries(cells).map(([key,value])=>[key,[...value]]))};
  },data);
+ expect(pageErrors).toEqual([]);
  expect(result.errors).toEqual([]);expect(result.scenes).toBe(300);expect(new Set(result.victories).size).toBe(12);
  expect(result.cells['/static/rift_regions.png'].length).toBe(10);
  expect(result.cells['/static/rift_terrain_cover.png'].length).toBe(4);
