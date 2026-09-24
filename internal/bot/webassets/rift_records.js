@@ -16,7 +16,9 @@
  const splitText=splits=>'Room splits: '+[0,1,2].map(index=>'Tier '+(index+1)+' '+(splits?.[index]==null?'unavailable':splits[index].toFixed(1)+'s')).join(' · ');
  const delta=value=>(value>0?'+':'')+value.toFixed(1);
  let masteryKey='';
- const classLabel=name=>name.charAt(0).toUpperCase()+name.slice(1);
+ let classNames={};
+ const classLabel=name=>Object.prototype.hasOwnProperty.call(classNames,name)?classNames[name]:name.charAt(0).toUpperCase()+name.slice(1);
+ function init(names){classNames=Object.fromEntries(Object.entries(names||{}).filter(([id,name])=>id&&typeof name==='string'&&name));masteryKey='';lastKey='';}
  function mastery(run){
   const node=document.getElementById('rift-class-mastery');node.hidden=!!run.practice;if(run.practice)return;
   const totals=new Map(),current=run.build?.class;
@@ -47,7 +49,7 @@
   for(const record of [...attempts].reverse()){
    const item=document.createElement('li'),heading=document.createElement('strong'),body=document.createElement('p');
    heading.textContent='Mission '+record.mission+' · '+outcomes[record.outcome]+' · '+(record.at_ms>0?new Date(record.at_ms).toLocaleString():'Date unavailable');
-   body.textContent=(record.class||'Subclass unavailable')+' · '+record.seconds.toFixed(1)+'s combat · End HP '+record.hp.toFixed(1)+'/'+record.max_hp.toFixed(1)+' · Damaging hits '+(record.hits??'unavailable');
+   body.textContent=(record.class?classLabel(record.class):'Subclass unavailable')+' · '+record.seconds.toFixed(1)+'s combat · End HP '+record.hp.toFixed(1)+'/'+record.max_hp.toFixed(1)+' · Damaging hits '+(record.hits??'unavailable');
    const splits=document.createElement('p');splits.textContent=splitText(record.splits);item.append(heading,body,splits);list.append(item);
   }
   const latest=attempts.at(-1),previous=latest?[...attempts.slice(0,-1)].reverse().find(record=>record.mission===latest.mission):null;
@@ -55,5 +57,5 @@
   if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+'.';return;}
   comparison.textContent='Mission '+latest.mission+' compared with previous attempt ('+outcomes[previous.outcome]+' → '+outcomes[latest.outcome]+'): combat time '+delta(latest.seconds-previous.seconds)+'s; end HP '+delta(latest.hp-previous.hp)+'; damaging hits '+(latest.hits==null||previous.hits==null?'comparison unavailable':delta(latest.hits-previous.hits))+'.';
  }
- window.RiftRecords={update};
+ window.RiftRecords={update,init,classLabel};
 })();

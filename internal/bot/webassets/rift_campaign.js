@@ -105,8 +105,8 @@
     const firstRegion=levels.filter(level=>level.region===levels[0].region),badge=$('rift-region-badge');badge.hidden=!firstRegion.every(level=>completed.has(level.id));badge.textContent='✦ '+firstRegion[0].region_name+' · First region complete';badge.title='Cosmetic completion badge. No combat or loot bonus.';
     const campaignBadge=$('rift-campaign-badge');campaignBadge.hidden=cleared!==levels.length;campaignBadge.textContent='✦ Campaign complete · '+levels.length+' missions';
     const classMissions=new Map();for(const level of levels){for(const [name,count] of Object.entries(history[level.id]?.completed_by_class||{})){if(name&&Number.isSafeInteger(count)&&count>0)classMissions.set(name,(classMissions.get(name)||0)+1);}}
-    const mastered=[...classMissions].filter(([,count])=>count>=10).sort(([a],[b])=>a.localeCompare(b)),classBadges=$('rift-class-badges'),awardsKey=JSON.stringify(mastered);
-    if(classBadges.dataset.awards!==awardsKey){classBadges.dataset.awards=awardsKey;classBadges.replaceChildren();for(const [name,count] of mastered){const award=document.createElement('span');award.className='rift-region-badge';award.textContent='✦ '+name.charAt(0).toUpperCase()+name.slice(1)+' mastery · '+count+' distinct missions';classBadges.append(award);}}
+    const mastered=[...classMissions].filter(([,count])=>count>=10).sort(([a],[b])=>a.localeCompare(b)),classBadges=$('rift-class-badges'),awardsKey=JSON.stringify(mastered.map(([name,count])=>[window.RiftRecords.classLabel(name),count]));
+    if(classBadges.dataset.awards!==awardsKey){classBadges.dataset.awards=awardsKey;classBadges.replaceChildren();for(const [name,count] of mastered){const award=document.createElement('span');award.className='rift-region-badge';award.textContent='✦ '+window.RiftRecords.classLabel(name)+' mastery · '+count+' distinct missions';classBadges.append(award);}}
     $('rift-favorite').setAttribute('aria-label',(favorites.has(selected)?'Remove favorite':'Favorite mission')+' '+selected+': '+selectedLevel.name);
     $('rift-previous-mission').disabled=active||selected<=1;
     $('rift-next-mission').disabled=active||selected>=levels.length;

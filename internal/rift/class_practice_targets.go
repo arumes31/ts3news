@@ -27,7 +27,7 @@ func (r *Run) configureClassTarget() {
 	case "oracle":
 		e.Name = "Grace practice dummy"
 		r.Player.HP = r.Player.MaxHP * .6
-		r.Practice.TargetHint = "You start at 60% health so your healing builder can restore health before you spend Grace on this target."
+		r.Practice.TargetHint = "You start at 60% health so your healing builder can restore health before you spend charges on this target."
 	case "geomancer":
 		e.Name, e.Armor = "Stone armor dummy", .8
 		r.Practice.TargetHint = "Heavily armored target: build charges, then compare your charged finisher's piercing with ordinary hits."
@@ -44,7 +44,7 @@ func (r *Run) configureClassTarget() {
 	case "alchemist":
 		e.Name, e.Armor = "Mixture test dummy", .4
 		r.Player.HP = r.Player.MaxHP * .6
-		r.Practice.TargetHint = "You start at 60% health against an armored target. Mark it, then spend mixture charges to heal and pierce armor."
+		r.Practice.TargetHint = "You start at 60% health against an armored target. Mark it, then spend charges to heal and pierce armor."
 	default:
 		r.Practice.TargetHint = "Build charges and land a charged finisher on this target."
 	}
