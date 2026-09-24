@@ -829,8 +829,13 @@
     const profile=bestiary.profile(unit);
     // Keep the expanded Brawl animations for matching existing species. All
     // other anatomy comes directly from Abyss's shared actor-frame provider.
-    const localRow={goblin:0,wolf:4,knight:2}[profile.rig];
+    let localRow={goblin:0,wolf:4,knight:2}[profile.rig];
     let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'||pose==='guard_walk'||pose==='recovery'?'idle':pose==='ultimate_anticipation'?'cast':pose==='stagger'?'hurt':pose;
+    const frame=localRow===undefined?bestiary.frame(unit,mapped,Math.floor((mapped==='idle'?decorationTime:animationTime)/(pose==='run'?110:200))):null;
+    const img=frame&&catalogImages[frame.asset],source=frame?.source;
+    // Legacy saves can outlive a shared art entry. Keep their combat silhouette
+    // and animation visible using the required base atlas, without changing state.
+    if(localRow===undefined&&(!img||!source))localRow=({archer:1,knight:2,boss:3,wolf:4,spore:5}[unit.kind]??0);
     if(localRow!==undefined){
       let col=renderer.reduced?0:Math.floor(decorationTime/650)%2;
       if(pose==='run')col=2+Math.floor(animationTime/105)%4;
@@ -840,8 +845,6 @@
       if(pose==='land'||pose==='recovery')col=10;
       sprite(localRow,col,x,y,size,unit.facing,alpha,'mobs');
     }else{
-      const frame=bestiary.frame(unit,mapped,Math.floor((mapped==='idle'?decorationTime:animationTime)/(pose==='run'?110:200))),img=catalogImages[frame.asset],source=frame.source;
-      if(!img||!source)return;
       const stride=((pose==='run'?Math.sin(animationTime/65)*3:pose==='guard_walk'?Math.sin(animationTime/80)*2:0))*(!renderer.reduced?motion:0);
       ctx.save();ctx.globalAlpha=alpha;ctx.translate(Math.round(x),Math.round(y+stride));ctx.scale(unit.facing<0?-1:1,1);
       if(pose==='knockdown')ctx.rotate(-.55);
