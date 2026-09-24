@@ -58,6 +58,11 @@
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
   }
+  function coverInView(cover) {
+    // Keep edge overhang, shadows, labels and small camera-shake offsets visible.
+    const margin=Math.max(96,cover.w*.08+4),left=cover.x-camera;
+    return left+cover.w+margin>=0 && left-margin<=960;
+  }
   function combatTextProperties(e) {
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
@@ -1388,9 +1393,9 @@
         units.push({id:'pet'+i,kind:'wolf',x:petX,y:run.player.y+22+i*8,hp:1,max_hp:1,facing,pose:run.player.pose==='cast'?'cast':['run','guard_walk'].includes(run.player.pose)?'run':'idle',jump:0});
       }
     }
-    (arena?.obstacles||[]).forEach(o=>units.push({y:o.y+o.h,cover:o}));
-    (arena?.cover||[]).forEach(c=>units.push({y:c.y+c.h,terrain:c}));
-    (arena?.high_cover||[]).forEach(o=>units.push({y:o.y+o.h,cover:o,tall:true}));
+    (arena?.obstacles||[]).forEach(o=>{if(coverInView(o))units.push({y:o.y+o.h,cover:o});});
+    (arena?.cover||[]).forEach(c=>{if(coverInView(c))units.push({y:c.y+c.h,terrain:c});});
+    (arena?.high_cover||[]).forEach(o=>{if(coverInView(o))units.push({y:o.y+o.h,cover:o,tall:true});});
     for(const pickup of (run.room_objective?.kind==='sigils'?run.room_objective.pickups:[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
     units.sort((a,b)=>a.y-b.y).forEach(unit=>{

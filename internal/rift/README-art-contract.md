@@ -157,3 +157,10 @@ cases. Projectile expiry is explicitly silent; directional captions with a false
 sound flag are excluded. New dynamic event construction needs corresponding
 coverage. The isolated browser test `rift-event-sound-coverage.spec.js` verifies
 actual source creation and pause cleanup for arrival/barrier/resource/guard cues.
+
+Cover drawing is culled horizontally before depth sorting. The renderer keeps a
+96-world-unit margin around the viewport (or a larger margin for wide shadows),
+so partial sprites, overhang, labels and camera shake remain visible. This changes
+only draw work; full arena geometry still participates in server collision and
+client interaction selection. Recheck the margin if future cover art extends
+farther beyond its authored footprint.
