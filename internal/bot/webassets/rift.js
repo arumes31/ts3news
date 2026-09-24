@@ -258,7 +258,7 @@
     window.RiftLoot.update(run,replay);
     root.querySelectorAll('.rift-route li').forEach((li,i)=>{li.classList.toggle('current',i===run.room);li.classList.toggle('done',i<run.room);});
     const signature=run.build.skills.map(s=>s.id).join(',');
-    if(signature!==currentSkillIDs||!$('rift-skills').childElementCount){
+    if(signature!==currentSkillIDs||$('rift-skills').childElementCount!==run.build.skills.length){
       currentSkillIDs=signature;
       replacePreservingFocus($('rift-skills'),()=>{
         run.build.skills.forEach((s,i)=>{
