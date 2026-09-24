@@ -11,3 +11,14 @@ test('contextual hint opt-out covers coaching, terrain, checkpoint and defeat he
  await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-context-hints')).not.toBeChecked();await expect(page.locator('#rift-walkthrough')).toBeHidden();await show('cleared');await expect(page.locator('#rift-class-coaching')).toBeHidden();
  await page.locator('.rift-settings > summary').click();await page.locator('#rift-context-hints').check();await show('cleared');await expect(page.locator('#rift-class-coaching')).toBeVisible();await expect(page.locator('#rift-checkpoint-guide')).toBeVisible();
 });
+
+test('results counterplay and boss lessons respect coaching preference',async({page})=>{
+ await page.goto('/abyss/rift?practice=boss');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
+ const run=(await(await page.request.get('/api/abyss/rift?practice=boss')).json()).run;
+ const show=()=>page.evaluate(run=>{run.last_encounter={outcome:'defeated',room:0,room_name:'Training',seconds:10,player_hp:0,player_max_hp:100,defeated_by_hazard:{kind:'fire',jumpable:true}};RiftHUD.update(run,false,true);},run);
+ const advice=page.locator('#rift-last-encounter-stats dt').filter({hasText:'Hazard counterplay'}),lesson=page.locator('#rift-boss-practice-lesson');
+ await show();await expect(advice).toHaveCount(1);await expect(lesson).toBeVisible();
+ await page.locator('.rift-settings > summary').click();await page.locator('#rift-context-hints').uncheck();await expect(advice).toHaveCount(0);await expect(lesson).toBeHidden();
+ await show();await expect(advice).toHaveCount(0);await expect(lesson).toBeHidden();
+ await page.locator('#rift-context-hints').check();await expect(advice).toHaveCount(1);await show();await expect(lesson).toBeVisible();
+});

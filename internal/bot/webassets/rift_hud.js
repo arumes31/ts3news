@@ -22,7 +22,7 @@
   hintSetting.checked=hintsEnabled;
   const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
   const missCoaching=document.createElement('p');missCoaching.id='rift-miss-coaching';missCoaching.hidden=true;missCoaching.setAttribute('role','status');hazardCoaching.after(missCoaching);
-  hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
+  hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));if(lastObservedRun)updateLastEncounter(lastObservedRun);try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
   function contextualHazardHint(run,replay){
     const key=[run.id,run.level?.id,run.room].join(':'),damage=run.stats?.hazard_damage_taken||0,seconds=run.stats?.seconds||0;
     if(replay||!hazardHintState||hazardHintState.key!==key||damage<hazardHintState.damage||seconds<hazardHintState.seconds){
@@ -321,7 +321,7 @@
       }
     }
 
-    if(isDefeated&&encounter.defeated_by_hazard)rows.push(['Hazard counterplay',hazardDefeatHint(encounter.defeated_by_hazard)]);
+    if(hintsEnabled&&isDefeated&&encounter.defeated_by_hazard)rows.push(['Hazard counterplay',hazardDefeatHint(encounter.defeated_by_hazard)]);
     if(isDefeated&&encounter.defeated_by_boss){
       rows.push(['Defeated by boss',encounter.defeated_by_boss]);
     }
