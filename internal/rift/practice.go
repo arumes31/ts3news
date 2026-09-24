@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	RangedHits int `json:"ranged_hits,omitempty"`
 	PerfectGuards int `json:"perfect_guards,omitempty"`
 	PickupRadius float64 `json:"pickup_radius,omitempty"`
 	TargetHint     string  `json:"target_hint,omitempty"`
@@ -29,14 +30,20 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
 	if !ValidPracticeMode(mode) {
 		return nil, errors.New("unknown practice drill")
 	}
-	if mode == "class" {
+	if mode == "ranged" {
+        hasProjectile := false
+        for _, skill := range append(append([]Skill{}, build.Skills...), build.Signatures...) { hasProjectile = hasProjectile || skill.Reference().Target == "projectile" }
+        if build.Ultimate != nil { hasProjectile = hasProjectile || build.Ultimate.Reference().Target == "projectile" }
+        if !hasProjectile { return nil, errors.New("ranged practice requires an equipped projectile ability") }
+    }
+    if mode == "class" {
 		builder, finisher := false, false
 		for _, skill := range build.Signatures {
 			builder = builder || skill.Role == "builder"
@@ -68,13 +75,18 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}
-	if mode == "combo" || mode == "class" || mode == "skills" {
+	if mode == "combo" || mode == "class" || mode == "skills" || mode == "ranged" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
 	}
 	if mode == "class" {
 		r.configureClassTarget()
 	}
-	if mode == "skills" {
+	if mode == "ranged" {
+        r.Enemies[0].X = 650
+        r.Enemies[0].Name = "Ranged aim target"
+        r.Practice.Arena.Name = "Ranged aiming lane"
+    }
+    if mode == "skills" {
 		r.Practice.Arena.Name = "Skill testing lane"
 		r.Player.HP = r.Player.MaxHP * .6
 	}
@@ -123,7 +135,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
-	case "boss", "class", "skills":
+	case "boss", "class", "skills", "ranged":
 		return in
 	case "movement":
 		return Input{X: in.X, Y: in.Y}
@@ -148,7 +160,10 @@ func (r *Run) practiceTick() {
 	if r.Practice.Mode == "boss" {
 		complete = len(r.Enemies) == 1 && r.Enemies[0].HP <= 0
 	}
-	if r.Practice.Mode == "class" {
+	if r.Practice.Mode == "ranged" {
+        complete = r.Practice.RangedHits >= 3
+    }
+    if r.Practice.Mode == "class" {
 		complete = r.Practice.ClassHits > 0
 	}
 	if r.Practice.Mode == "jump" {

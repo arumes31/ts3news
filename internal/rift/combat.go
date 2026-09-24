@@ -773,6 +773,7 @@ func (r *Run) tick(in Input, dt float64) {
 		} else {
 			for i, e := range r.Enemies {
 				if ref := shot.Skill.Reference(); e.HP > 0 && math.Abs(shot.X-e.X) < ref.Horizontal && math.Abs(shot.Y-e.Y) < ref.Depth {
+                    if r.Practice != nil && r.Practice.Mode == "ranged" && e.ID == "practice-target" && shot.Power > 0 { r.Practice.RangedHits++ }
 					r.skillHit(i, shot.Power, shot.Skill, shot.Charges, shot.Marked)
 					hit = true
 					break
