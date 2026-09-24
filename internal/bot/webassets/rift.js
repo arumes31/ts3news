@@ -110,7 +110,7 @@
       try{
         if(payloadDiagnostics){const raw=await response.text();responseBytes=payloadEncoder.encode(raw).byteLength;data=JSON.parse(raw);runBytes=data.run?payloadEncoder.encode(JSON.stringify(data.run)).byteLength:0;}
         else data=await response.json();
-      }catch(_){throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
+      }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error('The expedition response was interrupted. Recover the saved expedition before continuing.');}
       if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:'Could not confirm the expedition.');const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error('The saved drill does not match this page.');
       if(payloadDiagnostics){
         payloadDiagnostics.count++;payloadDiagnostics.totalResponseBytes+=responseBytes;payloadDiagnostics.maxResponseBytes=Math.max(payloadDiagnostics.maxResponseBytes,responseBytes);
@@ -511,7 +511,11 @@
   async function load(){
     let artworkFailed=false;
     try{
-      const [,data]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),request('GET')]);
+      // Cold atlas transfers can starve the initial read's bounded request timer.
+      // Retry that read once after artwork settles; never retry a mutation here.
+      const initialRead=request('GET').catch(error=>{if(error?.name==='AbortError')return null;throw error;});
+      const [,initialData]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),initialRead]);
+      const data=initialData===null?await request('GET'):initialData;
       window.RiftRecords.init(data.class_names);window.RiftClassChallenges.update(data.run);window.RiftClassCompare.init(data.class_options,data.run?.build?.class||data.build?.class);window.RiftObjectives.init(data.objective_options||[]);build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='skills'){const select=$('rift-practice-enemy');select.replaceChildren();(data.bestiary||[]).forEach(unit=>{text('option',unit.name,select).value=unit.name;});const saved=run?.enemies?.find(enemy=>enemy.id==='practice-enemy');if(saved&&[...select.options].some(option=>option.value===saved.name))select.value=saved.name;}if(practice==='hazard')$('rift-hazard-intensity').value=run?.practice?.hazard_intensity||'standard';if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}

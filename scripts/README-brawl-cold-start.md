@@ -21,8 +21,9 @@ first DOM mutation where the start button is enabled, the critical atlas counter
 is ready and the button is not offering Retry loading. This includes frontend
 initialization and the initial API response. It is not LCP or interaction latency.
 Each sample is allowed six minutes to become ready; the limit is a diagnostic
-timeout, not an acceptable performance budget. A timeout/error leaves the report
-incomplete and returns exit 1. Setup errors return exit 2.
+timeout, not an acceptable performance budget. A timeout, loading failure or unexpected browser/request error leaves the report
+incomplete and returns exit 1. The failure report retains the button/atlas state
+and completed resource timings for diagnosis. Setup errors return exit 2.
 
 The JSON report includes browser/platform, checkout revision (not a verified
 server revision), exact network settings, sample timings, completed-at-readiness
@@ -36,3 +37,10 @@ Record the actual fixture build revision separately. Use synthetic characters an
 avoid authenticated production captures. Commit/source, browser and local-machine
 conditions must be comparable when evaluating an optimization. Keep timed-out
 reports as evidence; do not treat a missing readiness value as zero or a pass.
+
+A single aborted initial GET followed by confirmed readiness is recorded as
+`recoveredInitialReadTimeout: true`. Its request error stays in the sample. This
+is Brawl's bounded cold-load recovery, not an error-free startup; compare its
+frequency as well as readiness time when optimizing. Other errors or multiple
+aborts still fail the measurement. A successful measurement is not a declaration
+that the measured loading time is acceptable.
