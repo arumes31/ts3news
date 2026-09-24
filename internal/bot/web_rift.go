@@ -297,7 +297,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_spawn", "practice_clear", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
+	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_spawn", "practice_clear", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
 		return true
 	}
 	return false
@@ -323,6 +323,7 @@ func decodeRift(saved string) (*rift.Run, error) {
 }
 
 func validRiftModeAction(mode, kind string) bool {
+	if kind == "practice_bank" { return mode == "banking" }
 	if kind == "practice_spawn" || kind == "practice_clear" { return mode == "skills" }
 	if mode == "" {
 		switch kind {
@@ -335,7 +336,7 @@ func validRiftModeAction(mode, kind string) bool {
 		return false
 	}
 	switch kind {
-	case "start", "step", "pause", "resume", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
+	case "start", "step", "pause", "resume", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
 		return true
 	}
 	return false
@@ -479,7 +480,7 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 		switch req.Kind {
 		case "practice_spawn", "practice_clear":
 			if err := applyRiftPracticeEnemy(run, req, now); err != nil { return nil, errRiftConflict }
-		case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze":
+		case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
 			if err := run.PracticeTool(req.Kind); err != nil {
 				return nil, errRiftConflict
 			}
