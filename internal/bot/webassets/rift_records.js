@@ -1,6 +1,7 @@
 (function(){
  'use strict';
  const list=document.getElementById('rift-attempt-list'),comparison=document.getElementById('rift-attempt-comparison');
+ const knownDefinition=value=>typeof value==='string'&&/^level-v1:[a-f0-9]{64}$/.test(value);
  const outcomes={completed:'Cleared',defeated:'Defeated',exited:'Left early',expired:'Expired / abandoned'};
  let lastKey='',latestRun=null;
  const exportButton=document.getElementById('rift-export-records'),exportStatus=document.getElementById('rift-export-status');
@@ -94,11 +95,11 @@
    const item=document.createElement('li'),heading=document.createElement('strong'),body=document.createElement('p');
    heading.textContent='Mission '+record.mission+' · '+(outcomes[record.outcome]||'Outcome unavailable')+' · '+(record.at_ms>0?new Date(record.at_ms).toLocaleString():'Date unavailable');
    body.textContent=(record.difficulty||'Difficulty unavailable')+' · '+(record.class?classLabel(record.class):'Subclass unavailable')+' · '+measurement(record.seconds,'s')+' combat · End HP '+(measured(record.hp)&&Number.isFinite(record.max_hp)&&record.max_hp>0?record.hp.toFixed(1)+'/'+record.max_hp.toFixed(1):'unavailable')+' · Damaging hits '+(Number.isSafeInteger(record.hits)&&record.hits>=0?record.hits:'unavailable');
-   const splits=document.createElement('p');splits.textContent=splitText(record.splits);item.append(heading,body,splits);list.append(item);
+   const splits=document.createElement('p');splits.textContent=splitText(record.splits)+' · '+(knownDefinition(record.definition)?'Mission version recorded':'Mission version unavailable');item.append(heading,body,splits);list.append(item);
   }
-  const latest=attempts.at(-1),previous=latest?[...attempts.slice(0,-1)].reverse().find(record=>record.mission===latest.mission&&latest.difficulty&&record.difficulty===latest.difficulty):null;
+  const latest=attempts.at(-1),previous=latest?[...attempts.slice(0,-1)].reverse().find(record=>record.mission===latest.mission&&latest.difficulty&&record.difficulty===latest.difficulty&&knownDefinition(latest.definition)&&record.definition===latest.definition):null;
   if(!latest){comparison.textContent='No recorded attempts yet.';return;}
-  if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+' at '+(latest.difficulty||'an unknown difficulty')+'.';return;}
+  if(!previous){comparison.textContent='No previous recorded attempt for Mission '+latest.mission+' at '+(latest.difficulty||'an unknown difficulty')+' with a matching recorded mission version. '+(knownDefinition(latest.definition)?'Different or unknown mission versions are not compared.':'Mission version unavailable; comparison unavailable.');return;}
   comparison.textContent='Mission '+latest.mission+' compared with previous attempt ('+outcomes[previous.outcome]+' → '+outcomes[latest.outcome]+'): combat time '+difference(latest.seconds,previous.seconds,'s')+'; end HP '+difference(latest.hp,previous.hp)+'; damaging hits '+difference(latest.hits,previous.hits)+'.';
  }
  window.RiftRecords={update,init,classLabel,classIdentity};
