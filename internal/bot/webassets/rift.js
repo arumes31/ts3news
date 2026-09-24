@@ -25,7 +25,7 @@
   $('rift-transition-delay').value=String(transitionDelay);
   $('rift-transition-delay').addEventListener('change',()=>{const value=Number($('rift-transition-delay').value);if(![1.2,3,5,10].includes(value))return;transitionDelay=value;clearedAt=0;countdownAnnounced=-1;try{localStorage.setItem('riftTransitionDelay',String(value));}catch(_){} });
   try { $('rift-auto').checked = localStorage.getItem('rift-auto') !== 'false'; } catch (_) {}
-  const practice=root.dataset.practice||'', drillNames={ranged:'Ranged aiming lane',perfect_guard:'Perfect-guard timing',skills:'Skill testing lane',class:'Your class sequence',boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
+  const practice=root.dataset.practice||'', drillNames={ultimate:'Ultimate timing lane',ranged:'Ranged aiming lane',perfect_guard:'Perfect-guard timing',skills:'Skill testing lane',class:'Your class sequence',boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
   const status = message => { $('rift-status').textContent = message; };
@@ -288,8 +288,9 @@
     root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=run.status==='fighting'||run.status==='cleared');
     if(practice){
       put($('rift-room'),'Practice · '+drillNames[practice]);put($('rift-objective'),run.practice.completed?'Drill complete':$('rift-practice-instructions').textContent);
-      for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=!['boss','class','skills','ranged'].includes(practice);
-      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='skills'?'Free practice · '+(run.practice.hits||0)+' basic target hits · No time limit':practice==='class'?(run.resource||0)+'/3 charges · '+(run.practice.class_hits||0)+'/1 charged finisher hits':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+(run.practice.hazard_intensity||'standard')+' · '+hazardPracticePhase(run):practice==='ranged'?(run.practice.ranged_hits||0)+'/3 projectile hits':practice==='perfect_guard'?(run.practice.perfect_guards||0)+'/3 perfect guards · Release guard between strikes':practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      for(const id of ['rift-skills','rift-signatures','rift-class-coaching'])$(id).hidden=!['boss','class','skills','ranged','ultimate'].includes(practice);
+      put($('rift-practice-progress'),run.practice.completed?'Drill complete':practice==='ultimate'?ultimatePracticeCue():practice==='skills'?'Free practice · '+(run.practice.hits||0)+' basic target hits · No time limit':practice==='class'?(run.resource||0)+'/3 charges · '+(run.practice.class_hits||0)+'/1 charged finisher hits':practice==='boss'?(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+' · '+Math.ceil(run.enemies[0]?.hp||0)+' HP'+(run.practice.slow_telegraphs?' · Longer warnings (2×)':''):practice==='hazard'?(run.practice.dodges||0)+'/3 clean pulses · '+(run.practice.hazard_intensity||'standard')+' · '+hazardPracticePhase(run):practice==='ranged'?(run.practice.ranged_hits||0)+'/3 projectile hits':practice==='perfect_guard'?(run.practice.perfect_guards||0)+'/3 perfect guards · Release guard between strikes':practice==='guard'?(run.stats.guards||0)+'/3 attacks blocked':practice==='combo'?run.practice.hits+' target hits · Finish a three-hit combo':Math.min(100,Math.round(run.player.x/run.practice.goal_x*100))+'% to finish');
+      if(practice==='ultimate'&&!run.practice.completed)put($('rift-objective'),ultimatePracticeCue());
       setSafeDisabled($('rift-practice-reset'),!ready||starting||practiceToolPending);practiceToolButtons();
       if(['complete','expired','defeated'].includes(run.status)){playing=false;clearTimeout(timer);resetInput();message(run.status==='complete'?'Drill complete.':run.status==='defeated'?'Try facing the attacker.':'Start a fresh drill.', 'Practice earns no loot or campaign records.', 'Try again',drillNames[practice]);silence();}
       return;
@@ -437,9 +438,14 @@
     const preferred=window.RiftMission.preferred(window.RiftCampaignTools.preferred(),levels);
     selectedLevel=run?.level&&['fighting','cleared'].includes(run.status)?run.level.id:preferred;campaignKey='';updateCampaign();renderer.preview(levels[selectedLevel-1]);
   }
+  function ultimatePracticeCue(){return run?.practice?.ultimate_window?'Opening active · Use your ultimate now. Projectiles must arrive before it closes.':'Prepare · Wait for the two-second opening. It begins three seconds into each six-second cycle.';}
   function refreshPracticeInstructions(){
     if(!practice)return;
     $('rift-practice-instructions').textContent=practice==='ranged'?'Face the distant target and line up in its lane. Land three projectiles using your equipped ranged abilities. Melee attacks and missed shots do not count. Use the recovery controls to refill mana or reset cooldowns.':practice==='skills'?'Test your equipped skills, class abilities and ultimate on the immortal target. You start at 60% health to test healing. Use the recovery controls or reset to try again. The target never attacks; this lane has no finish line.':practice==='class'?'Build charges with your equipped class builder, then land your finisher.':practice==='boss'?'Defeat the selected Abyss boss. Jump or move clear of slams; evade volleys or face them to guard. Use your equipped skills. Reset to retry the selected starting phase.':practice==='hazard'?'Avoid three consecutive hazard pulses. Each warning appears under you: move clear or jump with '+controls.label('jump')+' before it flashes. Taking damage resets your streak.':practice==='perfect_guard'?'Face the trainer. Press '+controls.label('guard')+' just before a strike lands: the first 0.22 seconds count as a perfect guard. Release between strikes. Land three perfect guards; ordinary blocks do not count.':practice==='guard'?'Face the attacker and hold '+controls.label('guard')+' to block three strikes. Attacks from behind bypass guard. Turn with the movement keys.':practice==='combo'?'Face the training target and land three consecutive basic strikes with '+controls.label('attack')+'.':practice==='jump'?'Move right with '+controls.label('right')+' and jump the cover with '+controls.label('jump')+'. Reach the finish line.':'Move to the finish line with '+controls.label('right')+'. Use the other movement keys to explore the lane.';
+    if(practice==='ultimate'){
+      const ultimate=(run?.build||build)?.ultimate;
+      put($('rift-practice-instructions'),ultimate?'Time '+ultimate.name+' ('+controls.label('ultimate')+') for the two-second opening, starting three seconds into each six-second cycle. '+(ultimate.reference?.target==='self'?'Cast your healing or defensive ultimate during the opening.':'Face the target and stay in its lane. Your ultimate must hit during the opening; allow for projectile travel.')+' Normal mana costs and cooldowns apply. Recovery controls pause the drill to refill mana or reset cooldowns. One successful timing completes it.':'Equip an ultimate in Abyss, then return to this timing drill.');
+    }
     if(practice==='class'&&(run?.build||build))classPracticeInstructions();
   }
   window.addEventListener('riftbindingschange',()=>{
@@ -459,7 +465,7 @@
     classPracticeInstructions();
     window.RiftClassCompare.visibility(!!practice||playing&&run?.status==='fighting');
     const node=$('rift-class-primer'),current=run&&['fighting','cleared'].includes(run.status)?run.build:build;
-    node.hidden=playing||!current||!!practice&&!['boss','class','skills','ranged'].includes(practice);
+    node.hidden=playing||!current||!!practice&&!['boss','class','skills','ranged','ultimate'].includes(practice);
     if(!current)return;
     const signatures=current.signatures||[],builder=signatures.find(s=>s.role==='builder'),finisher=signatures.find(s=>s.role==='finisher');
     put(node.querySelector('strong'),window.RiftRecords.classIdentity(current)+' · Combat primer');
@@ -469,6 +475,7 @@
     put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.'+(current.class==='vanguard'?' Perfect-guard an enemy attack to gain one charge per guard raise (maximum three).':'')+(current.class==='berserker'?' Fury grants +15% damage at impact while alive at 30% HP or below.':'')+(current.class==='marksman'?' A mark lasts until your finisher, a new target mark, target defeat or escape, or a new tier.':''));
   }
   function loadout(){
+    refreshPracticeInstructions();
     classPrimer();
     renderer.build(build);
     $('rift-build').textContent=build.name+' · Level '+build.level+' · '+build.class+'\n'+build.weapon;
@@ -494,6 +501,7 @@
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       if(practice)message(drillNames[practice],$('rift-practice-instructions').textContent,run&&['fighting','cleared'].includes(run.status)?'Resume drill':'Start drill','PRACTICE');
       if(practice==='class'&&!classPracticeInstructions()){$('rift-start').disabled=true;$('rift-start').textContent='Class abilities required';}
+      if(practice==='ultimate'&&!(run?.build||build).ultimate){$('rift-start').disabled=true;$('rift-start').textContent='Ultimate required';}
       if(practice==='ranged'&&![...((run?.build||build).skills||[]),...((run?.build||build).signatures||[]),(run?.build||build).ultimate].some(skill=>skill?.reference?.target==='projectile')){$('rift-start').disabled=true;$('rift-start').textContent='Ranged ability required';put($('rift-practice-instructions'),'Equip a projectile ability in Abyss, then return to ranged practice. Your current build has no ranged projectile.');}
       window.RiftLoot.banking('reloaded');
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
