@@ -361,7 +361,10 @@
       if(flourish){effects.push({kind:'class_entry',subclass:run.build.class,x:run.player.x,y:run.player.y-(run.player.elevation||0),started:animationTime});renderer.classEntryCount=(renderer.classEntryCount||0)+1;window.RiftAudio.play(flourish.sound,0);}
     }
     if(run.paused)camera=cameraFrame(run).target;
-    [run.player,...run.enemies].forEach(unit=>{if(unit.hp<=0&&!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
+    const deadActors=[run.player,...run.enemies].filter(unit=>unit.hp<=0);
+    const deadIDs=new Set(deadActors.map(unit=>unit.id));
+    for(const id of deaths.keys())if(!deadIDs.has(id))deaths.delete(id);
+    deadActors.forEach(unit=>{if(!deaths.has(unit.id))deaths.set(unit.id,replay?animationTime-1000:animationTime);});
     (run.events || []).forEach(event => {
       if (event.id <= seen) return;
       seen = event.id;
