@@ -325,24 +325,35 @@
       hazardLegend.append(name,description);
     }
   }
-  const baseImages = Promise.all(criticalAtlasKeys.map(key => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      images[key] = img;
+  function loadDecodedAtlas(src) {
+    return new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.decoding='async';
+      img.onload=async()=>{
+        try{
+          // Older engines retain their load-event fallback; supported engines
+          // prepare bitmap data before an atlas can enter the ready set.
+          if(typeof img.decode==='function')await img.decode();
+          resolve(img);
+        }catch(error){reject(error);}
+      };
+      img.onerror=()=>reject(new Error('Atlas image could not load.'));
+      img.src=src;
+    });
+  }
+  const baseImages = Promise.all(criticalAtlasKeys.map(key => {
+    const src=key==='props'?document.getElementById('rift-props-asset').href:root.dataset[key];
+    return loadDecodedAtlas(src).then(img=>{
+      images[key]=img;
       atlasProgress.loaded++;
-      if (atlasProgress.loaded >= atlasProgress.total) {
-        atlasProgress.ready = true;
-      }
-      updateAtlasProgress(atlasProgress.loaded, atlasProgress.total);
-      resolve();
-    };
-    img.onerror = () => {
-      updateAtlasProgress(atlasProgress.loaded, atlasProgress.total, 'error');
-      reject(new Error('Could not load ' + key + ' artwork. Reload to try again.'));
-    };
-    img.src = key === 'props' ? document.getElementById('rift-props-asset').href : root.dataset[key];
-  })));
-  renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{catalogImages[path]=img;resolve();};img.onerror=()=>reject(new Error('Could not load Abyss creature art. Reload to try again.'));img.src=bestiary.assetURL(path);} ))]);
+      atlasProgress.ready=atlasProgress.loaded>=atlasProgress.total;
+      updateAtlasProgress(atlasProgress.loaded,atlasProgress.total);
+    }).catch(()=>{
+      updateAtlasProgress(atlasProgress.loaded,atlasProgress.total,'error');
+      throw new Error('Could not load '+key+' artwork. Reload to try again.');
+    });
+  }));
+  renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
   renderer.snapshot = function (run, replay) {
     if (!run) return;
   };
