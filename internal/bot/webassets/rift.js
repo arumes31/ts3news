@@ -793,6 +793,7 @@
     if(controls.opened)$('rift-controls-dialog').close();
     await toggleFullscreen();
   });
+  $('rift-fullscreen-exit').addEventListener('click',async()=>{if(!document.fullscreenElement)return;await toggleFullscreen();(root.classList.contains('rift-clean-screenshot')?$('rift-canvas'):$('rift-fullscreen')).focus();});
   document.addEventListener('fullscreenchange',()=>{
     const inFs=!!document.fullscreenElement;
     $('rift-fullscreen').setAttribute('aria-pressed',String(inFs));
@@ -800,12 +801,16 @@
   });
   function soundLabel(){
     const blocked=!audio.muted&&Boolean(audio.isBlocked?.());
-    $('rift-sound').textContent=audio.muted?'Sound off':blocked?'Sound blocked':'Sound on';
-    $('rift-sound').setAttribute('aria-pressed',String(audio.muted));
-    if(blocked){$('rift-sound').dataset.audioBlocked='true';$('rift-sound').title='Audio is blocked by the browser. Click to allow sound.';}
-    else{delete $('rift-sound').dataset.audioBlocked;$('rift-sound').title='';}
+    for(const id of ['rift-sound','rift-fullscreen-sound']){
+      const button=$(id);
+      button.textContent=audio.muted?'Sound off':blocked?'Sound blocked':'Sound on';
+      button.setAttribute('aria-pressed',String(audio.muted));
+      if(blocked){button.dataset.audioBlocked='true';button.title='Audio is blocked by the browser. Click to allow sound.';}
+      else{delete button.dataset.audioBlocked;button.title='';}
+    }
   }
-  soundLabel();$('rift-sound').addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
+  soundLabel();
+  for(const id of ['rift-sound','rift-fullscreen-sound'])$(id).addEventListener('click',async()=>{await audio.unlock();audio.set('muted',!audio.muted);soundLabel();audio.play('ui',0);});
   window.addEventListener('riftaudiochange',soundLabel);
   [['effects','rift-effects-volume'],['ambience','rift-ambience-volume']].forEach(([key,id])=>{const elem=$(id);elem.value=audio[key]*100;elem.addEventListener('input',()=>audio.set(key,Number(elem.value)/100,true));elem.addEventListener('change',()=>audio.set(key,Number(elem.value)/100,false));elem.addEventListener('pointerup',()=>audio.set(key,Number(elem.value)/100,false));});
   const systemMotion=window.matchMedia('(prefers-reduced-motion: reduce)');let reducedOverride=null;
