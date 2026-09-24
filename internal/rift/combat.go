@@ -249,6 +249,7 @@ type Run struct {
 	LastEncounter       *EncounterSummary        `json:"last_encounter,omitempty"`
 	MissionStartHits    *int                     `json:"mission_start_hits,omitempty"`
 	History             map[int]MissionHistory   `json:"mission_history,omitempty"`
+	MissionDefinition string `json:"mission_definition,omitempty"`
 	MissionStartSeconds float64                  `json:"mission_start_seconds,omitempty"`
 	HistoryActive       bool                     `json:"history_active,omitempty"`
 	Stats               CombatStats              `json:"stats"`

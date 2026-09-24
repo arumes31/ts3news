@@ -39,6 +39,7 @@ func (r *Run) beginMissionHistory() {
 	h.LastStartedMS = r.LastMS
 	h.LastOutcome = "active"
 	r.History[r.Level.ID] = h
+	r.MissionDefinition = levelDefinition(r.Level)
 	r.MissionStartSeconds = r.Stats.Seconds
 	hits := r.Stats.HitsTaken
 	r.MissionStartHits = &hits
