@@ -98,9 +98,11 @@
     btn.setAttribute('aria-label',action+' expedition');
     btn.setAttribute('aria-keyshortcuts',key);
   }
+  let pendingRead=null,loadGeneration=0;
   async function request(method, body) {
     const started = performance.now(),requestBody=body?JSON.stringify(body):undefined;
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
+    if(method==='GET')pendingRead=controller;
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
       if(response.status===401)throw new Error('Your session expired. Sign in again, then resume this expedition.');
@@ -120,7 +122,7 @@
       const duration = performance.now() - started;
       if(window.RiftHUD?.updateLatency)window.RiftHUD.updateLatency(duration);
       return result;
-    } finally { clearTimeout(timeout); }
+    } finally { clearTimeout(timeout);if(pendingRead===controller)pendingRead=null; }
   }
   function input() {
     const pad=window.RiftGamepad.consume();
@@ -509,13 +511,17 @@
     window.RiftLoadouts.init(build,()=>busy||starting||!!run&&['fighting','cleared'].includes(run.status));
   }
   async function load(){
+    const generation=++loadGeneration;
+    pendingRead?.abort();
     let artworkFailed=false;
     try{
       // Cold atlas transfers can starve the initial read's bounded request timer.
       // Retry that read once after artwork settles; never retry a mutation here.
       const initialRead=request('GET').catch(error=>{if(error?.name==='AbortError')return null;throw error;});
       const [,initialData]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),initialRead]);
+      if(generation!==loadGeneration)return;
       const data=initialData===null?await request('GET'):initialData;
+      if(generation!==loadGeneration)return;
       window.RiftRecords.init(data.class_names);window.RiftClassChallenges.update(data.run);window.RiftClassCompare.init(data.class_options,data.run?.build?.class||data.build?.class);window.RiftObjectives.init(data.objective_options||[]);build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='skills'){const select=$('rift-practice-enemy');select.replaceChildren();(data.bestiary||[]).forEach(unit=>{text('option',unit.name,select).value=unit.name;});const saved=run?.enemies?.find(enemy=>enemy.id==='practice-enemy');if(saved&&[...select.options].some(option=>option.value===saved.name))select.value=saved.name;}if(practice==='hazard')$('rift-hazard-intensity').value=run?.practice?.hazard_intensity||'standard';if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
@@ -528,7 +534,7 @@
       status(root.dataset.fixture?'LOCAL PLAYTEST · Sample character and isolated rewards. No live inventory changes.':'Your Abyss character is ready. Choose up to three skills, then enter.');
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status('Practice is ready. '+$('rift-practice-instructions').textContent);}
-    }catch(error){silence();ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
+    }catch(error){if(generation!==loadGeneration)return;silence();ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
   }
   const moveLabels = {
     left: ['Move left', 'Moving left (holding)'],
@@ -626,6 +632,7 @@
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
+  window.addEventListener('pagehide',()=>{loadGeneration++;pendingRead?.abort();});
   window.addEventListener('pageshow',event=>{
     const isHistory = event.persisted || (typeof performance !== 'undefined' && performance.getEntriesByType?.('navigation')?.[0]?.type === 'back_forward');
     if(isHistory){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}
