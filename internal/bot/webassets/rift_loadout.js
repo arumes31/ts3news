@@ -1,8 +1,8 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),key='riftLoadoutPresets';
-  let presets=[],skills=[],blocked=()=>true,previewVersion=0;
-  function cancelSkillPreview(){previewVersion++;window.RiftAudio.cancelPreview();}
+  let presets=[],skills=[],blocked=()=>true,previewVersion=0,animationFrame=0;
+  function cancelSkillPreview(){previewVersion++;cancelAnimationFrame(animationFrame);animationFrame=0;document.querySelectorAll('.rift-skill-animation-status').forEach(status=>{if(status.textContent.startsWith('Playing'))status.textContent='Preview stopped. Replay at any time.';});window.RiftAudio.cancelPreview();}
 
   try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved))presets=saved.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.skills)&&p.skills.length<=3&&p.skills.every(id=>typeof id==='string'&&id.length<=120)).slice(0,10).map(p=>({...p,name:p.name.slice(0,40)}));}catch(_){}
   const section=document.createElement('div');section.id='rift-loadout-presets';section.hidden=true;section.setAttribute('role','group');section.setAttribute('aria-label','Skill presets');
@@ -15,6 +15,8 @@
   function filterGlossary(){const query=$('rift-glossary-search').value.trim().toLocaleLowerCase(),entries=Array.from($('rift-glossary-entries').children);let count=0;entries.forEach(entry=>{entry.hidden=!entry.dataset.search.includes(query);if(!entry.hidden)count++;});$('rift-glossary-count').textContent=count?count+' of '+entries.length+' skills':'No matching skills.';}
   $('rift-glossary-search').addEventListener('input',()=>{cancelSkillPreview();filterGlossary();});
   glossary.addEventListener('toggle',()=>{if(!glossary.open)cancelSkillPreview();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelSkillPreview();});
+  window.addEventListener('pagehide',cancelSkillPreview);
   const slots=()=>Array.from($('rift-loadout').querySelectorAll('select'));
   const chosen=()=>presets.find(p=>p.id===$('rift-preset-list').value);
   const name=id=>id?(skills.find(skill=>skill.id===id)?.name||'Unavailable skill: '+id):'None';
@@ -69,7 +71,7 @@
       sound.type='button';sound.className='rift-skill-sound';sound.textContent='Preview '+skill.name+' sound';
       soundStatus.className='rift-skill-sound-status';soundStatus.setAttribute('role','status');
       sound.onclick=async()=>{
-        const version=++previewVersion;sound.disabled=true;
+        cancelSkillPreview();const version=previewVersion;sound.disabled=true;
         $('rift-glossary-entries').querySelectorAll('.rift-skill-sound-status').forEach(status=>status.textContent='');
         try{
           const played=await window.RiftAudio.preview('effects',skill.kind);
@@ -77,7 +79,24 @@
         }catch(_){if(version===previewVersion&&sound.isConnected)soundStatus.textContent='Audio is unavailable or blocked by the browser.';}
         finally{sound.disabled=false;}
       };
-      entry.append(title,stats,description,slot,sound,soundStatus);$('rift-glossary-entries').append(entry);
+      const animation=document.createElement('button'),preview=document.createElement('canvas'),animationStatus=document.createElement('p');
+      animation.type='button';animation.className='rift-skill-animation';animation.textContent='Preview '+skill.name+' animation';
+      preview.width=320;preview.height=160;preview.hidden=true;preview.className='rift-skill-animation-canvas';preview.setAttribute('role','img');preview.setAttribute('aria-label',skill.name+' cast and effect artwork preview');
+      animationStatus.setAttribute('role','status');animationStatus.className='rift-skill-animation-status';
+      animation.onclick=()=>{
+        cancelSkillPreview();const version=previewVersion,start=performance.now();
+        $('rift-glossary-entries').querySelectorAll('.rift-skill-animation-canvas').forEach(canvas=>canvas.hidden=true);
+        $('rift-glossary-entries').querySelectorAll('.rift-skill-animation-status').forEach(status=>status.textContent='');
+        preview.hidden=false;
+        const draw=now=>{
+          if(version!==previewVersion||document.hidden||!preview.isConnected||!glossary.open)return;
+          const still=window.RiftRenderer.drawSkillPreview(preview,skill,build,now-start);
+          animationStatus.textContent=still?'Static preview: reduced motion is enabled.':now-start>=750?'Animation complete. Replay at any time.':'Playing cast and effect artwork. Sound is previewed separately.';
+          if(!still&&now-start<750)animationFrame=requestAnimationFrame(draw);else animationFrame=0;
+        };
+        draw(start);
+      };
+      entry.append(title,stats,description,slot,animation,preview,animationStatus,sound,soundStatus);$('rift-glossary-entries').append(entry);
     }
     filterGlossary();
     for(let index=0;index<slots().length-1;index++){

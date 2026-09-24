@@ -717,3 +717,6 @@
 .rift-class-comparison-grid details{border-top:1px solid #405544;margin-top:12px;padding-top:8px}.rift-class-comparison-grid details summary{cursor:pointer;font-weight:bold}.rift-class-comparison-grid ol{padding-left:20px;line-height:1.5}.rift-class-comparison-grid li{margin:6px 0}.rift-class-comparison-grid details p{line-height:1.5}
 
 #rift-class-challenges{border:1px solid #405544;padding:12px 14px;margin-bottom:12px;background:#12241e;font-size:13px}#rift-class-challenges label{display:block;margin:12px 0}#rift-class-challenges-list{padding-left:22px;line-height:1.5}#rift-class-challenges-list li{margin:12px 0}#rift-class-challenges-list p{margin:4px 0}#rift-class-challenges-list progress{width:100%;accent-color:#bdd78c}#rift-class-challenges-list [data-complete="true"] strong{color:#cceca0}
+
+.rift-skill-animation-canvas{display:block;width:100%;max-width:320px;height:auto;margin-top:8px;border:1px solid #486068;border-radius:8px;image-rendering:pixelated}
+.rift-skill-animation-canvas[hidden]{display:none}

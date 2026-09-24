@@ -419,6 +419,27 @@
     const img = images.effects; if (!img) return;
     ctx.save(); ctx.globalAlpha = alpha*(row===5?1:display.effectIntensity); drawAtlas(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,Math.round(x-size/2),Math.round(y-size/2),size,size); ctx.restore();
   }
+  // A separate canvas keeps reference playback out of expedition state and audio.
+  renderer.drawSkillPreview = function(target,skill,build,elapsed){
+    const context=target.getContext('2d'),still=renderer.reduced||display.motionIntensity===0;
+    const age=still?.35:Math.min(1,Math.max(0,elapsed/750)),frame=still?2:Math.min(5,Math.floor(age*6));
+    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),hero=images[index<6?'heroesA':'heroesB'];
+    context.clearRect(0,0,target.width,target.height);context.fillStyle='#101d24';context.fillRect(0,0,target.width,target.height);
+    context.strokeStyle='#486068';context.beginPath();context.moveTo(12,132);context.lineTo(308,132);context.stroke();
+    const column=skill.kind==='slash'?8+(still?1:Math.min(2,Math.floor(age*3))):11;
+    if(hero)context.drawImage(hero,column*hero.width/16,(index%6)*hero.height/6,hero.width/16,hero.height/6,24,42,96,96);
+    const row=effectRows[skill.kind],self=['heal','shield'].includes(skill.kind),x=self?72:190;
+    context.save();context.globalAlpha=display.effectIntensity*(still?1:1-age*.5);
+    if(skill.kind==='arrow'){
+      const arrowX=still?190:120+age*150;context.strokeStyle='#f5e8b9';context.lineWidth=3;
+      context.beginPath();context.moveTo(arrowX-24,88);context.lineTo(arrowX,88);context.lineTo(arrowX-8,82);context.moveTo(arrowX,88);context.lineTo(arrowX-8,94);context.stroke();
+    }else if(row!==undefined&&images.effects){
+      const img=images.effects,size=['slam','quake','ultimate'].includes(skill.kind)?150:95;
+      context.drawImage(img,frame*img.width/6,row*img.height/6,img.width/6,img.height/6,x-size/2,88-size/2,size,size);
+    }
+    context.restore();target.dataset.frame=String(frame);target.dataset.kind=skill.kind;target.dataset.reduced=String(still);
+    return still;
+  };
   function surfaceHeight(x,y,run=snapshot){
     const arena=run?.practice?.arena||run?.level?.rooms?.[run.room];let height=0;
     for(const p of arena?.platforms||[]){const distance=Math.min(x-p.x,p.x+p.w-x,y-p.y,p.y+p.h-y);height=Math.max(height,p.rise*Math.max(0,Math.min(1,distance/p.ramp)));}return height;
