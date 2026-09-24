@@ -163,6 +163,7 @@ func (r *Run) recordFlawlessRoom() {
 
 // CareerTotals combines recorded expeditions; missing older history is not inferred.
 type CareerTotals struct {
+	PerfectGuards int `json:"perfect_guards"`
 	Enemies         int   `json:"enemies"`
 	Bosses          int   `json:"bosses"`
 	TreasureGoblins int   `json:"treasure_goblins"`
@@ -174,6 +175,7 @@ type CareerTotals struct {
 // Only confirmed banking contributes rewards, even if the expedition is lost.
 func (r *Run) RecordedTotals() CareerTotals {
 	totals := r.PastExpeditions
+	totals.PerfectGuards += r.Stats.PerfectGuards
 	totals.Enemies += r.Stats.Kills
 	totals.Bosses += r.Stats.Bosses
 	totals.TreasureGoblins += r.Stats.TreasureGoblins

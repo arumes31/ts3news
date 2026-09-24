@@ -35,6 +35,7 @@ type CombatStats struct {
 	ManaSpent         float64            `json:"mana_spent"`
 	Kills             int                `json:"kills"`
 	Bosses            int                `json:"bosses"`
+	PerfectGuards int `json:"perfect_guards"`
 	Guards            int                `json:"guards"`
 	Attacks           int                `json:"attacks"`
 	SkillsCast        int                `json:"skills_cast"`

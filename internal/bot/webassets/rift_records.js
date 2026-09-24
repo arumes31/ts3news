@@ -8,7 +8,7 @@
   if(!latestRun)return;
   try{
    const run=latestRun,past=run.past_expeditions||{},stats=run.stats||{},at=new Date();
-   const records={version:1,exported_at:at.toISOString(),completed_missions:run.completed_levels||[],mission_history:run.mission_history||{},region_records:run.region_records||{},monster_records:run.monster_records||{},recent_attempts:run.attempt_history||[],career:{enemies:(past.enemies||0)+(stats.kills||0),bosses:(past.bosses||0)+(stats.bosses||0),treasure_goblins:(past.treasure_goblins||0)+(stats.treasure_goblins||0),gold:(past.gold||0)+(run.banked_gold||0),gear:(past.gear||0)+(run.banked_items?.length||0)},current_expedition:{mission:run.level?.id,status:run.status,stats,room_splits:run.room_splits||[null,null,null],clear_streak:run.clear_streak||0,best_clear_streak:run.best_clear_streak||0},notes:'Recent history retains up to 50 attempts. Older records can be incomplete. Missing tier times remain null.'};
+   const records={version:1,exported_at:at.toISOString(),completed_missions:run.completed_levels||[],mission_history:run.mission_history||{},region_records:run.region_records||{},monster_records:run.monster_records||{},recent_attempts:run.attempt_history||[],career:{perfect_guards:(past.perfect_guards||0)+(stats.perfect_guards||0),enemies:(past.enemies||0)+(stats.kills||0),bosses:(past.bosses||0)+(stats.bosses||0),treasure_goblins:(past.treasure_goblins||0)+(stats.treasure_goblins||0),gold:(past.gold||0)+(run.banked_gold||0),gear:(past.gear||0)+(run.banked_items?.length||0)},current_expedition:{mission:run.level?.id,status:run.status,stats,room_splits:run.room_splits||[null,null,null],clear_streak:run.clear_streak||0,best_clear_streak:run.best_clear_streak||0},notes:'Recent history retains up to 50 attempts. Older records can be incomplete. Missing tier times remain null.'};
    const url=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='rift-brawl-records-'+at.toISOString().slice(0,10)+'.json';document.body.append(link);
    try{link.click();exportStatus.textContent='Record download prepared.';}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   }catch(_){exportStatus.textContent='Could not prepare the export. Try again.';}
@@ -47,6 +47,15 @@
   else{const casts=charged+empty;description+=charged+' charged finishers · '+empty+' empty finishers · '+spent+' charges spent · '+(casts?Math.round(charged/casts*100)+'% of finisher casts charged':'No finisher casts yet')+' · '+(charged?(spent/charged).toFixed(1)+' average charges per charged finisher':'Average charge spend unavailable')+'. Casts include misses.';}
   const summary=document.getElementById('rift-class-mastery-current');if(summary.textContent!==description)summary.textContent=description;
  }
+ let guardKey='';
+ function guardAwards(run){
+  const section=document.getElementById('rift-perfect-guard-awards');section.hidden=!!run.practice;if(run.practice)return;
+  const total=(run.past_expeditions?.perfect_guards||0)+(run.stats?.perfect_guards||0),thresholds=[10,100,1000],next=thresholds.find(n=>n>total);
+  if(guardKey===String(total))return;guardKey=String(total);
+  document.getElementById('rift-perfect-guard-progress').textContent=total.toLocaleString()+' recorded perfect guards'+(next?' · '+(next-total).toLocaleString()+' to the next badge': ' · All perfect-guard badges earned');
+  const list=document.getElementById('rift-perfect-guard-badges');list.replaceChildren();
+  thresholds.forEach((threshold,index)=>{if(total<threshold)return;const badge=document.createElement('span');badge.className='rift-region-badge';badge.textContent='✦ Perfect guard '+['I','II','III'][index]+' · '+threshold.toLocaleString();list.append(badge);});
+ }
  let regionKey='';
  function regionRecords(run){
   const section=document.getElementById('rift-region-records');section.hidden=!!run.practice;if(run.practice)return;
@@ -57,7 +66,7 @@
   }
  }
  function update(run){
-  latestRun=run;exportButton.disabled=false;mastery(run);regionRecords(run);
+  latestRun=run;exportButton.disabled=false;mastery(run);regionRecords(run);guardAwards(run);
   const current='Current mission '+(run.level?.id||'')+' · '+splitText(run.room_splits);const splitNode=document.getElementById('rift-room-splits');if(splitNode.textContent!==current)splitNode.textContent=current;
   const attempts=run.attempt_history||[],key=JSON.stringify(attempts);if(key===lastKey)return;lastKey=key;list.replaceChildren();
   for(const record of [...attempts].reverse()){
