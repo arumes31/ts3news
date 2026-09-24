@@ -39,3 +39,39 @@ func TestBossPracticeLongWarningsPreserveAttackRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestSlowPracticeCoversBossPatternsWithoutChangingCampaign(t *testing.T) {
+	campaign := testRun()
+	practice, err := NewPracticeRun("slow-patterns", campaign.Build, "boss", time.Unix(100, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for phase := 1; phase <= 3; phase++ {
+		for attack := 0; attack <= 1; attack++ {
+			boss := practice.Enemies[0]
+			boss.Phase = phase
+			boss.Attacks = attack
+			boss.ArtKey = "training-boss"
+			ordinary := campaign.NextBossAttack(boss)
+			practice.Practice.SlowTelegraphs = true
+			slow := practice.NextBossAttack(boss)
+			if slow.Windup != ordinary.Windup*2 || slow.Kind != ordinary.Kind || slow.Name != ordinary.Name || slow.Recovery != ordinary.Recovery {
+				t.Fatalf("slow practice changed attack identity/recovery: %+v vs %+v", slow, ordinary)
+			}
+			expected := "slam"
+			if attack == 1 {
+				expected = "projectile"
+			}
+			if slow.Kind != expected {
+				t.Fatal("missing attack-pattern coverage")
+			}
+			if campaign.NextBossAttack(boss) != ordinary {
+				t.Fatal("practice changed campaign timing")
+			}
+			practice.Practice.SlowTelegraphs = false
+			if practice.NextBossAttack(boss) != ordinary {
+				t.Fatal("normal timing was not restored")
+			}
+		}
+	}
+}
