@@ -725,3 +725,22 @@
 
 #rift-result-monster-links {display:flex;flex-wrap:wrap;gap:.5rem}
 #rift-result-monster-links button {max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+
+/* Keep core controls tappable even when a touch viewport uses desktop breakpoints. */
+@media (any-pointer: coarse) {
+  #rift-app .rift-stage-top button,
+  #rift-app .rift-actionbar button,
+  #rift-app .rift-signatures button,
+  #rift-app .rift-touch button,
+  #rift-app .rift-room-actions button,
+  #rift-start {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  /* The compact skill rule explicitly overrides its minimum width above. */
+  #rift-app .rift-skills button { min-width: 48px !important; }
+  #rift-app .rift-stage-top { height: auto; padding-block: 6px; }
+  #rift-app .rift-stage-top > div { max-width: 100%; flex-wrap: wrap; }
+  #rift-app .rift-touch { display: flex; }
+}
