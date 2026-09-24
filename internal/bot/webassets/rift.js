@@ -606,6 +606,21 @@
     up: ['Move up', 'Moving up (holding)'],
     down: ['Move down', 'Moving down (holding)']
   };
+  const touchAlignments=new Set(['center','left','right']);let touchAlignment='center';
+  try{const saved=JSON.parse(localStorage.getItem('riftTouchLayout'));if(saved?.version===1&&touchAlignments.has(saved.alignment))touchAlignment=saved.alignment;}catch(_){}
+  const touchLayoutGroup=document.createElement('div');touchLayoutGroup.className='rift-touch-layout-setting';
+  const touchLayoutLabel=document.createElement('label'),touchLayoutSelect=document.createElement('select'),touchLayoutReset=document.createElement('button');
+  touchLayoutSelect.id='rift-touch-layout';touchLayoutLabel.htmlFor=touchLayoutSelect.id;touchLayoutLabel.textContent='Movement pad alignment';
+  for(const value of touchAlignments){const option=document.createElement('option');option.value=value;option.textContent=value[0].toUpperCase()+value.slice(1);touchLayoutSelect.append(option);}
+  touchLayoutReset.id='rift-reset-touch-layout';touchLayoutReset.type='button';touchLayoutReset.textContent='Reset touch layout';
+  function paintTouchLayout(){root.dataset.touchLayout=touchAlignment;touchLayoutSelect.value=touchAlignment;}
+  touchLayoutSelect.addEventListener('change',()=>{
+    if(!touchAlignments.has(touchLayoutSelect.value))return;
+    resetInput();touchAlignment=touchLayoutSelect.value;paintTouchLayout();
+    try{localStorage.setItem('riftTouchLayout',JSON.stringify({version:1,alignment:touchAlignment}));}catch(_){}
+  });
+  touchLayoutReset.addEventListener('click',()=>{touchLayoutSelect.value='center';touchLayoutSelect.dispatchEvent(new Event('change'));});
+  touchLayoutGroup.append(touchLayoutLabel,touchLayoutSelect,touchLayoutReset);document.querySelector('.rift-settings').append(touchLayoutGroup);paintTouchLayout();
   function hold(button,value){
     button.dataset.action=value;
     button.addEventListener('contextmenu',event=>{if(playing)event.preventDefault();});
