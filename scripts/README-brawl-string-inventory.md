@@ -1,14 +1,18 @@
 # Brawl localization candidate inventory
 
-Run from the repository root after `npm ci`:
+Run from the repository root with Go installed, after `npm ci`:
 
 ```powershell
 node scripts/brawl-string-inventory.cjs --out .tmp/brawl-localization-candidates.json
 node --test scripts/brawl-string-inventory.test.cjs
+go test ./cmd/brawl-string-source
 ```
 
 The development-only Acorn and parse5 parsers read all
-`internal/bot/webassets/rift*.js` and `rift*.html` files. It never executes those files. Output includes source-file SHA256 hashes,
+`internal/bot/webassets/rift*.js`, `rift*.html` and shared `abyss*.js` files.
+The command also runs the standard-library-only Go source extractor at
+`cmd/brawl-string-source`, covering non-test `internal/rift/*.go`,
+`internal/content/*.go` and `internal/bot/web_rift*.go` files. It never executes those files. Output includes source-file SHA256 hashes,
 string text, one-based line/column locations, parent AST context and all duplicate
 occurrences. IDs hash string kind and exact text, remaining stable when a line
 moves. Source edits change the relevant file hash; regenerate after changing copy.
@@ -34,10 +38,18 @@ helpers cannot corrupt attribute parsing, then restored as numbered parameters.
 Template control actions can appear among candidates and require source review;
 do not translate them. Attribute locations point to the attribute start.
 
-The current scope is Brawl JavaScript modules and HTML templates. Go-generated
-mission/objective/loot text, shared Abyss content and dynamically received server
-messages are not yet included. The full localization-inventory task remains open
-until these sources and their ownership are covered. This tooling adds no runtime
+The scope includes Brawl JavaScript/HTML, Brawl server/engine source and shared
+Abyss JavaScript/content source. Shared modules deliberately over-include strings
+used by other Abyss views; retain ownership during review. Go raw and interpreted
+string literals are decoded by the Go parser with one-based byte-column positions
+(JavaScript/HTML columns use their parser's character positions). Imports, struct
+tags, identifiers and format strings are candidates too. Go formatting verbs are
+preserved verbatim, requiring format/argument review before translation.
+
+This is a source inventory, not an enumeration of every possible generated
+sentence. Runtime player/item names, database values, external service errors and
+shared site navigation outside these patterns are not exported. Static message
+fragments/formatters in the selected sources remain available for review. This tooling adds no runtime
 locale selection, translations or browser bundle dependency.
 
 Generated files belong in `.tmp` and are review artifacts. Keep accepted translator

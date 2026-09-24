@@ -30,3 +30,9 @@ test('HTML extraction preserves template parameters, labels and entity decoding'
  for(const text of ['Help & tips','Jump','Go'])assert.ok(result.entries.some(entry=>entry.text===text));
  assert.equal(result.entries.some(entry=>entry.text.includes('Not visible')||entry.text.includes('Hidden comment')||entry.text.includes('/static/test')),false);
 });
+
+test('Go entries retain source provenance in the combined inventory',()=>{
+ const result=inventory([['a.js','const a="Ready";']],[{file:'server.go',sha256:'sourcehash',strings:[{file:'server.go',line:9,column:4,kind:'go_literal',text:'Ready',parameters:[],context:'GoStringLiteral'}]}]);
+ assert.equal(result.entries.length,2);assert.deepEqual(result.files[1],{file:'server.go',sha256:'sourcehash'});
+ const entry=result.entries.find(entry=>entry.kind==='go_literal');assert.equal(entry.occurrences[0].line,9);assert.equal(entry.translation,null);
+});

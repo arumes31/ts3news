@@ -49,23 +49,26 @@ function extractHTML(file,source){
  }
  visit(html.parse(masked,{sourceCodeLocationInfo:true}));return entries;
 }
-function inventory(sources){
+function inventory(sources,goSources=[]){
  const grouped=new Map(),files=[];
- for(const [file,source] of [...sources].sort((a,b)=>a[0].localeCompare(b[0],'en'))){
-  files.push({file,sha256:hash(source)});
-  for(const item of (file.endsWith('.html')?extractHTML:extractStrings)(file,source)){
+ const scanned=sources.map(([file,source])=>({file,sha256:hash(source),strings:(file.endsWith('.html')?extractHTML:extractStrings)(file,source)}));
+ for(const scannedFile of [...scanned,...goSources].sort((a,b)=>a.file.localeCompare(b.file,'en'))){
+  const {file,sha256,strings}=scannedFile;files.push({file,sha256});
+  for(const item of strings){
    const id=hash(item.kind+'\0'+item.text),existing=grouped.get(id)||{id,kind:item.kind,text:item.text,translation:null,review:'unreviewed',occurrences:[]};
    existing.occurrences.push({file:item.file,line:item.line,column:item.column,context:item.context,parameters:item.parameters});grouped.set(id,existing);
   }
  }
- return {schema:1,sourceLanguage:'en',scope:'rift*.js and rift*.html static string candidates; excludes Go/shared content',files,entries:[...grouped.values()].sort((a,b)=>a.id.localeCompare(b.id,'en'))};
+ return {schema:1,sourceLanguage:'en',scope:'Brawl JS/HTML, shared Abyss JS, rift/content Go and web_rift Go source candidates',files,entries:[...grouped.values()].sort((a,b)=>a.id.localeCompare(b.id,'en'))};
 }
 if(require.main===module){
  try{
   const args=process.argv.slice(2);if(args.length&&!(args.length===2&&args[0]==='--out'))throw new Error('Usage: node scripts/brawl-string-inventory.cjs [--out FILE]');
   const root=path.resolve(__dirname,'..'),dir=path.join(root,'internal/bot/webassets');
-  const sources=fs.readdirSync(dir).filter(file=>/^rift.*\.(?:js|html)$/.test(file)).map(file=>['internal/bot/webassets/'+file,fs.readFileSync(path.join(dir,file),'utf8')]);
-  const text=JSON.stringify(inventory(sources),null,2)+'\n';
+  const sources=fs.readdirSync(dir).filter(file=>/^(?:rift.*\.(?:js|html)|abyss.*\.js)$/.test(file)).map(file=>['internal/bot/webassets/'+file,fs.readFileSync(path.join(dir,file),'utf8')]);
+  const extracted=require('node:child_process').spawnSync('go',['run','./cmd/brawl-string-source'],{cwd:root,encoding:'utf8',maxBuffer:64*1024*1024});
+  if(extracted.error||extracted.status!==0)throw new Error('Go inventory failed: '+(extracted.error?.message||extracted.stderr));
+  const text=JSON.stringify(inventory(sources,JSON.parse(extracted.stdout)),null,2)+'\n';
   if(args.length)fs.writeFileSync(args[1],text.replace(/\n/g,'\r\n'),'utf8');else process.stdout.write(text);
  }catch(error){process.stderr.write(error.message+'\n');process.exitCode=1;}
 }
