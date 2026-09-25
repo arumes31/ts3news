@@ -114,6 +114,7 @@
     button.setAttribute('aria-label',name+' · '+reason);
     button.removeAttribute('title');
     button.dataset.abilityRole=identity?role:'optional';
+    button.dataset.abilityName=skill.name;
   }
   window.RiftAbilities={update,healthCost,describe,chargeBenefits,oracleHealing,signatureHelp,aimHelp};
 })();

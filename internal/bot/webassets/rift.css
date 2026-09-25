@@ -835,4 +835,14 @@
   touch-action: auto;
 }
 
+/* Responsive mobile browser toolbar adaptation (0905) */
+@media (max-width: 900px) {
+  .rift-viewport:fullscreen {
+    height: 100vh;
+    height: 100dvh;
+    height: var(--rift-visual-height, 100dvh);
+  }
+}
+
+
 

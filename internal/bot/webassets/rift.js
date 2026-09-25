@@ -199,7 +199,53 @@
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function practiceToolButtons(){const freeze=$('rift-practice-freeze');if(freeze)freeze.setAttribute('aria-pressed',String(!!run?.practice?.freeze_movement));root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'||button.dataset.practiceAction==='practice_bank'&&!run?.practice?.checkpoint_ready));}
   function hazardPracticePhase(run){const hazard=run.practice.arena.hazards[0],phase=(run.clock+hazard.offset)%hazard.period;return phase<1.2?'Warning: move or prepare to jump':phase<1.2+hazard.duration?'Active hazard':'Wait for the next warning';}
+  const abilityAbbreviations = {
+    'Frost Detonation': 'Frost Det.',
+    'Resolute Bash': 'Res. Bash',
+    'Rending Strike': 'Rend. Strike',
+    'Rage Execution': 'Rage Exec.',
+    'Sighting Shot': 'Sight. Shot',
+    'Piercing Volley': 'Pierce. Volley',
+    'Pack Assault': 'Pack Assault',
+    'Pack Mark': 'Pack Mark',
+    'Ember Seed': 'Ember Seed',
+    'Time Bolt': 'Time Bolt',
+    'Temporal Release': 'Temp. Release',
+    'Mending Light': 'Mend. Light',
+    'Grace Flare': 'Grace Flare',
+    'Stone Aegis': 'Stone Aegis',
+    'Seismic Break': 'Seismic Break',
+    'Leech Cut': 'Leech Cut',
+    'Crimson Reap': 'Crim. Reap',
+    'Void Hex': 'Void Hex',
+    'Oblivion Burst': 'Obliv. Burst',
+    'Rune Inscription': 'Rune Inscr.',
+    'Runic Discharge': 'Runic Disch.',
+    'Volatile Mixture': 'Vol. Mixture',
+    'Catalytic Burst': 'Cat. Burst',
+    'Iron Guard': 'Iron Guard',
+  };
+  let abbreviateAbilities = false;
+  try { abbreviateAbilities = localStorage.getItem('riftAbbreviateAbilities') === 'true'; } catch(_) {}
+  function formatAbilityName(name){
+    if(!abbreviateAbilities) return name;
+    if(abilityAbbreviations[name]) return abilityAbbreviations[name];
+    if(name.length > 12) {
+      const parts = name.split(' ');
+      if(parts.length > 1) return parts[0].slice(0, 5) + '. ' + parts.slice(1).join(' ');
+      return name.slice(0, 10) + '.';
+    }
+    return name;
+  }
+  function updateAbilityLabels(){
+    [...$('rift-skills').children, ...$('rift-signatures').children].forEach(btn => {
+      const full = btn.dataset.abilityName || (btn.getAttribute('aria-label')||'').split(' · ')[0];
+      const label = btn.querySelector('.rift-action-label');
+      if(label && full) label.textContent = formatAbilityName(full);
+    });
+  }
   function update(value, replay) {
+
     if(!value)return;
     if(run&&(run.id!==value.id||run.room!==value.room||run.level?.id!==value.level?.id))resetInput();
     if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
@@ -322,7 +368,7 @@
       currentSkillIDs=signature;
       replacePreservingFocus($('rift-skills'),()=>{
         run.build.skills.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.bind='skill'+i;btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',String(i+1));text('span','',btn,'rift-skill-icon');const kbd=text('kbd',String(i+1),btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.hold=s.id;btn.dataset.abilityName=s.name;btn.dataset.bind='skill'+i;btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',String(i+1));text('span','',btn,'rift-skill-icon');const kbd=text('kbd',String(i+1),btn);kbd.setAttribute('aria-hidden','true');text('span',formatAbilityName(s.name),btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-skills').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -337,7 +383,7 @@
       $('rift-signatures').dataset.ids=specialIDs;
       replacePreservingFocus($('rift-signatures'),()=>{
         specials.forEach((s,i)=>{
-          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;const defaultKey=s===run.build.ultimate?'R':i?'E':'Q';btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',defaultKey);const kbd=text('kbd',defaultKey,btn);kbd.setAttribute('aria-hidden','true');text('span',s.name,btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
+          const btn=document.createElement('button');btn.type='button';btn.dataset.bind=s===run.build.ultimate?'ultimate':'signature'+i;btn.dataset.abilityName=s.name;const defaultKey=s===run.build.ultimate?'R':i?'E':'Q';btn.setAttribute('aria-label',s.name);btn.setAttribute('aria-keyshortcuts',defaultKey);const kbd=text('kbd',defaultKey,btn);kbd.setAttribute('aria-hidden','true');text('span',formatAbilityName(s.name),btn,'rift-action-label');text('small','Ready',btn);btn.addEventListener('pointerenter',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('pointerleave',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });btn.addEventListener('focus',()=>window.RiftHUD.setRequestedRange(s));btn.addEventListener('blur',()=>{window.RiftHUD.setRequestedRange(pinnedRangeSkill); });$('rift-signatures').append(btn);hold(btn,'skill:'+s.id);
         });
       });
     }
@@ -856,6 +902,26 @@
   $('rift-reduced').addEventListener('change',()=>{reducedOverride=$('rift-reduced').checked;try{localStorage.setItem('riftReducedMotion',JSON.stringify(reducedOverride));}catch(_){}motionPreference();});
   $('rift-system-motion').addEventListener('click',()=>{reducedOverride=null;try{localStorage.removeItem('riftReducedMotion');}catch(_){}motionPreference();});
   systemMotion.addEventListener('change',()=>{if(reducedOverride===null)motionPreference();});motionPreference();
+  const abbreviateToggle=$('rift-abbreviate-abilities');
+  if(abbreviateToggle){
+    abbreviateToggle.checked=abbreviateAbilities;
+    abbreviateToggle.addEventListener('change',()=>{
+      abbreviateAbilities=abbreviateToggle.checked;
+      try{localStorage.setItem('riftAbbreviateAbilities',String(abbreviateAbilities));}catch(_){}
+      updateAbilityLabels();
+    });
+  }
+  function updateVisualViewportMetrics(){
+    const vp=window.visualViewport;
+    const h=vp?vp.height:window.innerHeight;
+    root.style.setProperty('--rift-visual-height',`${h}px`);
+  }
+  updateVisualViewportMetrics();
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',updateVisualViewportMetrics);
+  }else{
+    window.addEventListener('resize',updateVisualViewportMetrics);
+  }
   window.RiftGamepad.init({playing:()=>playing,skillCount:()=>run?.build.skills.length||0,recognize:action=>{markInput(action);window.RiftIntents.recognize(action);},ability:action=>{markInput(action);window.RiftIntents.press(action);},guard:()=>{if(controls.toggleGuard)toggleGuard();},togglePause:()=>playing?pause():begin(),disconnect:()=>{startIntent++;resetInput();if(playing)pause();},});
   const settings=root.querySelector('.rift-settings'),returnToBattlefield=document.createElement('button');returnToBattlefield.id='rift-settings-return';returnToBattlefield.type='button';returnToBattlefield.textContent='Return to battlefield';returnToBattlefield.disabled=true;settings.append(returnToBattlefield);
   function focusBattlefield(){if(!playing||controls.opened)return;resetInput();$('rift-canvas').focus();}
