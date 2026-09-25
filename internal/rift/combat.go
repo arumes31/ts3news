@@ -437,14 +437,6 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		}
 	}
 
-	enemiesCount := 0
-	if r.Room >= 0 && r.Room < len(r.EncounterPlan) {
-		enemiesCount = len(r.EncounterPlan[r.Room])
-	}
-	if kills > enemiesCount && enemiesCount > 0 {
-		enemiesCount = kills
-	}
-
 	var monsterKeys []string
 	seenMonsters := make(map[string]bool)
 	var bosses []EncounterBossState
@@ -979,7 +971,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		damage *= 1.15
 	}
 	armor := e.Armor
-	if e.ArtKey == "" && e.Kind == "knight" && !(r.Practice != nil && r.Practice.Mode == "class" && e.ID == "practice-target") {
+	if e.ArtKey == "" && e.Kind == "knight" && (r.Practice == nil || r.Practice.Mode != "class" || e.ID != "practice-target") {
 		armor = .3
 	}
 	if e.ArtKey == "" && e.Kind == "boss" {
@@ -1052,11 +1044,12 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		r.endTargetMark(*e, "defeated")
 		if e.isObjectiveProp() {
 			r.event(e.Kind+"_break", e.X, e.Y, 0)
-			if e.Kind == "generator" {
+			switch e.Kind {
+			case "generator":
 				r.disableGenerator(e.ID)
-			} else if e.Kind == "cage" {
+			case "cage":
 				r.updateRescueObjective()
-			} else {
+			default:
 				r.updateTotemObjective()
 			}
 			return

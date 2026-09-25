@@ -182,3 +182,37 @@ func TestPracticeRecoveryToolsPreserveProgressAndCombatTimers(t *testing.T) {
 		t.Fatal("recovery revived ended drill")
 	}
 }
+
+func TestPracticeTouchCalibration(t *testing.T) {
+	r, err := NewPracticeRun("touch-drill", testRun().Build, "touch", time.Unix(100, 0))
+	if err != nil {
+		t.Fatalf("failed to create touch practice run: %v", err)
+	}
+	if r.Practice == nil || r.Practice.Mode != "touch" {
+		t.Fatalf("expected practice mode touch, got %+v", r.Practice)
+	}
+	if r.Practice.Arena.Name != "Touch control calibration" {
+		t.Fatalf("unexpected arena name: %q", r.Practice.Arena.Name)
+	}
+	if len(r.Enemies) != 1 || r.Enemies[0].Name != "Touch training target" {
+		t.Fatalf("unexpected enemies: %+v", r.Enemies)
+	}
+	// Verify practiceInput allows directional, jump, attack, and guard inputs
+	in := Input{X: 1, Y: -1, Jump: true, Attack: true, Guard: true}
+	out := r.practiceInput(in)
+	if out != in {
+		t.Fatalf("practiceInput did not preserve all inputs: got %+v, want %+v", out, in)
+	}
+	// Verify free practice doesn't auto-complete on reaching goalX
+	r.Player.X = 950
+	r.practiceTick()
+	if r.Status != "fighting" || r.Practice.Completed {
+		t.Fatalf("touch drill should not auto-complete on reaching goal: status=%v, completed=%v", r.Status, r.Practice.Completed)
+	}
+	if err := r.ResetPractice(time.Unix(200, 0)); err != nil {
+		t.Fatalf("failed to reset touch practice: %v", err)
+	}
+	if r.Player.X != 160 || r.Practice.Mode != "touch" {
+		t.Fatalf("reset failed to restore touch practice state: player.x=%v, mode=%v", r.Player.X, r.Practice.Mode)
+	}
+}

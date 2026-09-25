@@ -118,14 +118,15 @@ func TestTerrainCoverCampaignPlacement(t *testing.T) {
 				t.Fatalf("wrong cover placement %d/%d", level.ID, room)
 			}
 			for _, c := range arena.Cover {
-				if c.Material == "wood" {
+				switch c.Material {
+				case "wood":
 					wood++
 					if c.HP != 60 || c.MaxHP != 60 {
 						t.Fatal("invalid wooden durability")
 					}
-				} else if c.Material == "stone" {
+				case "stone":
 					stone++
-				} else {
+				default:
 					t.Fatal("unknown material")
 				}
 			}

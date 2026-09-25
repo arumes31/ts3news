@@ -36,7 +36,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard"
+	return mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard" || mode == "touch"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -86,7 +86,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "jump" {
 		r.Practice.Arena.Obstacles = []Obstacle{{X: 450, Y: 250, W: 70, H: 300}}
 	}
-	if mode == "resource" || mode == "ultimate" || mode == "combo" || mode == "class" || mode == "skills" || mode == "ranged" {
+	if mode == "resource" || mode == "ultimate" || mode == "combo" || mode == "class" || mode == "skills" || mode == "ranged" || mode == "touch" {
 		r.Enemies = []Actor{{ID: "practice-target", Name: "Training target", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1}}
 	}
 	if mode == "resource" {
@@ -109,6 +109,11 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
     if mode == "skills" {
 		r.Practice.Arena.Name = "Skill testing lane"
 		r.Player.HP = r.Player.MaxHP * .6
+	}
+	if mode == "touch" {
+		r.Practice.Arena.Name = "Touch control calibration"
+		r.Enemies[0].Name = "Touch training target"
+		r.Player.HP = r.Player.MaxHP * .8
 	}
 	if mode == "guard" || mode == "perfect_guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
@@ -157,7 +162,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	}
 	switch r.Practice.Mode {
-	case "boss", "class", "skills", "ranged", "ultimate", "resource":
+	case "boss", "class", "skills", "ranged", "ultimate", "resource", "touch":
 		return in
 	case "movement", "pickup", "banking":
 		return Input{X: in.X, Y: in.Y}
@@ -175,7 +180,7 @@ func (r *Run) practiceTick() {
 	if r.Status != "fighting" {
 		return
 	}
-	if r.Practice.Mode == "skills" {
+	if r.Practice.Mode == "skills" || r.Practice.Mode == "touch" {
 		return // Free practice ends only when the player leaves or resets.
 	}
 	complete := r.Player.X >= r.Practice.GoalX

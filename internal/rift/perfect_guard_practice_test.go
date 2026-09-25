@@ -17,7 +17,9 @@ func TestPerfectGuardPracticeUsesRealTimingAndIsolatedProgress(t *testing.T) {
 	if r.Practice.Completed || r.Practice.PerfectGuards >= 3 || r.Stats.Guards < 3 {
 		t.Fatal("holding guard completed timing drill or trainer did not attack")
 	}
-	r.ResetPractice(time.Unix(200, 0))
+	if err := r.ResetPractice(time.Unix(200, 0)); err != nil {
+		t.Fatal(err)
+	}
 	for i := 1; i <= 600 && r.Status == "fighting"; i++ {
 		guard := r.Enemies[0].Windup > 0 && r.Enemies[0].Windup <= .15
 		r.Step(Input{Guard: guard}, time.UnixMilli(200000+int64(i)*50))
