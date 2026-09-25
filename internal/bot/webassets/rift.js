@@ -736,8 +736,22 @@
       }
       if(value==='guard')guardDisplay();
     };
+    button.addEventListener('pointermove',event=>{
+      if(!playing||!touchPointers.has(event.pointerId))return;
+      event.preventDefault();
+      if(moveKey){
+        const el=document.elementFromPoint(event.clientX,event.clientY);
+        const target=el?.closest?.('[data-move]');
+        if(target&&target!==button&&target.dataset.move&&target.dataset.move!==value){
+          release(event);
+          try{target.dispatchEvent(new PointerEvent('pointerdown',event));}catch(_){}
+        }
+      }
+    });
     ['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,release));
   }
+  const touchContainer=root.querySelector('.rift-touch');
+  if(touchContainer){touchContainer.addEventListener('touchmove',e=>{e.preventDefault();},{passive:false});}
   root.querySelectorAll('[data-hold]').forEach(button=>hold(button,button.dataset.hold));root.querySelectorAll('[data-move]').forEach(button=>hold(button,button.dataset.move));
   $('rift-controls-open').addEventListener('click',async()=>{startIntent++;if(playing)await pause();resetInput();if(!controls.opened)controls.open($('rift-controls-open'));});
   const openRefBtn=$('rift-open-controls-reference');
