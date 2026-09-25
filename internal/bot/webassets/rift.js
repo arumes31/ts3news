@@ -453,7 +453,14 @@
     if(!run||!['fighting','cleared'].includes(run.status))return;
     if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');updatePauseButton(false);$('rift-room-actions').hidden=true;}
   }
+  function dismissVirtualKeyboard(){
+    const el=document.activeElement;
+    if(el&&typeof el.blur==='function'&&['INPUT','TEXTAREA'].includes(el.tagName)&&!['checkbox','radio','range','button','submit'].includes(el.type)){
+      el.blur();
+    }
+  }
   async function begin(){
+    dismissVirtualKeyboard();
     if(busy||starting||practiceToolPending||controls.opened)return;
     if($('rift-start').dataset.retry){
       if($('rift-start').dataset.artworkRetry==='true'){location.reload();return;}
@@ -472,6 +479,7 @@
       const resume=run&&(run.status==='fighting'||run.status==='cleared');
       if(await send(resume?'resume':practice&&run&&run.status!=='expired'?'practice_reset':'start')){
         playing=true;
+        dismissVirtualKeyboard();
         if(intent!==startIntent||document.hidden){await pause();return;}
         $('rift-campaign').open=false;$('rift-overlay').hidden=true;$('rift-pause').disabled=false;update(run,true);$('rift-canvas').focus();status(controls.description());clearTimeout(timer);loop();
       }
@@ -736,7 +744,17 @@
     const isHistory = event.persisted || (typeof performance !== 'undefined' && performance.getEntriesByType?.('navigation')?.[0]?.type === 'back_forward');
     if(isHistory){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}
   });
+  document.addEventListener('focusin',event=>{
+    if(playing&&event.target&&['INPUT','TEXTAREA'].includes(event.target.tagName)){
+      const type=event.target.type;
+      if(!['checkbox','radio','range','button','submit'].includes(type)){
+        event.target.blur();
+        $('rift-canvas')?.focus({preventScroll:true});
+      }
+    }
+  },true);
   let pinnedRangeSkill=null,pinnedRangeIndex=-1;
+
   function cycleRange(){
     const skills=[...(run?.build?.skills||[]),...(run?.build?.signatures||[]),...(run?.build?.ultimate?[run.build.ultimate]:[])];if(!skills.length)return;
     pinnedRangeIndex=(pinnedRangeIndex+1)%(skills.length+1);

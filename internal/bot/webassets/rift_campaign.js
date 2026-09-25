@@ -34,7 +34,21 @@
     return true;
   }
   function save(){try{localStorage.setItem(key,JSON.stringify(view));}catch(_){} }
-  function choose(id){if(!active)$('rift-levels').querySelector('[data-level="'+id+'"]').click();}
+  function scrollCardIntoVisibleView(card){
+    if(!card)return;
+    const vp=window.visualViewport,h=vp?vp.height:window.innerHeight;
+    const r=card.getBoundingClientRect();
+    if(r.top<0||r.bottom>h){
+      card.scrollIntoView({block:'nearest'});
+    }
+  }
+  function choose(id){
+    if(!active){
+      const btn=$('rift-levels').querySelector('[data-level="'+id+'"]');
+      if(btn){btn.click();scrollCardIntoVisibleView(btn);}
+    }
+  }
+
   let filterAnnounceTimer=null,lastFilterText='',lastFilterLabel='';
   function announceFilterResults(node,text,label,immediate){
     if(!node)return;
@@ -205,8 +219,9 @@
       $('rift-unfinished').addEventListener('click',()=>{const target=levels.find(l=>l.id>selected&&!completed.has(l.id))||levels.find(l=>!completed.has(l.id));if(target)choose(target.id);});
       $('rift-previous-mission').addEventListener('click',()=>choose(selected-1));
       $('rift-next-mission').addEventListener('click',()=>choose(selected+1));
-      $('rift-show-selected').addEventListener('click',()=>{reset();$('rift-levels').querySelector('[data-level="'+selected+'"]').scrollIntoView({block:'nearest'});});
+      $('rift-show-selected').addEventListener('click',()=>{reset();const btn=$('rift-levels').querySelector('[data-level="'+selected+'"]');scrollCardIntoVisibleView(btn);});
     }
+
   }
   window.RiftCampaignTools={init,isChallengeCompatible,setChallenge(ch){challenge=ch;apply();},preferred:()=>Number.isInteger(view.selected)&&view.selected>=1&&view.selected<=100?view.selected:1,
     showRegion(region){if(!levels.some(level=>level.region===region))return;overview=true;apply();$('rift-campaign').open=true;const section=$('rift-region-overview').querySelector('[data-overview-region="'+region+'"]');section.querySelector('details').open=true;section.querySelector('summary').focus();section.scrollIntoView({block:'center'});},
