@@ -167,3 +167,21 @@ list, template URLs and shared combat-art catalog list; mismatched source layout
 fails rather than silently reporting a partial list. Encoder duration is local
 experiment overhead, not browser decode time. The report's Pillow/libwebp versions
 must accompany comparisons.
+
+
+## Deferred legacy boss background (2026-09-25)
+
+Ordinary startup now requires17 Rift atlases plus4 shared creature atlases.
+The3,339,584-byte rift_boss_area.png is loaded only for a room2 snapshot without
+region data. Initial saved-run loading and mutation response application await its
+decode before exposing that scene. Concurrent preparation shares one request;
+failure clears the promise so recovery can retry. Campaign region artwork is
+unchanged, and the legacy background remains available.
+
+The previous22-image compression report remains a historical experiment. Current
+ordinary required-art bytes are41,059,504 (before other page resources). This saves
+7.52% of the prior PNG atlas total, but still exceeds the3MB readiness target by a
+large margin. No new throttled startup timing is claimed and the gate stays failed.
+Browser checks confirm no boss-background request at campaign startup, saved-scene
+readiness waiting, decoded reuse, failure retry, coalescing, and existing decode/
+priority/progress/version behavior:11 passed. More scene-specific asset work remains.

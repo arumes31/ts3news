@@ -13,8 +13,8 @@ for(const asset of ['rift_area.png','abyss_combat_roles_v2.png'])test('Start wai
  await page.evaluate(()=>window.releaseAtlasDecode());
  await expect(page.locator('#rift-start')).toBeEnabled();
  const decoded=await page.evaluate(()=>window.atlasDecodeCalls);
- expect(new Set(decoded).size).toBeGreaterThanOrEqual(22);
- await expect(page.locator('#rift-atlas-progress')).toHaveText('Critical atlases loaded (18/18)');
+ expect(new Set(decoded).size).toBeGreaterThanOrEqual(21);
+ await expect(page.locator('#rift-atlas-progress')).toHaveText('Critical atlases loaded (17/17)');
 });
 for(const asset of ['rift_area.png','abyss_combat_roles_v2.png'])test('failed decode offers artwork reload: '+asset,async({page})=>{
  await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8')}));

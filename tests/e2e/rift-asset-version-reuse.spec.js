@@ -6,7 +6,7 @@ test('campaign and bestiary art reuse renderer atlas versions',async({page})=>{
   const root=document.getElementById('rift-app');
   return [...window.RiftRenderer.getCriticalAtlasKeys().map(key=>key==='props'?document.getElementById('rift-props-asset').href:root.dataset[key]),...window.RiftBestiary.assets.map(path=>window.RiftBestiary.assetURL(path))].map(url=>new URL(url,location.href).href);
  });
- expect(new Set(required).size).toBe(22);
+ expect(new Set(required).size).toBe(21);
  await page.locator('details').filter({has:page.locator('#rift-monsters')}).locator(':scope > summary').click();
  await expect(page.locator('#rift-monsters > article')).not.toHaveCount(0);
  await page.locator('#rift-monsters > article').first().getByRole('button',{name:/Inspect/}).click();

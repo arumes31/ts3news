@@ -10,9 +10,9 @@ test('shows loading-progress count for critical atlases', async ({ page }) => {
   await expect(progress).toHaveAttribute('aria-live', 'polite');
 
   // Verify critical atlas loading progress indicators
-  await expect(progress).toHaveAttribute('data-total', '18');
-  await expect(progress).toHaveAttribute('data-loaded', '18');
-  await expect(progress).toHaveText('Critical atlases loaded (18/18)');
+  await expect(progress).toHaveAttribute('data-total', '17');
+  await expect(progress).toHaveAttribute('data-loaded', '17');
+  await expect(progress).toHaveText('Critical atlases loaded (17/17)');
 
   // Verify exposed RiftRenderer properties
   const rendererData = await page.evaluate(() => {
@@ -24,14 +24,13 @@ test('shows loading-progress count for critical atlases', async ({ page }) => {
   });
 
   expect(rendererData.atlasProgress).toEqual({
-    loaded: 18,
-    total: 18,
+    loaded: 17,
+    total: 17,
     ready: true,
   });
 
   expect(rendererData.criticalKeys).toEqual([
     'area',
-    'boss',
     'regions',
     'props',
     'heroesA',
