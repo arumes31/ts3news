@@ -1152,6 +1152,12 @@
       }
     });
   }
+  const printResultBtn=$('rift-print-result');
+  if(printResultBtn){
+    printResultBtn.addEventListener('click',()=>{
+      window.print();
+    });
+  }
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?statusCopy.expeditionComplete:statusCopy.checkpointReached);});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));

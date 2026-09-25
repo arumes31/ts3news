@@ -254,6 +254,65 @@
     }
     return null;
   }
+  function formatActivePlayTime(seconds){
+    const s=Math.max(0,Number(seconds)||0);
+    const m=Math.floor(s/60);
+    const rem=(s%60).toFixed(1);
+    return m>0?(m+'m '+rem+'s ('+s.toFixed(1)+'s)'):(s.toFixed(1)+'s');
+  }
+  function formatRoomSplits(splits){
+    if(!splits||!Array.isArray(splits))return '';
+    const parts=[];
+    for(let i=0;i<splits.length;i++){
+      if(splits[i]!=null&&Number.isFinite(splits[i])){
+        parts.push('Tier '+(i+1)+': '+Number(splits[i]).toFixed(1)+'s');
+      }
+    }
+    return parts.join(' · ');
+  }
+  function formatFamilyDefeats(monsterRecords){
+    if(!monsterRecords||typeof monsterRecords!=='object')return '';
+    const familyCounts={};
+    for(const [key,record] of Object.entries(monsterRecords)){
+      if(!record||!record.defeats||record.defeats<=0)continue;
+      const fam=window.RiftBestiary?.monsterFamily(key)||(key.startsWith('monster:')?key.slice(8):key);
+      if(fam)familyCounts[fam]=(familyCounts[fam]||0)+record.defeats;
+    }
+    const entries=Object.entries(familyCounts);
+    if(!entries.length)return '';
+    return entries.map(([fam,count])=>fam+': '+numbers.format(count)).join(' · ');
+  }
+  function formatCompletedObjectives(objectives){
+    const entries=objectives?.entries;
+    if(!entries||!Array.isArray(entries))return '';
+    const completed=entries.filter(e=>e.status==='complete');
+    if(!completed.length)return '';
+    return completed.map(e=>e.name).join(' · ')+' ('+completed.length+' completed)';
+  }
+  function formatFailedObjectives(objectives){
+    const entries=objectives?.entries;
+    if(!entries||!Array.isArray(entries))return '';
+    const failed=entries.filter(e=>e.status==='failed');
+    if(!failed.length)return '';
+    return failed.map(e=>e.name+(e.reason?' ('+e.reason+')':'')).join(' · ');
+  }
+  function formatCosmeticMilestones(run){
+    if(!run)return '';
+    const milestones=[];
+    const completedLevels=run.completed_levels||[];
+    if(completedLevels.length>=100)milestones.push('Campaign Complete (All 100 Missions) — Campaign Badge');
+    else if(completedLevels.length>=10)milestones.push('First Region Complete — Region Badge');
+    const pg=(run.past_expeditions?.perfect_guards||0)+(run.stats?.perfect_guards||0);
+    if(pg>=1000)milestones.push('✦ Perfect guard III · 1,000 confirmed');
+    else if(pg>=100)milestones.push('✦ Perfect guard II · 100 confirmed');
+    else if(pg>=10)milestones.push('✦ Perfect guard I · 10 confirmed');
+    return milestones.join(' · ');
+  }
+  function formatImprovedRecords(clear){
+    if(!clear||!clear.records||!clear.records.length)return '';
+    const labels={time:'Fastest clear time',health:'Best finish HP',hits:'Fewest damaging hits'};
+    return clear.records.map(k=>labels[k]||k).join(' · ');
+  }
   function updateLastEncounter(run){
     const container=$('rift-last-encounter');
     if(!container)return;
@@ -403,6 +462,19 @@
       const lootText=numbers.format(encounter.gold_gained||0)+' gold'+((encounter.loot_items||0)>0?' · '+numbers.format(encounter.loot_items)+' '+((encounter.loot_items===1)?'item':'items'):'');
       rows.push([isDefeated?'Unbanked loot lost':'Loot collected',lootText]);
     }
+
+    const famText=formatFamilyDefeats(run?.monster_records||encounter?.monster_records);
+    if(famText)rows.push(['Enemies defeated by family',famText]);
+    const splitsText=formatRoomSplits(run?.room_splits||encounter?.room_splits);
+    if(splitsText)rows.push(['Room-by-room splits',splitsText]);
+    const compObj=formatCompletedObjectives(run?.objectives||encounter?.objectives);
+    if(compObj)rows.push(['Completed optional objectives',compObj]);
+    const failObj=formatFailedObjectives(run?.objectives||encounter?.objectives);
+    if(failObj)rows.push(['Failed optional objectives',failObj]);
+    const cosmeticText=formatCosmeticMilestones(run||encounter);
+    if(cosmeticText)rows.push(['Cosmetic milestones',cosmeticText]);
+    const improvedText=formatImprovedRecords(run?.last_clear||encounter?.last_clear);
+    if(improvedText)rows.push(['Improved personal records',improvedText]);
 
     const key=JSON.stringify({encounter,rows});
     if(statsNode.dataset.lastEncounterKey!==key){
@@ -668,7 +740,7 @@
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
-    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses]];
+    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Elapsed active play time',formatActivePlayTime(stats.seconds)],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses]];
     if((stats.treasure_goblins||0)>0)values.push(['Treasure goblins defeated',stats.treasure_goblins]);
     values.push(['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['HP lost to hazards',stats.hazard_damage_taken],['HP lost to enemies',stats.enemy_damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked]);
     if((stats.barrier_blocked||0)>0)values.push(['Barrier prevented',stats.barrier_blocked]);
@@ -708,6 +780,18 @@
     values.push(['Class performance',classSummary+(subclass?' · '+subclass:'')+' — '+numbers.format(totalCasts)+' casts · '+numbers.format(totalDmg)+' damage'+((totalHeal>0)?' · '+numbers.format(totalHeal)+' healing':'')]);
     if((stats.guards||0)>0)values.push(['Successful guards',numbers.format(stats.guards)+(stats.perfect_guards?' ('+numbers.format(stats.perfect_guards)+' perfect)':'')]);
     if((stats.dodges||0)>0)values.push(['Hazard evasions (airborne dodges)',numbers.format(stats.dodges)]);
+    const runSplits=formatRoomSplits(run.room_splits);
+    if(runSplits)values.push(['Room time splits',runSplits]);
+    const runFamilies=formatFamilyDefeats(run.monster_records);
+    if(runFamilies)values.push(['Enemies defeated by family',runFamilies]);
+    const runCompObj=formatCompletedObjectives(run.objectives);
+    if(runCompObj)values.push(['Completed optional objectives',runCompObj]);
+    const runFailObj=formatFailedObjectives(run.objectives);
+    if(runFailObj)values.push(['Failed optional objectives',runFailObj]);
+    const runMilestones=formatCosmeticMilestones(run);
+    if(runMilestones)values.push(['Cosmetic milestones',runMilestones]);
+    const runImproved=formatImprovedRecords(run.last_clear);
+    if(runImproved)values.push(['Improved personal records',runImproved]);
     const past=run.past_expeditions||{};
     const career=[['Enemies defeated',(past.enemies||0)+(stats.kills||0)],['Bosses defeated',(past.bosses||0)+(stats.bosses||0)],['Treasure goblins defeated',(past.treasure_goblins||0)+(stats.treasure_goblins||0)],['Gold banked',(past.gold||0)+(run.banked_gold||0)],['Gear pieces banked',(past.gear||0)+(run.banked_items?.length||0)]];
     const careerKey=JSON.stringify(career);if($('rift-career-statistics').dataset.values!==careerKey){$('rift-career-statistics').dataset.values=careerKey;$('rift-career-statistics').replaceChildren();for(const [label,value] of career){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value);$('rift-career-statistics').append(dt,dd);}}
@@ -800,6 +884,18 @@
     if((stats.barrier_blocked||0)>0){
       lines.push('Barrier Absorbed: '+numbers.format(stats.barrier_blocked));
     }
+    const splitsText=formatRoomSplits(run.room_splits);
+    if(splitsText)lines.push('Room Splits: '+splitsText);
+    const famText=formatFamilyDefeats(run.monster_records);
+    if(famText)lines.push('Defeated by Family: '+famText);
+    const compObj=formatCompletedObjectives(run.objectives);
+    if(compObj)lines.push('Completed Objectives: '+compObj);
+    const failObj=formatFailedObjectives(run.objectives);
+    if(failObj)lines.push('Failed Objectives: '+failObj);
+    const cosmeticText=formatCosmeticMilestones(run);
+    if(cosmeticText)lines.push('Cosmetic Milestones: '+cosmeticText);
+    const improvedText=formatImprovedRecords(run.last_clear);
+    if(improvedText)lines.push('Improved Records: '+improvedText);
     return lines.join('\n');
   }
   window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter,buildResultSummary};
