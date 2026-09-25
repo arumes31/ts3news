@@ -113,6 +113,21 @@
   font-size: 12px;
   margin-left: 6px;
 }
+.rift-result-hint {
+  background: rgba(80,130,255,.12);
+  border-left: 3px solid #6aa0ff;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.rift-result-hint p { margin: 0 0 6px; }
+.rift-result-hint button {
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
 .rift-encounter-badge {
   display: inline-block;
   padding: 2px 8px;

@@ -18,6 +18,7 @@ type CombatStats struct {
 	HitsTaken         int                `json:"hits_taken"`
 	SkillUses         map[string]int     `json:"skill_uses,omitempty"`
 	SkillMana         map[string]float64 `json:"skill_mana,omitempty"`
+	SkillDamage       map[string]float64 `json:"skill_damage,omitempty"`
 	SkillHits         map[string]int     `json:"skill_hits,omitempty"`
 	SkillHealing      map[string]float64 `json:"skill_healing,omitempty"`
 	SkillBarrier      map[string]float64 `json:"skill_barrier,omitempty"`

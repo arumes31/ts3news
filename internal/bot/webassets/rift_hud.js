@@ -677,7 +677,7 @@
     if(((stats.charged_finishers||0)+(stats.empty_finishers||0)+(stats.charges_spent||0))>0){
       values.push(['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent]);
     }
-    values.push(['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]);
+    values.push(['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Jumps',stats.jumps]);
     const unclassifiedDamage=Math.max(0,(stats.damage_taken||0)-(stats.hazard_damage_taken||0)-(stats.enemy_damage_taken||0));
     if(unclassifiedDamage>.001)values.push(['Damage without source records',unclassifiedDamage]);
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
@@ -699,11 +699,21 @@
     const mostCasts=Math.max(0,...rankedUses.map(skill=>skill.casts));
     const mostUsed=rankedUses.filter(skill=>skill.casts===mostCasts);
     values.push(['Most used recorded skill',mostCasts>0?(mostUsed.length>1?'Tie: ':'')+mostUsed.map(skill=>skill.name).join(', ')+' — '+numbers.format(mostCasts)+' '+(mostCasts===1?'cast':'casts')+(mostUsed.length>1?' each':''):stats.skills_cast>0?'Per-skill records unavailable.':'No confirmed skill casts.']);
+    const rankedDamage=abilityUses.map(([skill,kind])=>({name:skill.name+' ('+kind+')',damage:stats.skill_damage?.[skill.id]||0}));
+    const mostDmg=Math.max(0,...rankedDamage.map(s=>s.damage));
+    const topDamage=rankedDamage.filter(s=>s.damage===mostDmg);
+    values.push(['Highest recorded skill damage',mostDmg>0?(topDamage.length>1?'Tie: ':'')+topDamage.map(s=>s.name).join(', ')+' — '+numbers.format(mostDmg)+' damage'+(topDamage.length>1?' each':''):stats.skills_cast>0?'No per-skill damage recorded.':'No confirmed skill casts.']);
+    const classSummary=run.build?.class_name||'Unknown';const subclass=run.build?.subclass_name||'';
+    const totalCasts=stats.skills_cast||0;const totalDmg=stats.damage_dealt||0;const totalHeal=stats.healing||0;
+    values.push(['Class performance',classSummary+(subclass?' · '+subclass:'')+' — '+numbers.format(totalCasts)+' casts · '+numbers.format(totalDmg)+' damage'+((totalHeal>0)?' · '+numbers.format(totalHeal)+' healing':'')]);
+    if((stats.guards||0)>0)values.push(['Successful guards',numbers.format(stats.guards)+(stats.perfect_guards?' ('+numbers.format(stats.perfect_guards)+' perfect)':'')]);
+    if((stats.dodges||0)>0)values.push(['Hazard evasions (airborne dodges)',numbers.format(stats.dodges)]);
     const past=run.past_expeditions||{};
     const career=[['Enemies defeated',(past.enemies||0)+(stats.kills||0)],['Bosses defeated',(past.bosses||0)+(stats.bosses||0)],['Treasure goblins defeated',(past.treasure_goblins||0)+(stats.treasure_goblins||0)],['Gold banked',(past.gold||0)+(run.banked_gold||0)],['Gear pieces banked',(past.gear||0)+(run.banked_items?.length||0)]];
     const careerKey=JSON.stringify(career);if($('rift-career-statistics').dataset.values!==careerKey){$('rift-career-statistics').dataset.values=careerKey;$('rift-career-statistics').replaceChildren();for(const [label,value] of career){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value);$('rift-career-statistics').append(dt,dd);}}
     const key=JSON.stringify(values);
     if(summaryKey!==key){summaryKey=key;$('rift-statistics').replaceChildren();for(const [label,value] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=typeof value==='string'?value:numbers.format(value||0);if(['Current mission clear streak','Best mission clear streak','Highest basic combo strike (of 3)','Largest hit'].includes(label)){dt.dataset.personalRecord='true';dd.dataset.personalRecord='true';}$('rift-statistics').append(dt,dd);}}
+    renderResultHint(run);
     const state=[run.id,run.level?.id,run.room,run.status,run.paused].join(':');
     if(state!==announced){
       announced=state;
@@ -712,6 +722,41 @@
       else if(['complete','banked'].includes(run.status))put($('rift-announcer'),'Expedition finished. '+numbers.format(run.banked_gold)+' gold and '+numbers.format(run.banked_items.length)+' '+(run.banked_items.length===1?'item':'items')+' banked.');
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
+  }
+  let lastHintRunId='',lastHintKey='';
+  let dismissedHints=new Set();
+  try{const raw=localStorage.getItem('riftDismissedHints');if(raw)dismissedHints=new Set(JSON.parse(raw));}catch(_){}
+  const hintDismissBtn=$('rift-dismiss-hint');
+  if(hintDismissBtn)hintDismissBtn.onclick=()=>{if(lastHintKey){dismissedHints.add(lastHintKey);try{localStorage.setItem('riftDismissedHints',JSON.stringify([...dismissedHints]));}catch(_){}}const el=$('rift-result-hint');if(el)el.hidden=true;};
+  function renderResultHint(run){
+    const el=$('rift-result-hint'),txt=$('rift-result-hint-text');
+    if(!el||!txt)return;
+    const terminal=['defeated','complete','banked'].includes(run.status);
+    if(!terminal){el.hidden=true;return;}
+    const stats=run.stats||{};
+    const hints=[];
+    if(run.status==='defeated'){
+      if((stats.guards||0)===0&&(stats.hits_taken||0)>3)hints.push({key:'guard-unused',text:'You took '+numbers.format(stats.hits_taken)+' hits without guarding. Hold Guard ('+((window.RiftControls?.label('guard'))||'L')+') to reduce frontal damage by 82%.'});
+      if((stats.dodges||0)===0&&(stats.hazard_damage_taken||0)>stats.damage_taken*.3)hints.push({key:'dodge-hazards',text:'Hazards dealt '+numbers.format(stats.hazard_damage_taken)+' damage. Jump over hazard pulses when the warning zone appears.'});
+      if((stats.healing||0)===0&&(stats.skills_cast||0)>5)hints.push({key:'no-healing',text:'No healing received this expedition. Consider equipping a skill with health recovery.'});
+      const avgHitSize=(stats.hits_taken||0)>0?(stats.damage_taken||0)/(stats.hits_taken):0;
+      if(avgHitSize>30&&(stats.guard_blocked||0)<avgHitSize)hints.push({key:'large-hits',text:'Average hit dealt '+numbers.format(avgHitSize)+' damage. Guard or jump to avoid the hardest-hitting attacks.'});
+      if(run.defeated_by_hazard)hints.push({key:'hazard-defeat-'+run.defeated_by_hazard.kind,text:hazardDefeatHint(run.defeated_by_hazard)});
+      if(run.room===0)hints.push({key:'room1-defeat',text:'Defeated in the first tier. Try a lower mission difficulty, or review your build and equipped skills before entering.'});
+    }else{
+      if((stats.hits_taken||0)===0)hints.push({key:'flawless',text:'Flawless clear — no damage taken. Impressive execution.'});
+      else if((stats.damage_taken||0)<20)hints.push({key:'near-flawless',text:'Near-flawless clear with only '+numbers.format(stats.damage_taken)+' damage taken.'});
+      if((stats.guards||0)>10)hints.push({key:'heavy-guard',text:'Strong defensive play with '+numbers.format(stats.guards)+' successful guards.'});
+    }
+    if(hints.length===0){el.hidden=true;return;}
+    const available=hints.filter(h=>!dismissedHints.has(h.key));
+    if(available.length===0){el.hidden=true;return;}
+    let chosen;
+    if(run.id!==lastHintRunId){lastHintRunId=run.id;chosen=available[0];}
+    else{const current=available.find(h=>h.key===lastHintKey);chosen=current||available[0];}
+    lastHintKey=chosen.key;
+    txt.textContent=chosen.text;
+    el.hidden=false;
   }
   function buildResultSummary(run){
     if(!run)return '';
