@@ -816,3 +816,23 @@
   #rift-app :is(.rift-skills,.rift-signatures) button { max-width:none; }
   #rift-app :is(.rift-skills,.rift-signatures) button:last-child:nth-child(odd) { grid-column:1 / -1; }
 }
+
+/* Combat controls: suppress double-tap page zoom and accidental selection (0916, 0918) */
+#rift-app :is(.rift-actionbar, .rift-signatures, .rift-touch, .rift-room-actions) button,
+#rift-app #rift-pause {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#rift-app button[data-action] {
+  touch-action: none;
+}
+
+/* Outside combat controls, preserve normal text selection and touch scrolling */
+#rift-app :is(p, h1, h2, h3, h4, dl, dt, dd, summary, article, details, .rift-route, .rift-loot, .rift-fine, .rift-banked, .rift-legend-card, .rift-guide, #rift-rules) {
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+}
+
+
