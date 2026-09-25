@@ -844,5 +844,82 @@
   }
 }
 
+/* Touch controls ergonomics: portrait and landscape orientation support (0894, 0895) */
+.rift-controls-band {
+  display: contents;
+}
 
-
+@media (any-pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  #rift-app {
+    margin: 8px auto 20px;
+  }
+  #rift-app .rift-heading {
+    margin-bottom: 8px;
+  }
+  #rift-app .rift-heading h1 {
+    font-size: 24px;
+  }
+  #rift-app .rift-eyebrow {
+    margin-bottom: 4px;
+    font-size: 8px;
+  }
+  #rift-app .rift-layout {
+    grid-template-columns: 1fr;
+  }
+  #rift-app .rift-sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  #rift-app .rift-viewport:not(:fullscreen) {
+    max-height: min(220px, 52vh);
+    aspect-ratio: 16/9;
+    width: auto;
+    margin: 0 auto;
+  }
+  #rift-app .rift-viewport:not(:fullscreen) canvas {
+    width: auto;
+    height: 100%;
+    aspect-ratio: 16/9;
+    margin: 0 auto;
+  }
+  #rift-app .rift-controls-band {
+    display: grid;
+    grid-template-areas:
+      "touch actionbar"
+      "touch classbar";
+    grid-template-columns: minmax(170px, auto) 1fr;
+    background: #14251f;
+    border-top: 1px solid var(--rift-line);
+    align-items: stretch;
+  }
+  #rift-app .rift-touch {
+    grid-area: touch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-right: 1px solid var(--rift-line);
+  }
+  #rift-app #rift-actionbar {
+    grid-area: actionbar;
+    border: none;
+    padding: 6px 10px;
+  }
+  #rift-app .rift-classbar {
+    grid-area: classbar;
+    border-top: 1px solid #23372c;
+    padding: 6px 10px;
+  }
+  #rift-app[data-touch-layout="right"] .rift-controls-band {
+    grid-template-areas:
+      "actionbar touch"
+      "classbar touch";
+    grid-template-columns: 1fr minmax(170px, auto);
+  }
+  #rift-app[data-touch-layout="right"] .rift-touch {
+    border-right: none;
+    border-left: 1px solid var(--rift-line);
+  }
+}
