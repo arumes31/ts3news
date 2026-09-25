@@ -802,6 +802,71 @@
   justify-content: flex-end;
   transform-origin: right center;
 }
+#rift-app .rift-touch-joystick {
+  display: none;
+  opacity: var(--rift-touch-opacity, 1);
+  transform: scale(var(--rift-touch-scale, 1));
+  transform-origin: center center;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  justify-content: center;
+  align-items: center;
+}
+#rift-app[data-touch-mode="joystick"] .rift-touch {
+  display: none !important;
+}
+@media (any-pointer: coarse) {
+  #rift-app[data-touch-mode="joystick"] .rift-touch-joystick {
+    display: flex;
+  }
+}
+#rift-app[data-practice="touch"][data-touch-mode="joystick"] .rift-touch-joystick {
+  display: flex !important;
+}
+#rift-app[data-touch-layout="left"] .rift-touch-joystick {
+  justify-content: flex-start;
+  transform-origin: left center;
+}
+#rift-app[data-touch-layout="right"] .rift-touch-joystick {
+  justify-content: flex-end;
+  transform-origin: right center;
+}
+.rift-joystick-base {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1a2f26 0%, #0d1a16 100%);
+  border: 2px solid var(--rift-line, #35493e);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  cursor: pointer;
+}
+.rift-joystick-stick {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #3a5c48 0%, #1e3328 100%);
+  border: 2px solid #587964;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
+  transform: translate(0px, 0px);
+  transition: transform 0.05s ease-out;
+}
+.rift-joystick-base.rift-active .rift-joystick-stick {
+  border-color: var(--rift-gold, #e9bd70);
+  background: radial-gradient(circle, #4d7a5f 0%, #264234 100%);
+  transition: none;
+}
 .rift-touch-layout-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
 .rift-touch-layout-setting label { display: flex; align-items: center; gap: 6px; }
 @media (any-pointer: coarse) {
@@ -947,6 +1012,18 @@
     grid-template-columns: 1fr minmax(170px, auto);
   }
   #rift-app[data-touch-layout="right"] .rift-touch {
+    border-right: none;
+    border-left: 1px solid var(--rift-line);
+  }
+  #rift-app[data-touch-mode="joystick"] .rift-touch-joystick {
+    grid-area: touch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-right: 1px solid var(--rift-line);
+  }
+  #rift-app[data-touch-mode="joystick"][data-touch-layout="right"] .rift-touch-joystick {
     border-right: none;
     border-left: 1px solid var(--rift-line);
   }
