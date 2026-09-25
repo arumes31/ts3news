@@ -777,11 +777,24 @@
 #rift-app button[data-explain-disabled]:has(.rift-ability-rejection:not([hidden])) { opacity: 1; }
 
 
-#rift-app[data-touch-layout="left"] .rift-touch { justify-content: flex-start; }
-#rift-app[data-touch-layout="right"] .rift-touch { justify-content: flex-end; }
-.rift-touch-layout-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+#rift-app .rift-touch {
+  opacity: var(--rift-touch-opacity, 1);
+  transform: scale(var(--rift-touch-scale, 1));
+  transform-origin: center center;
+}
+#rift-app[data-touch-layout="left"] .rift-touch {
+  justify-content: flex-start;
+  transform-origin: left center;
+}
+#rift-app[data-touch-layout="right"] .rift-touch {
+  justify-content: flex-end;
+  transform-origin: right center;
+}
+.rift-touch-layout-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.rift-touch-layout-setting label { display: flex; align-items: center; gap: 6px; }
 @media (any-pointer: coarse) {
-  #rift-app .rift-touch-layout-setting :is(select, button) { min-height: 48px; }
+  #rift-app .rift-touch-layout-setting :is(select, button, input) { min-height: 48px; }
+  #rift-app .rift-touch button { min-width: 56px; min-height: 56px; font-size: 22px; }
 }
 
 /* Short viewports must allow the entire recovery message and action to be reached. */

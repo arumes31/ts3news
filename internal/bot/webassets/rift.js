@@ -663,19 +663,42 @@
   };
   const touchAlignments=new Set(['center','left','right']);let touchAlignment='center';
   try{const saved=JSON.parse(localStorage.getItem('riftTouchLayout'));if(saved?.version===1&&touchAlignments.has(saved.alignment))touchAlignment=saved.alignment;}catch(_){}
+  let touchOpacity=100;
+  try{const o=Number(localStorage.getItem('riftTouchOpacity'));if(o>=20&&o<=100)touchOpacity=o;}catch(_){}
+  let touchScale=1.0;
+  try{const s=Number(localStorage.getItem('riftTouchScale'));if(s>=0.7&&s<=1.6)touchScale=s;}catch(_){}
   const touchLayoutGroup=document.createElement('div');touchLayoutGroup.className='rift-touch-layout-setting';
-  const touchLayoutLabel=document.createElement('label'),touchLayoutSelect=document.createElement('select'),touchLayoutReset=document.createElement('button');
+  const touchLayoutLabel=document.createElement('label'),touchLayoutSelect=document.createElement('select');
   touchLayoutSelect.id='rift-touch-layout';touchLayoutLabel.htmlFor=touchLayoutSelect.id;touchLayoutLabel.textContent='Movement pad alignment';
   for(const value of touchAlignments){const option=document.createElement('option');option.value=value;option.textContent=value[0].toUpperCase()+value.slice(1);touchLayoutSelect.append(option);}
+  const touchOpacityLabel=document.createElement('label'),touchOpacityInput=document.createElement('input');
+  touchOpacityInput.id='rift-touch-opacity';touchOpacityInput.type='range';touchOpacityInput.min='20';touchOpacityInput.max='100';touchOpacityInput.step='5';touchOpacityInput.value=String(touchOpacity);
+  touchOpacityLabel.htmlFor=touchOpacityInput.id;touchOpacityLabel.append('Movement pad opacity ',touchOpacityInput);
+  const touchScaleLabel=document.createElement('label'),touchScaleSelect=document.createElement('select');
+  touchScaleSelect.id='rift-touch-scale';touchScaleLabel.htmlFor=touchScaleSelect.id;touchScaleLabel.textContent='Movement pad scale';
+  for(const [val,text] of [['0.8','80%'],['1','100% (default)'],['1.2','120%'],['1.4','140%']]){const opt=document.createElement('option');opt.value=val;opt.textContent=text;touchScaleSelect.append(opt);}
+  touchScaleSelect.value=String(touchScale);
+  const touchLayoutReset=document.createElement('button');
   touchLayoutReset.id='rift-reset-touch-layout';touchLayoutReset.type='button';touchLayoutReset.textContent='Reset touch layout';
   function paintTouchLayout(){root.dataset.touchLayout=touchAlignment;touchLayoutSelect.value=touchAlignment;}
+  function paintTouchOpacity(){root.style.setProperty('--rift-touch-opacity',String(touchOpacity/100));touchOpacityInput.value=String(touchOpacity);}
+  function paintTouchScale(){root.style.setProperty('--rift-touch-scale',String(touchScale));touchScaleSelect.value=String(touchScale);}
   touchLayoutSelect.addEventListener('change',()=>{
     if(!touchAlignments.has(touchLayoutSelect.value))return;
     resetInput();touchAlignment=touchLayoutSelect.value;paintTouchLayout();
     try{localStorage.setItem('riftTouchLayout',JSON.stringify({version:1,alignment:touchAlignment}));}catch(_){}
   });
-  touchLayoutReset.addEventListener('click',()=>{touchLayoutSelect.value='center';touchLayoutSelect.dispatchEvent(new Event('change'));});
-  touchLayoutGroup.append(touchLayoutLabel,touchLayoutSelect,touchLayoutReset);document.querySelector('.rift-settings').append(touchLayoutGroup);paintTouchLayout();
+  touchOpacityInput.addEventListener('input',()=>{touchOpacity=Number(touchOpacityInput.value);paintTouchOpacity();});
+  touchOpacityInput.addEventListener('change',()=>{touchOpacity=Number(touchOpacityInput.value);paintTouchOpacity();try{localStorage.setItem('riftTouchOpacity',String(touchOpacity));}catch(_){}});
+  touchScaleSelect.addEventListener('change',()=>{touchScale=Number(touchScaleSelect.value);paintTouchScale();try{localStorage.setItem('riftTouchScale',String(touchScale));}catch(_){}});
+  touchLayoutReset.addEventListener('click',()=>{
+    touchLayoutSelect.value='center';touchLayoutSelect.dispatchEvent(new Event('change'));
+    touchOpacity=100;try{localStorage.setItem('riftTouchOpacity','100');}catch(_){}paintTouchOpacity();
+    touchScale=1.0;try{localStorage.setItem('riftTouchScale','1');}catch(_){}paintTouchScale();
+  });
+  touchLayoutGroup.append(touchLayoutLabel,touchLayoutSelect,touchOpacityLabel,touchScaleLabel,touchScaleSelect,touchLayoutReset);
+  document.querySelector('.rift-settings').append(touchLayoutGroup);
+  paintTouchLayout();paintTouchOpacity();paintTouchScale();
   function hold(button,value){
     button.dataset.action=value;
     button.addEventListener('contextmenu',event=>{if(playing)event.preventDefault();});
