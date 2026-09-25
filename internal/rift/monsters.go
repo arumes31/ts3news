@@ -78,8 +78,13 @@ func monsterElementEffect(element string) string {
 	return ""
 }
 
+func computeReplaySeed(id string) uint64 {
+	seed := sha256.Sum256([]byte(id))
+	return binary.LittleEndian.Uint64(seed[:8]) & 0x1fffffffffffff
+}
+
 func newRunState(id string, build Build, now time.Time) *Run {
-	r := &Run{Schema: 1, ID: id, Build: build, Status: "fighting", LastMS: now.UnixMilli(), SavedAtMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
+	r := &Run{Schema: 1, ID: id, ReplaySeed: computeReplaySeed(id), Build: build, Status: "fighting", LastMS: now.UnixMilli(), SavedAtMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
 	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
 	return r
 }

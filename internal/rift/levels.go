@@ -510,6 +510,15 @@ func (r *Run) knockbackActor(a *Actor, dx, dy float64) {
 	if a.Kind == "cage" {
 		return
 	}
+	if dx != 0 && dy != 0 {
+		h := math.Hypot(dx, dy)
+		targetDist := math.Max(math.Abs(dx), math.Abs(dy))
+		if h > 0 && targetDist > 0 {
+			factor := targetDist / h
+			dx *= factor
+			dy *= factor
+		}
+	}
 	a.RouteX, a.RouteY = 0, 0
 	steps := max(1, int(math.Ceil(math.Hypot(dx, dy)/8)))
 	for range steps {
@@ -638,7 +647,10 @@ func (r *Run) hazardTick() {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)
-		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 || r.SkillTimers["connection_grace"] > 0 {
+		if r.SkillTimers[key] > 0 || r.SkillTimers["hazard-hit"] > 0 || r.SkillTimers["connection_grace"] > 0 || r.SkillTimers["room_entry_grace"] > 0 || r.SkillTimers["dodge_invulnerability"] > 0 {
+			if r.SkillTimers["dodge_invulnerability"] > 0 {
+				r.recordDodge()
+			}
 			continue
 		}
 		r.Stats.HazardContacts++

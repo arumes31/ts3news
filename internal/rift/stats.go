@@ -31,6 +31,7 @@ type CombatStats struct {
 	GuardBlocked      float64            `json:"guard_blocked"`
 	BarrierBlocked    float64            `json:"barrier_blocked"`
 	ArmorBlocked      float64            `json:"armor_blocked"`
+	ArmorPiercingDamage float64          `json:"armor_piercing_damage"`
 	Healing           float64            `json:"healing"`
 	LargestHit        float64            `json:"largest_hit"`
 	ManaSpent         float64            `json:"mana_spent"`
@@ -40,6 +41,8 @@ type CombatStats struct {
 	Guards            int                `json:"guards"`
 	BasicMisses       int                `json:"basic_misses,omitempty"`
 	Attacks           int                `json:"attacks"`
+	HighestAttackChain int               `json:"highest_attack_chain"`
+	ComboScore        int                `json:"combo_score"`
 	SkillsCast        int                `json:"skills_cast"`
 	Jumps             int                `json:"jumps"`
 	RoomsCleared      int                `json:"rooms_cleared"`

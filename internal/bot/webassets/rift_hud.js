@@ -421,6 +421,9 @@
       ['Guarded damage',numbers.format(encounter.guard_blocked||0)]
     ];
     if((encounter.barrier_blocked||0)>0)rows.push(['Barrier absorbed',numbers.format(encounter.barrier_blocked)]);
+    if((encounter.armor_piercing_damage||0)>0)rows.push(['Armor-piercing damage',numbers.format(encounter.armor_piercing_damage)]);
+    if((encounter.highest_attack_chain||0)>0)rows.push(['Longest attack chain',numbers.format(encounter.highest_attack_chain)]);
+    if((encounter.combo_score||0)>0)rows.push(['Combo score',numbers.format(encounter.combo_score)]);
 
     const unclassified=Math.max(0,(encounter.damage_taken||0)-(encounter.hazard_damage_taken||0)-(encounter.enemy_damage_taken||0));
     if(unclassified>.001)rows.push(['Damage without source records',numbers.format(unclassified)]);
@@ -610,6 +613,8 @@
     put($('rift-recovery-preview'),continues?'Continue: +'+Math.max(0,health-run.player.hp).toFixed(1)+' HP → '+health.toFixed(1)+'/'+run.player.max_hp.toFixed(1)+' HP; mana refills to 100. Leaving gives no recovery.':'Final checkpoint: bank your rewards and finish. No next-tier recovery.');
     put($('rift-objective'),run.status==='fighting'?(run.room_objective&&!run.room_objective.complete?(run.room_objective.kind==='split_defense'?'Defend both lane wards and defeat the patrol':run.room_objective.kind==='rune_gate'?'Clear the patrol and open the rune gate':run.room_objective.kind==='protect_lantern'?'Protect the lantern and defeat the patrol':run.room_objective.kind==='rescue_companions'?'Rescue the companions and defeat the patrol':run.room_objective.kind==='linked_guardians'?'Defeat the linked guardians and patrol':run.room_objective.kind==='escape_collapse'?'Reach the exit before the collapse':run.room_objective.kind==='interrupt_ritual'?'Interrupt the ritual and defeat the patrol':run.room_objective.kind==='escort_spirit'?'Escort the spirit and defeat the patrol':run.room_objective.kind==='moving_beacons'?'Capture the moving beacons and defeat the patrol':run.room_objective.kind==='marked_hunt'?'Defeat the marked hunt targets':run.room_objective.kind==='disable_generators'?'Disable the generators and defeat the patrol':run.room_objective.kind==='carry_relic'?'Deliver the relic and defeat the patrol':run.room_objective.kind==='destroy_totems'?'Destroy the totems and defeat the patrol':run.room_objective.kind==='survive_waves'?'Survive all three waves':run.room_objective.kind==='hold_circle'?'Charge the circle and defeat the patrol':'Gather the sigils and defeat the patrol'):boss?'Defeat '+boss.name+' and its defenders':'Clear the enemy patrol'):run.status==='cleared'?'Room secured · Loot ready to bank':run.status==='defeated'?'Expedition ended':'Rewards secured');
     put($('rift-jump-ready'),(run.skill_timers.jump||0)>0?'Jump '+run.skill_timers.jump.toFixed(1)+'s':'Jump ready');
+    const dodgeNode=$('rift-dodge-ready');
+    if(dodgeNode)put(dodgeNode,(run.skill_timers.dodge_cooldown||0)>0?'Dodge '+run.skill_timers.dodge_cooldown.toFixed(1)+'s':'Dodge ready');
     put($('rift-combo-step'),'Strike '+(run.combo||0)+'/3');
     put($('rift-barrier-state'),run.barrier>0?'Barrier '+numbers.format(run.barrier):'No barrier');
     const rules=run.build.sequence||'Use equipped class builders and finishers to activate class effects.';
@@ -745,6 +750,10 @@
     values.push(['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['HP lost to hazards',stats.hazard_damage_taken],['HP lost to enemies',stats.enemy_damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked]);
     if((stats.barrier_blocked||0)>0)values.push(['Barrier prevented',stats.barrier_blocked]);
     if((stats.armor_blocked||0)>0)values.push(['Armor prevented',stats.armor_blocked]);
+    if((stats.armor_piercing_damage||0)>0)values.push(['Armor-piercing damage',stats.armor_piercing_damage]);
+    if((stats.highest_attack_chain||0)>0)values.push(['Longest uninterrupted attack chain',stats.highest_attack_chain]);
+    if((stats.combo_score||0)>0)values.push(['Combo score',stats.combo_score]);
+    if(run.replay_seed!==undefined)values.push(['Deterministic combat replay seed',String(run.replay_seed)]);
     values.push(['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast]);
     if(((stats.charged_finishers||0)+(stats.empty_finishers||0)+(stats.charges_spent||0))>0){
       values.push(['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent]);
@@ -896,6 +905,18 @@
     if(cosmeticText)lines.push('Cosmetic Milestones: '+cosmeticText);
     const improvedText=formatImprovedRecords(run.last_clear);
     if(improvedText)lines.push('Improved Records: '+improvedText);
+    if((stats.armor_piercing_damage||0)>0){
+      lines.push('Armor-Piercing Damage: '+numbers.format(stats.armor_piercing_damage));
+    }
+    if((stats.highest_attack_chain||0)>0){
+      lines.push('Uninterrupted Attack Chain: '+numbers.format(stats.highest_attack_chain));
+    }
+    if((stats.combo_score||0)>0){
+      lines.push('Combo Score: '+numbers.format(stats.combo_score));
+    }
+    if(run.replay_seed!==undefined){
+      lines.push('Replay Seed: '+run.replay_seed);
+    }
     return lines.join('\n');
   }
   window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter,buildResultSummary};

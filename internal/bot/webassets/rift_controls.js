@@ -1,9 +1,9 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id);
-  const definitions=[['up','Move up',['KeyW','ArrowUp']],['left','Move left',['KeyA','ArrowLeft']],['down','Move down',['KeyS','ArrowDown']],['right','Move right',['KeyD','ArrowRight']],['attack','Attack',['KeyJ']],['jump','Jump',['Space','KeyK']],['guard','Guard',['KeyL']],['signature0','Class builder',['KeyQ']],['signature1','Class finisher',['KeyE']],['skill0','Equipped skill 1',['Digit1']],['skill1','Equipped skill 2',['Digit2']],['skill2','Equipped skill 3',['Digit3']],['ultimate','Ultimate',['KeyR']],['pause','Pause / resume',['Escape']]];
+  const definitions=[['up','Move up',['KeyW','ArrowUp']],['left','Move left',['KeyA','ArrowLeft']],['down','Move down',['KeyS','ArrowDown']],['right','Move right',['KeyD','ArrowRight']],['attack','Attack',['KeyJ']],['jump','Jump',['Space','KeyK']],['dodge','Directional dodge',['KeyC']],['guard','Guard',['KeyL']],['signature0','Class builder',['KeyQ']],['signature1','Class finisher',['KeyE']],['skill0','Equipped skill 1',['Digit1']],['skill1','Equipped skill 2',['Digit2']],['skill2','Equipped skill 3',['Digit3']],['ultimate','Ultimate',['KeyR']],['pause','Pause / resume',['Escape']]];
   const defaults=Object.fromEntries(definitions.map(([id,,keys])=>[id,keys]));
-  const allowed=code=>/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(Up|Down|Left|Right)|Space|Enter|Backspace|Delete|Home|End|PageUp|PageDown|Insert|Comma|Period|Slash|Semicolon|Quote|BracketLeft|BracketRight|Backslash|Minus|Equal|Backquote)$/.test(code);
+  const allowed=code=>/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Backspace|Delete|Home|End|PageUp|PageDown|Insert|Comma|Period|Slash|Semicolon|Quote|BracketLeft|BracketRight|Backslash|Minus|Equal|Backquote)$/.test(code);
   const keyName=code=>code.replace(/^Key/,'').replace(/^Digit/,'');
   function sanitize(saved){
     const next={};
@@ -70,6 +70,7 @@
       'Combat Actions:',
       '  Attack:             '+(bindings.attack||[]).map(keyName).join(' / ')+(pointer.attack!==-1?' (Mouse: '+mouseLabel('attack')+')':''),
       '  Jump:               '+(bindings.jump||[]).map(keyName).join(' / '),
+      '  Directional dodge:  '+(bindings.dodge||[]).map(keyName).join(' / '),
       '  Guard:              '+(bindings.guard||[]).map(keyName).join(' / ')+(pointer.guard!==-1?' (Mouse: '+mouseLabel('guard')+')':'')+' ['+(toggleGuard?'Toggle mode':'Hold mode')+']',
       '  Class builder:      '+(bindings.signature0||[]).map(keyName).join(' / '),
       '  Class finisher:     '+(bindings.signature1||[]).map(keyName).join(' / '),

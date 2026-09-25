@@ -1,6 +1,9 @@
 package rift
 
 func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
+	if r.SkillTimers["room_entry_grace"] > 0 {
+		return
+	}
 	guards := r.Stats.Guards
 	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
@@ -25,6 +28,9 @@ func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
 }
 
 func (r *Run) hurtPlayerFromHazard(damage, x, y float64) {
+	if r.SkillTimers["room_entry_grace"] > 0 {
+		return
+	}
 	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
 	r.hurtPlayer(damage, x, y)

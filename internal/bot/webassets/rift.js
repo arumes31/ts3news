@@ -192,6 +192,7 @@
     const value = {x:direction('right','left')||Number(held('right'))-Number(held('left')),
       y:direction('down','up')||Number(held('down'))-Number(held('up')),
       attack:pressed('attack')||held('attack'),guard:controls.toggleGuard?guardLatched:pressed('guard')||held('guard'),jump:window.RiftJump.input(pressed('jump')||held('jump')),
+      dodge:pressed('dodge')||held('dodge'),
       skill:''};
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||touchJoystick.x||pad.x;value.y=value.y||touchJoystick.y||pad.y;taps.clear();return value;

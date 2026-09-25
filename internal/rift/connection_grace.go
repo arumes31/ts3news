@@ -12,4 +12,5 @@ func (r *Run) recoverConnection(now time.Time) {
 		r.SkillTimers = map[string]float64{}
 	}
 	r.SkillTimers["connection_grace"] = 1.2
+	r.FirstHitGrace = true
 }

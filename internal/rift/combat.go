@@ -205,6 +205,9 @@ type EncounterSummary struct {
 	HitsTaken       int                  `json:"hits_taken"`
 	GuardBlocked    float64              `json:"guard_blocked"`
 	BarrierBlocked  float64              `json:"barrier_blocked"`
+	ArmorPiercingDamage float64          `json:"armor_piercing_damage"`
+	ComboScore      int                  `json:"combo_score"`
+	HighestAttackChain int               `json:"highest_attack_chain"`
 	Healing         float64              `json:"healing"`
 	GoldGained      int64                `json:"gold_gained"`
 	LootItems       int                  `json:"loot_items"`
@@ -222,6 +225,9 @@ type RoomBaseline struct {
 	HitsTaken      int     `json:"hits_taken"`
 	GuardBlocked   float64 `json:"guard_blocked"`
 	BarrierBlocked float64 `json:"barrier_blocked"`
+	ArmorPiercingDamage float64 `json:"armor_piercing_damage"`
+	ComboScore     int     `json:"combo_score"`
+	HighestAttackChain int `json:"highest_attack_chain"`
 	Healing        float64 `json:"healing"`
 	Kills          int     `json:"kills"`
 	Bosses         int     `json:"bosses"`
@@ -300,6 +306,9 @@ type Run struct {
 	Combo               int                      `json:"combo"`
 	ComboTime           float64                  `json:"combo_time,omitempty"`
 	Floor               string                   `json:"floor,omitempty"`
+	ReplaySeed          uint64                   `json:"replay_seed"`
+	FirstHitGrace       bool                     `json:"first_hit_grace,omitempty"`
+	AttackChain         int                      `json:"attack_chain"`
 	jumpAir             float64
 	jumpDist            float64
 	projectileCandidates projectileBuckets
@@ -313,6 +322,7 @@ type Input struct {
 	Guard  bool    `json:"guard"`
 	Jump   bool    `json:"jump"`
 	Skill  string  `json:"skill"`
+	Dodge  bool    `json:"dodge,omitempty"`
 }
 
 // ValidMovement accepts finite stick axes and legacy digital directions.
@@ -334,6 +344,7 @@ func (r *Run) spawnRoom() {
 	r.RoomStartHits = &hits
 	seconds := r.Stats.Seconds
 	r.RoomStartSeconds = &seconds
+	r.AttackChain = 0
 	r.RoomBaseline = &RoomBaseline{
 		Seconds:        r.Stats.Seconds,
 		DamageDealt:    r.Stats.DamageDealt,
@@ -343,6 +354,9 @@ func (r *Run) spawnRoom() {
 		HitsTaken:      r.Stats.HitsTaken,
 		GuardBlocked:   r.Stats.GuardBlocked,
 		BarrierBlocked: r.Stats.BarrierBlocked,
+		ArmorPiercingDamage: r.Stats.ArmorPiercingDamage,
+		ComboScore:     r.Stats.ComboScore,
+		HighestAttackChain: r.Stats.HighestAttackChain,
 		Healing:        r.Stats.Healing,
 		Kills:          r.Stats.Kills,
 		Bosses:         r.Stats.Bosses,
@@ -437,6 +451,13 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		kills = max(0, kills-r.RoomBaseline.Kills)
 		goldGained = max(0, goldGained-r.RoomBaseline.Gold)
 	}
+	armorPiercingDamage := r.Stats.ArmorPiercingDamage
+	comboScore := r.Stats.ComboScore
+	highestAttackChain := r.Stats.HighestAttackChain
+	if r.RoomBaseline != nil {
+		armorPiercingDamage = max(0, armorPiercingDamage-r.RoomBaseline.ArmorPiercingDamage)
+		comboScore = max(0, comboScore-r.RoomBaseline.ComboScore)
+	}
 
 	lootItems := 0
 	for _, d := range r.Drops {
@@ -488,12 +509,22 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		HitsTaken:       hitsTaken,
 		GuardBlocked:    guardBlocked,
 		BarrierBlocked:  barrierBlocked,
+		ArmorPiercingDamage: armorPiercingDamage,
+		ComboScore:      comboScore,
+		HighestAttackChain: highestAttackChain,
 		Healing:         healing,
 		GoldGained:      goldGained,
 		LootItems:       lootItems,
 		BankedGold:      r.BankedGold,
 		BankedItemsCount: len(r.BankedItems),
 	}
+}
+
+func (r *Run) GrantRoomEntryGrace() {
+	if r.SkillTimers == nil {
+		r.SkillTimers = map[string]float64{}
+	}
+	r.SkillTimers["room_entry_grace"] = 1.2
 }
 
 func (r *Run) NextRoom() bool {
@@ -506,6 +537,7 @@ func (r *Run) NextRoom() bool {
 	r.Player.Mana = 100
 	r.SetPaused(false, time.UnixMilli(r.LastMS))
 	r.spawnRoom()
+	r.GrantRoomEntryGrace()
 	return true
 }
 
@@ -531,6 +563,9 @@ func (r *Run) Land(intensity float64) {
 func (r *Run) Step(in Input, now time.Time) {
 	if !in.ValidMovement() {
 		return
+	}
+	if r.ReplaySeed == 0 && r.ID != "" {
+		r.ReplaySeed = computeReplaySeed(r.ID)
 	}
 	r.recoverConnection(now)
 	in = r.practiceInput(in)
@@ -578,6 +613,7 @@ func (r *Run) tick(in Input, dt float64) {
 		if r.ComboTime < .000001 {
 			r.Combo = 0
 			r.ComboTime = 0
+			r.AttackChain = 0
 		}
 	}
 	r.Clock += dt
@@ -623,6 +659,29 @@ func (r *Run) tick(in Input, dt float64) {
 	} else if !p.Guard && r.SkillTimers != nil {
 		delete(r.SkillTimers, "perfect_guard")
 	}
+	if in.Dodge && r.SkillTimers["dodge_cooldown"] <= 0 && p.Pose != "recovery" && p.Pose != "defeat" && p.Knockdown == 0 {
+		const dodgeDuration = 0.35
+		const dodgeCooldown = 1.0
+		r.SkillTimers["dodge_invulnerability"] = dodgeDuration
+		r.SkillTimers["dodge_cooldown"] = dodgeCooldown
+		p.Pose = "dodge"
+		p.PoseTime = dodgeDuration
+
+		dodgeX, dodgeY := in.X, in.Y
+		hyp := math.Hypot(dodgeX, dodgeY)
+		if hyp > 0.001 {
+			dodgeX /= hyp
+			dodgeY /= hyp
+		} else {
+			dodgeX = p.Facing
+			dodgeY = 0
+		}
+		if dodgeX != 0 {
+			p.Facing = math.Copysign(1, dodgeX)
+		}
+		r.moveActor(p, dodgeX*320*dt*3, dodgeY*320*.6*dt*3, false)
+		r.eventAtHeight("dodge_action", p.X, p.Y-25, 0, p.Elevation)
+	}
 	speed := 235.0
 	if r.SkillTimers["slowed"] > 0 {
 		speed *= .6
@@ -633,11 +692,17 @@ func (r *Run) tick(in Input, dt float64) {
 	if r.RoomObjective != nil && r.RoomObjective.Kind == "carry_relic" && r.RoomObjective.Carrying {
 		speed *= .7
 	}
+	if p.Pose == "dodge" {
+		speed = 340
+	}
 	x, y := in.X, in.Y
 	length := math.Hypot(x, y)
 	if length > 1 {
 		x /= length
 		y /= length
+	}
+	if p.Pose == "dodge" && length == 0 {
+		x = p.Facing
 	}
 	if wasJumping {
 		r.jumpAir += dt
@@ -744,6 +809,7 @@ func (r *Run) tick(in Input, dt float64) {
 		hitCover := r.attackTerrainCover(r.Build.Damage * (1 + float64(r.Combo-1)*.2))
 		if !hitTarget && !hitCover {
 			r.Stats.BasicMisses++
+			r.AttackChain = 0
 		}
 	}
 	if in.Skill != "" && !p.Guard {
@@ -781,11 +847,11 @@ func (r *Run) tick(in Input, dt float64) {
 		hit := false
 		if shot.Enemy {
 			if math.Abs(shot.X-p.X) < projectilePlayerRadiusX && math.Abs(shot.Y-p.Y) < projectilePlayerRadiusY {
-				if p.Jump < .1 {
-					r.hurtPlayerFromEnemy(shot.Power, shot.X, shot.Y, shot.OwnerID)
+				if r.SkillTimers["dodge_invulnerability"] > 0 || p.Jump >= .1 {
+					r.recordDodge()
 					hit = true
 				} else {
-					r.recordDodge()
+					r.hurtPlayerFromEnemy(shot.Power, shot.X, shot.Y, shot.OwnerID)
 					hit = true
 				}
 			}
@@ -1011,15 +1077,30 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.Kind == "boss" && e.WeakPoint > 0 {
 		damage *= 1.25
 	}
-	damage *= 1 - armor*(1-clamp(pierce, 0, 1))
+	baseFactor := 1 - armor
+	effectiveFactor := 1 - armor*(1-clamp(pierce, 0, 1))
+	damage *= effectiveFactor
 	if r.guardianBondActive(e.ID) {
 		damage *= .5
 	}
 	damage = math.Min(e.HP, math.Max(0, damage))
+	if pierce > 0 && armor > 0 && effectiveFactor > baseFactor && damage > 0 {
+		piercedPortion := damage * (effectiveFactor - baseFactor) / effectiveFactor
+		r.Stats.ArmorPiercingDamage += piercedPortion
+	}
 	prevHP := e.HP
 	e.HP = math.Max(0, e.HP-damage)
 	r.Stats.DamageDealt += damage
 	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
+	if damage > 0 {
+		r.AttackChain++
+		r.Stats.HighestAttackChain = max(r.Stats.HighestAttackChain, r.AttackChain)
+		comboBonus := 25
+		if r.Combo > 0 {
+			comboBonus = 10 * r.Combo
+		}
+		r.awardComboScore(comboBonus)
+	}
 	if e.Pose != "stagger" {
 		e.Pose = "hit"
 		e.PoseTime = .2
@@ -1126,13 +1207,29 @@ func (r *Run) escapeEnemy(i int) {
 	r.event(e.Kind+"_escape", e.X, e.Y, 0)
 }
 
+func (r *Run) awardComboScore(points int) {
+	if points <= 0 {
+		return
+	}
+	const maxComboScore = 50000
+	r.Stats.ComboScore = min(maxComboScore, r.Stats.ComboScore+points)
+}
+
 func (r *Run) hurtPlayer(damage, x, y float64) {
-	if r.SkillTimers["connection_grace"] > 0 {
+	if r.SkillTimers["connection_grace"] > 0 || r.SkillTimers["dodge_invulnerability"] > 0 {
+		if r.SkillTimers["dodge_invulnerability"] > 0 {
+			r.recordDodge()
+		}
 		return
 	}
 	p := &r.Player
 	if p.HP <= 0 {
 		return
+	}
+	if r.FirstHitGrace {
+		r.FirstHitGrace = false
+		damage *= 0.5
+		r.eventAtHeight("first_hit_grace", p.X, p.Y-30, damage, p.Elevation)
 	}
 	incoming := damage
 	damage = math.Max(2, damage-r.Build.Armor*.4)
@@ -1164,6 +1261,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	r.Stats.DamageTaken += damage
 	if damage > 0 {
 		r.Stats.HitsTaken++
+		r.AttackChain = 0
 	}
 	if p.HP == 0 {
 		p.Pose = "defeat"
@@ -1328,31 +1426,31 @@ func (r *Run) enemyTick(i int, dt float64) {
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
 				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 {
-					if p.Jump < .1 {
-						r.hurtPlayerFromEnemy(max(32, e.Damage*1.4), e.X, e.Y, e.ID)
-					} else {
+					if r.SkillTimers["dodge_invulnerability"] > 0 || p.Jump >= .1 {
 						r.recordDodge()
+					} else {
+						r.hurtPlayerFromEnemy(max(32, e.Damage*1.4), e.X, e.Y, e.ID)
 					}
 				}
-				if math.Abs(p.X-e.TargetX) >= 125 || math.Abs(p.Y-e.TargetY) >= 62 || p.Jump >= .1 {
+				if math.Abs(p.X-e.TargetX) >= 125 || math.Abs(p.Y-e.TargetY) >= 62 || p.Jump >= .1 || r.SkillTimers["dodge_invulnerability"] > 0 {
 					e.WeakPoint = .8
 				}
 			} else {
 				r.event(e.Kind+"_attack", e.X, e.Y, 0)
 				inReach := math.Abs(dx) < 85 && math.Abs(dy) < 33 && r.clearMeleePath(e, p)
-				if e.Kind == "knight" && (!inReach || p.Jump >= .25) {
+				if e.Kind == "knight" && (!inReach || p.Jump >= .25 || r.SkillTimers["dodge_invulnerability"] > 0) {
 					e.Cooldown = 2.2
 					e.PoseTime = .8
 				}
 				if inReach {
-					if p.Jump < .25 {
+					if r.SkillTimers["dodge_invulnerability"] > 0 || p.Jump >= .25 {
+						r.recordDodge()
+					} else {
 						power := e.Damage
 						if power <= 0 {
 							power = 19 + float64(r.Room)*4
 						}
 						r.hurtPlayerFromEnemy(power, e.X, e.Y, e.ID)
-					} else {
-						r.recordDodge()
 					}
 				}
 			}
