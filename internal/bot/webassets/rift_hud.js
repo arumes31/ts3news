@@ -20,6 +20,36 @@
   let hintsEnabled=true,hazardHintState=null,missHintState=null;
   try{hintsEnabled=localStorage.getItem('riftContextHints')!=='false';}catch(_){}
   hintSetting.checked=hintsEnabled;
+  let hideDetailedStats=false;
+  try{hideDetailedStats=localStorage.getItem('riftHideDetailedStats')==='true';}catch(_){}
+  const hideDetailedSetting=$('rift-hide-detailed-stats');
+  if(hideDetailedSetting){
+    hideDetailedSetting.checked=hideDetailedStats;
+    hideDetailedSetting.onchange=()=>{
+      hideDetailedStats=hideDetailedSetting.checked;
+      try{localStorage.setItem('riftHideDetailedStats',String(hideDetailedStats));}catch(_){}
+      syncDetailedStatsVisibility();
+    };
+  }
+  const toggleDetailedBtn=$('rift-toggle-encounter-stats');
+  if(toggleDetailedBtn){
+    toggleDetailedBtn.onclick=()=>{
+      hideDetailedStats=!hideDetailedStats;
+      try{localStorage.setItem('riftHideDetailedStats',String(hideDetailedStats));}catch(_){}
+      if(hideDetailedSetting)hideDetailedSetting.checked=hideDetailedStats;
+      syncDetailedStatsVisibility();
+    };
+  }
+  function syncDetailedStatsVisibility(){
+    const statsEl=$('rift-last-encounter-stats');
+    const btn=$('rift-toggle-encounter-stats');
+    if(statsEl)statsEl.hidden=hideDetailedStats;
+    if(btn){
+      btn.textContent=hideDetailedStats?'Show details':'Hide details';
+      btn.setAttribute('aria-expanded',String(!hideDetailedStats));
+    }
+  }
+  syncDetailedStatsVisibility();
   const hazardCoaching=document.createElement('p');hazardCoaching.id='rift-hazard-coaching';hazardCoaching.hidden=true;hazardCoaching.setAttribute('role','status');document.querySelector('.rift-combat-signals').after(hazardCoaching);
   const missCoaching=document.createElement('p');missCoaching.id='rift-miss-coaching';missCoaching.hidden=true;missCoaching.setAttribute('role','status');hazardCoaching.after(missCoaching);
   hintSetting.onchange=()=>{hintsEnabled=hintSetting.checked;hazardCoaching.hidden=true;hazardHintState=null;missCoaching.hidden=true;missHintState=null;if(!hintsEnabled){for(const id of ['rift-class-coaching','rift-terrain-hint','rift-boss-practice-lesson'])$(id).hidden=true;}window.dispatchEvent(new Event('riftcontextprefschange'));if(lastObservedRun)updateLastEncounter(lastObservedRun);try{localStorage.setItem('riftContextHints',String(hintsEnabled));}catch(_){}};
@@ -324,14 +354,14 @@
       ['Tier & location',encounter.mission_name+' · '+tierLabel],
       ['Combat duration',durationLabel],
       ['Ending health',hpLabel],
-      ['Enemies defeated',String(encounter.enemies||0)+(encounter.boss_name?' (Boss: '+encounter.boss_name+')':'')],
+      ['Enemies defeated',numbers.format(encounter.enemies||0)+(encounter.boss_name?' (Boss: '+encounter.boss_name+')':'')],
       ['Damage dealt',numbers.format(encounter.damage_dealt||0)],
-      ['Damage taken',numbers.format(encounter.damage_taken||0)+' ('+(encounter.hits_taken||0)+' '+((encounter.hits_taken===1)?'hit':'hits')+')'],
+      ['Damage taken',numbers.format(encounter.damage_taken||0)+' ('+numbers.format(encounter.hits_taken||0)+' '+((encounter.hits_taken===1)?'hit':'hits')+')'],
       ['HP lost to hazards',numbers.format(encounter.hazard_damage_taken||0)],
       ['HP lost to enemies',numbers.format(encounter.enemy_damage_taken||0)],
-      ['Guarded damage',numbers.format(encounter.guard_blocked||0)],
-      ['Barrier absorbed',numbers.format(encounter.barrier_blocked||0)]
+      ['Guarded damage',numbers.format(encounter.guard_blocked||0)]
     ];
+    if((encounter.barrier_blocked||0)>0)rows.push(['Barrier absorbed',numbers.format(encounter.barrier_blocked)]);
 
     const unclassified=Math.max(0,(encounter.damage_taken||0)-(encounter.hazard_damage_taken||0)-(encounter.enemy_damage_taken||0));
     if(unclassified>.001)rows.push(['Damage without source records',numbers.format(unclassified)]);
@@ -356,7 +386,7 @@
     }
 
     if((encounter.treasure_escaped||0)>0){
-      rows.push(['Treasure goblins escaped',String(encounter.treasure_escaped)+' · No loot or defeat credit']);
+      rows.push(['Treasure goblins escaped',numbers.format(encounter.treasure_escaped)+' · No loot or defeat credit']);
     }
 
     if((encounter.healing||0)>0){
@@ -366,11 +396,11 @@
     if(isDefeated){
       const bankedGold=encounter.banked_gold||0;
       const bankedItems=encounter.banked_items_count||0;
-      rows.push(['Banked rewards kept',numbers.format(bankedGold)+' gold · '+bankedItems+' '+((bankedItems===1)?'item':'items')]);
+      rows.push(['Banked rewards kept',numbers.format(bankedGold)+' gold · '+numbers.format(bankedItems)+' '+((bankedItems===1)?'item':'items')]);
     }
 
     if((encounter.gold_gained||0)>0||(encounter.loot_items||0)>0){
-      const lootText=numbers.format(encounter.gold_gained||0)+' gold'+((encounter.loot_items||0)>0?' · '+(encounter.loot_items)+' '+((encounter.loot_items===1)?'item':'items'):'');
+      const lootText=numbers.format(encounter.gold_gained||0)+' gold'+((encounter.loot_items||0)>0?' · '+numbers.format(encounter.loot_items)+' '+((encounter.loot_items===1)?'item':'items'):'');
       rows.push([isDefeated?'Unbanked loot lost':'Loot collected',lootText]);
     }
 
@@ -386,6 +416,7 @@
         statsNode.append(dt,dd);
       }
     }
+    syncDetailedStatsVisibility();
   }
   let terrainCoachingState=null;
   function terrainCoachingAllowed(run,kind){
@@ -637,11 +668,29 @@
     for(const [id,skills] of [['rift-skills',run.build.skills],['rift-signatures',[...(run.build.signatures||[]),...(run.build.ultimate?[run.build.ultimate]:[])]]]){
       [...$(id).children].forEach((button,index)=>{const skill=skills[index];if(!skill)return;const why=reason(skill,run,playing);window.RiftAbilities.update(button,skill,run,why,skill===run.build.ultimate);});
     }
-    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses],['Treasure goblins defeated',stats.treasure_goblins],['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['HP lost to hazards',stats.hazard_damage_taken],['HP lost to enemies',stats.enemy_damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked],['Barrier prevented',stats.barrier_blocked],['Armor prevented',stats.armor_blocked],['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast],['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent],['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]];
+    const values=[['Current mission clear streak',run.clear_streak],['Best mission clear streak',run.best_clear_streak],['Paused seconds (completed pauses)',stats.paused_seconds],['Enemies defeated',stats.kills],['Bosses defeated',stats.bosses]];
+    if((stats.treasure_goblins||0)>0)values.push(['Treasure goblins defeated',stats.treasure_goblins]);
+    values.push(['Rooms cleared',stats.rooms_cleared],['Damage dealt',stats.damage_dealt],['Damage taken',stats.damage_taken],['HP lost to hazards',stats.hazard_damage_taken],['HP lost to enemies',stats.enemy_damage_taken],['Damaging hits taken',stats.hits_taken],['Healing received',stats.healing],['Guard prevented',stats.guard_blocked]);
+    if((stats.barrier_blocked||0)>0)values.push(['Barrier prevented',stats.barrier_blocked]);
+    if((stats.armor_blocked||0)>0)values.push(['Armor prevented',stats.armor_blocked]);
+    values.push(['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast]);
+    if(((stats.charged_finishers||0)+(stats.empty_finishers||0)+(stats.charges_spent||0))>0){
+      values.push(['Charged finishers',stats.charged_finishers],['Finishers without charges',stats.empty_finishers],['Charges spent',stats.charges_spent]);
+    }
+    values.push(['Highest basic combo strike (of 3)',stats.highest_combo],['Basic attacks',stats.attacks],['Successful guards',stats.guards],['Jumps',stats.jumps]);
     const unclassifiedDamage=Math.max(0,(stats.damage_taken||0)-(stats.hazard_damage_taken||0)-(stats.enemy_damage_taken||0));
     if(unclassifiedDamage>.001)values.push(['Damage without source records',unclassifiedDamage]);
     const abilityUses=[...run.build.skills.map(skill=>[skill,'optional']),...(run.build.signatures||[]).map(skill=>[skill,skill.role||'class']),...(run.build.ultimate?[[run.build.ultimate,'ultimate']]:[])];
-    let attributed=0,attributedMana=0,attributedHealing=0,attributedBarrier=0;for(const [skill,kind] of abilityUses){const casts=stats.skill_uses?.[skill.id]||0,mana=stats.skill_mana?.[skill.id]||0,healing=stats.skill_healing?.[skill.id]||0,barrier=stats.skill_barrier?.[skill.id]||0;attributed+=casts;attributedMana+=mana;attributedHealing+=healing;attributedBarrier+=barrier;const name=skill.name+' ('+kind+')';values.push(['Casts · '+name,casts],['Mana · '+name,mana],['Hits · '+name,stats.skill_hits?.[skill.id]||0],['Healing · '+name,healing],['Absorbed · '+name,barrier]);}
+    let attributed=0,attributedMana=0,attributedHealing=0,attributedBarrier=0;
+    for(const [skill,kind] of abilityUses){
+      const casts=stats.skill_uses?.[skill.id]||0,mana=stats.skill_mana?.[skill.id]||0,healing=stats.skill_healing?.[skill.id]||0,barrier=stats.skill_barrier?.[skill.id]||0,hits=stats.skill_hits?.[skill.id]||0;
+      attributed+=casts;attributedMana+=mana;attributedHealing+=healing;attributedBarrier+=barrier;
+      const name=skill.name+' ('+kind+')';
+      values.push(['Casts · '+name,casts],['Mana · '+name,mana]);
+      if(hits>0)values.push(['Hits · '+name,hits]);
+      if(healing>0)values.push(['Healing · '+name,healing]);
+      if(barrier>0)values.push(['Absorbed · '+name,barrier]);
+    }
     if((stats.skills_cast||0)>attributed)values.push(['Earlier casts without per-skill records',stats.skills_cast-attributed]);
     if((stats.mana_spent||0)>attributedMana+.001)values.push(['Earlier mana without per-skill records',stats.mana_spent-attributedMana]);
     if((stats.healing||0)>attributedHealing+.001)values.push(['Healing without per-skill records',stats.healing-attributedHealing]);
@@ -660,5 +709,49 @@
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
-  window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter};
+  function buildResultSummary(run){
+    if(!run)return '';
+    const stats=run.stats||{};
+    const isLost=run.status==='defeated';
+    const isComplete=run.status==='complete';
+    const isBanked=run.status==='banked';
+    const missionName=run.level?.name||('Mission '+(run.level?.id||1));
+    const roomIndex=(run.room||0)+1;
+    const roomName=run.level?.rooms?.[run.room]?.name||('Tier '+roomIndex);
+    const outcomeText=isComplete?'Expedition Cleared (All 3 Tiers)':isBanked?'Voluntary Exit at Checkpoint (Tier '+roomIndex+')':isLost?'Expedition Defeat (Tier '+roomIndex+': '+roomName+')':'Expedition in Progress';
+    const duration=Number(stats.seconds||0).toFixed(1)+'s combat';
+    const damageDealt=numbers.format(stats.damage_dealt||0);
+    const damageTaken=numbers.format(stats.damage_taken||0)+' ('+numbers.format(stats.hits_taken||0)+' '+((stats.hits_taken===1)?'hit':'hits')+')';
+    const bankedRewards=numbers.format(run.banked_gold||0)+' gold · '+numbers.format(run.banked_items?.length||0)+' '+((run.banked_items?.length===1)?'item':'items');
+
+    const lines=[
+      'Abyss Rift Brawl — Result Summary',
+      'Mission: '+missionName,
+      'Outcome: '+outcomeText,
+      'Duration: '+duration,
+      'Damage Dealt: '+damageDealt,
+      'Damage Taken: '+damageTaken,
+      'Banked Rewards: '+bankedRewards
+    ];
+    if(isLost){
+      const finalHit=run.defeated_by_hazard?('Hazard: '+run.defeated_by_hazard.kind):run.defeated_by_boss?('Boss: '+run.defeated_by_boss):run.defeated_by_enemy?('Enemy: '+run.defeated_by_enemy):'';
+      const exactCause=run.defeat_cause||finalHit;
+      if(exactCause)lines.push('Defeat Cause: '+exactCause);
+      if(finalHit)lines.push('Final Hit: '+finalHit);
+      const lostGold=numbers.format(run.gold||0);
+      const lostDrops=numbers.format((run.drops||[]).filter(d=>!d.banked).length);
+      lines.push('Lost Pending Finds: '+lostGold+' gold · '+lostDrops+' items');
+    }
+    if((stats.healing||0)>0){
+      lines.push('Healing Received: '+numbers.format(stats.healing));
+    }
+    if((stats.guard_blocked||0)>0){
+      lines.push('Guarded Damage: '+numbers.format(stats.guard_blocked));
+    }
+    if((stats.barrier_blocked||0)>0){
+      lines.push('Barrier Absorbed: '+numbers.format(stats.barrier_blocked));
+    }
+    return lines.join('\n');
+  }
+  window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter,buildResultSummary};
 })();

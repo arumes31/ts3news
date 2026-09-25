@@ -1130,6 +1130,28 @@
       window.location.href='/abyss/rift?practice=boss'+(bossName?'&boss='+encodeURIComponent(bossName):'');
     });
   }
+  const copyResultBtn=$('rift-copy-result-summary');
+  if(copyResultBtn){
+    copyResultBtn.addEventListener('click',async()=>{
+      if(!run)return;
+      const text=window.RiftHUD?.buildResultSummary?window.RiftHUD.buildResultSummary(run):'';
+      if(!text)return;
+      const statusEl=$('rift-result-copy-status');
+      try{
+        await navigator.clipboard.writeText(text);
+        if(statusEl){
+          statusEl.textContent='Summary copied.';
+          statusEl.hidden=false;
+          setTimeout(()=>{statusEl.hidden=true;},3000);
+        }
+      }catch(_){
+        if(statusEl){
+          statusEl.textContent='Copy unavailable.';
+          statusEl.hidden=false;
+        }
+      }
+    });
+  }
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?statusCopy.expeditionComplete:statusCopy.checkpointReached);});
   $('rift-auto').addEventListener('change',()=>{try{localStorage.setItem('rift-auto',String($('rift-auto').checked));}catch(_){}clearedAt=0;countdownAnnounced=-1;if(run)update(run,true);});
   $('rift-exit').addEventListener('click',()=>checkpoint('exit'));

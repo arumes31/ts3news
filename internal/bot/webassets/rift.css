@@ -98,6 +98,21 @@
   font-size: 15px;
   color: #f7e6b5;
 }
+.rift-encounter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#rift-toggle-encounter-stats {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+#rift-result-copy-status {
+  display: inline-block;
+  color: #7ef5a3;
+  font-size: 12px;
+  margin-left: 6px;
+}
 .rift-encounter-badge {
   display: inline-block;
   padding: 2px 8px;
