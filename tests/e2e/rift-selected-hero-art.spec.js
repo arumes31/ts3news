@@ -16,3 +16,11 @@ test('saved build and current build wait for both hero atlases',async({page})=>{
  release();await expect(page.locator('#rift-start')).toBeEnabled();
  await page.evaluate(()=>Promise.all([RiftRenderer.prepareBuild({class:'warden'}),RiftRenderer.prepareBuild({class:'oracle'})]));expect(requested).toBe(1);
 });
+
+test('hero artwork failure remains retryable and concurrent retries share a request',async({page})=>{
+ await page.goto('/abyss/rift?subclass=vanguard');await expect(page.locator('#rift-start')).toBeEnabled();
+ let attempts=0;await page.route('**/static/rift_heroes_b.png*',async route=>{attempts++;if(attempts===1)await route.abort();else await route.continue();});
+ expect(await page.evaluate(()=>RiftRenderer.prepareBuild({class:'oracle'}).then(()=>'',error=>error.message))).toContain('Could not load character artwork');
+ await page.evaluate(()=>Promise.all([RiftRenderer.prepareBuild({class:'oracle'}),RiftRenderer.prepareBuild({class:'warden'})]));
+ expect(attempts).toBe(2);
+});

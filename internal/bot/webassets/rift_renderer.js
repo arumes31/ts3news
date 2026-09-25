@@ -431,8 +431,7 @@
   // Gate play on canvas atlases only. CSS mission/bestiary previews reuse these
   // URLs, but their DOM image requests must never join the readiness promise.
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
-  // Campaign encounters use regional art. Only regionless legacy boss saves
-  // need this background; keep it out of every ordinary startup download.
+  // Saved expeditions and current build previews can require different sheets.
   const heroLoads=new Map();
   renderer.prepareBuild=async build=>{
     if(!build)return;
@@ -441,6 +440,7 @@
     if(!heroLoads.has(key))heroLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{heroLoads.delete(key);throw new Error('Could not load character artwork. Recover to try again.');}));
     await heroLoads.get(key);
   };
+  // Campaign scenes use regional art; regionless legacy saves retain their background.
   let legacyBossArt=null;
   renderer.prepareRun=async run=>{
     await renderer.prepareBuild(run?.build);
