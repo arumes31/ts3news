@@ -424,6 +424,12 @@
     if((encounter.armor_piercing_damage||0)>0)rows.push(['Armor-piercing damage',numbers.format(encounter.armor_piercing_damage)]);
     if((encounter.highest_attack_chain||0)>0)rows.push(['Longest attack chain',numbers.format(encounter.highest_attack_chain)]);
     if((encounter.combo_score||0)>0)rows.push(['Combo score',numbers.format(encounter.combo_score)]);
+    if((encounter.guard_breaks||0)>0)rows.push(['Guard breaks suffered',numbers.format(encounter.guard_breaks)]);
+    if((encounter.heavy_attacks||0)>0)rows.push(['Heavy basic attacks',numbers.format(encounter.heavy_attacks)]);
+    if((encounter.aerial_attacks||0)>0)rows.push(['Aerial basic attacks',numbers.format(encounter.aerial_attacks)]);
+    if((encounter.sweep_attacks||0)>0)rows.push(['Grounded sweep attacks',numbers.format(encounter.sweep_attacks)]);
+    if((encounter.launchers||0)>0)rows.push(['Launchers against small enemies',numbers.format(encounter.launchers)]);
+    if((encounter.downed_followups||0)>0)rows.push(['Downed enemy follow-ups',numbers.format(encounter.downed_followups)]);
 
     const unclassified=Math.max(0,(encounter.damage_taken||0)-(encounter.hazard_damage_taken||0)-(encounter.enemy_damage_taken||0));
     if(unclassified>.001)rows.push(['Damage without source records',numbers.format(unclassified)]);
@@ -591,12 +597,28 @@
       }
     }
     put($('rift-facing'),run.player.facing<0?'← Facing left':'Facing right →');
-    const guardNode=$('rift-guard-reduction');
-    put(guardNode,run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction after armor':'Guard paused'):'Guard inactive');
+    const guardNode=$('rift-guard-reduction'),staminaNode=$('rift-guard-stamina');
+    const guardStamina=Math.round(run.player.guard_stamina??100);
+    const guardBroken=(run.skill_timers?.guard_break_recovery||0)>0;
+    if(staminaNode){
+      put(staminaNode,guardBroken?'Stamina: Broken ('+run.skill_timers.guard_break_recovery.toFixed(1)+'s)':'Stamina: '+guardStamina+'%');
+      staminaNode.dataset.stamina=String(guardStamina);
+      if(guardBroken)staminaNode.dataset.broken='true';else delete staminaNode.dataset.broken;
+    }
+    put(guardNode,guardBroken?'Guard broken ('+run.skill_timers.guard_break_recovery.toFixed(1)+'s)':run.player.guard&&['fighting','cleared'].includes(run.status)?(playing&&!run.paused?'Guard: 82% frontal reduction (Stamina '+guardStamina+'%)':'Guard paused (Stamina '+guardStamina+'%)'):'Guard inactive');
     const recentGuard=(run.events||[]).some(e=>(e.kind==='block'||e.kind==='perfect_guard')&&(run.counter-e.id)<6);
     if(recentGuard)guardNode.dataset.guardedHit='';else delete guardNode.dataset.guardedHit;
     const guardBtn=document.querySelector('.rift-basics button[data-bind="guard"]');
-    if(guardBtn){if(recentGuard)guardBtn.dataset.guardedHit='';else delete guardBtn.dataset.guardedHit;}
+    if(guardBtn){
+      if(recentGuard)guardBtn.dataset.guardedHit='';else delete guardBtn.dataset.guardedHit;
+      if(guardBroken){
+        guardBtn.setAttribute('aria-disabled','true');
+        guardBtn.dataset.broken='true';
+      }else{
+        guardBtn.removeAttribute('aria-disabled');
+        delete guardBtn.dataset.broken;
+      }
+    }
     put($('rift-enemy-count'),living.length+' '+(living.length===1?'enemy':'enemies')+' remaining');
     const cam=Math.max(0,Math.min(640,run.player.x-350));
     const offLeft=living.filter(e=>e.x<cam),offRight=living.filter(e=>e.x>cam+960),offTotal=offLeft.length+offRight.length;
@@ -753,6 +775,12 @@
     if((stats.armor_piercing_damage||0)>0)values.push(['Armor-piercing damage',stats.armor_piercing_damage]);
     if((stats.highest_attack_chain||0)>0)values.push(['Longest uninterrupted attack chain',stats.highest_attack_chain]);
     if((stats.combo_score||0)>0)values.push(['Combo score',stats.combo_score]);
+    if((stats.guard_breaks||0)>0)values.push(['Guard breaks suffered',stats.guard_breaks]);
+    if((stats.heavy_attacks||0)>0)values.push(['Heavy basic attacks',stats.heavy_attacks]);
+    if((stats.aerial_attacks||0)>0)values.push(['Aerial basic attacks',stats.aerial_attacks]);
+    if((stats.sweep_attacks||0)>0)values.push(['Grounded sweep attacks',stats.sweep_attacks]);
+    if((stats.launchers||0)>0)values.push(['Launchers against small enemies',stats.launchers]);
+    if((stats.downed_followups||0)>0)values.push(['Downed enemy follow-ups',stats.downed_followups]);
     if(run.replay_seed!==undefined)values.push(['Deterministic combat replay seed',String(run.replay_seed)]);
     values.push(['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast]);
     if(((stats.charged_finishers||0)+(stats.empty_finishers||0)+(stats.charges_spent||0))>0){
@@ -913,6 +941,24 @@
     }
     if((stats.combo_score||0)>0){
       lines.push('Combo Score: '+numbers.format(stats.combo_score));
+    }
+    if((stats.guard_breaks||0)>0){
+      lines.push('Guard Breaks: '+numbers.format(stats.guard_breaks));
+    }
+    if((stats.heavy_attacks||0)>0){
+      lines.push('Heavy Basic Attacks: '+numbers.format(stats.heavy_attacks));
+    }
+    if((stats.aerial_attacks||0)>0){
+      lines.push('Aerial Basic Attacks: '+numbers.format(stats.aerial_attacks));
+    }
+    if((stats.sweep_attacks||0)>0){
+      lines.push('Grounded Sweeps: '+numbers.format(stats.sweep_attacks));
+    }
+    if((stats.launchers||0)>0){
+      lines.push('Launchers: '+numbers.format(stats.launchers));
+    }
+    if((stats.downed_followups||0)>0){
+      lines.push('Downed Enemy Follow-ups: '+numbers.format(stats.downed_followups));
     }
     if(run.replay_seed!==undefined){
       lines.push('Replay Seed: '+run.replay_seed);

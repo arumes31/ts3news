@@ -85,7 +85,7 @@ func computeReplaySeed(id string) uint64 {
 
 func newRunState(id string, build Build, now time.Time) *Run {
 	r := &Run{Schema: 1, ID: id, ReplaySeed: computeReplaySeed(id), Build: build, Status: "fighting", LastMS: now.UnixMilli(), SavedAtMS: now.UnixMilli(), SkillTimers: map[string]float64{}, Drops: []Drop{}, BankedItems: []string{}}
-	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1}
+	r.Player = Actor{ID: "player", Name: build.Name, Kind: build.Class, X: 160, Y: 410, HP: build.HP, MaxHP: build.HP, Mana: 100, Facing: 1, GuardStamina: 100}
 	return r
 }
 

@@ -46,6 +46,12 @@ type CombatStats struct {
 	SkillsCast        int                `json:"skills_cast"`
 	Jumps             int                `json:"jumps"`
 	RoomsCleared      int                `json:"rooms_cleared"`
+	GuardBreaks       int                `json:"guard_breaks"`
+	AerialAttacks     int                `json:"aerial_attacks"`
+	SweepAttacks      int                `json:"sweep_attacks"`
+	Launchers         int                `json:"launchers"`
+	DownedFollowups   int                `json:"downed_followups"`
+	HeavyAttacks      int                `json:"heavy_attacks"`
 }
 
 func (r *Run) healPlayer(amount float64) {

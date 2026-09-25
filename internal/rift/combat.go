@@ -95,7 +95,11 @@ type Actor struct {
 	RecoilX   float64 `json:"recoil_x,omitempty"`
 	TargetX   float64 `json:"target_x"`
 	TargetY   float64 `json:"target_y"`
-	Phase     int     `json:"phase,omitempty"`
+	Phase          int     `json:"phase,omitempty"`
+	GuardStamina   float64 `json:"guard_stamina,omitempty"`
+	JuggleCount    int     `json:"juggle_count,omitempty"`
+	InterruptCount int     `json:"interrupt_count,omitempty"`
+	StunResist     float64 `json:"stun_resist,omitempty"`
 }
 
 // HurtCue returns the creature-family hurt audio cue identifier.
@@ -208,6 +212,12 @@ type EncounterSummary struct {
 	ArmorPiercingDamage float64          `json:"armor_piercing_damage"`
 	ComboScore      int                  `json:"combo_score"`
 	HighestAttackChain int               `json:"highest_attack_chain"`
+	GuardBreaks     int                  `json:"guard_breaks,omitempty"`
+	AerialAttacks   int                  `json:"aerial_attacks,omitempty"`
+	SweepAttacks    int                  `json:"sweep_attacks,omitempty"`
+	Launchers       int                  `json:"launchers,omitempty"`
+	DownedFollowups int                  `json:"downed_followups,omitempty"`
+	HeavyAttacks    int                  `json:"heavy_attacks,omitempty"`
 	Healing         float64              `json:"healing"`
 	GoldGained      int64                `json:"gold_gained"`
 	LootItems       int                  `json:"loot_items"`
@@ -228,6 +238,12 @@ type RoomBaseline struct {
 	ArmorPiercingDamage float64 `json:"armor_piercing_damage"`
 	ComboScore     int     `json:"combo_score"`
 	HighestAttackChain int `json:"highest_attack_chain"`
+	GuardBreaks     int    `json:"guard_breaks,omitempty"`
+	AerialAttacks   int    `json:"aerial_attacks,omitempty"`
+	SweepAttacks    int    `json:"sweep_attacks,omitempty"`
+	Launchers       int    `json:"launchers,omitempty"`
+	DownedFollowups int    `json:"downed_followups,omitempty"`
+	HeavyAttacks    int    `json:"heavy_attacks,omitempty"`
 	Healing        float64 `json:"healing"`
 	Kills          int     `json:"kills"`
 	Bosses         int     `json:"bosses"`
@@ -357,6 +373,12 @@ func (r *Run) spawnRoom() {
 		ArmorPiercingDamage: r.Stats.ArmorPiercingDamage,
 		ComboScore:     r.Stats.ComboScore,
 		HighestAttackChain: r.Stats.HighestAttackChain,
+		GuardBreaks:     r.Stats.GuardBreaks,
+		AerialAttacks:   r.Stats.AerialAttacks,
+		SweepAttacks:    r.Stats.SweepAttacks,
+		Launchers:       r.Stats.Launchers,
+		DownedFollowups: r.Stats.DownedFollowups,
+		HeavyAttacks:    r.Stats.HeavyAttacks,
 		Healing:        r.Stats.Healing,
 		Kills:          r.Stats.Kills,
 		Bosses:         r.Stats.Bosses,
@@ -454,9 +476,21 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	armorPiercingDamage := r.Stats.ArmorPiercingDamage
 	comboScore := r.Stats.ComboScore
 	highestAttackChain := r.Stats.HighestAttackChain
+	guardBreaks := r.Stats.GuardBreaks
+	aerialAttacks := r.Stats.AerialAttacks
+	sweepAttacks := r.Stats.SweepAttacks
+	launchers := r.Stats.Launchers
+	downedFollowups := r.Stats.DownedFollowups
+	heavyAttacks := r.Stats.HeavyAttacks
 	if r.RoomBaseline != nil {
 		armorPiercingDamage = max(0, armorPiercingDamage-r.RoomBaseline.ArmorPiercingDamage)
 		comboScore = max(0, comboScore-r.RoomBaseline.ComboScore)
+		guardBreaks = max(0, guardBreaks-r.RoomBaseline.GuardBreaks)
+		aerialAttacks = max(0, aerialAttacks-r.RoomBaseline.AerialAttacks)
+		sweepAttacks = max(0, sweepAttacks-r.RoomBaseline.SweepAttacks)
+		launchers = max(0, launchers-r.RoomBaseline.Launchers)
+		downedFollowups = max(0, downedFollowups-r.RoomBaseline.DownedFollowups)
+		heavyAttacks = max(0, heavyAttacks-r.RoomBaseline.HeavyAttacks)
 	}
 
 	lootItems := 0
@@ -512,6 +546,12 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		ArmorPiercingDamage: armorPiercingDamage,
 		ComboScore:      comboScore,
 		HighestAttackChain: highestAttackChain,
+		GuardBreaks:     guardBreaks,
+		AerialAttacks:   aerialAttacks,
+		SweepAttacks:    sweepAttacks,
+		Launchers:       launchers,
+		DownedFollowups: downedFollowups,
+		HeavyAttacks:    heavyAttacks,
 		Healing:         healing,
 		GoldGained:      goldGained,
 		LootItems:       lootItems,
@@ -649,7 +689,14 @@ func (r *Run) tick(in Input, dt float64) {
 		r.eventAtHeight("thaw", p.X, p.Y-25, 0, p.Elevation)
 	}
 	wasGuarding := p.Guard
-	p.Guard = in.Guard && p.Jump == 0
+	if p.GuardStamina == 0 && p.HP > 0 && r.SkillTimers["guard_break_recovery"] == 0 {
+		p.GuardStamina = 100.0
+	}
+	if r.SkillTimers["guard_break_recovery"] > 0 {
+		p.Guard = false
+	} else {
+		p.Guard = in.Guard && p.Jump == 0
+	}
 	if p.Guard && !wasGuarding {
 		if r.SkillTimers == nil {
 			r.SkillTimers = map[string]float64{}
@@ -658,6 +705,19 @@ func (r *Run) tick(in Input, dt float64) {
 		delete(r.SkillTimers, "vanguard_guard_reward")
 	} else if !p.Guard && r.SkillTimers != nil {
 		delete(r.SkillTimers, "perfect_guard")
+	}
+	if p.Guard {
+		p.GuardStamina = math.Max(0, p.GuardStamina-6.0*dt)
+		if p.GuardStamina == 0 {
+			p.Guard = false
+			p.Pose = "guard_break"
+			p.PoseTime = 1.2
+			r.SkillTimers["guard_break_recovery"] = 1.2
+			r.Stats.GuardBreaks++
+			r.eventAtHeight("guard_break", p.X, p.Y-30, 0, p.Elevation)
+		}
+	} else if r.SkillTimers["guard_break_recovery"] == 0 {
+		p.GuardStamina = math.Min(100.0, p.GuardStamina+25.0*dt)
 	}
 	if in.Dodge && r.SkillTimers["dodge_cooldown"] <= 0 && p.Pose != "recovery" && p.Pose != "defeat" && p.Knockdown == 0 {
 		const dodgeDuration = 0.35
@@ -763,50 +823,156 @@ func (r *Run) tick(in Input, dt float64) {
 		r.jumpDist = 0
 		r.event("jump", p.X, p.Y, 0)
 	}
-	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" {
+	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" && p.Pose != "guard_break" {
 		r.Stats.Attacks++
 		hitTarget := false
-		p.Cooldown = .38
-		p.Pose = "attack"
-		p.PoseTime = .32
-		r.Combo = r.Combo%3 + 1
-		r.ComboTime = comboWindow
-		r.Stats.HighestCombo = max(r.Stats.HighestCombo, r.Combo)
-		r.eventAtHeight("slash", p.X+p.Facing*38, p.Y-25, float64(r.Combo), p.Elevation)
+
+		isAerial := p.Jump > 0
+		isSweep := !isAerial && in.Y > 0.4
+		isLauncher := !isAerial && in.Y < -0.4
+
+		var attackPose string
+		var attackCooldown float64
+		var attackPoseTime float64
+		var attackDmgMult float64
+		var attackEvent string
+		var attackRange float64
+		var isHeavy bool
+
+		if isAerial {
+			attackPose = "aerial_attack"
+			attackCooldown = 0.35
+			attackPoseTime = 0.30
+			attackDmgMult = 1.35
+			attackEvent = "aerial_slash"
+			attackRange = basicMeleeForwardReach
+			r.Stats.AerialAttacks++
+		} else if isSweep {
+			attackPose = "sweep_attack"
+			attackCooldown = 0.40
+			attackPoseTime = 0.32
+			attackDmgMult = 1.15
+			attackEvent = "sweep_attack"
+			attackRange = basicMeleeForwardReach + 10
+			r.Stats.SweepAttacks++
+		} else if isLauncher {
+			attackPose = "launcher_attack"
+			attackCooldown = 0.40
+			attackPoseTime = 0.32
+			attackDmgMult = 1.25
+			attackEvent = "launcher"
+			attackRange = basicMeleeForwardReach
+			r.Stats.Launchers++
+		} else {
+			r.Combo = r.Combo%3 + 1
+			r.ComboTime = comboWindow
+			r.Stats.HighestCombo = max(r.Stats.HighestCombo, r.Combo)
+			if r.Combo == 3 {
+				isHeavy = true
+				attackPose = "heavy_attack"
+				attackCooldown = 0.45
+				attackPoseTime = 0.40
+				attackDmgMult = 1.60
+				attackEvent = "heavy_slash"
+				attackRange = basicMeleeForwardReach + 20
+				r.Stats.HeavyAttacks++
+			} else {
+				attackPose = "attack"
+				attackCooldown = 0.38
+				attackPoseTime = 0.32
+				attackDmgMult = 1.0 + float64(r.Combo-1)*0.2
+				attackEvent = "slash"
+				attackRange = basicMeleeForwardReach
+			}
+		}
+
+		p.Cooldown = attackCooldown
+		p.Pose = attackPose
+		p.PoseTime = attackPoseTime
+
+		r.eventAtHeight(attackEvent, p.X+p.Facing*38, p.Y-25, float64(r.Combo), p.Elevation)
 		for i := range r.Enemies {
 			e := &r.Enemies[i]
-			if e.HP > 0 && inBasicMeleeRange(p, e) && r.clearMeleePath(p, e) {
+			if e.HP <= 0 {
+				continue
+			}
+			var inRange bool
+			if isAerial {
+				inRange = math.Abs(e.X-p.X) < 75 && math.Abs(e.Y-p.Y) < 38
+			} else if isSweep {
+				inRange = (e.X-p.X)*p.Facing >= -25 && (e.X-p.X)*p.Facing < attackRange && math.Abs(e.Y-p.Y) < 42
+			} else {
+				forward := (e.X - p.X) * p.Facing
+				inRange = forward >= -basicMeleeRearOverlap && forward < attackRange && math.Abs(e.Y-p.Y) < basicMeleeLaneReach
+			}
+
+			if inRange && r.clearMeleePath(p, e) {
 				hitTarget = true
-				r.hurtEnemy(i, r.Build.Damage*(1+float64(r.Combo-1)*.2), "hit_"+r.WeaponFamily())
+				dmg := r.Build.Damage * attackDmgMult
+
+				// 0251: Follow-up attack against knocked-down enemies
+				if e.Knockdown > 0 {
+					dmg *= 1.30
+					r.Stats.DownedFollowups++
+					r.eventAtHeight("ground_strike", e.X, e.Y-15, dmg, e.Elevation)
+				}
+
+				// 0255: Damage ceiling for repeated crowd juggling
+				isAirborne := e.Jump > 0
+				if isAirborne {
+					e.JuggleCount++
+					juggleMult := math.Max(0.30, 1.0-float64(e.JuggleCount-1)*0.35)
+					dmg *= juggleMult
+					r.eventAtHeight("juggle_hit", e.X, e.Y-20, float64(e.JuggleCount), e.Elevation)
+				}
+
+				// 0256: Enemy hit-stun resistance after repeated interrupts
+				if e.Windup > 0 {
+					e.InterruptCount++
+					e.StunResist = math.Min(0.75, float64(e.InterruptCount)*0.25)
+				}
+
+				r.hurtEnemy(i, dmg, "hit_"+r.WeaponFamily())
 				if e.HP == 0 && !e.isObjectiveProp() && p.Jump > .1 && r.Practice == nil {
 					r.Stats.AerialFinishes++
 				}
-				if r.Combo == 3 {
+
+				if isLauncher && e.HP > 0 {
+					if !EnemyTraining(e.Kind).ResistsKnockdown && e.Kind != "boss" {
+						e.Jump = 0.55
+						e.Knockdown = 0.55
+						e.Windup = 0
+						r.eventAtHeight("airborne_launch", e.X, e.Y-20, 0, e.Elevation)
+					}
+				} else if isSweep && e.HP > 0 {
+					if e.Kind != "boss" {
+						e.Cooldown = math.Max(e.Cooldown, 0.40)
+					}
+				} else if (r.Combo == 3 || isHeavy) && e.HP > 0 {
 					r.eventAtHeight("third_strike", e.X, e.Y-25, float64(r.Combo), e.Elevation)
-					if e.HP > 0 {
-						if !EnemyTraining(e.Kind).ResistsKnockdown {
-							e.Knockdown = .55
-							e.Windup = 0
-							if r.Practice == nil || e.ID != "practice-target" {
-								direction := p.Facing
-								if e.X != p.X {
-									direction = math.Copysign(1, e.X-p.X)
-								}
-								r.knockbackActor(e, direction*35, 0)
+					if !EnemyTraining(e.Kind).ResistsKnockdown {
+						effectiveKnockdown := 0.55 * (1.0 - e.StunResist*0.5)
+						e.Knockdown = effectiveKnockdown
+						e.Windup = 0
+						if r.Practice == nil || e.ID != "practice-target" {
+							direction := p.Facing
+							if e.X != p.X {
+								direction = math.Copysign(1, e.X-p.X)
 							}
-							r.event("knockdown", e.X, e.Y, 0)
-						} else if e.Kind == "boss" {
-							e.Pose = "stagger"
-							e.PoseTime = .45
-							e.Windup = 0
-							e.Cooldown = math.Max(e.Cooldown, 0.8)
-							r.eventAtHeight("boss_stagger", e.X, e.Y-30, 0, e.Elevation)
+							r.knockbackActor(e, direction*35, 0)
 						}
+						r.event("knockdown", e.X, e.Y, 0)
+					} else if e.Kind == "boss" {
+						e.Pose = "stagger"
+						e.PoseTime = 0.45 * (1.0 - e.StunResist*0.5)
+						e.Windup = 0
+						e.Cooldown = math.Max(e.Cooldown, 0.8)
+						r.eventAtHeight("boss_stagger", e.X, e.Y-30, 0, e.Elevation)
 					}
 				}
 			}
 		}
-		hitCover := r.attackTerrainCover(r.Build.Damage * (1 + float64(r.Combo-1)*.2))
+		hitCover := r.attackTerrainCover(r.Build.Damage * attackDmgMult)
 		if !hitTarget && !hitCover {
 			r.Stats.BasicMisses++
 			r.AttackChain = 0
@@ -1103,7 +1269,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	if e.Pose != "stagger" {
 		e.Pose = "hit"
-		e.PoseTime = .2
+		hitPoseTime := .2
+		if e.StunResist > 0 {
+			hitPoseTime *= (1.0 - e.StunResist*0.5)
+		}
+		e.PoseTime = hitPoseTime
 	}
 	hitDir := r.Player.Facing
 	if e.X != r.Player.X {
@@ -1115,6 +1285,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		recoilDist = 4.0
 	case "knight":
 		recoilDist = 6.5
+	}
+	if e.StunResist > 0 {
+		recoilDist *= (1.0 - e.StunResist*0.6)
 	}
 	e.RecoilX = hitDir * recoilDist
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
@@ -1237,8 +1410,22 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	kind := "hurt"
 	if p.Guard && (x-p.X)*p.Facing >= 0 {
 		r.Stats.Guards++
-		r.Stats.GuardBlocked += damage * .82
+		blockedDmg := damage * .82
+		r.Stats.GuardBlocked += blockedDmg
 		damage *= .18
+		drain := math.Max(12.0, blockedDmg*0.4)
+		p.GuardStamina = math.Max(0, p.GuardStamina-drain)
+		if p.GuardStamina == 0 {
+			p.Guard = false
+			p.Pose = "guard_break"
+			p.PoseTime = 1.2
+			if r.SkillTimers == nil {
+				r.SkillTimers = map[string]float64{}
+			}
+			r.SkillTimers["guard_break_recovery"] = 1.2
+			r.Stats.GuardBreaks++
+			r.eventAtHeight("guard_break", p.X, p.Y-30, 0, p.Elevation)
+		}
 		if r.SkillTimers != nil && r.SkillTimers["perfect_guard"] > 0 {
 			kind = "perfect_guard"
 			if r.Practice == nil { r.Stats.PerfectGuards++ } else if r.Practice.Mode == "perfect_guard" { r.Practice.PerfectGuards++ }
@@ -1267,7 +1454,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 		p.Pose = "defeat"
 		p.Knockdown = 0
 		p.RecoilX = 0
-	} else {
+	} else if p.Pose != "guard_break" {
 		p.Pose = "hit"
 		p.PoseTime = .18
 		hitDir := -p.Facing
@@ -1347,6 +1534,13 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.Jump < 0.0001 {
 			e.Jump = 0
 		}
+	}
+	if e.Jump <= 0 && e.Knockdown <= 0 {
+		e.JuggleCount = 0
+	}
+	if e.Cooldown == 0 && e.Windup == 0 && e.Pose == "idle" && e.InterruptCount > 0 {
+		e.InterruptCount = 0
+		e.StunResist = 0
 	}
 	if e.PoseTime == 0 {
 		e.RecoilX = 0
@@ -1479,7 +1673,12 @@ func (r *Run) enemyTick(i int, dt float64) {
 		rangeX = 190
 	}
 	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
-	if math.Abs(dx) > rangeX || math.Abs(dy) > 24 || blocked {
+	targetDy := dy
+	if len(r.Enemies) > 1 && i > 0 && e.Kind != "archer" && e.Kind != "boss" {
+		laneOffset := float64(((i%2)*2 - 1) * 16)
+		targetDy = (p.Y + laneOffset) - e.Y
+	}
+	if math.Abs(dx) > rangeX || math.Abs(targetDy) > 24 || blocked {
 		speed := 80.0
 		if e.Speed > 0 {
 			speed = e.Speed
@@ -1487,7 +1686,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.Kind == "goblin" && e.Speed == 0 {
 			speed = 115
 		}
-		r.moveActor(e, math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), math.Copysign(math.Min(math.Abs(dy), speed*.6*dt), dy), true)
+		r.moveActor(e, math.Copysign(math.Min(math.Abs(dx), speed*dt), dx), math.Copysign(math.Min(math.Abs(targetDy), speed*.6*dt), targetDy), true)
 		if e.PoseTime == 0 {
 			e.Pose = "run"
 		}
