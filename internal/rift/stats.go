@@ -52,6 +52,10 @@ type CombatStats struct {
 	Launchers         int                `json:"launchers"`
 	DownedFollowups   int                `json:"downed_followups"`
 	HeavyAttacks      int                `json:"heavy_attacks"`
+	PackAttacks       int                `json:"pack_attacks,omitempty"`
+	SummonPunishes    int                `json:"summon_punishes,omitempty"`
+	FlankAttempts     int                `json:"flank_attempts,omitempty"`
+	RearStrikes       int                `json:"rear_strikes,omitempty"`
 }
 
 func (r *Run) healPlayer(amount float64) {

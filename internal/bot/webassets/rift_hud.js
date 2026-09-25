@@ -430,6 +430,10 @@
     if((encounter.sweep_attacks||0)>0)rows.push(['Grounded sweep attacks',numbers.format(encounter.sweep_attacks)]);
     if((encounter.launchers||0)>0)rows.push(['Launchers against small enemies',numbers.format(encounter.launchers)]);
     if((encounter.downed_followups||0)>0)rows.push(['Downed enemy follow-ups',numbers.format(encounter.downed_followups)]);
+    if((encounter.pack_attacks||0)>0)rows.push(['Coordinated pack attacks',numbers.format(encounter.pack_attacks)]);
+    if((encounter.summon_punishes||0)>0)rows.push(['Summon arrival punishes',numbers.format(encounter.summon_punishes)]);
+    if((encounter.flank_attempts||0)>0)rows.push(['Enemy flank maneuvers',numbers.format(encounter.flank_attempts)]);
+    if((encounter.rear_strikes||0)>0)rows.push(['Unshielded rear strikes',numbers.format(encounter.rear_strikes)]);
 
     const unclassified=Math.max(0,(encounter.damage_taken||0)-(encounter.hazard_damage_taken||0)-(encounter.enemy_damage_taken||0));
     if(unclassified>.001)rows.push(['Damage without source records',numbers.format(unclassified)]);
@@ -781,6 +785,10 @@
     if((stats.sweep_attacks||0)>0)values.push(['Grounded sweep attacks',stats.sweep_attacks]);
     if((stats.launchers||0)>0)values.push(['Launchers against small enemies',stats.launchers]);
     if((stats.downed_followups||0)>0)values.push(['Downed enemy follow-ups',stats.downed_followups]);
+    if((stats.pack_attacks||0)>0)values.push(['Coordinated pack attacks',stats.pack_attacks]);
+    if((stats.summon_punishes||0)>0)values.push(['Summon arrival punishes',stats.summon_punishes]);
+    if((stats.flank_attempts||0)>0)values.push(['Enemy flank maneuvers',stats.flank_attempts]);
+    if((stats.rear_strikes||0)>0)values.push(['Unshielded rear strikes',stats.rear_strikes]);
     if(run.replay_seed!==undefined)values.push(['Deterministic combat replay seed',String(run.replay_seed)]);
     values.push(['Largest hit',stats.largest_hit],['Mana spent',stats.mana_spent],['Skills cast',stats.skills_cast]);
     if(((stats.charged_finishers||0)+(stats.empty_finishers||0)+(stats.charges_spent||0))>0){
@@ -959,6 +967,18 @@
     }
     if((stats.downed_followups||0)>0){
       lines.push('Downed Enemy Follow-ups: '+numbers.format(stats.downed_followups));
+    }
+    if((stats.pack_attacks||0)>0){
+      lines.push('Coordinated Pack Attacks: '+numbers.format(stats.pack_attacks));
+    }
+    if((stats.summon_punishes||0)>0){
+      lines.push('Summon Arrival Punishes: '+numbers.format(stats.summon_punishes));
+    }
+    if((stats.flank_attempts||0)>0){
+      lines.push('Enemy Flank Maneuvers: '+numbers.format(stats.flank_attempts));
+    }
+    if((stats.rear_strikes||0)>0){
+      lines.push('Unshielded Rear Strikes: '+numbers.format(stats.rear_strikes));
     }
     if(run.replay_seed!==undefined){
       lines.push('Replay Seed: '+run.replay_seed);

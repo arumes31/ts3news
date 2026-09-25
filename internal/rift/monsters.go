@@ -44,6 +44,12 @@ func AdaptMonster(m content.Mob) Actor {
 	if ranged && a.Kind != "boss" && a.Kind != "treasure" {
 		a.Kind = "archer"
 	}
+	if a.Kind == "knight" {
+		a.Shield = true
+	}
+	if a.Kind == "goblin" || a.Kind == "wolf" {
+		a.Pack = true
+	}
 	a.Shot = monsterElementEffect(a.Element)
 	if a.Shot == "" {
 		a.Shot = "arrow"

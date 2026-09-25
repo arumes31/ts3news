@@ -100,6 +100,19 @@ type Actor struct {
 	JuggleCount    int     `json:"juggle_count,omitempty"`
 	InterruptCount int     `json:"interrupt_count,omitempty"`
 	StunResist     float64 `json:"stun_resist,omitempty"`
+	Vx             float64 `json:"vx,omitempty"`
+	Vy             float64 `json:"vy,omitempty"`
+	Shield         bool    `json:"shield,omitempty"`
+	TurnDelay      float64 `json:"turn_delay,omitempty"`
+	RepositionTimer float64 `json:"reposition_timer,omitempty"`
+	Patrol         bool    `json:"patrol,omitempty"`
+	PatrolOriginX  float64 `json:"patrol_origin_x,omitempty"`
+	PatrolDir      float64 `json:"patrol_dir,omitempty"`
+	Alerted        bool    `json:"alerted,omitempty"`
+	AwarenessTimer float64 `json:"awareness_timer,omitempty"`
+	Pack           bool    `json:"pack,omitempty"`
+	Summoned       bool    `json:"summoned,omitempty"`
+	ArrivalVulnerability float64 `json:"arrival_vulnerability,omitempty"`
 }
 
 // HurtCue returns the creature-family hurt audio cue identifier.
@@ -218,6 +231,10 @@ type EncounterSummary struct {
 	Launchers       int                  `json:"launchers,omitempty"`
 	DownedFollowups int                  `json:"downed_followups,omitempty"`
 	HeavyAttacks    int                  `json:"heavy_attacks,omitempty"`
+	PackAttacks     int                  `json:"pack_attacks,omitempty"`
+	SummonPunishes  int                  `json:"summon_punishes,omitempty"`
+	FlankAttempts   int                  `json:"flank_attempts,omitempty"`
+	RearStrikes     int                  `json:"rear_strikes,omitempty"`
 	Healing         float64              `json:"healing"`
 	GoldGained      int64                `json:"gold_gained"`
 	LootItems       int                  `json:"loot_items"`
@@ -244,6 +261,10 @@ type RoomBaseline struct {
 	Launchers       int    `json:"launchers,omitempty"`
 	DownedFollowups int    `json:"downed_followups,omitempty"`
 	HeavyAttacks    int    `json:"heavy_attacks,omitempty"`
+	PackAttacks     int    `json:"pack_attacks,omitempty"`
+	SummonPunishes  int    `json:"summon_punishes,omitempty"`
+	FlankAttempts   int    `json:"flank_attempts,omitempty"`
+	RearStrikes     int    `json:"rear_strikes,omitempty"`
 	Healing        float64 `json:"healing"`
 	Kills          int     `json:"kills"`
 	Bosses         int     `json:"bosses"`
@@ -251,6 +272,7 @@ type RoomBaseline struct {
 }
 
 type Run struct {
+	PackAttackLockout float64 `json:"pack_attack_lockout,omitempty"`
 	RegionVersions map[int]map[string]RegionRecord `json:"region_versions,omitempty"`
 	RegionRecords map[int]RegionRecord `json:"region_records,omitempty"`
 	RegionAttempt *RegionAttempt `json:"region_attempt,omitempty"`
@@ -379,6 +401,10 @@ func (r *Run) spawnRoom() {
 		Launchers:       r.Stats.Launchers,
 		DownedFollowups: r.Stats.DownedFollowups,
 		HeavyAttacks:    r.Stats.HeavyAttacks,
+		PackAttacks:     r.Stats.PackAttacks,
+		SummonPunishes:  r.Stats.SummonPunishes,
+		FlankAttempts:   r.Stats.FlankAttempts,
+		RearStrikes:     r.Stats.RearStrikes,
 		Healing:        r.Stats.Healing,
 		Kills:          r.Stats.Kills,
 		Bosses:         r.Stats.Bosses,
@@ -482,6 +508,10 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 	launchers := r.Stats.Launchers
 	downedFollowups := r.Stats.DownedFollowups
 	heavyAttacks := r.Stats.HeavyAttacks
+	packAttacks := r.Stats.PackAttacks
+	summonPunishes := r.Stats.SummonPunishes
+	flankAttempts := r.Stats.FlankAttempts
+	rearStrikes := r.Stats.RearStrikes
 	if r.RoomBaseline != nil {
 		armorPiercingDamage = max(0, armorPiercingDamage-r.RoomBaseline.ArmorPiercingDamage)
 		comboScore = max(0, comboScore-r.RoomBaseline.ComboScore)
@@ -491,6 +521,10 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		launchers = max(0, launchers-r.RoomBaseline.Launchers)
 		downedFollowups = max(0, downedFollowups-r.RoomBaseline.DownedFollowups)
 		heavyAttacks = max(0, heavyAttacks-r.RoomBaseline.HeavyAttacks)
+		packAttacks = max(0, packAttacks-r.RoomBaseline.PackAttacks)
+		summonPunishes = max(0, summonPunishes-r.RoomBaseline.SummonPunishes)
+		flankAttempts = max(0, flankAttempts-r.RoomBaseline.FlankAttempts)
+		rearStrikes = max(0, rearStrikes-r.RoomBaseline.RearStrikes)
 	}
 
 	lootItems := 0
@@ -552,6 +586,10 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		Launchers:       launchers,
 		DownedFollowups: downedFollowups,
 		HeavyAttacks:    heavyAttacks,
+		PackAttacks:     packAttacks,
+		SummonPunishes:  summonPunishes,
+		FlankAttempts:   flankAttempts,
+		RearStrikes:     rearStrikes,
 		Healing:         healing,
 		GoldGained:      goldGained,
 		LootItems:       lootItems,
@@ -682,6 +720,9 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 		r.SkillTimers[id] = val
 	}
+	if r.PackAttackLockout > 0 {
+		r.PackAttackLockout = math.Max(0, r.PackAttackLockout-dt)
+	}
 	if r.SkillTimers["slowed"] <= 0 {
 		r.SlowSource = ""
 	}
@@ -784,6 +825,13 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 	}
 	r.moveActor(p, x*speed*dt, y*speed*.6*dt, false)
+	if length > 0 {
+		p.Vx = x * speed
+		p.Vy = y * speed * .6
+	} else {
+		p.Vx = 0
+		p.Vy = 0
+	}
 	if x != 0 {
 		p.Facing = math.Copysign(1, x)
 	}
@@ -1230,8 +1278,16 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.HP <= 0 {
 		return
 	}
+	if !e.Alerted && e.Patrol {
+		r.alertEnemy(i)
+	}
 	if r.BerserkerFury() {
 		damage *= 1.15
+	}
+	if e.Summoned && e.ArrivalVulnerability > 0 {
+		damage *= 1.30
+		r.Stats.SummonPunishes++
+		r.eventAtHeight("summon_punish", e.X, e.Y-25, damage, e.Elevation)
 	}
 	armor := e.Armor
 	if e.ArtKey == "" && e.Kind == "knight" && (r.Practice == nil || r.Practice.Mode != "class" || e.ID != "practice-target") {
@@ -1242,6 +1298,18 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	if e.Kind == "boss" && e.WeakPoint > 0 {
 		damage *= 1.25
+	}
+	hitDir := r.Player.Facing
+	if e.X != r.Player.X {
+		hitDir = math.Copysign(1, e.X-r.Player.X)
+	}
+	isRearHit := (hitDir == e.Facing)
+	if isRearHit && (e.Kind == "knight" || e.Shield) {
+		armor = 0.05
+		r.Stats.RearStrikes++
+		r.eventAtHeight("backstab", e.X, e.Y-25, damage, e.Elevation)
+		e.Facing = -hitDir
+		e.TurnDelay = 0
 	}
 	baseFactor := 1 - armor
 	effectiveFactor := 1 - armor*(1-clamp(pierce, 0, 1))
@@ -1275,7 +1343,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		}
 		e.PoseTime = hitPoseTime
 	}
-	hitDir := r.Player.Facing
+	hitDir = r.Player.Facing
 	if e.X != r.Player.X {
 		hitDir = math.Copysign(1, e.X-r.Player.X)
 	}
@@ -1473,6 +1541,9 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 
 // canStartEnemyAttack counts telegraphs and strikes, not movement or recovery.
 func (r *Run) canStartEnemyAttack(candidate *Actor) bool {
+	if candidate.Pack && r.PackAttackLockout > 0 {
+		return false
+	}
 	limit := r.Arena().MaxAttackers
 	if limit <= 0 {
 		limit = 3
@@ -1488,6 +1559,64 @@ func (r *Run) canStartEnemyAttack(candidate *Actor) bool {
 		}
 	}
 	return active < limit
+}
+
+// alertEnemy awakens an enemy from idle patrol into active pursuit and propagates alert nearby.
+func (r *Run) alertEnemy(i int) {
+	if i < 0 || i >= len(r.Enemies) {
+		return
+	}
+	e := &r.Enemies[i]
+	if e.HP <= 0 || e.Alerted {
+		return
+	}
+	e.Alerted = true
+	e.Patrol = false
+	e.AwarenessTimer = 0.40
+	e.Pose = "alert"
+	e.PoseTime = 0.40
+	e.Cooldown = math.Max(e.Cooldown, 0.40)
+	r.eventAtHeight("enemy_aware", e.X, e.Y-30, 0, e.Elevation)
+
+	// 0294: Limited alert propagation radius (220px)
+	const alertRadius = 220.0
+	for j := range r.Enemies {
+		if j != i && r.Enemies[j].HP > 0 && !r.Enemies[j].Alerted && r.Enemies[j].Patrol {
+			dist := math.Hypot(r.Enemies[j].X-e.X, r.Enemies[j].Y-e.Y)
+			if dist <= alertRadius {
+				r.eventAtHeight("alert_propagate", r.Enemies[j].X, r.Enemies[j].Y-25, 0, r.Enemies[j].Elevation)
+				r.alertEnemy(j)
+			}
+		}
+	}
+}
+
+// SummonEnemy adds a summoned minion with a short arrival vulnerability window.
+func (r *Run) SummonEnemy(kind string, x, y float64) *Actor {
+	r.Counter++
+	id := fmt.Sprintf("summon-%d", r.Counter)
+	name := "Summoned " + strings.ToUpper(kind[:1]) + kind[1:]
+	mob := Actor{
+		ID:                   id,
+		Name:                 name,
+		Kind:                 kind,
+		X:                    x,
+		Y:                    y,
+		HP:                   60,
+		MaxHP:                60,
+		Damage:               14,
+		Speed:                75,
+		Facing:               -1,
+		Summoned:             true,
+		ArrivalVulnerability: 0.85,
+		Pose:                 "spawn",
+		PoseTime:             0.85,
+		Cooldown:             0.85,
+		Alerted:              true,
+	}
+	r.Enemies = append(r.Enemies, mob)
+	r.eventAtHeight("summon_spawn", x, y-25, 0, 0)
+	return &r.Enemies[len(r.Enemies)-1]
 }
 
 const treasureEscapeMargin = 55.0
@@ -1561,8 +1690,48 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if r.tickDefenseEnemy(e, dt) {
 		return
 	}
+	if e.ArrivalVulnerability > 0 {
+		e.ArrivalVulnerability = math.Max(0, e.ArrivalVulnerability-dt)
+		if e.PoseTime == 0 && e.ArrivalVulnerability == 0 && e.Pose == "spawn" {
+			e.Pose = "idle"
+		}
+		if e.Pose == "spawn" {
+			return
+		}
+	}
+	if e.AwarenessTimer > 0 {
+		e.AwarenessTimer = math.Max(0, e.AwarenessTimer-dt)
+		if e.PoseTime == 0 && e.AwarenessTimer == 0 && e.Pose == "alert" {
+			e.Pose = "idle"
+		}
+		return
+	}
 	p := &r.Player
 	dx, dy := p.X-e.X, p.Y-e.Y
+	if e.Patrol && !e.Alerted {
+		pDist := math.Hypot(dx, dy)
+		if pDist <= 240 && (r.clearMeleePath(e, p) || r.clearProjectilePath(e, p)) {
+			r.alertEnemy(i)
+			return
+		}
+		if e.PatrolOriginX == 0 {
+			e.PatrolOriginX = e.X
+		}
+		if e.PatrolDir == 0 {
+			e.PatrolDir = -1
+		}
+		if e.X <= e.PatrolOriginX-45 {
+			e.PatrolDir = 1
+		} else if e.X >= e.PatrolOriginX+45 {
+			e.PatrolDir = -1
+		}
+		e.Facing = e.PatrolDir
+		r.moveActor(e, e.PatrolDir*35*dt, 0, false)
+		if e.PoseTime == 0 {
+			e.Pose = "walk"
+		}
+		return
+	}
 	if e.RouteY != 0 && r.clearPursuitPath(e, p) {
 		e.RouteX, e.RouteY = 0, 0
 	}
@@ -1615,8 +1784,20 @@ func (r *Run) enemyTick(i int, dt float64) {
 				if power <= 0 {
 					power = 18
 				}
-				r.Projectiles = append(r.Projectiles, Projectile{Elevation: e.Elevation, OwnerID: e.ID, ID: r.Counter, X: e.X, Y: e.Y, VX: dx / distance * 300, VY: dy / distance * 300, Power: power, Enemy: true, Life: 4, Kind: shot})
+				shotVX := dx / distance * 300
+				shotVY := dy / distance * 300
+				if math.Hypot(p.Vx, p.Vy) > 10 {
+					flightTime := math.Min(0.40, distance/300.0)
+					predX := clamp(p.X+p.Vx*flightTime*0.75, 40, Width-40)
+					predY := clamp(p.Y+p.Vy*flightTime*0.75, 280, 480)
+					pdx, pdy := predX-e.X, predY-e.Y
+					pdist := math.Max(1, math.Hypot(pdx, pdy))
+					shotVX = pdx / pdist * 300
+					shotVY = pdy / pdist * 300
+				}
+				r.Projectiles = append(r.Projectiles, Projectile{Elevation: e.Elevation, OwnerID: e.ID, ID: r.Counter, X: e.X, Y: e.Y, VX: shotVX, VY: shotVY, Power: power, Enemy: true, Life: 4, Kind: shot})
 				r.eventAtHeight(shot, e.X, e.Y-30, 0, e.Elevation)
+				e.RepositionTimer = 1.05
 			} else if e.Kind == "boss" {
 				r.event("slam", e.TargetX, e.TargetY, 0)
 				if math.Abs(p.X-e.TargetX) < 125 && math.Abs(p.Y-e.TargetY) < 62 {
@@ -1651,6 +1832,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		}
 		return
 	}
+	if e.Kind == "archer" && e.RepositionTimer > 0 {
+		e.RepositionTimer = math.Max(0, e.RepositionTimer-dt)
+	}
 	if e.Kind == "archer" && math.Abs(dx) < 150 && math.Abs(dy) <= 24 && r.clearProjectilePath(e, p) {
 		speed := e.Speed
 		if speed <= 0 {
@@ -1668,17 +1852,49 @@ func (r *Run) enemyTick(i int, dt float64) {
 	rangeX := 65.0
 	if e.Kind == "archer" {
 		rangeX = 430
+		if len(r.Enemies) > 1 && i > 0 {
+			rangeX = 430 - float64((i%3)*30)
+		}
 	}
 	if e.Kind == "boss" {
 		rangeX = 190
 	}
 	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
 	targetDy := dy
-	if len(r.Enemies) > 1 && i > 0 && e.Kind != "archer" && e.Kind != "boss" {
+	if len(r.Enemies) > 1 && i > 0 && e.Kind != "boss" {
 		laneOffset := float64(((i%2)*2 - 1) * 16)
+		if e.Kind == "archer" {
+			laneOffset = float64(((i%2)*2 - 1) * 28)
+		}
 		targetDy = (p.Y + laneOffset) - e.Y
 	}
-	if math.Abs(dx) > rangeX || math.Abs(targetDy) > 24 || blocked {
+	if e.Kind == "archer" && e.HP > 0 {
+		for j := range r.Enemies {
+			if j != i && r.Enemies[j].HP > 0 && r.Enemies[j].Kind == "archer" {
+				other := &r.Enemies[j]
+				sepX := e.X - other.X
+				sepY := e.Y - other.Y
+				sepDist := math.Hypot(sepX, sepY)
+				if sepDist < 45 && sepDist > 0.001 {
+					pushX := (sepX / sepDist) * 35 * dt
+					pushY := (sepY / sepDist) * 20 * dt
+					r.moveActor(e, pushX, pushY, false)
+				}
+			}
+		}
+	}
+	if p.Guard && e.Kind == "goblin" && (e.X-p.X)*p.Facing > 0 {
+		laneOffset := float64(((i%2)*2 - 1) * 45)
+		targetDy = (p.Y + laneOffset) - e.Y
+		flankTargetX := p.X - p.Facing*45
+		dx = flankTargetX - e.X
+		if math.Abs(targetDy) > 10 || math.Abs(dx) > 20 {
+			r.Stats.FlankAttempts++
+			r.eventAtHeight("flank_attempt", e.X, e.Y-20, 0, e.Elevation)
+		}
+	}
+	repositioning := e.Kind == "archer" && e.RepositionTimer > 0
+	if math.Abs(dx) > rangeX || math.Abs(targetDy) > 24 || blocked || repositioning {
 		speed := 80.0
 		if e.Speed > 0 {
 			speed = e.Speed
@@ -1695,6 +1911,11 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.Pose = "windup"
 		e.TargetX = p.X
 		e.TargetY = p.Y
+		if e.Pack {
+			r.PackAttackLockout = 0.45
+			r.Stats.PackAttacks++
+			r.eventAtHeight("pack_attack", e.X, e.Y-20, 0, e.Elevation)
+		}
 		if e.Kind == "boss" {
 			r.event("boss_roar", e.X, e.Y, 0)
 			plan := r.NextBossAttack(*e)
