@@ -363,6 +363,12 @@
       rows.push(['Healing received',numbers.format(encounter.healing)]);
     }
 
+    if(isDefeated){
+      const bankedGold=encounter.banked_gold||0;
+      const bankedItems=encounter.banked_items_count||0;
+      rows.push(['Banked rewards kept',numbers.format(bankedGold)+' gold · '+bankedItems+' '+((bankedItems===1)?'item':'items')]);
+    }
+
     if((encounter.gold_gained||0)>0||(encounter.loot_items||0)>0){
       const lootText=numbers.format(encounter.gold_gained||0)+' gold'+((encounter.loot_items||0)>0?' · '+(encounter.loot_items)+' '+((encounter.loot_items===1)?'item':'items'):'');
       rows.push([isDefeated?'Unbanked loot lost':'Loot collected',lootText]);

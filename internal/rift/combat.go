@@ -208,6 +208,8 @@ type EncounterSummary struct {
 	Healing         float64              `json:"healing"`
 	GoldGained      int64                `json:"gold_gained"`
 	LootItems       int                  `json:"loot_items"`
+	BankedGold      int64                `json:"banked_gold,omitempty"`
+	BankedItemsCount int                 `json:"banked_items_count,omitempty"`
 }
 
 // RoomBaseline tracks starting metrics at the beginning of each room to calculate encounter deltas.
@@ -489,6 +491,8 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		Healing:         healing,
 		GoldGained:      goldGained,
 		LootItems:       lootItems,
+		BankedGold:      r.BankedGold,
+		BankedItemsCount: len(r.BankedItems),
 	}
 }
 

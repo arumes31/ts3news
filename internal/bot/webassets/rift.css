@@ -956,6 +956,37 @@
   color: #b8cfbe;
   line-height: 1.4;
 }
+.rift-result-rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 6px 0 12px;
+}
+.rift-reward-banked, .rift-reward-lost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font: 12px ui-monospace, monospace;
+}
+.rift-reward-banked {
+  background: #142a1e;
+  border: 1px solid #3c6e4d;
+  color: #a7dfb8;
+}
+.rift-reward-lost {
+  background: #2d1818;
+  border: 1px solid #7c3a3a;
+  color: #f7a8a8;
+}
+.rift-reward-banked strong, .rift-reward-lost strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
 
 #rift-app #rift-skill-descriptions { min-height:48px; margin:8px 12px; font-size:14px; }
 #rift-skill-glossary { padding:12px; }

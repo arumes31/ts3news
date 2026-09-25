@@ -126,6 +126,7 @@
   function message(title, copy, button, kicker) {
     $('rift-result-actions').hidden=true;
     if($('rift-result-banner'))$('rift-result-banner').hidden=true;
+    if($('rift-result-rewards'))$('rift-result-rewards').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
@@ -451,10 +452,39 @@
         if(banner)banner.hidden=true;
         if(clearResult)clearResult.hidden=true;
       }
+      const rewardsEl=$('rift-result-rewards'),bankedVal=$('rift-rewards-banked-val'),lostVal=$('rift-rewards-lost-val'),lostGroup=$('rift-rewards-lost-group');
+      if(rewardsEl&&bankedVal&&lostVal&&lostGroup){
+        bankedVal.textContent=(run.banked_gold||0).toLocaleString()+' gold · '+(run.banked_items?.length||0)+' '+((run.banked_items?.length===1)?'item':'items');
+        if(lost){
+          const lostGold=run.gold||0;
+          const lostDrops=(run.drops||[]).filter(d=>!d.banked).length;
+          lostVal.textContent=lostGold.toLocaleString()+' gold · '+lostDrops+' '+((lostDrops===1)?'item':'items');
+          lostGroup.hidden=false;
+        }else{
+          lostGroup.hidden=true;
+        }
+        rewardsEl.hidden=false;
+      }
       $('rift-result-actions').hidden=!run.level||run.status==='expired';
+      const retryMissionBtn=$('rift-retry-mission');
+      if(retryMissionBtn){
+        const missionId=run.level?.id||selectedLevel;
+        retryMissionBtn.textContent='Retry '+(run.level?.name||('Mission '+missionId));
+        retryMissionBtn.hidden=!run.level||run.status==='expired';
+      }
       $('rift-retry-boss').hidden=!lost||!run.level||!run.encounter_plan?.[run.room]?.some(enemy=>enemy.kind==='boss');
       $('rift-replay').hidden=!run.level||!['complete','banked'].includes(run.status)||run.room!==2;
       $('rift-replay').textContent='Replay mission '+(run.level?.id||1);
+      const campaignBtn=$('rift-result-campaign');
+      if(campaignBtn)campaignBtn.hidden=run.status==='expired';
+      const buildBtn=$('rift-result-build');
+      if(buildBtn)buildBtn.hidden=!lost||run.status==='expired';
+      const practiceBossBtn=$('rift-practice-boss-link');
+      if(practiceBossBtn){
+        const bossName=run.defeated_by_boss||run.encounter_plan?.[run.room]?.find(enemy=>enemy.kind==='boss')?.name;
+        practiceBossBtn.hidden=!lost||!bossName;
+        if(bossName)practiceBossBtn.textContent='Practice '+bossName;
+      }
       root.querySelectorAll('#rift-loadout select').forEach(el=>el.disabled=false);
       setTimeout(()=>{if(!playing)silence();},1500);
     }
@@ -1062,6 +1092,42 @@
         enc.scrollIntoView({behavior:'smooth',block:'start'});
         enc.focus();
       }
+    });
+  }
+  const retryMissionBtn=$('rift-retry-mission');
+  if(retryMissionBtn){
+    retryMissionBtn.addEventListener('click',async()=>{
+      if(busy||starting||!ready)return;
+      if(run?.level?.id)selectedLevel=run.level.id;
+      await begin();
+    });
+  }
+  const resultCampaignBtn=$('rift-result-campaign');
+  if(resultCampaignBtn){
+    resultCampaignBtn.addEventListener('click',()=>{
+      const campaign=$('rift-campaign');
+      if(campaign){
+        campaign.open=true;
+        campaign.scrollIntoView({behavior:'smooth',block:'start'});
+        campaign.querySelector('summary')?.focus();
+      }
+    });
+  }
+  const resultBuildBtn=$('rift-result-build');
+  if(resultBuildBtn){
+    resultBuildBtn.addEventListener('click',()=>{
+      const buildSection=root.querySelector('.rift-class-primer')||$('rift-loadout');
+      if(buildSection){
+        buildSection.scrollIntoView({behavior:'smooth',block:'start'});
+        root.querySelector('#rift-loadout select')?.focus();
+      }
+    });
+  }
+  const practiceBossLink=$('rift-practice-boss-link');
+  if(practiceBossLink){
+    practiceBossLink.addEventListener('click',()=>{
+      const bossName=run?.defeated_by_boss||run?.encounter_plan?.[run?.room]?.find(enemy=>enemy.kind==='boss')?.name||'';
+      window.location.href='/abyss/rift?practice=boss'+(bossName?'&boss='+encodeURIComponent(bossName):'');
     });
   }
   $('rift-next').addEventListener('click',async()=>{if(await checkpoint($('rift-auto').checked?'advance':'next'))status(run.status==='complete'?statusCopy.expeditionComplete:statusCopy.checkpointReached);});

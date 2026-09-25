@@ -112,6 +112,7 @@
       (value.slow_source===undefined||['ice','poison','thorns'].includes(value.slow_source))&&hazardDefeat(value.defeated_by_hazard)&&hazardDefeat(value.last_encounter?.defeated_by_hazard)&&
       (value.defeated_by_enemy===undefined||text(value.defeated_by_enemy))&&(value.defeat_cause===undefined||text(value.defeat_cause))&&
       (value.last_encounter?.defeated_by_enemy===undefined||text(value.last_encounter.defeated_by_enemy))&&(value.last_encounter?.defeat_cause===undefined||text(value.last_encounter.defeat_cause))&&
+      (value.last_encounter?.banked_gold===undefined||Number.isSafeInteger(value.last_encounter.banked_gold))&&(value.last_encounter?.banked_items_count===undefined||Number.isSafeInteger(value.last_encounter.banked_items_count))&&
       (value.room_baseline===undefined||object(value.room_baseline))&&
       (value.room_splits===undefined||splits(value.room_splits))&&
       (definition(value.mission_definition))&&
