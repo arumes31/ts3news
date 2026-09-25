@@ -125,6 +125,7 @@
   }
   function message(title, copy, button, kicker) {
     $('rift-result-actions').hidden=true;
+    if($('rift-result-banner'))$('rift-result-banner').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
@@ -420,6 +421,36 @@
       const lost=run.status==='defeated';
       message(lost?(run.room_objective?.kind==='split_defense'&&run.room_objective.lanes.some(l=>l.ward.hp<=0)?'A lane ward fell.':run.room_objective?.kind==='protect_lantern'&&run.room_objective.lantern.hp<=0?'The lantern went out.':'The rift takes its toll.'):'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
+      const banner=$('rift-result-banner'),headingEl=$('rift-result-heading'),causeEl=$('rift-result-cause'),clearResult=$('rift-clear-result');
+      if(run.status==='complete'){
+        const fullCampaign=(run.completed_levels||[]).length>=100;
+        if(fullCampaign){
+          if(headingEl)headingEl.textContent='Full Campaign Cleared — The Abyss Conquered';
+          if(causeEl)causeEl.textContent='All 100 campaign missions cleared across all regions!';
+          if(clearResult){clearResult.textContent='Campaign complete: All 100 missions cleared';clearResult.hidden=false;}
+        }else{
+          const name=run.level?.name||('Mission '+(run.level?.id||1));
+          if(headingEl)headingEl.textContent='Mission '+(run.level?.id||1)+' Cleared: '+name;
+          if(causeEl)causeEl.textContent='All 3 encounter tiers secured.';
+          if(clearResult){clearResult.textContent='Mission '+(run.level?.id||1)+' cleared: '+name;clearResult.hidden=false;}
+        }
+        if(banner)banner.hidden=false;
+      }else if(run.status==='banked'){
+        if(headingEl)headingEl.textContent='Voluntary Exit at Checkpoint';
+        if(causeEl)causeEl.textContent='Safely banked rewards before venturing deeper.';
+        if(clearResult){clearResult.textContent='Expedition banked: voluntary exit at checkpoint';clearResult.hidden=false;}
+        if(banner)banner.hidden=false;
+      }else if(run.status==='defeated'){
+        const finalHit=run.defeated_by_hazard?('Hazard: '+run.defeated_by_hazard.kind+(run.defeated_by_hazard.jumpable?' (jump to evade)':' (move clear)')):run.defeated_by_boss?('Boss: '+run.defeated_by_boss):run.defeated_by_enemy?('Enemy: '+run.defeated_by_enemy):(run.room_objective?.kind==='split_defense'&&run.room_objective.lanes.some(l=>l.ward.hp<=0)?'Lane ward destroyed':(run.room_objective?.kind==='protect_lantern'&&run.room_objective.lantern.hp<=0?'Lantern extinguished':'Combat damage'));
+        const exactCause=run.defeat_cause||finalHit;
+        if(headingEl)headingEl.textContent='Expedition Defeat';
+        if(causeEl)causeEl.textContent='Cause: '+exactCause+' · Final hit: '+(run.defeated_by_boss||(run.defeated_by_hazard?run.defeated_by_hazard.kind:run.defeated_by_enemy||'Fatal strike'));
+        if(clearResult){clearResult.textContent='Expedition defeat: '+exactCause;clearResult.hidden=false;}
+        if(banner)banner.hidden=false;
+      }else{
+        if(banner)banner.hidden=true;
+        if(clearResult)clearResult.hidden=true;
+      }
       $('rift-result-actions').hidden=!run.level||run.status==='expired';
       $('rift-retry-boss').hidden=!lost||!run.level||!run.encounter_plan?.[run.room]?.some(enemy=>enemy.kind==='boss');
       $('rift-replay').hidden=!run.level||!['complete','banked'].includes(run.status)||run.room!==2;

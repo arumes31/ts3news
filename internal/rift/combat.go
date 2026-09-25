@@ -186,6 +186,8 @@ type EncounterSummary struct {
 	EnemyDamageTaken float64 `json:"enemy_damage_taken"`
 	Bosses          []EncounterBossState `json:"bosses,omitempty"`
 	DefeatedByBoss  string               `json:"defeated_by_boss,omitempty"`
+	DefeatedByEnemy string               `json:"defeated_by_enemy,omitempty"`
+	DefeatCause     string               `json:"defeat_cause,omitempty"`
 	TreasureEscaped int                  `json:"treasure_escaped,omitempty"`
 	Mission         int                  `json:"mission"`
 	MissionName     string               `json:"mission_name"`
@@ -239,6 +241,8 @@ type Run struct {
  LastObjectives *MissionObjectives `json:"last_objectives,omitempty"`
  Objectives *MissionObjectives `json:"objectives,omitempty"`
 	DefeatedByBoss      string                   `json:"defeated_by_boss,omitempty"`
+	DefeatedByEnemy     string                   `json:"defeated_by_enemy,omitempty"`
+	DefeatCause         string                   `json:"defeat_cause,omitempty"`
 	MonsterRecords      map[string]MonsterRecord `json:"monster_records,omitempty"`
 	Practice            *PracticeState           `json:"practice,omitempty"`
 	ClearStreak         int                      `json:"clear_streak,omitempty"`
@@ -321,6 +325,8 @@ func NewRun(id string, build Build, now time.Time) *Run {
 func (r *Run) spawnRoom() {
 	r.DefeatedByBoss = ""
 	r.DefeatedByHazard = nil
+	r.DefeatedByEnemy = ""
+	r.DefeatCause = ""
 	r.SlowSource = ""
 	hits := r.Stats.HitsTaken
 	r.RoomStartHits = &hits
@@ -459,6 +465,8 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		Bosses:          bosses,
 		DefeatedByBoss:  r.DefeatedByBoss,
 		DefeatedByHazard: r.DefeatedByHazard,
+		DefeatedByEnemy: r.DefeatedByEnemy,
+		DefeatCause:     r.DefeatCause,
 		TreasureEscaped: treasureEscaped,
 		Mission:         missionID,
 		MissionName:     missionName,
@@ -813,6 +821,25 @@ func (r *Run) tick(in Input, dt float64) {
 	r.tickLanternObjective(dt)
 	r.tickDefenseObjective(dt)
 	if p.HP <= 0 || r.lanternExtinguished() || r.defenseLost() {
+		if r.DefeatCause == "" {
+			if r.lanternExtinguished() {
+				r.DefeatCause = "Lantern extinguished"
+			} else if r.defenseLost() {
+				r.DefeatCause = "Lane ward destroyed"
+			} else if r.DefeatedByHazard != nil {
+				if r.DefeatedByHazard.Jumpable {
+					r.DefeatCause = "Fallen to " + r.DefeatedByHazard.Kind + " hazard (jump to evade)"
+				} else {
+					r.DefeatCause = "Fallen to " + r.DefeatedByHazard.Kind + " hazard (move clear)"
+				}
+			} else if r.DefeatedByBoss != "" {
+				r.DefeatCause = "Fallen to boss: " + r.DefeatedByBoss
+			} else if r.DefeatedByEnemy != "" {
+				r.DefeatCause = "Fallen to enemy: " + r.DefeatedByEnemy
+			} else {
+				r.DefeatCause = "Fallen in combat"
+			}
+		}
 		p.Pose = "defeat"
 		p.Knockdown = 0
 		r.Status = "defeated"

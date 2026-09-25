@@ -13,17 +13,25 @@ func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
 		return
 	}
 	for _, e := range r.Enemies {
-		if e.ID == ownerID && e.Kind == "boss" {
-			r.DefeatedByBoss = e.Name
+		if e.ID == ownerID {
+			if e.Kind == "boss" {
+				r.DefeatedByBoss = e.Name
+			}
+			r.DefeatedByEnemy = e.Name
+			r.DefeatCause = "Fallen to enemy: " + e.Name
 			return
 		}
 	}
 }
 
 func (r *Run) hurtPlayerFromHazard(damage, x, y float64) {
+	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
 	r.hurtPlayer(damage, x, y)
 	r.Stats.HazardDamageTaken += r.Stats.DamageTaken - before
+	if alive && r.Player.HP <= 0 && r.DefeatCause == "" {
+		r.DefeatCause = "Fallen to hazard damage"
+	}
 }
 
 // HazardDefeat records only the lethal contact, including its evasion rule.
@@ -37,5 +45,10 @@ func (r *Run) hurtPlayerFromNamedHazard(damage, x, y float64, source HazardDefea
 	r.hurtPlayerFromHazard(damage, x, y)
 	if alive && r.Player.HP <= 0 {
 		r.DefeatedByHazard = &source
+		if source.Jumpable {
+			r.DefeatCause = "Fallen to " + source.Kind + " hazard (jump to evade)"
+		} else {
+			r.DefeatCause = "Fallen to " + source.Kind + " hazard (move clear)"
+		}
 	}
 }

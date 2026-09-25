@@ -110,6 +110,8 @@
       (value.last_mark_end===undefined||object(value.last_mark_end)&&text(value.last_mark_end.target_name)&&["defeated","escaped"].includes(value.last_mark_end.reason))&&
       (value.last_charge_spend===undefined||object(value.last_charge_spend)&&text(value.last_charge_spend.skill_id)&&text(value.last_charge_spend.skill_name)&&Number.isInteger(value.last_charge_spend.charges)&&value.last_charge_spend.charges>=1&&value.last_charge_spend.charges<=3)&&
       (value.slow_source===undefined||['ice','poison','thorns'].includes(value.slow_source))&&hazardDefeat(value.defeated_by_hazard)&&hazardDefeat(value.last_encounter?.defeated_by_hazard)&&
+      (value.defeated_by_enemy===undefined||text(value.defeated_by_enemy))&&(value.defeat_cause===undefined||text(value.defeat_cause))&&
+      (value.last_encounter?.defeated_by_enemy===undefined||text(value.last_encounter.defeated_by_enemy))&&(value.last_encounter?.defeat_cause===undefined||text(value.last_encounter.defeat_cause))&&
       (value.room_baseline===undefined||object(value.room_baseline))&&
       (value.room_splits===undefined||splits(value.room_splits))&&
       (definition(value.mission_definition))&&

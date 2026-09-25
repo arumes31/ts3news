@@ -234,7 +234,7 @@
     const statsNode=$('rift-last-encounter-stats');
     if(!emptyNode||!detailsNode||!badgeNode||!headlineNode||!statsNode)return;
 
-    let encounter=run.last_encounter;
+    let encounter=run.last_encounter||(run.outcome?run:null);
     if(!encounter&&['cleared','defeated','complete','banked'].includes(run.status)){
       const stats=run.stats||{};
       const roomName=run.level?.rooms?.[run.room]?.name||('Tier '+((run.room||0)+1));
@@ -345,6 +345,14 @@
     if(hintsEnabled&&isDefeated&&encounter.defeated_by_hazard)rows.push(['Hazard counterplay',hazardDefeatHint(encounter.defeated_by_hazard)]);
     if(isDefeated&&encounter.defeated_by_boss){
       rows.push(['Defeated by boss',encounter.defeated_by_boss]);
+    }
+    if(isDefeated&&encounter.defeated_by_enemy&&!encounter.defeated_by_boss){
+      rows.push(['Defeated by enemy',encounter.defeated_by_enemy]);
+    }
+    if(isDefeated){
+      const finalHit=encounter.defeated_by_hazard?('Hazard: '+encounter.defeated_by_hazard.kind):encounter.defeated_by_boss?('Boss: '+encounter.defeated_by_boss):encounter.defeated_by_enemy?('Enemy: '+encounter.defeated_by_enemy):'';
+      if(finalHit)rows.push(['Final hit source',finalHit]);
+      if(encounter.defeat_cause)rows.push(['Cause of defeat',encounter.defeat_cause]);
     }
 
     if((encounter.treasure_escaped||0)>0){
