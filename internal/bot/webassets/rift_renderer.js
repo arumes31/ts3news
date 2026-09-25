@@ -157,7 +157,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','regions','props','heroesA','heroesB','mobs','items','effects','sigil','totem','relic','generator','spirit','cage','lantern','terrainCover','platformSurface'];
+  const criticalAtlasKeys = ['area','regions','props','mobs','items','effects','sigil','totem','relic','generator','spirit','cage','lantern','terrainCover','platformSurface'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -433,8 +433,17 @@
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
   // Campaign encounters use regional art. Only regionless legacy boss saves
   // need this background; keep it out of every ordinary startup download.
+  const heroLoads=new Map();
+  renderer.prepareBuild=async build=>{
+    if(!build)return;
+    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),key=index<6?'heroesA':'heroesB';
+    if(images[key])return;
+    if(!heroLoads.has(key))heroLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{heroLoads.delete(key);throw new Error('Could not load character artwork. Recover to try again.');}));
+    await heroLoads.get(key);
+  };
   let legacyBossArt=null;
   renderer.prepareRun=async run=>{
+    await renderer.prepareBuild(run?.build);
     if(!run||run.room!==2||run.level?.region!==undefined||images.boss)return;
     if(!legacyBossArt)legacyBossArt=loadDecodedAtlas(root.dataset.boss).then(img=>{images.boss=img;}).catch(()=>{legacyBossArt=null;throw new Error('Could not load saved boss scene artwork. Recover to try again.');});
     await legacyBossArt;

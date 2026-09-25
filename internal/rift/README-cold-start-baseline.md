@@ -185,3 +185,22 @@ large margin. No new throttled startup timing is claimed and the gate stays fail
 Browser checks confirm no boss-background request at campaign startup, saved-scene
 readiness waiting, decoded reuse, failure retry, coalescing, and existing decode/
 priority/progress/version behavior:11 passed. More scene-specific asset work remains.
+
+
+## Selected hero atlas on demand (2026-09-25)
+
+Ordinary startup now loads only the hero atlas required for the selected class
+(or saved character build if different), rather than fetching both `rift_heroes_a.png`
+and `rift_heroes_b.png` unconditionally. Critical base atlases drop to 15 (plus 4
+shared creature atlases), with `prepareBuild` loading the appropriate hero sheet:
+`heroesA` (classes 0-5) or `heroesB` (classes 6-11). If a saved expedition uses a
+different class than the current build, both required hero atlases are loaded before
+readiness is signaled.
+
+This eliminates 2,608,798 to 2,704,155 bytes (~2.6-2.7 MB) from startup transfer,
+bringing ordinary required artwork down to 38,355,349 - 38,450,706 bytes (a cumulative
+~13.4% saving from the original 44,399,088 byte PNG baseline). The 3MB readiness gate
+remains unmet and throttled startup timing remains unverified. 15 browser checks pass
+across hero selection, saved-build readiness, deferred legacy boss art, atlas progress/
+decode, priority, version reuse, and skill animation previews.
+
