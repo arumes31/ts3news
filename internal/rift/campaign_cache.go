@@ -19,6 +19,8 @@ func cloneCampaignLevel(level Level) Level {
 	level.Rooms = slices.Clone(level.Rooms)
 	for i := range level.Rooms {
 		room := &level.Rooms[i]
+		// Translations initialize after package-level campaign authoring.
+		room.LootRarityCeiling = LootRarityCap(i).String()
 		room.Obstacles = slices.Clone(room.Obstacles)
 		room.HighCover = slices.Clone(room.HighCover)
 		room.Hazards = slices.Clone(room.Hazards)
