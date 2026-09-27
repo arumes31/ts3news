@@ -1416,3 +1416,42 @@
 }
 
 #rift-sign-in{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px 14px;font-size:14px;color:var(--rift-gold);}
+
+
+/* Touch sizing includes configuration and recovery controls, not just combat. */
+@media (any-pointer: coarse) {
+  #rift-app :is(button, select, summary, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])) {
+    min-width: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+  #rift-app label:has(input:is([type="checkbox"], [type="radio"])) {
+    display: flex;
+    align-items: center;
+    min-width: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
+    padding-block: 6px;
+  }
+  #rift-app a:not(.rift-field-guide a) {
+    display: inline-flex;
+    align-items: center;
+    min-width: 48px;
+    min-height: 48px;
+    max-width: 100%;
+  }
+  #rift-app summary { align-content: center; }
+}
+
+
+@media (any-pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  /* A checkpoint contains normal-flow banking controls below the canvas. */
+  #rift-app .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) {
+    max-height: none;
+    aspect-ratio: auto;
+  }
+  #rift-app .rift-viewport:not(:fullscreen):has(#rift-room-actions:not([hidden])) canvas {
+    width: 100%;
+    height: auto;
+  }
+}
