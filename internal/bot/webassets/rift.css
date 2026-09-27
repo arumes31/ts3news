@@ -1478,3 +1478,7 @@
 #rift-minimap-progress [data-state="cleared"] { color: #d3efba; background: #263e2e; }
 #rift-minimap-progress [aria-current="step"] { border: 2px solid #e9bd70; padding: 4px 6px; }
 @media (max-width: 600px) { #rift-minimap-progress { flex-basis: auto; } }
+
+#rift-boss-jump-example { margin: 12px 0; padding: 12px; border: 1px solid #486068; }
+#rift-boss-jump-example button { min-height: 48px; margin-bottom: 6px; }
+#rift-boss-jump-canvas { width: 100%; max-width: 480px; height: auto; margin-top: 8px; }

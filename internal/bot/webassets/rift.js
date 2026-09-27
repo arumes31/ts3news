@@ -1411,5 +1411,27 @@
     }));
     $('rift-practice-reset').addEventListener('click',async()=>{if(!ready||starting||practiceToolPending||!run||$('rift-practice-reset').getAttribute('aria-disabled')==='true')return;practiceToolPending=true;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),true);try{await pause();while(busy)await new Promise(resolve=>setTimeout(resolve,20));if(await send('practice_reset')){message(drillNames[practice],$('rift-practice-instructions').textContent,'Start drill','PRACTICE');$('rift-canvas').focus();}}finally{practiceToolPending=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!ready||!run);}});
   }
+  if(practice==='boss'){
+    const example=$('rift-boss-jump-example'),canvas=$('rift-boss-jump-canvas'),caption=$('rift-boss-jump-status');
+    example.hidden=false;let frame=0,version=0,step=-1,lastElapsed=0;
+    const times=[300,1000,1250,1800];
+    const stop=()=>{version++;if(frame)cancelAnimationFrame(frame);frame=0;canvas.dataset.playing='false';audio.cancelPreview();};
+    const paint=elapsed=>{lastElapsed=elapsed;canvas.hidden=false;const result=renderer.drawBossJumpPreview(canvas,run?.build||build,elapsed,controls.label('jump'),run?.enemies?.find(e=>e.kind==='boss')||{kind:'boss',name:$('rift-practice-boss').value,art_key:'monster:'+$('rift-practice-boss').value});put(caption,result.text);};
+    const prepare=async()=>{stop();const current=version;if(playing)await pause();await renderer.ready;return current===version&&example.open&&!document.hidden;};
+    $('rift-boss-jump-play').onclick=async()=>{
+      try{if(!await prepare())return;step=-1;
+        if(renderer.reduced||window.RiftDisplay.motionIntensity===0){step=0;paint(times[0]);put(caption,'Reduced motion: '+caption.textContent+' Use Next still frame.');return;}
+        const current=version,start=performance.now();canvas.dataset.playing='true';
+        const draw=now=>{if(current!==version||!example.open||document.hidden){stop();return;}if(renderer.reduced||window.RiftDisplay.motionIntensity===0){stop();step=0;paint(times[0]);return;}paint(now-start);if(now-start<2400)frame=requestAnimationFrame(draw);else{frame=0;canvas.dataset.playing='false';}};
+        draw(start);
+      }catch(_){stop();put(caption,'Could not load the example artwork. Try again.');}
+    };
+    $('rift-boss-jump-step').onclick=async()=>{try{if(!await prepare())return;step=(step+1)%times.length;paint(times[step]);}catch(_){put(caption,'Could not load the example artwork. Try again.');}};
+    $('rift-boss-jump-sound').onclick=async()=>{try{if(!await prepare())return;const current=version,played=await audio.preview('effects','slam');if(current===version)put(caption,played?(audio.effects===0?'Effects volume is zero. Raise it to hear the slam.':'Previewing the slam impact with your sound settings.'):'Sound is muted or unavailable.');}catch(_){put(caption,'Sound is unavailable.');}};
+    example.addEventListener('toggle',()=>{if(!example.open)stop();});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});window.addEventListener('pagehide',stop);
+    $('rift-start').addEventListener('click',stop);
+    window.addEventListener('riftbindingschange',()=>{if(example.open&&!canvas.hidden)paint(lastElapsed);});
+  }
   load();
 })();

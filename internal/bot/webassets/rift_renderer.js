@@ -556,6 +556,24 @@
     context.restore();target.dataset.frame=String(frame);target.dataset.kind=skill.kind;target.dataset.reduced=String(still);
     return still;
   };
+  renderer.drawBossJumpPreview=function(target,build,elapsed,jumpKey,boss){
+    const context=target.getContext('2d'),t=Math.max(0,Math.min(2400,elapsed)),jumpTime=t-900,airborne=jumpTime>=0&&jumpTime<650;
+    const lift=airborne?Math.sin(jumpTime/650*Math.PI)*52:0,stage=t<900?'warning':t<1150?'jump':t<1550?'impact':'landing';
+    const copy={warning:'Watch the warning: do not jump yet.',jump:'Press '+jumpKey+' now.',impact:'Airborne at impact: the slam misses.',landing:'Land, then counterattack during recovery.'};
+    context.clearRect(0,0,480,220);context.fillStyle='#101d24';context.fillRect(0,0,480,220);
+    context.strokeStyle='#486068';context.beginPath();context.moveTo(16,188);context.lineTo(464,188);context.stroke();
+    context.fillStyle=stage==='landing'?'#86cbb422':stage==='impact'?'#ffc77e55':'#ffc77e22';context.strokeStyle=stage==='landing'?'#86cbb4':'#ffc77e';context.lineWidth=2;context.setLineDash(t<1150?[6,4]:[]);
+    context.beginPath();context.ellipse(160,186,74,18,0,0,Math.PI*2);context.fill();context.stroke();context.setLineDash([]);
+    if(t<1150){context.beginPath();context.ellipse(160,186,74+25*(1-t/1150),18+8*(1-t/1150),0,0,Math.PI*2);context.stroke();}
+    context.fillStyle='#030e16aa';context.beginPath();context.ellipse(160,188,25,5,0,0,Math.PI*2);context.fill();
+    const index=Math.max(0,styles.indexOf(foundations[build?.class]||build?.class)),hero=images[index<6?'heroesA':'heroesB'];
+    if(hero){const column=airborne?6:stage==='landing'?10:0;context.drawImage(hero,column*hero.width/16,(index%6)*hero.height/6,hero.width/16,hero.height/6,112,92-lift,96,96);}
+    const bossFrame=boss&&bestiary.frame(boss,t<1150?'cast':t<1550?'attack':'idle',Math.floor(t/180)),bossImage=bossFrame&&catalogImages[bossFrame.asset],source=bossFrame?.source;
+    if(bossImage&&source){context.save();context.translate(380,188);context.scale(-1,1);context.drawImage(bossImage,source.x*bossImage.width,source.y*bossImage.height,source.width*bossImage.width,source.height*bossImage.height,-68,-124,136,136);context.restore();}
+    context.fillStyle='#d8eee7';context.font='bold 13px monospace';context.textAlign='center';context.fillText(t<1150?'SLAM IN '+Math.max(0,(1150-t)/1000).toFixed(2)+'s':'SLAM RESOLVED',240,24);
+    target.dataset.stage=stage;target.dataset.lift=String(lift);target.setAttribute('aria-label',copy[stage]);
+    return {stage,text:copy[stage]};
+  };
   function surfaceHeight(x,y,run=snapshot){
     const arena=run?.practice?.arena||run?.level?.rooms?.[run.room];let height=0;
     for(const p of arena?.platforms||[]){const distance=Math.min(x-p.x,p.x+p.w-x,y-p.y,p.y+p.h-y);height=Math.max(height,p.rise*Math.max(0,Math.min(1,distance/p.ramp)));}return height;
