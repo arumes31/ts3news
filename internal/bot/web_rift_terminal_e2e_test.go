@@ -28,6 +28,11 @@ func riftTerminalFixture(scenario string, build rift.Build) *rift.Run {
 		// Match the expired GET projection: secured gold is historical, not spendable.
 		run.Epoch = "fixture-old"
 		run.Status = "expired"
+		run.CompletedLevels = []int{1, 7}
+		run.History = map[int]rift.MissionHistory{
+			1: {Definition: run.MissionDefinition, Attempts: 2, Completions: 2, LastOutcome: "completed", BestSeconds: 42, CompletedByClass: map[string]int{build.Class: 2}},
+			7: {Attempts: 1, Completions: 1, LastOutcome: "completed", CompletedByClass: map[string]int{build.Class: 1}},
+		}
 		run.PastExpeditions.Gold = run.BankedGold
 		run.BankedGold = 0
 	case "terminal-complete", "terminal-banked":
