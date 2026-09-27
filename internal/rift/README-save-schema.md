@@ -145,3 +145,29 @@ Run the focused backend checks from the repository root:
 ```text
 go test ./internal/bot ./internal/rift -run 'Test(Rift|Campaign|Hazard|EventHistory|SavedContent)' -count=1
 ```
+
+
+## PostgreSQL commit-uncertainty verification
+
+`TestRiftActualBankCommitUncertainty` is an integration-tagged test using real
+PostgreSQL and every embedded schema migration. Set `RIFT_TEST_DATABASE_URL` to a
+disposable PostgreSQL administrator URL with CREATE DATABASE permission, then run:
+
+```text
+go test -tags=integration ./internal/bot -run '^TestRiftActualBankCommitUncertainty$' -count=1 -v -timeout=3m
+```
+
+The helper creates its own uniquely named database and drops that database on
+cleanup; it never migrates or seeds the supplied administrator database. The test
+injects confirmation loss at the SQL driver transaction boundary: real COMMIT or
+ROLLBACK completes, then the connection closes and returns `driver.ErrBadConn`.
+This covers both unknown outcomes without substituting mock reward storage.
+
+For bank, exit, next and advance, recovery and late identical retries must produce
+exactly one gear row, fight gold plus objective bonus once, one settlement
+transaction in the economy ledger, and a matching persisted revision/request ID.
+Row transaction IDs additionally prove balance, gear and run snapshot were written
+together. Rolled-back attempts leave no inventory, ledger or snapshot changes.
+The driver fault is deliberate test instrumentation, not a claim that every possible
+network/server failure has been reproduced. Without the environment variable the
+test skips; a skipped run is not integration evidence.
