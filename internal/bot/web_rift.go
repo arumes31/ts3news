@@ -329,6 +329,9 @@ func decodeRift(saved string) (*rift.Run, error) {
 	if err := validateRiftHazardTiming(&run); err != nil {
 		return nil, err
 	}
+	if err := validateRiftPositions(&run); err != nil {
+		return nil, err
+	}
 	// Match the live event ring and release oversized historical backing storage.
 	if len(run.Events) > 40 {
 		recent := make([]rift.Event, 40)
