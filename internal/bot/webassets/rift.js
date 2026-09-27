@@ -88,6 +88,13 @@
   function silence(){lastAudioArea=-1;audio.stopBossMusic?.(0);audio.silence?.();try{Promise.resolve(audio.setActive(false)).catch(()=>{});}catch(_){} }
   function text(tag, value, parent, className) { const node = document.createElement(tag); node.textContent = value; if(className)node.className=className; if(parent)parent.append(node); return node; }
   function put(node,value){if(node&&node.textContent!==String(value))node.textContent=value;}
+  function putRoomProgress(detail,announcement=detail){
+    put($('rift-room-objective-progress'),detail);
+    put($('rift-room-objective-announcement'),announcement);
+  }
+  function objectiveHealth(hp){return hp<=0?'lost':hp<=25?'critical light':hp<=50?'low light':'light holding';}
+  function objectiveMilestone(percent){return Math.max(0,Math.min(100,Math.floor(percent/25)*25))+'%';}
+
   function setSafeDisabled(node, disabled, explain=false) {
     if(!node)return;
     node.toggleAttribute('data-explain-disabled',disabled&&explain);
@@ -259,86 +266,87 @@
     window.RiftObjectives.update(run,gamePaused);
     const roomGoal=run.room_objective;
     $('rift-room-objective').hidden=!roomGoal;
+    if(!roomGoal)put($('rift-room-objective-announcement'),'');
     $('rift-room-objective').dataset.contested=String(!!roomGoal?.contested);
     if(roomGoal?.kind==='rune_gate'){
       const ended=!['fighting','cleared'].includes(run.status),combat=run.enemies.some(e=>e.hp>0),next=roomGoal.pickups.find(p=>p.id===roomGoal.sequence[roomGoal.collected]);
-      put($('rift-room-objective-progress'),'Rune gate '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Open':gamePaused?'Paused':combat?'Defeat the patrol':'Next seal: '+next.id));
+      putRoomProgress('Rune gate '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Open':gamePaused?'Paused':combat?'Defeat the patrol':'Next seal: '+next.id));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Gate open. Bank collected loot to continue.':'Order: '+roomGoal.sequence.join(' → ')+'. '+(combat?'Seals activate after the patrol is defeated.':'Step on each seal in order. A wrong seal resets progress without damage. Floor hazards are off.'));
       put($('rift-room-objective-directions'),ended||roomGoal.complete||combat?'':'Seal '+next.id+': '+(next.x<run.player.x?'left':'right')+(Math.abs(next.y-run.player.y)<24?'':next.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='split_defense'){
       const failed=roomGoal.lanes.some(l=>l.ward.hp<=0),ended=!['fighting','cleared'].includes(run.status);
-      put($('rift-room-objective-progress'),roomGoal.lanes.map(l=>l.ward.name+': '+Math.ceil(l.ward.hp)+'%').join(' · ')+(failed?' · Breached':roomGoal.complete?' · Protected':gamePaused?' · Paused':''));
+      putRoomProgress(roomGoal.lanes.map(l=>l.ward.name+': '+Math.ceil(l.ward.hp)+'%').join(' · ')+(failed?' · Breached':roomGoal.complete?' · Protected':gamePaused?' · Paused':''),roomGoal.lanes.map(l=>l.ward.name+': '+objectiveHealth(l.ward.hp)+(l.contested?' · Under attack':'')).join(' · ')+(failed?' · Breached':roomGoal.complete?' · Protected':gamePaused?' · Paused':''));
       put($('rift-room-objective-help'),failed?'A lane ward fell. The expedition ended.':ended?'This tier was not secured.':roomGoal.complete?'Both wards survived. Bank the loot to continue.':'Intercept enemies in both lanes. Each attacker at a ward drains five light per second, up to two attackers. Both wards must survive.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':roomGoal.lanes.map(l=>l.ward.name+': '+(l.contested?'UNDER ATTACK': 'holding')+' · '+(l.ward.x<run.player.x?'left':'right')+(l.ward.y<run.player.y?', up':', down')).join(' | '));
     }else if(roomGoal?.kind==='protect_lantern'){
       const ended=!['fighting','cleared'].includes(run.status),lamp=roomGoal.lantern;
-      put($('rift-room-objective-progress'),'Lantern '+Math.ceil(lamp.hp)+'% · '+(lamp.hp<=0?'Extinguished':ended?'Expedition ended':roomGoal.complete?'Protected':gamePaused?'Paused':roomGoal.contested?'Under threat':'Keep enemies away'));
+      putRoomProgress('Lantern '+Math.ceil(lamp.hp)+'% · '+(lamp.hp<=0?'Extinguished':ended?'Expedition ended':roomGoal.complete?'Protected':gamePaused?'Paused':roomGoal.contested?'Under threat':'Keep enemies away'),'Lantern '+objectiveHealth(lamp.hp)+' · '+(lamp.hp<=0?'Extinguished':ended?'Expedition ended':roomGoal.complete?'Protected':gamePaused?'Paused':roomGoal.contested?'Under threat':'Keep enemies away'));
       put($('rift-room-objective-help'),lamp.hp<=0?'The lantern went out. The expedition ended.':ended?'This tier was not secured.':roomGoal.complete?'Lantern protected and patrol defeated. Bank the loot to continue.':'Enemies inside the ring drain five light per second each, up to three enemies. Draw them away or defeat them. Losing all light ends the expedition.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Lantern: '+(lamp.x<run.player.x?'left':'right')+(Math.abs(lamp.y-run.player.y)<24?'':lamp.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='rescue_companions'){
       const ended=!['fighting','cleared'].includes(run.status),captives=roomGoal.captives.filter(c=>!c.freed);
-      put($('rift-room-objective-progress'),'Companions '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Rescued':gamePaused?'Paused':'Break the cages'));
+      putRoomProgress('Companions '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Rescued':gamePaused?'Paused':'Break the cages'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Companions rescued. Clear the remaining patrol and bank the loot.':'Attacks and spells break the cages without harming the captive spirits. Cages grant no monster kills or loot.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':captives.map(c=>c.name+': '+(c.x<run.player.x?'left':'right')+(Math.abs(c.y-run.player.y)<24?'':c.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='linked_guardians'){
       const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
-      put($('rift-room-objective-progress'),'Guardians '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Defeated':gamePaused?'Paused':roomGoal.bond_active?'Linked · 50% damage reduction':'Bond broken'));
+      putRoomProgress('Guardians '+roomGoal.collected+'/2 · '+(ended?'Expedition ended':roomGoal.complete?'Defeated':gamePaused?'Paused':roomGoal.bond_active?'Linked · 50% damage reduction':'Bond broken'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Guardians defeated. Clear the remaining patrol and bank the loot.':'Separate the guardians by more than 240 units or defeat one to remove their protection. They can reform the bond when close together.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':targets.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='escape_collapse'){
       const ended=!['fighting','cleared'].includes(run.status),caught=run.player.x<=roomGoal.collapse_x;
-      put($('rift-room-objective-progress'),'Collapse · '+(ended?'Expedition ended':roomGoal.complete?'Escaped':gamePaused?'Paused':roomGoal.seconds<3?'Starts in '+(3-roomGoal.seconds).toFixed(1)+'s':caught?'Caught in the collapse':'Keep moving to the exit'));
+      putRoomProgress('Collapse · '+(ended?'Expedition ended':roomGoal.complete?'Escaped':gamePaused?'Paused':roomGoal.seconds<3?'Starts in '+(3-roomGoal.seconds).toFixed(1)+'s':caught?'Caught in the collapse':'Keep moving to the exit'),'Collapse · '+(ended?'Expedition ended':roomGoal.complete?'Escaped':gamePaused?'Paused':roomGoal.seconds<3?'Starts soon. Move toward the exit':caught?'Caught in the collapse':'Keep moving to the exit'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'You escaped. Bank collected loot to continue.':'Stay ahead of the advancing edge and land inside the exit seal. Fight for loot if time permits; surviving enemies grant no rewards.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Exit: '+(roomGoal.zone.x<run.player.x?'left':'right')+(Math.abs(roomGoal.zone.y-run.player.y)<24?'':roomGoal.zone.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='interrupt_ritual'){
       const ended=!['fighting','cleared'].includes(run.status),channels=roomGoal.channels.map(c=>({...c,enemy:run.enemies.find(e=>e.id===c.enemy_id)})).filter(c=>c.enemy.hp>0),next=channels.length?Math.min(...channels.map(c=>8-c.seconds)):0;
-      put($('rift-room-objective-progress'),'Ritual '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Interrupted':gamePaused?'Paused':'Next pulse in '+next.toFixed(1)+'s'));
+      putRoomProgress('Ritual '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Interrupted':gamePaused?'Paused':'Next pulse in '+next.toFixed(1)+'s'),'Ritual '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Interrupted':gamePaused?'Paused':(next>0&&next<=2?'Pulse imminent. Leave the pulse rings':'Interrupt the channelers')));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Ritual ended. Defeat the remaining patrol and bank the tier loot.':'Hit a channeler to reset its eight-second charge. Leave the pulse ring before discharge. Defeat every channeler.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':channels.map(c=>c.enemy.name+': '+(c.enemy.x<run.player.x?'left':'right')+(Math.abs(c.enemy.y-run.player.y)<24?'':c.enemy.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='escort_spirit'){
       const ended=!['fighting','cleared'].includes(run.status),spirit=roomGoal.escort,percent=Math.min(100,Math.floor((spirit.x-350)/1100*100));
-      put($('rift-room-objective-progress'),'Spirit '+percent+'% · '+(ended?'Expedition ended':roomGoal.complete?'Safe at the exit':gamePaused?'Paused':roomGoal.contested?'Clear nearby enemies':roomGoal.escort_moving?'Escorting':'Stay near the spirit'));
+      putRoomProgress('Spirit '+percent+'% · '+(ended?'Expedition ended':roomGoal.complete?'Safe at the exit':gamePaused?'Paused':roomGoal.contested?'Clear nearby enemies':roomGoal.escort_moving?'Escorting':'Stay near the spirit'),'Spirit '+objectiveMilestone(percent)+' · '+(ended?'Expedition ended':roomGoal.complete?'Safe at the exit':gamePaused?'Paused':roomGoal.contested?'Clear nearby enemies':roomGoal.escort_moving?'Escorting':'Stay near the spirit'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'The spirit is safe. Defeat the remaining patrol.':'Spirit escorted and patrol cleared. Bank the tier loot to continue.'):'Stay inside the spirit’s support ring. It waits when you move away or enemies get close. Saved progress is kept.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Spirit: '+(spirit.x<run.player.x?'left':'right')+(Math.abs(spirit.y-run.player.y)<24?'':spirit.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='moving_beacons'){
       const ended=!['fighting','cleared'].includes(run.status),zone=roomGoal.zone;
-      put($('rift-room-objective-progress'),'Beacons '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Captured':gamePaused?'Paused':'Beacon '+(roomGoal.collected+1)+': '+Math.floor(roomGoal.seconds)+'/3 s · '+(roomGoal.charging?'Capturing':'Follow the ring')));
+      putRoomProgress('Beacons '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Captured':gamePaused?'Paused':'Beacon '+(roomGoal.collected+1)+': '+Math.floor(roomGoal.seconds)+'/3 s · '+(roomGoal.charging?'Capturing':'Follow the ring')),'Beacons '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Captured':gamePaused?'Paused':'Beacon '+(roomGoal.collected+1)+': '+(roomGoal.charging?'Capturing':'Follow the ring')));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'All beacons captured. Defeat the patrol to secure the tier.':'Beacons and patrol cleared. Bank the tier loot to continue.'):'Stay grounded inside the moving ring for three seconds. Leaving keeps your capture progress.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':'Beacon: '+(zone.x<run.player.x?'left':'right')+(Math.abs(zone.y-run.player.y)<24?'':zone.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='marked_hunt'){
       const ended=!['fighting','cleared'].includes(run.status),targets=run.enemies.filter(e=>roomGoal.targets.includes(e.id)&&e.hp>0);
-      put($('rift-room-objective-progress'),'Targets '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Hunt complete':gamePaused?'Paused':'Defeat the marked enemies'));
+      putRoomProgress('Targets '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':roomGoal.complete?'Hunt complete':gamePaused?'Paused':'Defeat the marked enemies'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'Targets defeated. Survivors retreated without granting kills or loot. Bank the tier loot to continue.':'Look for gold diamond markers. Defeat those enemies to secure the tier; surviving unmarked enemies retreat without rewards.');
       put($('rift-room-objective-directions'),ended?'':targets.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='disable_generators'){
       const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='generator'&&e.hp>0);
-      put($('rift-room-objective-progress'),'Generators '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'All hazards off':'Shut down the hazards'));
+      putRoomProgress('Generators '+roomGoal.collected+'/'+roomGoal.target+' · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'All hazards off':'Shut down the hazards'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.kind!=='generator'&&e.hp>0)?'Hazards disabled. Defeat the remaining patrol.':'Generators and patrol cleared. Bank the tier loot to continue.'):'Destroy each generator with attacks or spells. Its linked floor hazard stays off. Generators grant no monster loot or kill credit.');
       put($('rift-room-objective-directions'),ended?'':remaining.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='carry_relic'){
       const ended=!['fighting','cleared'].includes(run.status),target=roomGoal.carrying?roomGoal.zone:roomGoal.relic;
-      put($('rift-room-objective-progress'),'Relic · '+(ended?'Expedition ended':roomGoal.complete?'Delivered':roomGoal.carrying?'Carrying · 30% slower':'Find the relic')+(gamePaused&&!ended&&!roomGoal.complete?' · Paused':''));
+      putRoomProgress('Relic · '+(ended?'Expedition ended':roomGoal.complete?'Delivered':roomGoal.carrying?'Carrying · 30% slower':'Find the relic')+(gamePaused&&!ended&&!roomGoal.complete?' · Paused':''));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Movement restored. Defeat the patrol to secure this tier.':'Relic delivered and patrol cleared. Bank the tier loot to continue.'):roomGoal.carrying?'Carry it to the exit seal. Attacks and jumps remain available. Land inside the seal to deliver.':'Walk over the relic to pick it up. Carrying reduces movement speed by 30%.');
       put($('rift-room-objective-directions'),ended||roomGoal.complete?'':(roomGoal.carrying?'Exit seal: ':'Relic: ')+(target.x<run.player.x?'left':'right')+(Math.abs(target.y-run.player.y)<24?'':target.y<run.player.y?', up':', down'));
     }else if(roomGoal?.kind==='destroy_totems'){
       const ended=!['fighting','cleared'].includes(run.status),remaining=run.enemies.filter(e=>e.kind==='totem'&&e.hp>0),patrol=run.enemies.filter(e=>e.kind!=='totem'&&e.hp>0).length;
-      put($('rift-room-objective-progress'),'Totems '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'Shattered':'Destroy the ritual props'));
+      putRoomProgress('Totems '+roomGoal.collected+'/3 · '+(ended?'Expedition ended':gamePaused?'Paused':roomGoal.complete?'Shattered':'Destroy the ritual props'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(patrol?'Defeat the remaining patrol to secure this tier.':'All totems and defenders cleared. Bank the tier loot to continue.'):'Use attacks or damaging spells. Totems do not grant monster loot or kill credit.');
       put($('rift-room-objective-directions'),ended?'':remaining.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='survive_waves'){
       const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0;
-      put($('rift-room-objective-progress'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'));
+      putRoomProgress('Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements approaching':'Defeat the attackers'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
       put($('rift-room-objective-directions'),roomGoal.complete||ended?'':run.enemies.filter(enemy=>enemy.hp>0).length+' enemies remaining in this wave');
     }else if(roomGoal?.kind==='hold_circle'){
       const zone=roomGoal.zone,inside=((run.player.x-zone.x)/zone.radius_x)**2+((run.player.y-zone.y)/zone.radius_y)**2<=1;
       const ended=!['fighting','cleared'].includes(run.status);
       const state=ended?'Expedition ended':roomGoal.complete?'Charged':gamePaused?'Paused':roomGoal.contested?'Contested':inside&&run.player.jump<=.1?'Charging':'Move onto the circle';
-      put($('rift-room-objective-progress'),roomGoal.name+' · '+Math.floor(roomGoal.seconds)+' / '+roomGoal.target+' s · '+state);
+      putRoomProgress(roomGoal.name+' · '+Math.floor(roomGoal.seconds)+' / '+roomGoal.target+' s · '+state,roomGoal.name+' · '+objectiveMilestone(roomGoal.seconds/roomGoal.target*100)+' · '+state);
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Circle charged. Defeat the remaining enemies.':'Circle charged and enemies defeated. Tier secured.'):'Stay grounded inside the circle while no enemy occupies it. Leaving keeps the charge you have earned.');
       put($('rift-room-objective-directions'),inside?'Inside the circle':('Circle: '+(run.player.x<zone.x?'right':'left')+(Math.abs(run.player.y-zone.y)<20?'':run.player.y<zone.y?', down':', up')));
     }else if(roomGoal){
-      put($('rift-room-objective-progress'),roomGoal.name+' · '+roomGoal.collected+' / '+roomGoal.target+(roomGoal.complete?' · Gathered':''));
+      putRoomProgress(roomGoal.name+' · '+roomGoal.collected+' / '+roomGoal.target+(roomGoal.complete?' · Gathered':''));
       put($('rift-room-objective-help'),roomGoal.complete?(run.enemies.some(e=>e.hp>0)?'Sigils gathered. Defeat the remaining enemies.':'Sigils gathered and enemies defeated. Tier secured.'):'Walk over the marked sigils on the ground. Both the sigils and enemy defeats are required to clear this tier.');
       put($('rift-room-objective-directions'),roomGoal.pickups.filter(p=>!p.collected).map(p=>'Sigil '+p.id+': '+(Math.abs(p.x-run.player.x)<28?'aligned':p.x<run.player.x?'left':'right')+(Math.abs(p.y-run.player.y)<24?'':p.y<run.player.y?', up':', down')).join(' · '));
     }
