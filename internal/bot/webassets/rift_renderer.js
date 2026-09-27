@@ -96,7 +96,7 @@
   }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
-  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_summon_warning','boss_fan','lane_slam','boss_phase','victory']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_shield_hit','boss_stagger','boss_guard_break','boss_summon_warning','boss_fan','lane_slam','boss_phase','victory']);
   function combatTextCategory(e) {
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
@@ -1341,6 +1341,12 @@
           interactionPrompt(danger?'LANE SLAM · '+e.windup.toFixed(1)+'s · MOVE OR JUMP':'CLEAR OF SLAM',480,y+h/2,true);ctx.restore();
         }
       }
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.boss_shield_max>0){
+        const x=e.x-camera,y=e.y-(e.elevation||0),remaining=Math.max(0,e.boss_shield_hp||0),fraction=Math.min(1,remaining/e.boss_shield_max);
+        ctx.save();ctx.fillStyle='#071b16';ctx.fillRect(x-46,y-101,92,6);ctx.fillStyle='#a4e8fa';ctx.fillRect(x-44,y-99,88*fraction,2);
+        ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(remaining>0?'SHELL '+Math.ceil(remaining)+'/'+Math.ceil(e.boss_shield_max)+(e.weak_point>0?' · WEAK POINT BYPASSES':' · BREAK WITH HITS'):'SHELL BROKEN',x,y-84,true);
+        if(remaining>0){ctx.strokeStyle='#a4e8fa';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y-38,52,57,0,0,Math.PI*2);ctx.stroke();}ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&(display.healthBars||e.boss_guard_break>0)){
         const broken=e.boss_guard_break>0,grace=e.boss_stagger_grace>0;
         const label=broken?'GUARD BROKEN · '+e.boss_guard_break.toFixed(1)+'s':grace?'STAGGER RECOVERING · '+e.boss_stagger_grace.toFixed(1)+'s':'STAGGER '+Math.round(Math.max(0,Math.min(100,e.boss_stagger||0)))+'/100';
@@ -1748,6 +1754,7 @@
       }
       if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='summon_dismiss'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d9c7ef';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SUMMON DISMISSED',e.x-camera,e.y-30,true);ctx.restore();}
+      if(e.kind==='boss_shield_break'&&age<.8&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#c7f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SHELL SHATTERED · WEAK POINT',e.x-camera,e.y-35,true);ctx.restore();}
       if(e.kind==='boss_channel_interrupt'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL INTERRUPTED · WEAK POINT',e.x-camera,e.y-72,true);ctx.restore();}
       if(e.kind==='boss_channel_pulse'&&age<.45&&!display.cleanScreenshot){ctx.save();ctx.strokeStyle='#bbf6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,125,62,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='boss_ring'&&age<.45&&!display.cleanScreenshot)voidRing(e.x-camera,e.y,e.value||0,true);

@@ -72,6 +72,9 @@ func AdaptMonster(m content.Mob) Actor {
 	a.Healer = a.Healer || m.Name == i18n.T("mob.frost_lich")
 	a.Support = a.Support || a.Healer
 	a.VolleyFan = a.Kind == "boss" && m.Name == i18n.T("mob.kraken")
+	if a.VolleyFan {
+		a.BossShieldHP, a.BossShieldMax = 90, 90
+	}
 	a.LaneSlams = a.Kind == "boss" && m.Name == i18n.T("mob.chronos")
 	a.RingAttack = a.Kind == "boss" && m.Name == i18n.T("mob.void_lord")
 	a.Charging = (a.Kind == "goblin" || a.Kind == "knight") && (a.Charging || m.Name == i18n.T("mob.raging_behemoth"))

@@ -390,6 +390,8 @@
       case 'alert_propagate': t(440,580,.1,.045,'triangle'); t(580,740,.1,.04,'triangle',.12); break;
       case 'flank_attempt': h(.12,.045,1700,pan); t(240,420,.13,.045,'sine'); break;
       case 'pack_attack': t(290,580,.18,.07,'sawtooth'); h(.10,.06,1400,pan); break;
+      case 'boss_shield_hit': t(600,340,.08,.06,'triangle');break;
+      case 'boss_shield_break': h(.3,.12,3600,pan);t(900,160,.3,.08,'triangle');break;
       case 'boss_channel_interrupt': t(800,200,.22,.07,'triangle');break;
       case 'boss_channel_pulse': h(.25,.12,1600,pan);t(220,80,.3,.1,'sine');break;
       case 'boss_summon_warning': t(120,360,.6,.075,'sine');break;

@@ -114,6 +114,8 @@ type Actor struct {
 	Alerted        bool    `json:"alerted,omitempty"`
 	AwarenessTimer float64 `json:"awareness_timer,omitempty"`
 	Pack           bool    `json:"pack,omitempty"`
+	BossShieldHP float64 `json:"boss_shield_hp,omitempty"`
+	BossShieldMax float64 `json:"boss_shield_max,omitempty"`
 	Summoned       bool    `json:"summoned,omitempty"`
 	SummonOwner string `json:"summon_owner,omitempty"`
 	SummonPhase int `json:"summon_phase,omitempty"`
@@ -1354,6 +1356,12 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	damage *= effectiveFactor
 	if r.guardianBondActive(e.ID) {
 		damage *= .5
+	}
+	if e.Kind == "boss" && e.BossShieldHP > 0 && e.WeakPoint <= 0 {
+		damage = r.absorbBossShield(e, damage)
+		if damage <= 0 {
+			return
+		}
 	}
 	damage = math.Min(e.HP, math.Max(0, damage))
 	if pierce > 0 && armor > 0 && effectiveFactor > baseFactor && damage > 0 {
