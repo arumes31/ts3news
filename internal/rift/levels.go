@@ -19,6 +19,7 @@ type Obstacle struct {
 }
 
 type Hazard struct {
+	Slippery    bool   `json:"slippery,omitempty"`
 	Tile        bool   `json:"tile,omitempty"`
 	Jumpable    bool   `json:"jumpable"`
 	Disabled    bool   `json:"disabled,omitempty"`
@@ -230,7 +231,7 @@ func buildCampaign() []Level {
 					}
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
-					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Jumpable: true, Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
+					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Slippery: kinds[region] == "ice", Jumpable: true, Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
 				}
 				if layout == 3 && room == 2 {
 					slices.SortFunc(arena.Hazards, func(a, b Hazard) int {
@@ -257,7 +258,7 @@ func buildCampaign() []Level {
 					arena.Hazards = nil
 					for row := 0; row < 2; row++ {
 						for col := 0; col < 4; col++ {
-							arena.Hazards = append(arena.Hazards, Hazard{Tile: true, Jumpable: true, Kind: kinds[region], Obstacle: Obstacle{560+float64(col)*76, 350+float64(row)*58, 60, 40}, Period: 6, Duration: 1, Offset: float64((row+col)%2)*3})
+							arena.Hazards = append(arena.Hazards, Hazard{Tile: true, Jumpable: true, Slippery: kinds[region] == "ice", Kind: kinds[region], Obstacle: Obstacle{560+float64(col)*76, 350+float64(row)*58, 60, 40}, Period: 6, Duration: 1, Offset: float64((row+col)%2)*3})
 						}
 					}
 				}

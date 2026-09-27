@@ -1286,7 +1286,7 @@
         if(warning||active){
           const duration=(Math.ceil(Math.max(0,h.duration-1e-9)*10)/10).toFixed(1)+'s';
           ctx.font='bold '+(9*display.textScale)+'px monospace';
-          interactionPrompt(active?'DANGER REMAINS':'LINGERS '+duration,x+h.w/2,h.y-6-16*display.textScale,true);
+          interactionPrompt(h.slippery&&h.kind==='ice'?'SLIPPERY · GUARD BRAKES':active?'DANGER REMAINS':'LINGERS '+duration,x+h.w/2,h.y-6-16*display.textScale,true);
         }
       }
       if(warning||active)hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color});

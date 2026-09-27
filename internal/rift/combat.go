@@ -860,14 +860,7 @@ func (r *Run) tick(in Input, dt float64) {
 			}
 		}
 	}
-	r.moveActor(p, x*speed*dt, y*speed*.6*dt, false)
-	if length > 0 {
-		p.Vx = x * speed
-		p.Vy = y * speed * .6
-	} else {
-		p.Vx = 0
-		p.Vy = 0
-	}
+	r.movePlayerWithTraction(in, x*speed, y*speed*.6, dt)
 	if x != 0 {
 		p.Facing = math.Copysign(1, x)
 	}
