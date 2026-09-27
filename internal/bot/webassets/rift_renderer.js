@@ -1237,6 +1237,12 @@
         const label=active?(h.jumpable===true?'JUMP':'MOVE')+' · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
         ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
         interactionPrompt(label,x+h.w/2,h.y-6,true);
+        // Current floor hazards remain harmful throughout their active interval.
+        if(warning||active){
+          const duration=(Math.ceil(Math.max(0,h.duration-1e-9)*10)/10).toFixed(1)+'s';
+          ctx.font='bold '+(9*display.textScale)+'px monospace';
+          interactionPrompt(active?'DANGER REMAINS':'LINGERS '+duration,x+h.w/2,h.y-6-16*display.textScale,true);
+        }
       }
       if(warning||active)hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color});
       if(active&&h.kind!=='spikes'&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
