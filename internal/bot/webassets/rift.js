@@ -187,7 +187,11 @@
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
-      if(response.status===409)throw saveConflictError();
+      if(response.status===409){
+        const problem=await response.json().catch(()=>null);
+        if(problem?.code==='ECONOMY_RESET')throw Object.assign(new Error('The Abyss economy has reset.'),{code:'ECONOMY_RESET'});
+        throw saveConflictError();
+      }
       if(response.status===410)throw Object.assign(new Error('The Abyss character is no longer available.'),{code:'CHARACTER_MISSING'});
       if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
       let data,responseBytes=0,runBytes=0;
@@ -544,6 +548,7 @@
       if(banking)window.RiftLoot.banking('uncertain');
       if(error.code==='CHARACTER_MISSING')showMissingCharacter(banking);
       else if(error.code==='SESSION_EXPIRED')showExpiredSession(banking);
+      else if(error.code==='ECONOMY_RESET')message('A new economy has begun.','Reload to close this old expedition and start with your current character. Old unbanked loot cannot carry over. Historical campaign records are retained.','Reload saved expedition','ECONOMY RESET');
       else if(error.code==='SAVE_CONFLICT')showSaveConflict(banking);
       else message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');
       $('rift-start').dataset.recover='true';return false;

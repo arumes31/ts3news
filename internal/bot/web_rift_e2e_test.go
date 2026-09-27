@@ -763,6 +763,20 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		server.render(w, "rift", map[string]any{"Title": "Rift Brawl Playtest", "Nav": "rift", "EnableAbyss": true, "AccountNav": true, "Fixture": true, "Practice": r.URL.Query().Get("practice")})
 	})
+	// Isolated reset trigger: uses the same expiration projection as production reads.
+	mux.HandleFunc("/api/e2e/rift-economy-reset", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost { http.Error(w, "POST only", 405); return }
+		cookie, err := r.Cookie("rift_fixture")
+		if err != nil { http.Error(w, "fixture session required", 401); return }
+		mu.Lock()
+		defer mu.Unlock()
+		run := runs[cookie.Value]
+		if run == nil { http.Error(w, "fixture run required", 404); return }
+		run.Epoch = "fixture-old"
+		expireRiftEconomy(run)
+		run.UpdateObjectives()
+		writeJSON(w, map[string]any{"ok": true})
+	})
 	mux.HandleFunc("/api/abyss/rift", func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -793,6 +807,10 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		var req riftRequest
 		if r.Method != http.MethodPost || json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req) != nil || !validRiftRequest(req) || !validRiftModeAction(mode, req.Kind) {
 			http.Error(w, "invalid controls", 400)
+			return
+		}
+		if req.Kind != "start" && run != nil && run.Status == "expired" {
+			riftFailure(w, r, errRiftEconomyReset)
 			return
 		}
 		if req.Kind == "start" {

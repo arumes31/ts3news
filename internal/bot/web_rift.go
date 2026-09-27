@@ -23,6 +23,7 @@ import (
 )
 
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
+var errRiftEconomyReset = errors.New("the Abyss economy has reset; reload the expedition")
 var errRiftCharacterMissing = errors.New("the Abyss character is no longer available")
 
 type riftRequest struct {
@@ -308,6 +309,10 @@ func validRiftRequest(r riftRequest) bool {
 }
 
 func riftFailure(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, errRiftEconomyReset) {
+		writeJSONStatus(w, http.StatusConflict, map[string]any{"ok": false, "code": "ECONOMY_RESET", "error": errRiftEconomyReset.Error()})
+		return
+	}
 	if errors.Is(err, errRiftCharacterMissing) {
 		writeJSONStatus(w, http.StatusGone, map[string]any{"ok": false, "code": "CHARACTER_MISSING", "error": errRiftCharacterMissing.Error()})
 		return
@@ -422,20 +427,25 @@ func loadRiftMode(ctx context.Context, database *sql.DB, uid, mode string) (*rif
 		return nil, err
 	}
 	if run.Epoch != epoch {
-		run.Status = "expired"
-		run.Gold = 0
-		run.Drops = []rift.Drop{}
-		// Keep historical records when an economy reset expires spendable rewards.
-		run.PastExpeditions.Gold += run.BankedGold
-		run.PastExpeditions.Gear += run.TotalBankedItems()
-		run.BankedGold = 0
-		run.BankedObjectiveGold = 0
-		run.BankedItems = []string{}
-		run.BankedItemsTotal = 0
-		run.BankedLoot = nil
+		expireRiftEconomy(run)
 	}
 	run.UpdateObjectives()
 	return run, nil
+}
+
+// expireRiftEconomy removes spendable rewards while retaining account history.
+func expireRiftEconomy(run *rift.Run) {
+	run.Status = "expired"
+	run.Gold = 0
+	run.Drops = []rift.Drop{}
+	// Keep historical records when an economy reset expires spendable rewards.
+	run.PastExpeditions.Gold += run.BankedGold
+	run.PastExpeditions.Gear += run.TotalBankedItems()
+	run.BankedGold = 0
+	run.BankedObjectiveGold = 0
+	run.BankedItems = []string{}
+	run.BankedItemsTotal = 0
+	run.BankedLoot = nil
 }
 
 func (b *Bot) updateRift(ctx context.Context, uid string, req riftRequest, build rift.Build, now time.Time) (*rift.Run, error) {
@@ -507,8 +517,11 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 		run.StartKey = req.RequestID
 		run.Epoch = epoch
 	} else {
-		if run == nil || req.RunID != run.ID || epoch != run.Epoch {
+		if run == nil || req.RunID != run.ID {
 			return nil, errRiftConflict
+		}
+		if epoch != run.Epoch {
+			return nil, errRiftEconomyReset
 		}
 		if req.Revision <= run.Revision {
 			return run, nil
