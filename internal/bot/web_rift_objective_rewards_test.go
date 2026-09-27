@@ -32,6 +32,7 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 			request := riftRequest{Kind: "bank", RunID: run.ID, Revision: 5, RequestID: "bonus-request"}
 			if scenario == "replay" {
 				run.Revision = 5
+				run.LastRequestID = request.RequestID
 				run.Status = "complete"
 				run.Gold = 0
 				run.Drops[0].Banked = true

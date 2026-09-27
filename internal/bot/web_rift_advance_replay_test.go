@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"testing"
@@ -28,6 +29,7 @@ func TestRiftDuplicateAdvanceCannotSkipLaterCheckpoint(t *testing.T) {
 				run.Status = status
 				run.Room = 2
 				run.Revision = 9
+				run.LastRequestID = "last-room-step-request"
 				run.Epoch = "2"
 				run.Drops = []rift.Drop{{ID: "new-room-loot", Gold: 70, Collected: true}}
 				run.BankedGold = 30
@@ -42,6 +44,11 @@ func TestRiftDuplicateAdvanceCannotSkipLaterCheckpoint(t *testing.T) {
 				mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(raw)))
 				mock.ExpectRollback()
 				out, err := (&Bot{DB: db}).updateRift(context.Background(), "owner", riftRequest{Kind: "advance", RunID: run.ID, Revision: revision, RequestID: "replayed-advance-request"}, rift.Build{}, now.Add(time.Second))
+				if revision == 9 {
+					if !errors.Is(err, errRiftConflict) || out != nil { t.Fatal("different request took the current revision") }
+					if err := mock.ExpectationsWereMet(); err != nil { t.Fatal(err) }
+					return
+				}
 				if err != nil || out == nil {
 					t.Fatalf("duplicate should return confirmed snapshot: %v", err)
 				}

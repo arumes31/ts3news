@@ -74,7 +74,7 @@
     fullscreenUnavailable:"Fullscreen is unavailable in this browser.",
     fullscreenReview:"Review your controls before entering fullscreen.",
     sessionExpired:"Your session expired. Sign in again, then resume this expedition.",
-    saveConflict:"This page no longer matches the saved expedition. Reload its latest confirmed state before continuing.",
+    saveConflict:"This page no longer matches the saved expedition. Another tab may have advanced it. Reload its latest confirmed state before continuing.",
     connectionInterrupted:"Connection interrupted. Recover the saved expedition before continuing.",
     responseInterrupted:"The expedition response was interrupted. Recover the saved expedition before continuing.",
     unconfirmed:"Could not confirm the expedition.",

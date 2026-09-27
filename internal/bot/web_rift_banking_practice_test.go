@@ -36,6 +36,7 @@ func TestRiftPracticeBankOnlySavesDemoAndReplaysReceipt(t *testing.T) {
 					t.Fatal(err)
 				}
 				req.Revision = 4
+				run.LastRequestID = req.RequestID
 			}
 			saved, _ := json.Marshal(run)
 			key := "rift_practice:owner:banking"

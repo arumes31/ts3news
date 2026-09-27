@@ -91,6 +91,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			}
 			if scenario == "duplicate" || scenario == "advance duplicate" {
 				request.Revision = 4
+				run.LastRequestID = request.RequestID
 				run.Drops[0].Banked = true
 				run.Status = "banked"
 				run.BankedGold = 30
@@ -125,7 +126,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				if advance {
 					snapshot = riftSnapshotCheck(func(saved *rift.Run) bool {
 						h := saved.History[10]
-						return saved.ObjectiveHistory["Wayfarer"]["timed"] == 1 && saved.LastObjectives != nil && saved.LastObjectives.Banked && saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
+						return saved.LastRequestID == request.RequestID && saved.ObjectiveHistory["Wayfarer"]["timed"] == 1 && saved.LastObjectives != nil && saved.LastObjectives.Banked && saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
 					})
 				}
 				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)

@@ -318,6 +318,7 @@ type Run struct {
 	StartKey            string                   `json:"start_key"`
 	Epoch               string                   `json:"epoch"`
 	Revision            int                      `json:"revision"`
+	LastRequestID       string                   `json:"last_request_id,omitempty"`
 	Room                int                      `json:"room"`
 	Status              string                   `json:"status"`
 	Paused              bool                     `json:"paused"`

@@ -524,6 +524,9 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			return nil, errRiftEconomyReset
 		}
 		if req.Revision <= run.Revision {
+			if req.Revision == run.Revision && req.RequestID != run.LastRequestID {
+				return nil, errRiftConflict
+			}
 			return run, nil
 		}
 		if req.Revision != run.Revision+1 {
@@ -574,6 +577,7 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			drop.Gear.FoundBoss = riftGearOrigin(run)
 		}
 	}
+	run.LastRequestID = req.RequestID
 	run.SavedAtMS = now.UnixMilli()
 	data, err := encodeRift(run)
 	if err != nil {

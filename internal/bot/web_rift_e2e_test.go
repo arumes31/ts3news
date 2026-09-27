@@ -855,6 +855,10 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				return
 			}
 			if req.Revision <= run.Revision {
+				if req.Revision == run.Revision && req.RequestID != run.LastRequestID {
+					writeJSONStatus(w, http.StatusConflict, map[string]any{"ok": false, "error": errRiftConflict.Error()})
+					return
+				}
 				writeJSON(w, map[string]any{"ok": true, "run": run})
 				return
 			}
@@ -912,6 +916,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			}
 			run.Revision = req.Revision
 		}
+		run.LastRequestID = req.RequestID
 		for i := range run.Drops {
 			drop := &run.Drops[i]
 			if run.Practice == nil && drop.NeedsGear && drop.Gear == nil {

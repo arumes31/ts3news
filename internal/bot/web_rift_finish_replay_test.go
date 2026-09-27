@@ -28,6 +28,7 @@ func TestRiftRepeatedFinishNeverDeliversLootAgain(t *testing.T) {
 					run.Status = status
 					run.Epoch = "2"
 					run.Revision = 5
+					run.LastRequestID = "repeat-finish-request"
 					run.BankedGold = 30
 					run.BankedItems = []string{"Already delivered"}
 					run.BankedAtMS = 100000

@@ -27,6 +27,7 @@ func TestRiftPracticeEnemyActionsAreScopedAndReplaySafe(t *testing.T) {
 				run, _ := rift.NewPracticeRun("practice", rift.Build{HP: 100}, "skills", time.Unix(100, 0))
 				run.Epoch = "2"
 				run.Revision = 4
+				if replay { run.LastRequestID = request.RequestID }
 				saved, _ := json.Marshal(run)
 				key := "rift_practice:owner:skills"
 				mock.ExpectBegin()

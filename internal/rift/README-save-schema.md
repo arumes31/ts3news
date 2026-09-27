@@ -58,6 +58,24 @@ schema 1 or bypass validation. Keep old-save fixtures and failure atomicity test
 for every supported conversion. A rollback must either understand the new schema
 or restore from a tested backup; it must never replay banking to reconstruct it.
 
+## Revision request identity
+
+Optional `last_request_id` records the request that produced the current revision.
+The normal transaction writes it with the snapshot, after successful simulation
+and reward work. Equal-revision retries return the confirmed state only when the
+request ID matches. A different ID produces a conflict without applying input or
+banking. Older revisions still return newer state, which the browser treats as a
+conflict and explicitly reloads before resuming. Start retries retain `start_key`.
+
+Legacy saves remain readable without this field. Their equal-revision retries are
+ambiguous and require reload; the next normal mutation records the new ID. Do not
+invent a historical ID or accept an unknown winner as a confirmed retry. As with
+other additive state, mixed old/new writers are unsupported: old writers drop this
+field and do not enforce its arbitration rule. This prevents silent concurrent
+control by rejecting stale actions, rather than assigning a permanent tab lease.
+A player can explicitly reload and resume in a different tab; stale tabs must then
+recover their state before controlling the expedition again.
+
 ## Bounded receipt history
 
 `BankedItemsTotal` supplies the independent confirmed item count; absent or zero

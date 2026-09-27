@@ -26,6 +26,7 @@ func TestRiftBossRetryStorageAndRequestReplay(t *testing.T) {
 				t.Fatal(err)
 			}
 			run.Revision = 1
+			run.LastRequestID = "retry-boss-request"
 		}
 		data, err := json.Marshal(run)
 		if err != nil {
@@ -39,7 +40,7 @@ func TestRiftBossRetryStorageAndRequestReplay(t *testing.T) {
 			mock.ExpectRollback()
 		} else {
 			mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", riftSnapshotCheck(func(saved *rift.Run) bool {
-				return saved.Status == "fighting" && saved.Paused && saved.Room == 2 && saved.BankedGold == 50 && saved.Revision == 1
+				return saved.LastRequestID == "retry-boss-request" && saved.Status == "fighting" && saved.Paused && saved.Room == 2 && saved.BankedGold == 50 && saved.Revision == 1
 			})).WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()
 		}
