@@ -275,6 +275,13 @@ func buildCampaign() []Level {
 					arena.Hazards[0].Jumpable = false
 					arena.Hazards[0].Duration = .18
 				}
+				if region == 6 && room == 1 {
+					arena.Hazards[0].Kind = "rotating_blade"
+					arena.Hazards[0].W, arena.Hazards[0].H = 140, 70
+					arena.Hazards[0].X = min(arena.Hazards[0].X, 1425)
+					arena.Hazards[0].Y = min(arena.Hazards[0].Y, 420)
+					arena.Hazards[0].Duration = 2.4
+				}
 				if region == 6 && room == 0 {
 					arena.Hazards[0].Kind = "spikes"
 				}
@@ -674,6 +681,9 @@ func (r *Run) hazardTick() {
 			}
 			if h.Kind == "sweeping_flame" && r.SkillTimers[activeKey] <= 0 {
 				r.event("flame_sweep", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
+			if h.Kind == "rotating_blade" && r.SkillTimers[activeKey] <= 0 {
+				r.event("blade_spin", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 			r.SkillTimers[activeKey] = 1
 		} else if phase >= 1.2+h.Duration {

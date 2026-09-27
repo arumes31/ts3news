@@ -28,7 +28,13 @@
     for(const o of arena.cover||[])if(o.material==='stone'||o.hp>0)rect(o,o.material,o.material==='wood'?'Breakable wood':'Permanent stone');
     for(const edge of arena.drop_edges||[])rect({...edge,h:edge.landing_y-edge.y},'ledge','One-way descent; return around an end');
     let active=0;
-    for(const h of arena.hazards||[]){const phase=(run.clock+h.offset)%h.period,state=h.disabled||run.status!=='fighting'?'off':phase<1.2?'warning':phase<1.2+h.duration?'active':'safe';if(state==='active')active++;const width=h.kind==='sweeping_flame'&&state==='active'?Math.min(36,h.w):h.w,box=width===h.w?h:{...h,x:h.x+(h.w-width)*Math.max(0,Math.min(1,(phase-1.2)/h.duration)),w:width};rect(box,'hazard',h.kind+' · '+state,state);}
+    for(const h of arena.hazards||[]){
+      const phase=(run.clock+h.offset)%h.period,state=h.disabled||run.status!=='fighting'?'off':phase<1.2?'warning':phase<1.2+h.duration?'active':'safe';if(state==='active')active++;
+      let box=h;
+      if(state==='active'&&h.kind==='sweeping_flame'){const width=Math.min(36,h.w);box={...h,x:h.x+(h.w-width)*Math.max(0,Math.min(1,(phase-1.2)/h.duration)),w:width};}
+      if(state==='active'&&h.kind==='rotating_blade'){const width=Math.min(20,h.w),height=Math.min(20,h.h),angle=Math.max(0,Math.min(1,(phase-1.2)/h.duration))*Math.PI*2;box={...h,x:h.x+(h.w-width)/2*(1+Math.cos(angle)),y:h.y+(h.h-height)/2*(1+Math.sin(angle)),w:width,h:height};}
+      rect(box,'hazard',h.kind+' · '+state,state);
+    }
     const actors=(run.enemies||[]).filter(e=>e.hp>0),enemies=actors.filter(e=>!['totem','generator','cage'].includes(e.kind));
     for(const e of actors.filter(e=>['totem','generator','cage'].includes(e.kind)))drawing.append(node('rect',{x:mx(e.x)-2,y:my(e.y)-2,width:4,height:4,'data-kind':'objective'},e.name||'Objective prop'));
     for(const e of enemies)drawing.append(node('path',{d:'M -2.5 2 L 0 -3 L 2.5 2 Z',transform:'translate('+mx(e.x)+' '+my(e.y)+')','data-kind':'enemy'},e.name||'Enemy'));
