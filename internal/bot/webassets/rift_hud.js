@@ -747,10 +747,10 @@
           put(bossAttackNode,'⚡ '+attack+' · '+boss.windup.toFixed(1)+'s windup · '+defense);
           bossAttackNode.hidden=false;
           if(playing&&!run.paused){
-            const attackKey=(boss.attacks||0)+':'+attack;
+            const attackKey=JSON.stringify([run.id,run.room,boss.id,boss.attacks||0,attack]);
             if(lastAnnouncedBossAttack!==attackKey){
               lastAnnouncedBossAttack=attackKey;
-              put($('rift-announcer'),'Boss preparing '+attack+' · '+Math.ceil(boss.windup)+'s windup. '+defense+'.');
+              put($('rift-announcer'),'Boss preparing '+attack+' · '+boss.name+' · '+Math.ceil(boss.windup)+'s windup. '+defense+'.');
             }
           }
         }else if(boss.weak_point>0){
