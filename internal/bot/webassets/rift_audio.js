@@ -422,6 +422,10 @@
         [880, 1175, 1480].forEach((f, i) => t(f, f * 1.05, .18, .05, 'sine', i * .03));
         break;
       }
+      case 'dive_warning': {h(.08,.05,3800,pan);t(900,1400,.22,.07,'triangle');break;}
+      case 'dive_swoop': {h(.22,.1,2400,pan);t(550,170,.2,.07,'sine');break;}
+      case 'dive_land': {h(.16,.11,900,pan);t(150,55,.18,.1,'sine');break;}
+      case 'dive_cancel': {t(700,240,.13,.09,'triangle');break;}
       case 'burrow_start': {h(.3,.08,500,pan);t(100,42,.3,.09,'sine');break;}
       case 'burrow_cancel': {h(.09,.06,1700,pan);t(180,440,.12,.07,'triangle');break;}
       case 'burrow_emerge': {h(.24,.14,850,pan);t(190,40,.25,.13,'triangle');break;}

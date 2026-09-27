@@ -604,8 +604,10 @@
     if(e.pose==='spawn'&&e.arrival_vulnerability>0)return 'Arriving';
     if(e.awareness_timer>0)return 'Alerting';
     if(e.patrol&&!e.alerted)return 'Patrolling';
-    if(e.charge_recovery>0||e.burrow_recovery>0||e.pose==='recovery')return 'Recovering';
+    if(e.charge_recovery>0||e.burrow_recovery>0||e.dive_recovery>0||e.pose==='recovery')return 'Recovering';
     if(e.charge_active)return 'Charging';
+    if(e.diving)return 'Diving';
+    if(e.attack_name==='Dive'&&e.windup>0)return 'Preparing dive';
     if(e.arming_timer>0)return 'Arming blast';
     if(e.burrowed)return e.windup>1?'Burrowing approach':'Emerging';
     if(e.react_miss_timer>0)return 'Pressing';
@@ -805,13 +807,14 @@
     if(unit.id!=='player'&&unit.pose==='hit'&&!renderer.reduced)ctx.filter='brightness('+(1+.5*Math.max(0,Math.min(1,(unit.pose_time||0)/.2)))+')';
     const victoryLift=stance?stance.lift+(!renderer.reduced&&motion>0?Math.sin(decorationTime/420)*1.5*motion:0):0;
     if(stance){ctx.translate(drawX,y);ctx.rotate(stance.angle*(unit.facing||1));ctx.translate(-drawX,-y);}
+    const flightLift=unit.flying&&unit.hp>0&&!(unit.dive_recovery>0)?(unit.diving?6:unit.attack_name==='Dive'?18:10)+(renderer.reduced?0:Math.sin(decorationTime/170)*2*motion):0;
     if(unit.burrowed&&unit.hp>0){
       ctx.save();ctx.fillStyle='#705039';ctx.strokeStyle='#e7c49a';ctx.lineWidth=2;
       const tremble=renderer.reduced||!display.particles?0:Math.sin(decorationTime/65)*2*motion;
       ctx.beginPath();ctx.ellipse(drawX,y-4+tremble,22,9,0,0,Math.PI*2);ctx.fill();ctx.stroke();
       ctx.beginPath();ctx.moveTo(drawX-13,y-3);ctx.lineTo(drawX-4,y-10);ctx.lineTo(drawX+3,y-3);ctx.lineTo(drawX+12,y-8);ctx.stroke();
       ctx.fillStyle='#d3ad79';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(drawX-unit.facing*(28+i*9),y-2+(i%2)*4,3-i*.5,0,Math.PI*2);ctx.fill();}ctx.restore();
-    }else if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift,size,unit.facing,1,atlas);
+    }else if(shared)catalogActor(unit,unit.pose,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift-flightLift,size,1);else sprite(row,col,drawX,y-jump+landSquash+recoverySquash+guardStride-ultimateHover-victoryLift-flightLift,size,unit.facing,1,atlas);
     ctx.restore();
     if(unit.id==='player'&&snapshot.room_objective?.kind==='carry_relic'&&snapshot.room_objective.carrying)ctx.drawImage(images.relic,drawX-18,y-jump-112,36,36);
     if (unit.guard || unit.id === 'player' && snapshot.barrier > 0) fx(3,1,drawX,y-size*.4,80,.55);
@@ -1276,6 +1279,15 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&(e.diving||e.attack_name==='Dive'&&e.windup>0)){
+        const x=e.target_x-camera,y=e.target_y;ctx.save();ctx.setLineDash([9,5]);
+        ctx.beginPath();ctx.moveTo(e.x-camera,e.y);ctx.lineTo(x,y);ctx.strokeStyle='#08232e';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#a7edff';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle='#8ddfff26';ctx.fillRect(x-30,y-20,60,40);ctx.strokeStyle='#08232e';ctx.lineWidth=5;ctx.strokeRect(x-30,y-20,60,40);ctx.strokeStyle='#a7edff';ctx.lineWidth=2;ctx.strokeRect(x-30,y-20,60,40);
+        ctx.beginPath();ctx.moveTo(x-9,y-8);ctx.lineTo(x,y+5);ctx.lineTo(x+9,y-8);ctx.stroke();
+        ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt(e.diving?'SWOOP · FIXED PATH':'DIVE · SIDESTEP OR JUMP · '+e.windup.toFixed(1)+'s',x,y-64,true);ctx.restore();
+      }
+      if(!display.cleanScreenshot&&e.hp>0&&e.dive_recovery>0){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE RECOVERY · '+e.dive_recovery.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-70,true);ctx.restore();}
       if(!display.cleanScreenshot&&e.hp>0&&e.burrowed&&e.windup>0){
         const x=e.target_x-camera,y=e.target_y;
         ctx.save();ctx.fillStyle='#d3ad7940';ctx.setLineDash([3,5]);
@@ -1704,6 +1716,7 @@
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
       }
       if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(e.kind==='dive_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#ffe3bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BURROW INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_emerge'&&age<.5){ctx.save();ctx.strokeStyle='#e7c49a';ctx.lineWidth=3;ctx.globalAlpha=renderer.reduced?.7:Math.max(0,1-age*2);ctx.beginPath();ctx.ellipse(e.x-camera,e.y,75,40,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='arming_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#c7f5e8';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BLAST CANCELLED',e.x-camera,e.y-20,true);ctx.restore();}
