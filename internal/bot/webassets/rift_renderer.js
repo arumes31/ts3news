@@ -608,6 +608,7 @@
   function enemyIntent(e){
     if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
     if(e.kind==='boss'&&e.summon_timer>0)return 'Summoning allies';
+    if(e.kind==='boss'&&e.attack_name==='Ground Surge'&&e.windup>0)return 'Preparing arena surge';
     if(e.kind==='boss'&&e.attack_name==='Time Pulse'&&e.windup>0)return 'Channeling pulse';
     if(e.kind==='boss'&&e.boss_guard_break>0)return 'Guard broken';
     if(e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0)return 'Preparing ring';
@@ -1293,6 +1294,11 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Ground Surge'&&e.windup>0){
+        ctx.save();ctx.fillStyle='#dc743626';ctx.fillRect(35-camera,315,1530,175);hazardOverlays.push({x:35-camera,y:315,w:1530,h:175,warning:true,color:'#ffd7a1'});
+        ctx.fillStyle='#ffe4bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(13*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt('ARENA-WIDE SURGE · '+e.windup.toFixed(1)+'s',480,450,true);interactionPrompt('JUMP NEAR IMPACT · GUARD WON’T STOP IT',480,472,true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Time Pulse'&&e.windup>0){
         ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL '+e.windup.toFixed(1)+'s · HIT BOSS TO INTERRUPT',e.x-camera,e.y-72,true);ctx.restore();
       }
@@ -1385,7 +1391,7 @@
         ctx.setLineDash([]);ctx.fillStyle='#c1e5ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
         interactionPrompt('FAN · MOVE BETWEEN SHOTS',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();
       }
-      const rangedWindup = fanWindup || e.attack_name!=='Time Pulse' && e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
+      const rangedWindup = fanWindup || e.attack_name!=='Ground Surge' && e.attack_name!=='Time Pulse' && e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup && !fanWindup) {
         ctx.save();
         ctx.strokeStyle = '#ffbd81';
@@ -1397,7 +1403,7 @@
         ctx.stroke();
         ctx.restore();
       }
-      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge'&&e.attack_name!=='Lane Slam'&&e.attack_name!=='Void Ring') {
+      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge'&&e.attack_name!=='Lane Slam'&&e.attack_name!=='Void Ring'&&e.attack_name!=='Ground Surge') {
         const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam'),targetY=e.target_y-surfaceHeight(e.target_x,e.target_y);
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,targetY,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,targetY+4);
@@ -1757,6 +1763,7 @@
       if(e.kind==='boss_shield_break'&&age<.8&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#c7f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SHELL SHATTERED · WEAK POINT',e.x-camera,e.y-35,true);ctx.restore();}
       if(e.kind==='boss_channel_interrupt'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL INTERRUPTED · WEAK POINT',e.x-camera,e.y-72,true);ctx.restore();}
       if(e.kind==='boss_channel_pulse'&&age<.45&&!display.cleanScreenshot){ctx.save();ctx.strokeStyle='#bbf6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,125,62,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(e.kind==='boss_surge'&&age<.4&&!display.cleanScreenshot){ctx.save();ctx.strokeStyle='#ffe4bd';ctx.lineWidth=3;ctx.strokeRect(35-camera,315,1530,175);ctx.restore();}
       if(e.kind==='boss_ring'&&age<.45&&!display.cleanScreenshot)voidRing(e.x-camera,e.y,e.value||0,true);
       if(e.kind==='dive_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#ffe3bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BURROW INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}

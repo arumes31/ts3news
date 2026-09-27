@@ -18,6 +18,9 @@ func (r *Run) wantsBossCharge(e Actor) bool {
 	if e.AttackName == "Charge" || e.ChargeActive {
 		return true
 	}
+	if bossSurgeTurn(e) {
+		return false
+	}
 	distance := math.Hypot(r.Player.X-e.X, r.Player.Y-e.Y)
 	return e.AttackName == "" && e.Attacks%3 == 2 && distance >= 140 && distance <= 480 && math.Abs(r.Player.Y-e.Y) <= 100
 }

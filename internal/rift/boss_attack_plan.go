@@ -31,6 +31,9 @@ func (r *Run) NextBossAttack(boss Actor) BossAttackPlan {
 	if boss.LaneSlams && boss.Attacks%4 == 3 {
 		plan = BossAttackPlan{Name: "Time Pulse", Kind: "channel", Windup: 2, Recovery: 2.3}
 	}
+	if bossSurgeTurn(boss) {
+		plan = BossAttackPlan{Name: "Ground Surge", Kind: "surge", Windup: 2, Recovery: 2.3}
+	}
 	if r.wantsBossCharge(boss) {
 		plan = BossAttackPlan{Name: "Charge", Kind: "charge", Windup: 1.15, Recovery: 2.3}
 	}

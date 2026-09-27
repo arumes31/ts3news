@@ -1,13 +1,17 @@
 package rift
 
 func (r *Run) hurtPlayerFromEnemy(damage, x, y float64, ownerID string) {
+	r.hurtPlayerFromEnemyGuardable(damage, x, y, ownerID, true)
+}
+
+func (r *Run) hurtPlayerFromEnemyGuardable(damage, x, y float64, ownerID string, guardable bool) {
 	if r.SkillTimers["room_entry_grace"] > 0 {
 		return
 	}
 	guards := r.Stats.Guards
 	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
-	r.hurtPlayer(damage, x, y)
+	r.hurtPlayerGuardable(damage, x, y, guardable)
 	r.rewardVanguardGuard(guards)
 	loss := r.Stats.DamageTaken - before
 	r.Stats.EnemyDamageTaken += loss

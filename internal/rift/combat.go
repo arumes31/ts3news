@@ -1519,6 +1519,10 @@ func (r *Run) awardComboScore(points int) {
 }
 
 func (r *Run) hurtPlayer(damage, x, y float64) {
+	r.hurtPlayerGuardable(damage, x, y, true)
+}
+
+func (r *Run) hurtPlayerGuardable(damage, x, y float64, guardable bool) {
 	if r.SkillTimers["connection_grace"] > 0 || r.SkillTimers["dodge_invulnerability"] > 0 {
 		if r.SkillTimers["dodge_invulnerability"] > 0 {
 			r.recordDodge()
@@ -1538,7 +1542,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 	damage = math.Max(2, damage-r.Build.Armor*.4)
 	r.Stats.ArmorBlocked += math.Max(0, incoming-damage)
 	kind := "hurt"
-	if p.Guard && (x-p.X)*p.Facing >= 0 {
+	if guardable && p.Guard && (x-p.X)*p.Facing >= 0 {
 		r.Stats.Guards++
 		blockedDmg := damage * .82
 		r.Stats.GuardBlocked += blockedDmg
@@ -1592,7 +1596,7 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 			hitDir = math.Copysign(1, p.X-x)
 		}
 		recoilDist := 9.0
-		if p.Guard {
+		if guardable && p.Guard {
 			recoilDist = 3.0
 		}
 		p.RecoilX = hitDir * recoilDist
@@ -1875,6 +1879,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 			if e.Kind == "boss" {
 				e.Cooldown = plan.Recovery
 			}
+			if plan.Kind == "surge" {
+				r.releaseBossSurge(e)
+				return
+			}
 			if plan.Kind == "channel" {
 				r.releaseBossChannel(e)
 				return
@@ -1985,13 +1993,13 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if r.NextBossAttack(*e).Kind == "fan" {
 			rangeX = 430
 		}
-		if r.NextBossAttack(*e).Kind == "lane_slam" {
+		if kind := r.NextBossAttack(*e).Kind; kind == "lane_slam" || kind == "surge" {
 			rangeX = Width
 		}
 	}
 	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
 	targetDy := dy
-	if e.Kind == "boss" && r.NextBossAttack(*e).Kind == "lane_slam" {
+	if e.Kind == "boss" && (r.NextBossAttack(*e).Kind == "lane_slam" || r.NextBossAttack(*e).Kind == "surge") {
 		targetDy = 0
 	}
 	if len(r.Enemies) > 1 && i > 0 && e.Kind != "boss" {
