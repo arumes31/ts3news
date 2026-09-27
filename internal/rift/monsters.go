@@ -24,12 +24,15 @@ func AdaptMonster(m content.Mob) Actor {
 	case content.MobEliteMinion:
 		a.HP *= 1.2
 		a.Kind = "knight"
+		a.Elite = true
 	case content.MobElite:
 		a.HP *= 1.5
 		a.Kind = "knight"
+		a.Elite = true
 	case content.MobMiniboss:
 		a.HP *= 2.2
 		a.Kind = "knight"
+		a.Elite = true
 	case content.MobBoss, content.MobLegendary:
 		a.HP *= 6
 		a.Kind = "boss"

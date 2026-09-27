@@ -116,6 +116,8 @@ type Actor struct {
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
+	Elite          bool    `json:"elite,omitempty"`
+	Enraged        bool    `json:"enraged,omitempty"`
 	ReactMissTimer float64 `json:"react_miss_timer,omitempty"`
 }
 
@@ -1669,6 +1671,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.HP <= 0 {
 		return
 	}
+	r.updateElitePriorities(e)
 	e.WeakPoint = math.Max(0, e.WeakPoint-dt)
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
@@ -1858,7 +1861,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	if e.Kind == "archer" && e.RepositionTimer > 0 {
 		e.RepositionTimer = math.Max(0, e.RepositionTimer-dt)
 	}
-	if e.Kind == "archer" && math.Abs(dx) < 150 && math.Abs(dy) <= 24 && r.clearProjectilePath(e, p) {
+	if e.Kind == "archer" && math.Abs(dx) < archerRetreatDistance(e) && math.Abs(dy) <= 24 && r.clearProjectilePath(e, p) {
 		speed := e.Speed
 		if speed <= 0 {
 			speed = 80

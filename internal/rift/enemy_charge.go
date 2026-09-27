@@ -92,7 +92,11 @@ func (r *Run) tickEnemyCharge(e *Actor, dt float64) bool {
 	}
 	dx, dy := p.X-e.X, p.Y-e.Y
 	distance := math.Hypot(dx, dy)
-	if e.Cooldown > 0 || e.Windup > 0 || e.PoseTime > 0 || distance < 110 || distance > 320 || math.Abs(dy) > 100 || !r.canStartEnemyAttack(e) {
+	minRange, maxRange := 110.0, 320.0
+	if e.Elite && e.Enraged {
+		minRange, maxRange = 85, 360
+	}
+	if e.Cooldown > 0 || e.Windup > 0 || e.PoseTime > 0 || distance < minRange || distance > maxRange || math.Abs(dy) > 100 || !r.canStartEnemyAttack(e) {
 		return false
 	}
 	e.TargetX, e.TargetY = p.X, p.Y

@@ -6,7 +6,7 @@ test('optional intent overlay reports combat states, persists, and respects clea
  await page.reload();await expect(toggle).toBeChecked();
  const data=await(await page.request.get('/api/abyss/rift')).json();
  const cases=[
-  [{kind:'goblin',pose:'run'},'Approaching'],[{kind:'knight',guard:true},'Guarding'],
+  [{kind:'archer',pose:'run'},'Moving'],[{kind:'goblin',pose:'run'},'Approaching'],[{kind:'knight',guard:true},'Guarding'],
   [{kind:'archer',windup:.5},'Aiming'],[{kind:'boss',windup:.5},'Preparing attack'],
   [{kind:'goblin',charging:true,attack_name:'Charge',windup:.5},'Preparing charge'],
   [{kind:'goblin',charge_active:true},'Charging'],[{kind:'goblin',charge_recovery:.5},'Recovering'],

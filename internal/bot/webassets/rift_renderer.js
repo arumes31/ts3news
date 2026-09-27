@@ -593,7 +593,7 @@
     if(e.fleeing)return 'Fleeing';
     if(e.guard)return 'Guarding';
     if(e.kind==='archer'&&e.reposition_timer>0)return 'Repositioning';
-    if(e.pose==='run'||e.pose==='walk')return 'Approaching';
+    if(e.pose==='run'||e.pose==='walk')return e.kind==='archer'?'Moving':'Approaching';
     if(e.cooldown>0)return 'Recovering';
     return 'Holding';
   }
@@ -1254,6 +1254,7 @@
         ctx.save();ctx.fillStyle='#ffe3b0';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
         interactionPrompt('PRESSING · MISSED STRIKE',e.x-camera,e.y-(e.elevation||0)-78,true);ctx.restore();
       }
+      if(!display.cleanScreenshot&&e.hp>0&&e.elite&&e.enraged){ctx.save();ctx.fillStyle='#ffd18a';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('LAST STAND',e.x-camera,e.y-(e.elevation||0)-92,true);ctx.restore();}
       if(display.enemyIntent&&!display.cleanScreenshot){
         const intent=enemyIntent(e);
         if(intent){ctx.save();ctx.fillStyle='#b7f2ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('INTENT · '+intent,e.x-camera,e.y-(e.elevation||0)-108,true);ctx.restore();}
