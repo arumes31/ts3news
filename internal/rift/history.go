@@ -182,6 +182,6 @@ func (r *Run) RecordedTotals() CareerTotals {
 	totals.Bosses += r.Stats.Bosses
 	totals.TreasureGoblins += r.Stats.TreasureGoblins
 	totals.Gold += r.BankedGold
-	totals.Gear += len(r.BankedItems)
+	totals.Gear += r.TotalBankedItems()
 	return totals
 }

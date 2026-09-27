@@ -337,6 +337,7 @@ type Run struct {
 	BankedObjectiveGold int64 `json:"banked_objective_gold,omitempty"`
 	BankedGold          int64                    `json:"banked_gold"`
 	BankedLoot          []BankedLoot             `json:"banked_loot,omitempty"`
+	BankedItemsTotal    int                      `json:"banked_items_total,omitempty"`
 	BankedItems         []string                 `json:"banked_items"`
 	Clock               float64                  `json:"clock"`
 	LastMS              int64                    `json:"last_ms"`
@@ -594,7 +595,7 @@ func (r *Run) RecordEncounterSummary(outcome string) {
 		GoldGained:      goldGained,
 		LootItems:       lootItems,
 		BankedGold:      r.BankedGold,
-		BankedItemsCount: len(r.BankedItems),
+		BankedItemsCount: r.TotalBankedItems(),
 	}
 }
 

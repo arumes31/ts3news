@@ -236,6 +236,7 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	old.CompletedLevels = []int{1, 10}
 	old.BankedGold = 300
 	old.BankedItems = []string{"Sword"}
+	old.BankedItemsTotal = 1234
 	old.Stats.Kills = 7
 	old.Stats.Bosses = 1
 	old.Stats.TreasureGoblins = 2
@@ -258,7 +259,7 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	if run.Level.ID != 42 || len(run.CompletedLevels) != 2 || run.CompletedLevels[1] != 10 || run.BankedGold != 0 || run.ID == "old" {
 		t.Fatalf("incorrect new expedition: %+v", run)
 	}
-	if got := run.RecordedTotals(); got != (rift.CareerTotals{Enemies: 7, Bosses: 1, TreasureGoblins: 2, Gold: 300, Gear: 1}) {
+	if got := run.RecordedTotals(); got != (rift.CareerTotals{Enemies: 7, Bosses: 1, TreasureGoblins: 2, Gold: 300, Gear: 1234}) {
 		t.Fatalf("career totals lost: %+v", got)
 	}
 	if run.History[10].Attempts != 3 || run.History[10].BestSeconds != 45 || run.History[42].Attempts != 1 {
@@ -329,6 +330,7 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	run.Gold = 99
 	run.BankedGold = 80
 	run.BankedItems = []string{"Sword"}
+	run.BankedItemsTotal = 1234
 	run.Stats.Kills = 5
 	run.PastExpeditions = rift.CareerTotals{Enemies: 10, Gold: 20, Gear: 2}
 	run.CompletedLevels = []int{1}
@@ -343,7 +345,7 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if totals := got.RecordedTotals(); totals != (rift.CareerTotals{Enemies: 15, Gold: 100, Gear: 3}) {
+	if totals := got.RecordedTotals(); totals != (rift.CareerTotals{Enemies: 15, Gold: 100, Gear: 1236}) {
 		t.Fatalf("economy reset erased career totals: %+v", totals)
 	}
 	if len(got.CompletedLevels) != 1 || got.History[1].BestSeconds != 12 || got.History[1].BestFinishHP != 150 || got.History[1].CompletedByClass["vanguard"] != 1 {

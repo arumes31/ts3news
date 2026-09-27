@@ -60,10 +60,12 @@ or restore from a tested backup; it must never replay banking to reconstruct it.
 
 ## Receipt compaction prerequisite
 
-`BankedItems` currently supplies authoritative expedition item counts, while
-`BankedLoot` supplies detailed receipt provenance. Simply truncating either is
-not a complete compaction solution. Introduce a separate authoritative total,
-deriving an absent total from the full legacy item list before trimming. Update
+`BankedItemsTotal` now supplies the independent confirmed item count; absent or
+zero legacy totals fall back to the complete `BankedItems` list through
+`TotalBankedItems()`. Banking updates the total only after inventory insertion.
+Career and encounter summaries use it. `BankedLoot` supplies receipt provenance.
+Presentation has not yet been truncated. Before compaction, persist the legacy
+derived total before trimming and update
 career totals, encounter summaries, HUD, receipt/export text and banking-change
 announcements to use it. Bound presentation independently and tell the player
 when only recent entries are shown. Prove every collected item is inserted once,

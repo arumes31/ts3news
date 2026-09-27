@@ -415,10 +415,12 @@ func loadRiftMode(ctx context.Context, database *sql.DB, uid, mode string) (*rif
 		run.Drops = []rift.Drop{}
 		// Keep historical records when an economy reset expires spendable rewards.
 		run.PastExpeditions.Gold += run.BankedGold
-		run.PastExpeditions.Gear += len(run.BankedItems)
+		run.PastExpeditions.Gear += run.TotalBankedItems()
 		run.BankedGold = 0
 		run.BankedObjectiveGold = 0
 		run.BankedItems = []string{}
+		run.BankedItemsTotal = 0
+		run.BankedLoot = nil
 	}
 	run.UpdateObjectives()
 	return run, nil
@@ -608,8 +610,7 @@ func bankRift(ctx context.Context, tx *sql.Tx, uid, requestID string, run *rift.
 			if _, err := tx.ExecContext(ctx, "INSERT INTO user_inventory (client_uid,gear_id,durability,item_data) VALUES ($1,$2,$3,$4)", uid, gear.ID, gear.MaxDurability, string(data)); err != nil {
 				return err
 			}
-			run.BankedItems = append(run.BankedItems, gear.Name)
-			run.BankedLoot = append(run.BankedLoot, drop.LootReceipt())
+			run.RecordBankedLoot(*drop)
 		}
 		drop.Banked = true
 		drop.Collected = true
