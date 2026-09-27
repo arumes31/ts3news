@@ -1480,6 +1480,17 @@
       const y=drop.y-(drop.elevation||0)-8+(renderer.reduced||!display.lootMotion?0:Math.sin(decorationTime/200)*3*motion),x=drop.x-camera;
       if(['pickup','banking'].includes(run.practice?.mode)){ctx.save();ctx.fillStyle='#b8ffdf';ctx.strokeStyle='#14372d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillStyle='#14372d';ctx.fillText('P',x,y+4);ctx.fillStyle='#b8ffdf';ctx.strokeStyle='#081914';ctx.lineWidth=4;ctx.strokeText('PRACTICE TOKEN',x,y-20);ctx.fillText('PRACTICE TOKEN',x,y-20);ctx.restore();return;}
       const legendary=window.RiftLoot.legendary(drop);
+      const beamColor=window.RiftLoot.beamColor(drop);
+      if(beamColor&&display.lootBeamIntensity>0&&x>=-20&&x<=980){
+        // Anchor the static glow to the ground, independently of icon bobbing.
+        const ground=drop.y-(drop.elevation||0),height=legendary?144:112,width=legendary?32:24;
+        const glow=ctx.createLinearGradient(x,ground-height,x,ground);
+        glow.addColorStop(0,beamColor+'00');glow.addColorStop(.65,beamColor+'55');glow.addColorStop(1,beamColor+'cc');
+        ctx.save();ctx.globalAlpha=.6*display.lootBeamIntensity;ctx.fillStyle=glow;
+        ctx.fillRect(x-width/2,ground-height,width,height);
+        ctx.beginPath();ctx.moveTo(x,ground-height);ctx.lineTo(x+4,ground);ctx.lineTo(x-4,ground);ctx.closePath();ctx.fill();
+        ctx.fillStyle=beamColor;ctx.beginPath();ctx.ellipse(x,ground,width*.7,5,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      }
       if(legendary){ctx.strokeStyle='#ffc66d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y-25);ctx.lineTo(x+25,y);ctx.lineTo(x,y+25);ctx.lineTo(x-25,y);ctx.closePath();ctx.stroke();}
       if(display.lootSparkle)fx(5,0,x,y,34,.7);
       const icon=drop.gear?window.RiftLoot.icon(drop.gear.Slot):8,img=images.items,size=drop.gear?36:25;

@@ -100,6 +100,14 @@ Loot and effect cells are center-anchored at **(0.5, 0.5)**. Floor loot addition
 uses elevation, an eight-unit lift and optional visual bob. Neither that bob nor
 an effect's painted radius changes server collision.
 
+Rare-or-better uncollected campaign gear uses a static ground beam in the canonical
+rarity color supplied by the API. Legendary beams are taller; the existing diamond
+and label still identify them when beams are off. Beams anchor at y minus elevation,
+independently of icon bobbing, and disappear on pickup or banking. Practice tokens
+have no beam. Battlefield display offers Off, Soft and Full intensity, persisted
+with the display settings; minimal, clearer-battlefield and lower-power presets
+turn beams off. Reduced motion keeps the beam static. No extra image is downloaded.
+
 ## Ground footprints, separate from artwork
 
 The server's `actorClearance` expands obstacle rectangles on both axes around an

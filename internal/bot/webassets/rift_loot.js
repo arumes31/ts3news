@@ -8,6 +8,7 @@
   const create=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const slots={weapon:0,mainhand:0,offhand:1,ranged:3,head:4,helmet:4,chest:5,armor:5,feet:6,boots:6,hands:7,gloves:7,ring:12,finger1:12,finger2:12,neck:13,amulet:13,relic:15,artifact:15};
+  const beamColor=drop=>drop.gear&&rarities.get(drop.gear.Rarity)?.rare_or_better===true?rarities.get(drop.gear.Rarity).color:null;
   const legendary=drop=>!!drop.gear&&rarities.get(drop.gear.Rarity)?.legendary===true;
   function floorLabels(drops,camera,width=960,height=540){
     const labels=[],half=57,row=21,minX=half+4,maxX=width-half-4;
@@ -152,5 +153,5 @@
     bankHighlight=setTimeout(()=>{delete target.dataset.bankConfirmed;bankAnimation=null;},700);
     return true;
   }
-  window.RiftLoot={bankedCount,icon,legendary,floorLabels,confirmBank,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
+  window.RiftLoot={beamColor,bankedCount,icon,legendary,floorLabels,confirmBank,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
 })();
