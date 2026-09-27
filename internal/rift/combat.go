@@ -116,6 +116,7 @@ type Actor struct {
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
+	ReactMissTimer float64 `json:"react_miss_timer,omitempty"`
 }
 
 // HurtCue returns the creature-family hurt audio cue identifier.
@@ -1029,6 +1030,7 @@ func (r *Run) tick(in Input, dt float64) {
 		if !hitTarget && !hitCover {
 			r.Stats.BasicMisses++
 			r.AttackChain = 0
+			r.reactToMiss()
 		}
 	}
 	if in.Skill != "" && !p.Guard {
@@ -1365,6 +1367,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.RecoilX = hitDir * recoilDist
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
+		e.ReactMissTimer = 0
 		r.interruptEnemyCharge(e)
 		r.interruptRitual(e.ID)
 		r.eventAtHeight(e.HurtCue(), e.X, e.Y-30, damage, e.Elevation)
@@ -1657,6 +1660,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	e := &r.Enemies[i]
 	e.Guard = false
 	if e.Knockdown > 0 || e.Pose == "stagger" && e.PoseTime > 0 {
+		e.ReactMissTimer = 0
 		r.interruptEnemyCharge(e)
 	}
 	if e.PoseTime > 0 || e.Knockdown > 0 {
@@ -1760,6 +1764,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.X <= treasureEscapeMargin || e.X >= Width-treasureEscapeMargin {
 			r.escapeEnemy(i)
 		}
+		return
+	}
+	if r.tickMissReaction(e, dt) {
 		return
 	}
 	if r.tickEnemyCharge(e, dt) {

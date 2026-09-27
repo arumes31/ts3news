@@ -1229,6 +1229,10 @@
         } else interactionPrompt('RECOVERING · '+e.charge_recovery.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-60,true);
         ctx.restore();
       }
+      if(!display.cleanScreenshot&&e.hp>0&&e.react_miss_timer>0) {
+        ctx.save();ctx.fillStyle='#ffe3b0';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt('PRESSING · MISSED STRIKE',e.x-camera,e.y-(e.elevation||0)-78,true);ctx.restore();
+      }
       const rangedWindup = e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0;
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
         ctx.save();
