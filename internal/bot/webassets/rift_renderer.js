@@ -576,6 +576,27 @@
     ctx.strokeRect(o.x-camera,o.y,o.w,o.h);ctx.restore();
   }
   let interactionPrompts = null;
+  const intentRoles=new Set(['goblin','knight','archer','wolf','spore','boss','treasure']);
+  function enemyIntent(e){
+    if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
+    if(e.knockdown>0)return 'Getting up';
+    if(e.pose==='stagger'&&e.pose_time>0)return 'Stunned';
+    if(e.pose==='hit'&&e.pose_time>0)return 'Hit reaction';
+    if(e.pose==='spawn'&&e.arrival_vulnerability>0)return 'Arriving';
+    if(e.awareness_timer>0)return 'Alerting';
+    if(e.patrol&&!e.alerted)return 'Patrolling';
+    if(e.charge_recovery>0||e.pose==='recovery')return 'Recovering';
+    if(e.charge_active)return 'Charging';
+    if(e.react_miss_timer>0)return 'Pressing';
+    if(e.windup>0)return e.attack_name==='Charge'?'Preparing charge':e.kind==='archer'?'Aiming':'Preparing attack';
+    if(e.pose==='attack'&&e.pose_time>0)return 'Attacking';
+    if(e.fleeing)return 'Fleeing';
+    if(e.guard)return 'Guarding';
+    if(e.kind==='archer'&&e.reposition_timer>0)return 'Repositioning';
+    if(e.pose==='run'||e.pose==='walk')return 'Approaching';
+    if(e.cooldown>0)return 'Recovering';
+    return 'Holding';
+  }
   // Capture drawing state now; draw instructions after world sprites and effects.
   function interactionPrompt(text,x,y,backplate=false){
     if(display.cleanScreenshot||!textInView(text,x))return;
@@ -1232,6 +1253,10 @@
       if(!display.cleanScreenshot&&e.hp>0&&e.react_miss_timer>0) {
         ctx.save();ctx.fillStyle='#ffe3b0';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
         interactionPrompt('PRESSING · MISSED STRIKE',e.x-camera,e.y-(e.elevation||0)-78,true);ctx.restore();
+      }
+      if(display.enemyIntent&&!display.cleanScreenshot){
+        const intent=enemyIntent(e);
+        if(intent){ctx.save();ctx.fillStyle='#b7f2ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('INTENT · '+intent,e.x-camera,e.y-(e.elevation||0)-108,true);ctx.restore();}
       }
       const rangedWindup = e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0;
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
