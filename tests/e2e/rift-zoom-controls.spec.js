@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
-test('supports browser zoom and narrow reflow without clipping combat controls', async ({ page }) => {
-  // Test reflow at 320 CSS pixels (equivalent to 400% zoom on a 1280px screen - WCAG 1.4.10)
+test('narrow reflow and enlarged HUD keep combat controls within the page', async ({ page }) => {
+  // This is narrow reflow evidence; rift-native-zoom.spec.js verifies actual browser zoom.
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/abyss/rift');
   await expect(page.locator('#rift-start')).toBeEnabled();
@@ -54,10 +54,10 @@ test('supports browser zoom and narrow reflow without clipping combat controls',
   const jumpBtn = page.locator('.rift-actionbar button[data-bind="jump"]');
   await jumpBtn.click();
 
-  // 5. Test 200% HUD scale / enlarged text scaling (WCAG 1.4.4)
-  await page.evaluate(() => {
-    document.documentElement.style.setProperty('--rift-hud-scale', '2');
-  });
+  // 5. Override the HUD property on its owning element and prove it takes effect.
+  const beforeFont=await page.locator('.rift-player-line').evaluate(node=>parseFloat(getComputedStyle(node).fontSize));
+  await page.locator('#rift-app').evaluate(node=>node.style.setProperty('--rift-hud-scale','2'));
+  expect(await page.locator('.rift-player-line').evaluate(node=>parseFloat(getComputedStyle(node).fontSize))).toBeCloseTo(beforeFont*2,1);
 
   const scaledActionCount = await actionButtons.count();
   for (let i = 0; i < scaledActionCount; i++) {

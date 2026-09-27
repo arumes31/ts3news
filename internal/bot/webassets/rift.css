@@ -1455,3 +1455,15 @@
     height: auto;
   }
 }
+
+
+/* High browser zoom can leave less height than the wrapped site navigation. */
+@media (max-height: 480px) {
+  body:has(#rift-app) .topbar { position: relative; }
+}
+
+
+@media (max-width: 600px) {
+  /* Keep basic actions from stretching to the full height of a multirow skill grid. */
+  #rift-app :is(.rift-basics, .rift-skills) { flex-basis: 100%; }
+}
