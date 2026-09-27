@@ -124,6 +124,8 @@ type Actor struct {
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
+	VolleyFan bool `json:"volley_fan,omitempty"`
+	FanRotation float64 `json:"fan_rotation,omitempty"`
 	Elite          bool    `json:"elite,omitempty"`
 	Enraged        bool    `json:"enraged,omitempty"`
 	ReactMissTimer float64 `json:"react_miss_timer,omitempty"`
@@ -1820,6 +1822,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 			if e.Kind == "boss" {
 				e.Cooldown = plan.Recovery
 			}
+			if plan.Kind == "fan" {
+				r.fireBossFan(e)
+				return
+			}
 			if e.Kind == "archer" || plan.Kind == "projectile" {
 				if !r.clearProjectilePath(e, e) || e.Kind == "archer" && !r.clearProjectilePath(e, p) {
 					e.Pose = "idle"
@@ -1911,6 +1917,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	}
 	if e.Kind == "boss" {
 		rangeX = 190
+		if r.NextBossAttack(*e).Kind == "fan" {
+			rangeX = 430
+		}
 	}
 	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
 	targetDy := dy
@@ -1973,6 +1982,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 			r.event("boss_roar", e.X, e.Y, 0)
 			plan := r.NextBossAttack(*e)
 			e.AttackName, e.Windup = plan.Name, plan.Windup
+			if plan.Kind == "fan" {
+				e.FanRotation = float64((e.Attacks/2)%3-1) * .18
+			}
 		}
 	} else if e.PoseTime == 0 {
 		e.Pose = "idle"

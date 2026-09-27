@@ -57,11 +57,45 @@ func TestCampaignBossSpawnAndOpeningSafety(t *testing.T) {
 					if err := json.Unmarshal(saved, &stationary); err != nil {
 						t.Fatal(err)
 					}
-					for step := 0; step < 100; step++ {
+					fan := r.NextBossAttack(r.Enemies[0]).Kind == "fan"
+					impactSteps := 100
+					if fan {
+						impactSteps = 150
+					}
+					for step := 0; step < impactSteps; step++ {
 						stationary.tick(Input{}, .02)
 					}
 					if stationary.Player.HP >= hp {
 						t.Fatal("stationary control was never threatened by boss attack")
+					}
+					if fan {
+						escaped := false
+						for _, direction := range []Input{{Y: 1}, {Y: -1}, {X: 1}, {X: -1}, {X: 1, Y: 1}, {X: 1, Y: -1}, {X: -1, Y: 1}, {X: -1, Y: -1}} {
+							var moving Run
+							if err := json.Unmarshal(saved, &moving); err != nil {
+								t.Fatal(err)
+							}
+							for step := 0; step < 15; step++ {
+								moving.tick(Input{}, .02)
+							}
+							for step := 0; step < 150; step++ {
+								moving.tick(direction, .02)
+							}
+							if moving.Player.HP == hp && moving.Enemies[0].Attacks == attack+1 {
+								escaped = true
+								break
+							}
+						}
+						if !escaped {
+							t.Fatal("fan has no tested movement escape after reaction delay")
+						}
+						for step := 0; step < 100 && r.Enemies[0].Attacks == attack; step++ {
+							r.tick(Input{}, .02)
+						}
+						if len(r.Projectiles) != 5 {
+							t.Fatal("fan did not release five shots")
+						}
+						return
 					}
 					if attack == 0 {
 						for r.Enemies[0].Windup > .2 {

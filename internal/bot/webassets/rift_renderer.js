@@ -96,7 +96,7 @@
   }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
-  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_phase','victory']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_fan','boss_phase','victory']);
   function combatTextCategory(e) {
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
@@ -1280,8 +1280,16 @@
         const ally=run.enemies.find(unit=>unit.id===e.heal_target&&unit.hp>0);
         if(ally){ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0)-30);ctx.lineTo(ally.x-camera,ally.y-(ally.elevation||0)-30);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(ally.x-camera,ally.y-(ally.elevation||0),14,6,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#9df6d3';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('MEND · INTERRUPT',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();}
       }
-      const rangedWindup = e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
-      if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
+      const fanWindup=e.kind==='boss'&&e.volley_fan&&e.attack_name==='Rotating Fan';
+      if(!display.cleanScreenshot&&e.hp>0&&e.windup>0&&fanWindup){
+        const angle=Math.atan2(e.target_y-e.y,e.target_x-e.x)+(e.fan_rotation||0),originY=e.y-(e.elevation||0)-30;
+        ctx.save();ctx.strokeStyle='#b8e7ff';ctx.lineWidth=2;ctx.setLineDash([8,5]);
+        for(let n=-2;n<=2;n++){const direction=angle+n*.22;ctx.beginPath();ctx.moveTo(e.x-camera,originY);ctx.lineTo(e.x-camera+Math.cos(direction)*430,originY+Math.sin(direction)*430);ctx.stroke();}
+        ctx.setLineDash([]);ctx.fillStyle='#c1e5ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt('FAN · MOVE BETWEEN SHOTS',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();
+      }
+      const rangedWindup = fanWindup || e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
+      if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup && !fanWindup) {
         ctx.save();
         ctx.strokeStyle = '#ffbd81';
         ctx.lineWidth = 2;
