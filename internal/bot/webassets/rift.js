@@ -180,7 +180,7 @@
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     if(method==='GET')pendingRead=controller;
     try {
-      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
+      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409)throw saveConflictError();
       if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
@@ -761,7 +761,7 @@
       await Promise.all([renderer.prepareBuild(data.build),renderer.prepareRun(data.run)]).catch(error=>{artworkFailed=true;throw error;});
       if(generation!==loadGeneration)return;
       window.RiftRecords.init(data.class_names);window.RiftClassChallenges.update(data.run);window.RiftClassCompare.init(data.class_options,data.run?.build?.class||data.build?.class);window.RiftObjectives.init(data.objective_options||[]);build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='skills'){const select=$('rift-practice-enemy');select.replaceChildren();(data.bestiary||[]).forEach(unit=>{text('option',unit.name,select).value=unit.name;});const saved=run?.enemies?.find(enemy=>enemy.id==='practice-enemy');if(saved&&[...select.options].some(option=>option.value===saved.name))select.value=saved.name;}if(practice==='hazard')$('rift-hazard-intensity').value=run?.practice?.hazard_intensity||'standard';if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;
-      if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
+      if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.',run.paused?'Resume from the last confirmed moment. Your expedition bag is still here.':'The previous pause was not confirmed. The last saved state is restored. Resume when ready.','Resume expedition','SAVED EXPEDITION');}
       else if(selectedLevel===1){if(!$('rift-sign-in').hidden)message(introduction.title,introduction.copy,'Enter the ruins →',introduction.kicker);$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       if(practice)message(drillNames[practice],$('rift-practice-instructions').textContent,run&&['fighting','cleared'].includes(run.status)?'Resume drill':'Start drill','PRACTICE');
@@ -1101,10 +1101,20 @@
   });
   window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{startIntent++;resetInput();if(playing)pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){startIntent++;resetInput();if(playing)pause();silence();}});
-  window.addEventListener('pagehide',()=>{loadGeneration++;pendingRead?.abort();});
-  window.addEventListener('pageshow',event=>{
+  window.addEventListener('pagehide',()=>{
+    startIntent++;resetInput();
+    // Delivery is best effort. A new document always reads saved state before resuming.
+    if(playing||starting)pause();
+    playing=false;clearTimeout(timer);silence();loadGeneration++;pendingRead?.abort();
+  });
+  window.addEventListener('pageshow',async event=>{
     const isHistory = event.persisted || (typeof performance !== 'undefined' && performance.getEntriesByType?.('navigation')?.[0]?.type === 'back_forward');
-    if(isHistory){startIntent++;playing=false;clearTimeout(timer);resetInput();silence();load();}
+    if(isHistory){
+      startIntent++;playing=false;clearTimeout(timer);resetInput();silence();
+      const generation=loadGeneration;
+      await pausePending;
+      if(generation===loadGeneration)load();
+    }
   });
   document.addEventListener('focusin',event=>{
     if(playing&&event.target&&['INPUT','TEXTAREA'].includes(event.target.tagName)){
