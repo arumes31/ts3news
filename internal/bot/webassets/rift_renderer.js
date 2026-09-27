@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, enemy_blast:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -606,6 +606,7 @@
     if(e.patrol&&!e.alerted)return 'Patrolling';
     if(e.charge_recovery>0||e.pose==='recovery')return 'Recovering';
     if(e.charge_active)return 'Charging';
+    if(e.arming_timer>0)return 'Arming blast';
     if(e.react_miss_timer>0)return 'Pressing';
     if(e.heal_target&&e.windup>0)return 'Mending ally';
     if(e.windup>0)return e.attack_name==='Charge'?'Preparing charge':e.kind==='archer'?'Aiming':'Preparing attack';
@@ -1268,6 +1269,10 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.explosive&&e.arming_timer>0){
+        ctx.save();ctx.strokeStyle='#ffd18a';ctx.fillStyle='#ffbb6628';ctx.lineWidth=2;ctx.setLineDash([7,4]);ctx.beginPath();ctx.ellipse(e.x-camera,e.y-(e.elevation||0),115,55,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle='#ffe3b0';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('ARMING · HIT TO CANCEL · '+e.arming_timer.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-70,true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.lane_slams&&e.attack_name==='Lane Slam'&&e.windup>0){
         for(let lane=0;lane<3;lane++){
           const danger=lane===(e.slam_lane||0),y=315+lane*175/3,h=175/3,color=danger?'#ffd18a':'#a9e3d4';
@@ -1682,6 +1687,8 @@
         fx(flourish.row,renderer.reduced?2:Math.min(5,Math.floor(age*6)),x,y-30,72,(1-age)*.65*(flourish.row===5?display.effectIntensity:1));
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
       }
+      if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(e.kind==='arming_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#c7f5e8';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BLAST CANCELLED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='lane_slam'&&age<.4){
         const y=315+Math.max(0,Math.min(2,Math.round(e.value)))*175/3;
         ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=4;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.strokeRect(35-camera,y,1530,175/3);ctx.fillStyle='#ffd18a';ctx.globalAlpha*=.14;ctx.fillRect(35-camera,y,1530,175/3);ctx.restore();
@@ -2155,7 +2162,7 @@
       if(e.kind==='geomancer_terrain'){
         const radius=renderer.reduced?28:12+age*48*motion;ctx.save();ctx.strokeStyle='#e7c18b';ctx.globalAlpha=Math.max(0,1-age);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,radius,radius*.4,0,0,Math.PI*2);ctx.moveTo(e.x-camera-8,e.y);ctx.lineTo(e.x-camera,e.y-9);ctx.lineTo(e.x-camera+8,e.y);ctx.lineTo(e.x-camera,e.y+9);ctx.closePath();ctx.stroke();ctx.restore();
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate'].includes(e.kind)?240:95,1-age*.5);
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate','enemy_blast'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
       if(!display.cleanScreenshot && (e.textCategory==='optional'?display.optionalCombatText:e.showDamageNumber&&display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';

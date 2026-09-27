@@ -422,6 +422,9 @@
         [880, 1175, 1480].forEach((f, i) => t(f, f * 1.05, .18, .05, 'sine', i * .03));
         break;
       }
+      case 'arming_start': {h(.16,.06,2600,pan);t(220,700,.4,.07,'triangle');break;}
+      case 'arming_cancel': {h(.07,.08,3800,pan);t(650,180,.15,.07,'triangle');break;}
+      case 'enemy_blast': {h(.4,.2,1600,pan);t(120,35,.4,.16,'sine');break;}
       case 'boss_fan': { h(.18,.12,1800,pan);[0,.04,.08].forEach(delay=>t(520,190,.22,.07,'triangle',delay));break; }
       case 'boss_guard_break':
       case 'boss_stagger': {
