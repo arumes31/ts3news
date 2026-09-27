@@ -194,7 +194,7 @@
   };
   const recentImpactTimes = new Map();
   audio.isImpactCue = function (kind) {
-    return kind === 'hit' || kind.startsWith('hit_') || kind === 'slash' || kind === 'knockdown' || kind === 'slam' || kind === 'block' || kind === 'perfect_guard' || kind.endsWith('_hurt');
+    return ['ground_strike','airborne_launch','juggle_hit','backstab','guard_break','summon_punish'].includes(kind) || kind === 'hit' || kind.startsWith('hit_') || kind === 'slash' || kind === 'knockdown' || kind === 'slam' || kind === 'block' || kind === 'perfect_guard' || kind.endsWith('_hurt');
   };
   audio.shouldThrottleImpact = function (kind, now = performance.now()) {
     if (!audio.isImpactCue(kind)) return false;
@@ -372,6 +372,19 @@
       case 'land': case 'land_medium': h(.10, .09, 650, pan); t(110, 50, .09, .08, 'triangle'); break;
       case 'land_heavy': h(.16, .14, 520, pan); t(90, 32, .18, .15, 'triangle'); t(70, 25, .22, .12, 'sine', .01); break;
       case 'slash': h(.14, .15, 3800, pan); t(350, 100, .12, .05, 'sawtooth'); break;
+      case 'ground_strike': h(.12,.15,700,pan); t(150,40,.18,.13,'triangle'); break;
+      case 'airborne_launch': h(.13,.08,2300,pan); t(150,630,.2,.10,'triangle'); break;
+      case 'juggle_hit': h(.06,.09,3200,pan); t(620,940,.09,.08,'triangle'); break;
+      case 'backstab': h(.07,.12,4400,pan); t(980,180,.13,.10,'sawtooth'); break;
+      case 'guard_break': h(.16,.13,5200,pan); t(720,95,.24,.12,'square'); break;
+      case 'dodge_action': h(.12,.07,2000,pan); t(180,320,.10,.04,'sine'); break;
+      case 'first_hit_grace': t(660,880,.17,.055,'sine'); t(990,1320,.17,.04,'sine',.04); break;
+      case 'enemy_aware': t(380,610,.12,.06,'triangle'); break;
+      case 'alert_propagate': t(440,580,.1,.045,'triangle'); t(580,740,.1,.04,'triangle',.12); break;
+      case 'flank_attempt': h(.12,.045,1700,pan); t(240,420,.13,.045,'sine'); break;
+      case 'pack_attack': t(290,580,.18,.07,'sawtooth'); h(.10,.06,1400,pan); break;
+      case 'summon_spawn': t(170,620,.28,.075,'sine'); h(.20,.06,2800,pan); break;
+      case 'summon_punish': h(.10,.12,2700,pan); t(620,120,.19,.10,'triangle'); break;
       case 'third_strike': h(.18, .25, 2600, pan); t(220, 50, .24, .25, 'triangle'); t(90, 25, .28, .22, 'sine', .01); t(520, 180, .10, .12, 'sawtooth'); break;
       case 'finisher_cast': {
         h(.25, .10, 4800, pan);
