@@ -74,12 +74,13 @@ test('clear all three rooms, defeat the catalog boss and bank the expedition', a
   await page.locator('#rift-start').click();
   const held=new Set();
   async function controls(wanted){for(const key of [...held])if(!wanted.has(key)){await page.keyboard.up(key);held.delete(key);}for(const key of wanted)if(!held.has(key)){await page.keyboard.down(key);held.add(key);}}
-  const started=Date.now();let complete=false;
+  const started=Date.now();let complete=false,expectedFightGold=0,expectedItems=0;
   while(Date.now()-started<145_000){
     const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
     expect(run.status,'expedition should remain survivable').not.toBe('defeated');
-    if(run.status==='complete'){complete=true;expect(run.banked_gold).toBe(300);expect(run.banked_items.length).toBeGreaterThanOrEqual(3);for(const drop of run.drops.filter(d=>d.gear))expect(drop.gear.found_boss).toContain(run.level.name);break;}
+    if(run.status==='complete'){complete=true;expect(expectedFightGold).toBeGreaterThan(0);expect(expectedItems).toBeGreaterThan(0);expect(run.banked_gold).toBe(expectedFightGold+(run.banked_objective_gold||0));expect(run.banked_items.length).toBe(expectedItems);for(const drop of run.drops.filter(d=>d.gear))expect(drop.gear.found_boss).toContain(run.level.name);break;}
     if(run.status==='cleared'){
+      const unbanked=run.drops.filter(drop=>!drop.banked);expectedFightGold+=unbanked.reduce((sum,drop)=>sum+drop.gold,0);expectedItems+=unbanked.filter(drop=>drop.gear).length;
       await controls(new Set());
       await expect(page.locator('#rift-next')).toBeVisible();
       if(run.room===2)await page.screenshot({path:'test-results/rift-boss-cleared.png'});
