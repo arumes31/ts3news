@@ -36,7 +36,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard" || mode == "touch"
+	return mode == "toxic_tide" || mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard" || mode == "touch"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -118,6 +118,14 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "guard" || mode == "perfect_guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
 	}
+	if mode == "toxic_tide" {
+		r.Practice.Arena.Name = "Toxic Tide challenge"
+		r.Practice.Arena.Floor = "mud"
+		r.Practice.GoalX = 1350
+		for i, x := range []float64{400, 725, 1050} {
+			r.Practice.Arena.Hazards = append(r.Practice.Arena.Hazards, Hazard{Obstacle: Obstacle{X: x, Y: 315, W: 240, H: 175}, Kind: "moving_poison", Jumpable: true, Period: 7, Offset: float64(i)*1.4, Duration: 3.8})
+		}
+	}
 	if mode == "hazard" {
 		r.Practice.Arena.Name = "Warning zone"
 		r.Practice.Arena.Hazards = []Hazard{{Obstacle: Obstacle{X: 110, Y: 365, W: 100, H: 90}, Kind: "fire", Jumpable: true, Period: 3.5, Duration: .45}}
@@ -166,6 +174,8 @@ func (r *Run) practiceInput(in Input) Input {
 		return in
 	case "movement", "pickup", "banking":
 		return Input{X: in.X, Y: in.Y}
+	case "toxic_tide":
+		return Input{X: in.X, Y: in.Y, Jump: in.Jump, Dodge: in.Dodge, Guard: in.Guard}
 	case "jump", "hazard":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
 	case "guard", "perfect_guard":

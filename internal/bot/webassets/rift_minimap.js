@@ -34,6 +34,7 @@
       let box=h;
       if(state==='active'&&h.kind==='sweeping_flame'){const width=Math.min(36,h.w);box={...h,x:h.x+(h.w-width)*Math.max(0,Math.min(1,(phase-1.2)/h.duration)),w:width};}
       if(state==='active'&&h.kind==='rotating_blade'){const width=Math.min(20,h.w),height=Math.min(20,h.h),angle=Math.max(0,Math.min(1,(phase-1.2)/h.duration))*Math.PI*2;box={...h,x:h.x+(h.w-width)/2*(1+Math.cos(angle)),y:h.y+(h.h-height)/2*(1+Math.sin(angle)),w:width,h:height};}
+      if(state==='active'&&h.kind==='moving_poison'){const width=Math.min(80,h.w),progress=Math.max(0,Math.min(1,(phase-1.2)/h.duration));box={...h,x:h.x+(h.w-width)*(1-Math.abs(2*progress-1)),w:width};}
       rect(box,'hazard',h.kind+' · '+state,state);
     }
     const actors=(run.enemies||[]).filter(e=>e.hp>0),enemies=actors.filter(e=>!['totem','generator','cage'].includes(e.kind));

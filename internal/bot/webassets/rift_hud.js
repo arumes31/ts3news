@@ -208,12 +208,13 @@
         let left=h.x,top=h.y,width=h.w,height=h.h;
         if(activeNow&&h.kind==='sweeping_flame'){width=Math.min(36,h.w);left+=(h.w-width)*Math.max(0,Math.min(1,(phaseNow-1.2)/h.duration));}
         if(activeNow&&h.kind==='rotating_blade'){width=Math.min(20,h.w);height=Math.min(20,h.h);const angle=Math.max(0,Math.min(1,(phaseNow-1.2)/h.duration))*Math.PI*2;left+=(h.w-width)/2*(1+Math.cos(angle));top+=(h.h-height)/2*(1+Math.sin(angle));}
+        if(activeNow&&h.kind==='moving_poison'){width=Math.min(80,h.w);const progress=Math.max(0,Math.min(1,(phaseNow-1.2)/h.duration));left+=(h.w-width)*(1-Math.abs(2*progress-1));}
         const inside=p.x>=left&&p.x<=left+width&&p.y>=top&&p.y<=top+height;
         if(inside){
           const phase=(run.clock+h.offset)%h.period;
           const warning=phase<1.2;
           const active=phase>=1.2&&phase<1.2+h.duration;
-          const kindName=h.kind==='sweeping_flame'?'Sweeping flame':h.kind==='rotating_blade'?'Rotating blade':h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
+          const kindName=h.kind==='sweeping_flame'?'Sweeping flame':h.kind==='rotating_blade'?'Rotating blade':h.kind==='moving_poison'?'Moving poison':h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
           if(active){
             const evading=h.jumpable===true&&(p.jump||0)>0.1;
             return{

@@ -488,6 +488,7 @@
       case 'void': t(240, 38, .6, .13, 'sawtooth'); t(243, 42, .55, .07, 'sine'); break;
       case 'void_cost': t(80,40,.18,.08,'triangle'); break;
       case 'rune': [294,440,587].forEach((f,i)=>t(f,f*1.5,.3,.055,'triangle',i*.06)); h(.18,.06,4000,pan); break;
+      case 'moving_poison':
       case 'poison': [180,270,140].forEach((f,i)=>t(f,f*.5,.14,.08,'sine',i*.1)); h(.4,.08,750,pan); break;
       case 'radiant': [523,784,1047].forEach((f,i)=>t(f,f,.55,.05,'sine',i*.06)); break;
       case 'pack': t(320,620,.35,.075,'sine'); t(620,300,.6,.06,'sine',.3); h(.18,.05,850,pan); break;

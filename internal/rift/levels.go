@@ -718,9 +718,12 @@ func (r *Run) hazardTick() {
 			return
 		}
 		switch h.Kind {
-		case "ice", "thorns", "poison":
+		case "ice", "thorns", "poison", "moving_poison":
 			r.SkillTimers["slowed"] = 1.4
 			r.SlowSource = h.Kind
+			if h.Kind == "moving_poison" {
+				r.SlowSource = "poison"
+			}
 		case "void":
 			r.pullIntoVoidWell(h)
 		}
