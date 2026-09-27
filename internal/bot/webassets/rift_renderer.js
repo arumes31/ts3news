@@ -96,7 +96,7 @@
   }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
-  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_fan','boss_phase','victory']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_fan','lane_slam','boss_phase','victory']);
   function combatTextCategory(e) {
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
@@ -1250,6 +1250,15 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.lane_slams&&e.attack_name==='Lane Slam'&&e.windup>0){
+        for(let lane=0;lane<3;lane++){
+          const danger=lane===(e.slam_lane||0),y=315+lane*175/3,h=175/3,color=danger?'#ffd18a':'#a9e3d4';
+          ctx.save();ctx.fillStyle=color;ctx.globalAlpha=danger?.16:.05;ctx.fillRect(35-camera,y,1530,h);ctx.globalAlpha=1;
+          hazardOverlays.push({x:35-camera,y,w:1530,h,warning:danger,color});
+          ctx.fillStyle=color;ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
+          interactionPrompt(danger?'LANE SLAM · '+e.windup.toFixed(1)+'s · MOVE OR JUMP':'CLEAR OF SLAM',480,y+h/2,true);ctx.restore();
+        }
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&(display.healthBars||e.boss_guard_break>0)){
         const broken=e.boss_guard_break>0,grace=e.boss_stagger_grace>0;
         const label=broken?'GUARD BROKEN · '+e.boss_guard_break.toFixed(1)+'s':grace?'STAGGER RECOVERING · '+e.boss_stagger_grace.toFixed(1)+'s':'STAGGER '+Math.round(Math.max(0,Math.min(100,e.boss_stagger||0)))+'/100';
@@ -1300,7 +1309,7 @@
         ctx.stroke();
         ctx.restore();
       }
-      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge') {
+      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge'&&e.attack_name!=='Lane Slam') {
         const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam'),targetY=e.target_y-surfaceHeight(e.target_x,e.target_y);
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,targetY,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,targetY+4);
@@ -1654,6 +1663,10 @@
         ctx.closePath();ctx.stroke();ctx.restore();
         fx(flourish.row,renderer.reduced?2:Math.min(5,Math.floor(age*6)),x,y-30,72,(1-age)*.65*(flourish.row===5?display.effectIntensity:1));
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
+      }
+      if(e.kind==='lane_slam'&&age<.4){
+        const y=315+Math.max(0,Math.min(2,Math.round(e.value)))*175/3;
+        ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=4;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.strokeRect(35-camera,y,1530,175/3);ctx.fillStyle='#ffd18a';ctx.globalAlpha*=.14;ctx.fillRect(35-camera,y,1530,175/3);ctx.restore();
       }
       if(e.kind==='projectile_expire'&&!renderer.reduced&&motion>0&&age<.4){
         const x=e.x-camera,y=e.y-28,progress=age/.4;

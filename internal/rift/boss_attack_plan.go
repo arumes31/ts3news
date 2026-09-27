@@ -22,6 +22,9 @@ func (r *Run) NextBossAttack(boss Actor) BossAttackPlan {
 			plan = BossAttackPlan{Name: "Rotating Fan", Kind: "fan", Windup: 1.25, Recovery: 2}
 		}
 	}
+	if boss.LaneSlams && plan.Kind == "slam" {
+		plan = BossAttackPlan{Name: "Lane Slam", Kind: "lane_slam", Windup: 1.4, Recovery: 2.3}
+	}
 	if r.wantsBossCharge(boss) {
 		plan = BossAttackPlan{Name: "Charge", Kind: "charge", Windup: 1.15, Recovery: 2.3}
 	}

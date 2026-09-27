@@ -21,8 +21,9 @@ func TestEveryCatalogBossOpeningHasSafeCounterplay(t *testing.T) {
 				boss.X, boss.Y = 560, 410
 				r.Enemies = []Actor{boss}
 				hp := r.Player.HP
+				warning := r.NextBossAttack(boss).Windup
 				r.enemyTick(0, .02)
-				if r.Enemies[0].Windup != EnemyTraining("boss").WindupSeconds || r.Enemies[0].AttackName == "" {
+				if warning < EnemyTraining("boss").WindupSeconds || r.Enemies[0].Windup != warning || r.Enemies[0].AttackName == "" {
 					t.Fatal("opening lacks a full named telegraph")
 				}
 				if r.Enemies[0].TargetX != 500 || r.Enemies[0].TargetY != 410 {
@@ -37,7 +38,7 @@ func TestEveryCatalogBossOpeningHasSafeCounterplay(t *testing.T) {
 				} else {
 					r.Player.Y = 480
 				}
-				r.enemyTick(0, .56)
+				r.enemyTick(0, warning-.6+.01)
 				if r.Player.HP != hp || r.Enemies[0].Attacks != 1 || len(r.Projectiles) != 0 {
 					t.Fatal("opening did not allow advertised slam avoidance")
 				}

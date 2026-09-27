@@ -483,6 +483,7 @@
       case 'archer_death': h(.4,.16,4000,pan); t(600,180,.28,.04,'square'); break;
       case 'knight_death': h(.7,.24,1000,pan); t(100,30,.6,.18,'triangle'); break;
       case 'boss_roar': t(85,45,.9,.18,'sawtooth'); t(88,41,.8,.08,'sawtooth'); h(.7,.15,700,pan); break;
+      case 'lane_slam':
       case 'slam': h(.65,.3,1100,pan); t(100,28,.5,.3,'sine'); t(140,40,.4,.08,'triangle',.08); break;
       case 'boss_death': h(1.5,.25,950,pan); [110,82,55].forEach((f,i) => t(f,28,.7,.1,'sawtooth',i*.2)); break;
       case 'wolf_death': t(420, 180, .5, .1, 'sine'); t(280, 110, .45, .08, 'triangle', .05); h(.2, .05, 1400, pan); break;

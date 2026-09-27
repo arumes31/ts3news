@@ -126,6 +126,8 @@ type Actor struct {
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
 	VolleyFan bool `json:"volley_fan,omitempty"`
 	FanRotation float64 `json:"fan_rotation,omitempty"`
+	LaneSlams bool `json:"lane_slams,omitempty"`
+	SlamLane int `json:"slam_lane,omitempty"`
 	Elite          bool    `json:"elite,omitempty"`
 	Enraged        bool    `json:"enraged,omitempty"`
 	ReactMissTimer float64 `json:"react_miss_timer,omitempty"`
@@ -1822,6 +1824,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 			if e.Kind == "boss" {
 				e.Cooldown = plan.Recovery
 			}
+			if plan.Kind == "lane_slam" {
+				r.releaseLaneSlam(e)
+				return
+			}
 			if plan.Kind == "fan" {
 				r.fireBossFan(e)
 				return
@@ -1920,9 +1926,15 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if r.NextBossAttack(*e).Kind == "fan" {
 			rangeX = 430
 		}
+		if r.NextBossAttack(*e).Kind == "lane_slam" {
+			rangeX = Width
+		}
 	}
 	blocked := e.Kind == "archer" && !r.clearProjectilePath(e, p) || e.Kind != "archer" && e.Kind != "boss" && !r.clearMeleePath(e, p)
 	targetDy := dy
+	if e.Kind == "boss" && r.NextBossAttack(*e).Kind == "lane_slam" {
+		targetDy = 0
+	}
 	if len(r.Enemies) > 1 && i > 0 && e.Kind != "boss" {
 		laneOffset := float64(((i%2)*2 - 1) * 16)
 		if e.Kind == "archer" {
@@ -1982,6 +1994,13 @@ func (r *Run) enemyTick(i int, dt float64) {
 			r.event("boss_roar", e.X, e.Y, 0)
 			plan := r.NextBossAttack(*e)
 			e.AttackName, e.Windup = plan.Name, plan.Windup
+			if plan.Kind == "lane_slam" {
+				if e.Attacks == 0 {
+					e.SlamLane = bossLane(p.Y)
+				} else {
+					e.SlamLane = (e.SlamLane + 1) % 3
+				}
+			}
 			if plan.Kind == "fan" {
 				e.FanRotation = float64((e.Attacks/2)%3-1) * .18
 			}
