@@ -32,6 +32,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	HazardSwitch *HazardSwitch `json:"hazard_switch,omitempty"`
 	WaterCurrents []WaterCurrent `json:"water_currents,omitempty"`
 	WindGusts  []WindGust `json:"wind_gusts,omitempty"`
 	SteamVents []Obstacle `json:"steam_vents,omitempty"`
@@ -299,6 +300,9 @@ func buildCampaign() []Level {
 					if layout%2 == 1 {
 						arena.WindGusts[0].VX = -60
 					}
+				}
+				if region == 7 && room == 0 {
+					arena.HazardSwitch = &HazardSwitch{X: 370, Y: 475}
 				}
 				level.Rooms = append(level.Rooms, arena)
 			}

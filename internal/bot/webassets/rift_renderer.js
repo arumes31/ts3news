@@ -1149,6 +1149,13 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    if(arena?.hazard_switch){
+      const sw=arena.hazard_switch,x=sw.x-camera,y=sw.y;
+      ctx.save();ctx.fillStyle=sw.used?'#477967':'#cbaf78';ctx.strokeStyle='#1e3532';ctx.lineWidth=2;ctx.fillRect(x-10,y-9,20,13);ctx.strokeRect(x-10,y-9,20,13);ctx.strokeStyle=sw.used?'#a4efd0':'#ffe1aa';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+(sw.used?7:-7),y-22);ctx.stroke();
+      if(!sw.used&&sw.charge>0){ctx.fillStyle='#0b211e';ctx.fillRect(x-18,y+8,36,4);ctx.fillStyle='#a4efd0';ctx.fillRect(x-18,y+8,36*Math.min(1,sw.charge/.6),4);}
+      if(!display.cleanScreenshot){ctx.fillStyle=sw.used?'#b5f3d4':'#ffe1aa';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(sw.used?'HAZARDS OFF':run.status==='fighting'?'HOLD GUARD · SHUT DOWN':'SWITCH INACTIVE',x,y-30,true);}
+      ctx.restore();
+    }
     for(const current of arena?.water_currents||[]){
       if(run.status!=='fighting')continue;
       const x=current.x-camera,speed=Math.hypot(current.vx,current.vy),dx=current.vx/speed,dy=current.vy/speed;
