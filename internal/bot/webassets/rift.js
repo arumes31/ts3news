@@ -422,6 +422,7 @@
       let practiceAnnouncement=practiceProgress;
       if(!run.practice.completed){
         if(practice==='boss')practiceAnnouncement=(run.enemies[0]?.name||'Boss')+' · Phase '+(run.enemies[0]?.phase||1)+(run.practice.slow_telegraphs?' · Longer warnings (2×)':'');
+        else if(practice==='skills')practiceAnnouncement='Free practice · No time limit';
         else if(['movement','jump','touch'].includes(practice))practiceAnnouncement=objectiveMilestone(run.player.x/run.practice.goal_x*100)+' to finish';
       }
       put($('rift-practice-progress'),practiceProgress);

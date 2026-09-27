@@ -14,7 +14,8 @@
     captions.hidden=(!checkbox.checked&&!dirCheckbox.checked)||items.length===0;
     if(items.length)expiry=setTimeout(paint,Math.max(1,Math.min(...items.map(item=>item.until))-now));
   }
-  function clear(){items=[];live.textContent='';paint();}
+  const captionUntil=new Map();
+  function clear(){captionUntil.clear();items=[];live.textContent='';paint();}
   checkbox.onchange=()=>{try{localStorage.setItem('riftCaptions',JSON.stringify({version:1,enabled:checkbox.checked}));}catch(_){}clear();};
   dirCheckbox.onchange=()=>{try{localStorage.setItem('riftDirectionalCaptions',JSON.stringify({version:1,enabled:dirCheckbox.checked}));}catch(_){}clear();};
   function update(run,replay,playing){
@@ -30,7 +31,10 @@
     function cue(kind,text,sound,isDirectional=false){
       if(sound)window.RiftAudio.play(kind,0);
       if(!checkbox.checked&&!(dirCheckbox.checked&&isDirectional))return;
-      const now=performance.now();if(items.some(item=>item.kind===kind&&item.until>now))return;
+      const now=performance.now();
+      for(const [key,until] of captionUntil)if(until<=now)captionUntil.delete(key);
+      if(captionUntil.has(kind))return;
+      captionUntil.set(kind,now+4000);
       items.push({kind,text,until:now+4000});items=items.slice(-3);announcements.push(text);
     }
     const cam=Math.max(0,Math.min(640,(p?.x||0)-350));
