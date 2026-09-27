@@ -593,6 +593,7 @@
     if(e.pose==='attack'&&e.pose_time>0)return 'Attacking';
     if(e.fleeing)return 'Fleeing';
     if(e.guard)return 'Guarding';
+    if(e.support_cover_id)return 'Seeking defender';
     if(e.kind==='archer'&&e.reposition_timer>0)return 'Repositioning';
     if(e.pose==='run'||e.pose==='walk')return e.kind==='archer'?'Moving':'Approaching';
     if(e.cooldown>0)return 'Recovering';
@@ -1260,6 +1261,7 @@
         const intent=enemyIntent(e);
         if(intent){ctx.save();ctx.fillStyle='#b7f2ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('INTENT · '+intent,e.x-camera,e.y-(e.elevation||0)-108,true);ctx.restore();}
       }
+      if(!display.cleanScreenshot&&e.hp>0&&e.support_cover_id){ctx.save();ctx.fillStyle='#b7dcff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SEEKING COVER',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();}
       if(!display.cleanScreenshot&&e.hp>0&&e.heal_target&&e.windup>0){
         const ally=run.enemies.find(unit=>unit.id===e.heal_target&&unit.hp>0);
         if(ally){ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0)-30);ctx.lineTo(ally.x-camera,ally.y-(ally.elevation||0)-30);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(ally.x-camera,ally.y-(ally.elevation||0),14,6,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#9df6d3';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('MEND · INTERRUPT',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();}

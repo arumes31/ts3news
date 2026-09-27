@@ -116,6 +116,8 @@ type Actor struct {
 	Healer         bool    `json:"healer,omitempty"`
 	HealTarget string `json:"heal_target,omitempty"`
 	HealCooldown float64 `json:"heal_cooldown,omitempty"`
+	Support        bool    `json:"support,omitempty"`
+	SupportCoverID string `json:"support_cover_id,omitempty"`
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
@@ -1373,6 +1375,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
 		e.ReactMissTimer = 0
+		e.SupportCoverID = ""
 		cancelEnemyMend(e)
 		r.interruptEnemyCharge(e)
 		r.interruptRitual(e.ID)
@@ -1664,6 +1667,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 		return
 	}
 	e := &r.Enemies[i]
+	previousSupportCover := e.SupportCoverID
+	e.SupportCoverID = ""
 	e.Guard = false
 	if e.Knockdown > 0 || e.Pose == "stagger" && e.PoseTime > 0 {
 		cancelEnemyMend(e)
@@ -1776,6 +1781,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		return
 	}
 	if r.tickEnemyMend(i, dt) {
+		return
+	}
+	if r.tickSupportRetreat(e, dt, previousSupportCover) {
 		return
 	}
 	if r.tickMissReaction(e, dt) {

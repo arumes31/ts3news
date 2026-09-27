@@ -379,6 +379,7 @@
       case 'guard_break': h(.16,.13,5200,pan); t(720,95,.24,.12,'square'); break;
       case 'dodge_action': h(.12,.07,2000,pan); t(180,320,.10,.04,'sine'); break;
       case 'first_hit_grace': t(660,880,.17,.055,'sine'); t(990,1320,.17,.04,'sine',.04); break;
+      case 'support_retreat': h(.09,.045,1700,pan); t(280,190,.12,.04,'triangle'); break;
       case 'enemy_mend': t(260,520,.3,.06,'sine'); t(390,780,.3,.04,'triangle',.08); break;
       case 'elite_desperation': t(150,300,.26,.07,'sawtooth'); t(300,200,.18,.05,'triangle',.14); break;
       case 'miss_reaction': h(.08,.045,1400,pan); t(220,340,.10,.045,'triangle'); break;
