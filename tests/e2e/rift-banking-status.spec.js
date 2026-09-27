@@ -8,7 +8,7 @@ for(const committed of [false,true])test('uncertain bank recovery reloads '+(com
   if(route.request().method()==='POST'&&route.request().postDataJSON().kind==='exit'){calls++;await held;if(committed)await route.fetch();await route.abort('failed');}else await route.continue();
  });
  await page.locator('#rift-start').click();await page.locator('#rift-exit').click();
- try{await expect(page.locator('#rift-banking-status')).toContainText('not confirmed yet');}finally{release();}
+ try{await expect(page.locator('#rift-banking-status')).toContainText('not confirmed yet');await expect(page.locator('#rift-banked')).toHaveText('0 gold · 0 items');await expect(page.locator('#rift-gold')).toHaveText('30');await expect(page.locator('#rift-loot-count')).toHaveText('1 item pending');}finally{release();}
  await expect(page.locator('#rift-start')).toHaveText('Recover expedition');await expect(page.locator('#rift-banking-status')).toContainText('delivery is unconfirmed');
  const writesBeforeRecovery=writes.length;
  await page.locator('#rift-start').click();await expect(page.locator('#rift-banking-status')).toContainText('Saved reward state loaded');
