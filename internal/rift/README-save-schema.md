@@ -93,6 +93,23 @@ saved run, while an uncommitted unchanged start keeps its original identity when
 the user tries again. Metadata contains request IDs and game selections, not
 credentials, actor profiles, loot or inventory contents.
 
+## Uncertain checkpoint banking
+
+The client retains one pending banking ID per tab/practice mode. Its checkpoint
+scope contains only run/epoch/mission/tier identity, room starting time, mission
+attempt number and the last confirmed banking timestamp; the action must also match. A pause or resume
+changes the optimistic revision without changing that checkpoint intent, so a
+retry uses the current revision with the original banking ID. Changing action,
+encounter, mission, run or economy produces a new intent. Session-storage reads
+are bounded to 2 KiB and failures fall back to page memory.
+
+Validated responses clear the entry when `last_request_id` confirms the bank, or
+when the checkpoint is no longer the same cleared encounter. Thus recovery of a
+committed advance/exit does not leave an ID available for a later checkpoint.
+Recovery remains GET-only until explicit resume/action. Client metadata never
+supplies loot, gold, inventory contents or arbitrary request fields; transactional
+revision checks and stored banked flags remain authoritative for delivery.
+
 ## Bounded receipt history
 
 `BankedItemsTotal` supplies the independent confirmed item count; absent or zero
