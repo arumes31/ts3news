@@ -1398,6 +1398,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	e.RecoilX = hitDir * recoilDist
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
+		r.interruptBossChannel(e)
 		e.ReactMissTimer = 0
 		e.SupportCoverID = ""
 		r.cancelEnemyArming(e)
@@ -1709,6 +1710,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	e.SupportCoverID = ""
 	e.Guard = false
 	if e.Knockdown > 0 || e.Pose == "stagger" && e.PoseTime > 0 {
+		r.interruptBossChannel(e)
 		r.cancelEnemyArming(e)
 		r.cancelEnemyBurrow(e)
 		r.interruptEnemyDive(e)
@@ -1864,6 +1866,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 			e.Cooldown = 1.6 + rangedCooldownOffset(e)
 			if e.Kind == "boss" {
 				e.Cooldown = plan.Recovery
+			}
+			if plan.Kind == "channel" {
+				r.releaseBossChannel(e)
+				return
 			}
 			if plan.Kind == "ring" {
 				r.releaseBossRing(e)

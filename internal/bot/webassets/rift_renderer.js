@@ -608,6 +608,7 @@
   function enemyIntent(e){
     if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
     if(e.kind==='boss'&&e.summon_timer>0)return 'Summoning allies';
+    if(e.kind==='boss'&&e.attack_name==='Time Pulse'&&e.windup>0)return 'Channeling pulse';
     if(e.kind==='boss'&&e.boss_guard_break>0)return 'Guard broken';
     if(e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0)return 'Preparing ring';
     if(e.knockdown>0)return 'Getting up';
@@ -1292,6 +1293,9 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Time Pulse'&&e.windup>0){
+        ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL '+e.windup.toFixed(1)+'s · HIT BOSS TO INTERRUPT',e.x-camera,e.y-72,true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.summon_timer>0){
         const owned=run.enemies.filter(a=>a.hp>0&&a.summon_owner===e.id).length;
         ctx.save();ctx.fillStyle='#e1bcff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
@@ -1375,7 +1379,7 @@
         ctx.setLineDash([]);ctx.fillStyle='#c1e5ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
         interactionPrompt('FAN · MOVE BETWEEN SHOTS',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();
       }
-      const rangedWindup = fanWindup || e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
+      const rangedWindup = fanWindup || e.attack_name!=='Time Pulse' && e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup && !fanWindup) {
         ctx.save();
         ctx.strokeStyle = '#ffbd81';
@@ -1744,6 +1748,8 @@
       }
       if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='summon_dismiss'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d9c7ef';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SUMMON DISMISSED',e.x-camera,e.y-30,true);ctx.restore();}
+      if(e.kind==='boss_channel_interrupt'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL INTERRUPTED · WEAK POINT',e.x-camera,e.y-72,true);ctx.restore();}
+      if(e.kind==='boss_channel_pulse'&&age<.45&&!display.cleanScreenshot){ctx.save();ctx.strokeStyle='#bbf6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,125,62,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='boss_ring'&&age<.45&&!display.cleanScreenshot)voidRing(e.x-camera,e.y,e.value||0,true);
       if(e.kind==='dive_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#ffe3bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BURROW INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
