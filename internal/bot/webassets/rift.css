@@ -1414,3 +1414,5 @@
     display: none !important;
   }
 }
+
+#rift-sign-in{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px 14px;font-size:14px;color:var(--rift-gold);}

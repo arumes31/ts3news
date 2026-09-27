@@ -130,12 +130,18 @@
       if(target) target.focus();
     }
   }
+  const introduction={title:$('rift-overlay-title').textContent,copy:$('rift-overlay-copy').textContent,kicker:$('rift-overlay-kicker').textContent};
   function message(title, copy, button, kicker) {
+    $('rift-sign-in').hidden=true;
     $('rift-result-actions').hidden=true;
     if($('rift-result-banner'))$('rift-result-banner').hidden=true;
     if($('rift-result-rewards'))$('rift-result-rewards').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
+  }
+  function showExpiredSession(banking=false){
+    message('Sign in to continue.',statusCopy.sessionExpired+(banking?' Reward delivery is unconfirmed. Check the saved expedition after signing in.':''),'Check session again','SESSION EXPIRED');
+    const link=$('rift-sign-in');link.href='/login?next='+encodeURIComponent(location.pathname+location.search);link.hidden=false;
   }
   function updatePauseButton(isPlaying){
     const btn=$('rift-pause');
@@ -171,7 +177,7 @@
     if(method==='GET')pendingRead=controller;
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
-      if(response.status===401)throw new Error(statusCopy.sessionExpired);
+      if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409)throw new Error(statusCopy.saveConflict);
       if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
       let data,responseBytes=0,runBytes=0;
@@ -525,7 +531,9 @@
     } catch(error){
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
-      message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');$('rift-start').dataset.recover='true';return false;
+      if(error.code==='SESSION_EXPIRED')showExpiredSession(banking);
+      else message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');
+      $('rift-start').dataset.recover='true';return false;
     } finally {busy=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!practice||!ready||!run);window.RiftLoadouts.refresh();setSafeDisabled($('rift-start'),!ready);root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,!ready||checkpointPending));}
   }
   async function checkpoint(kind){
@@ -721,17 +729,23 @@
       if(generation!==loadGeneration)return;
       window.RiftRecords.init(data.class_names);window.RiftClassChallenges.update(data.run);window.RiftClassCompare.init(data.class_options,data.run?.build?.class||data.build?.class);window.RiftObjectives.init(data.objective_options||[]);build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='skills'){const select=$('rift-practice-enemy');select.replaceChildren();(data.bestiary||[]).forEach(unit=>{text('option',unit.name,select).value=unit.name;});const saved=run?.enemies?.find(enemy=>enemy.id==='practice-enemy');if(saved&&[...select.options].some(option=>option.value===saved.name))select.value=saved.name;}if(practice==='hazard')$('rift-hazard-intensity').value=run?.practice?.hazard_intensity||'standard';if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;
       if(run){update(run,true);if(['fighting','cleared'].includes(run.status))message('Your expedition awaits.','Resume from the last confirmed moment. Your expedition bag is still here.','Resume expedition','SAVED EXPEDITION');}
-      else if(selectedLevel===1){$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
+      else if(selectedLevel===1){if(!$('rift-sign-in').hidden)message(introduction.title,introduction.copy,'Enter the ruins →',introduction.kicker);$('rift-start').textContent='Enter the ruins →';$('rift-start').disabled=false;}
       else{const level=levels.find(l=>l.id===selectedLevel);message(level.name.split(' · ')[1],level.tactic+'. Three tiers, one Abyss boss.','Enter mission '+level.id,level.region_name);}
       if(practice)message(drillNames[practice],$('rift-practice-instructions').textContent,run&&['fighting','cleared'].includes(run.status)?'Resume drill':'Start drill','PRACTICE');
       if(['class','resource'].includes(practice)&&!classPracticeInstructions()){$('rift-start').disabled=true;$('rift-start').textContent='Class abilities required';}
       if(practice==='ultimate'&&!(run?.build||build).ultimate){$('rift-start').disabled=true;$('rift-start').textContent='Ultimate required';}
       if(practice==='ranged'&&![...((run?.build||build).skills||[]),...((run?.build||build).signatures||[]),(run?.build||build).ultimate].some(skill=>skill?.reference?.target==='projectile')){$('rift-start').disabled=true;$('rift-start').textContent='Ranged ability required';put($('rift-practice-instructions'),'Equip a projectile ability in Abyss, then return to ranged practice. Your current build has no ranged projectile.');}
+      $('rift-sign-in').hidden=true;
       window.RiftLoot.banking('reloaded');
       status(root.dataset.fixture?statusCopy.fixtureReady:statusCopy.characterReady);
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status(statusCopy.practiceReady($('rift-practice-instructions').textContent));}
-    }catch(error){if(generation!==loadGeneration)return;silence();ready=false;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';$('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);}
+    }catch(error){
+      if(generation!==loadGeneration)return;silence();ready=false;
+      if(error.code==='SESSION_EXPIRED')showExpiredSession();
+      else{$('rift-sign-in').hidden=true;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';}
+      $('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);
+    }
   }
   const moveLabels = {
     left: ['Move left', 'Moving left (holding)'],
