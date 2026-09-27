@@ -1254,8 +1254,9 @@
         ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
         if(e.attack_name==='Charge') {
           ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0));ctx.lineTo(e.target_x-camera,e.target_y-surfaceHeight(e.target_x,e.target_y));ctx.stroke();ctx.setLineDash([]);
+          ctx.strokeStyle='#071b16';
           interactionPrompt('CHARGE · SIDESTEP',e.target_x-camera,e.target_y-surfaceHeight(e.target_x,e.target_y)-24,true);
-        } else interactionPrompt('RECOVERING · '+e.charge_recovery.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-60,true);
+        } else {ctx.strokeStyle='#071b16';interactionPrompt('RECOVERING · '+e.charge_recovery.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-60,true);}
         ctx.restore();
       }
       if(!display.cleanScreenshot&&e.hp>0&&e.react_miss_timer>0) {
@@ -1272,7 +1273,7 @@
         const ally=run.enemies.find(unit=>unit.id===e.heal_target&&unit.hp>0);
         if(ally){ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0)-30);ctx.lineTo(ally.x-camera,ally.y-(ally.elevation||0)-30);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(ally.x-camera,ally.y-(ally.elevation||0),14,6,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#9df6d3';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('MEND · INTERRUPT',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();}
       }
-      const rangedWindup = !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
+      const rangedWindup = e.attack_name!=='Charge' && !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
         ctx.save();
         ctx.strokeStyle = '#ffbd81';
@@ -1284,7 +1285,7 @@
         ctx.stroke();
         ctx.restore();
       }
-      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup) {
+      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge') {
         const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam'),targetY=e.target_y-surfaceHeight(e.target_x,e.target_y);
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,targetY,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,targetY+4);
