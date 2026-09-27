@@ -14,6 +14,14 @@ func validateRiftHazardTiming(run *rift.Run) error {
 		return invalid
 	}
 	validArena := func(arena rift.Arena) bool {
+		if len(arena.WindGusts) > 4 {
+			return false
+		}
+		for _, w := range arena.WindGusts {
+			if !(w.Period > 1.2 && w.Period <= 30 && w.Duration > 0 && 1.2+w.Duration < w.Period && w.Offset >= 0 && w.Offset <= clockLimit && w.VX >= -80 && w.VX <= 80 && w.VX != 0 && w.X >= 35 && w.Y >= 315 && w.W > 0 && w.H > 0 && w.X+w.W <= 1565 && w.Y+w.H <= 490) {
+				return false
+			}
+		}
 		for _, h := range arena.Hazards {
 			// Authored cycles are at most seven seconds. Thirty seconds leaves content
 			// headroom while keeping warning-repeat timers inside the saved timer bound.

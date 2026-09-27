@@ -24,6 +24,7 @@ func cloneCampaignLevel(level Level) Level {
 		room.Obstacles = slices.Clone(room.Obstacles)
 		room.HighCover = slices.Clone(room.HighCover)
 		room.Hazards = slices.Clone(room.Hazards)
+		room.WindGusts = slices.Clone(room.WindGusts)
 		room.SteamVents = slices.Clone(room.SteamVents)
 		room.Platforms = slices.Clone(room.Platforms)
 		room.DropEdges = slices.Clone(room.DropEdges)

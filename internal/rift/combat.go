@@ -1061,6 +1061,7 @@ func (r *Run) tick(in Input, dt float64) {
 	}
 	if r.Status == "fighting" {
 		r.hazardTick()
+		r.windGustTick()
 		for i := range r.Enemies {
 			r.enemyTick(i, dt)
 		}
@@ -1073,7 +1074,7 @@ func (r *Run) tick(in Input, dt float64) {
 		}
 		fromX, fromY := shot.X, shot.Y
 		shot.Life -= dt
-		shot.X += shot.VX * dt
+		shot.X += (shot.VX + r.projectileWind(fromX, fromY)) * dt
 		shot.Y += shot.VY * dt
 		if shot.Life <= 0 || shot.X < 0 || shot.X > Width {
 			r.eventAtHeight("projectile_expire", shot.X, shot.Y, 0, shot.Elevation)

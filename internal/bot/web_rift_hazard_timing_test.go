@@ -84,3 +84,35 @@ func TestRiftDecodePreservesHazardPracticeTiming(t *testing.T) {
 		}
 	}
 }
+
+func TestRiftWindTimingAndBounds(t *testing.T) {
+	for _, place := range []string{"current", "future", "practice"} {
+		for name, change := range map[string]func(*rift.WindGust){
+			"valid": func(w *rift.WindGust) {}, "period": func(w *rift.WindGust) { w.Period = 0 }, "duration": func(w *rift.WindGust) { w.Duration = 8 }, "speed": func(w *rift.WindGust) { w.VX = 81 }, "bounds": func(w *rift.WindGust) { w.X = 1500 }, "offset": func(w *rift.WindGust) { w.Offset = -1 },
+		} {
+			t.Run(place+"/"+name, func(t *testing.T) {
+				r := riftVitalsFixture()
+				level := rift.Campaign()[0]
+				r.Level = &level
+				w := rift.WindGust{Obstacle: rift.Obstacle{X: 400, Y: 330, W: 600, H: 150}, Period: 8, Duration: 3, VX: 60}
+				change(&w)
+				switch place {
+				case "current":
+					r.Level.Rooms[0].WindGusts = []rift.WindGust{w}
+				case "future":
+					r.Level.Rooms[1].WindGusts = []rift.WindGust{w}
+				case "practice":
+					r.Practice.Arena.WindGusts = []rift.WindGust{w}
+				}
+				saved, err := encodeRift(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = decodeRift(saved)
+				if (err == nil) != (name == "valid") {
+					t.Fatalf("unexpected validation: %v", err)
+				}
+			})
+		}
+	}
+}

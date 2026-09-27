@@ -1149,6 +1149,26 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    for(const wind of arena?.wind_gusts||[]){
+      if(run.status!=='fighting')continue;
+      const phase=(run.clock+wind.offset)%wind.period,warning=phase<1.2,active=phase>=1.2&&phase<1.2+wind.duration&&run.status==='fighting';
+      if(!warning&&!active)continue;
+      const x=wind.x-camera,dir=Math.sign(wind.vx);
+      ctx.save();ctx.fillStyle=active?'#8ccbe91c':'#8ccbe90c';ctx.fillRect(x,wind.y,wind.w,wind.h);
+      ctx.strokeStyle=active?'#b9e4ff':'#89b6ce';ctx.lineWidth=1.5;ctx.setLineDash(warning?[5,5]:[]);ctx.strokeRect(x,wind.y,wind.w,wind.h);ctx.setLineDash([]);
+      ctx.beginPath();ctx.rect(x,wind.y,wind.w,wind.h);ctx.clip();
+      const drift=renderer.reduced||motion===0?0:((run.clock*35)%90)*dir;
+      for(let lane=0;lane<3;lane++)for(let at=-90;at<wind.w+90;at+=90){
+        const ax=x+at+drift,ay=wind.y+25+lane*45;
+        ctx.beginPath();ctx.moveTo(ax-dir*22,ay);ctx.lineTo(ax+dir*22,ay);ctx.lineTo(ax+dir*13,ay-5);ctx.moveTo(ax+dir*22,ay);ctx.lineTo(ax+dir*13,ay+5);ctx.stroke();
+      }
+      ctx.restore();
+      if(!display.cleanScreenshot&&display.hazardLabels){
+        const remaining=active?1.2+wind.duration-phase:1.2-phase,seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
+        ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#c7eaff';
+        interactionPrompt((active?'WIND ':'WIND IN ')+seconds+' · SHOTS '+(dir>0?'→':'←'),x+wind.w/2,wind.y-8,true);ctx.restore();
+      }
+    }
     // Rear scenery only: all actors, pickups, attacks and warnings draw afterward.
     for(const vent of arena?.steam_vents||[]){
       const x=vent.x-camera,y=vent.y+vent.h;

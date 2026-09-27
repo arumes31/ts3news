@@ -576,6 +576,8 @@
       case 'perfect_guard': t(1350,920,.1,.1,'triangle'); [1175,1760,2350].forEach((f,i)=>t(f,f*.96,.28,.06,'sine',i*.02)); h(.05,.08,8500,pan); break;
       case 'elemental_reaction': t(440,880,.18,.07,'triangle');t(660,990,.22,.055,'sine',.04);break;
       case 'spikes': t(1350,330,.12,.07,'triangle'); h(.12,.055,4200,pan); break;
+      case 'wind_warning': t(420,620,.18,.05,'sine'); h(.2,.04,1800,pan); break;
+      case 'wind_gust': h(.65,.07,2400,pan); t(160,240,.4,.025,'sine'); break;
       case 'hazard_warning': [0,.14].forEach((d,i)=>t(520+i*160,680+i*160,.1,.07,'sawtooth',d)); h(.16,.05,3200,pan); break;
       case 'hazard_deactivation': t(580,220,.22,.06,'sine'); t(380,160,.18,.04,'triangle',.04); h(.18,.035,1200,pan); break;
       default: break;
