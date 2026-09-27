@@ -98,7 +98,7 @@ func buildCampaign() []Level {
 		{"Glass Rampart", "Blackstone Hall", "Onyx Dais"},
 	}
 	names := []string{"Pilgrim's Gate", "Broken Well", "Pillar Watch", "Crossroads", "Twin Bastions", "Serpent Walk", "Hidden Alcoves", "Shattered Bridge", "Sentinel Rows", "Crown Arena"}
-	tactics := []string{"An open approach with scattered cover", "Circle the well to flank the patrol", "Weave between staggered pillars", "Choose your crossing between four posts", "Use the gap between twin barricades", "Jump low walls along the winding route", "Draw defenders out of their alcoves", "Cross the broken spans between pulses", "Switch lanes between sentry lines", "Circle the ring and challenge its guardian"}
+	tactics := []string{"An open approach with scattered cover", "Circle the well to flank the patrol", "Flank between diagonal stone pillars to break ranged sightlines", "Choose your crossing between four posts", "Use the gap between twin barricades", "Jump low walls along the winding route", "Draw defenders out of their alcoves", "Cross the broken spans between pulses", "Switch lanes between sentry lines", "Circle the ring and challenge its guardian"}
 	colors := []string{"#a6ce7b", "#ff9b53", "#8bdfff", "#c6a1ff", "#bcdf64", "#65ded2", "#ed8d7c", "#bec4ff", "#be98ff", "#ffc77c"}
 	kinds := []string{"thorns", "fire", "ice", "rune", "poison", "ice", "fire", "radiant", "void", "fire"}
 	floors := []string{"grass", "metal", "ice", "stone", "mud", "water", "wood", "stone", "stone", "metal"}
@@ -106,7 +106,7 @@ func buildCampaign() []Level {
 	patterns := [][]Obstacle{
 		{{780, 360, 65, 28}},
 		{{760, 390, 110, 48}},
-		{{450, 357, 42, 32}, {790, 424, 42, 32}, {1130, 357, 42, 32}},
+		{{450, 352, 42, 28}, {790, 390, 42, 28}, {1130, 428, 42, 28}},
 		{{660, 359, 42, 27}, {930, 359, 42, 27}, {660, 434, 42, 27}, {930, 434, 42, 27}},
 		{{620, 379, 95, 52}, {1010, 379, 95, 52}},
 		{{460, 356, 90, 30}, {750, 429, 90, 30}, {1080, 356, 90, 30}},
@@ -209,6 +209,9 @@ func buildCampaign() []Level {
 				arena.LootRarityCeiling = LootRarityCap(room).String()
 				arena.Encounter = &EncounterPreview{Enemies: encounterCounts[room] + missionRoomExtraEnemies(id, room), HealthMultiplier: roomHealthMultiplier(room) * missionHealthMultiplier(id), DamageMultiplier: missionDamageMultiplier(id)}
 				for i, obstacle := range patterns[layout] {
+					if layout == 2 && (region+room)%2 == 1 {
+						obstacle.Y = 780 - obstacle.Y
+					}
 					obstacle.X += float64(region*7 + room*19)
 					obstacle.Y += float64((region+room+i)%3-1) * 4
 					obstacle.W += float64(region%4) * 3
@@ -220,7 +223,7 @@ func buildCampaign() []Level {
 							hp = 0
 						}
 						arena.Cover = append(arena.Cover, TerrainCover{Obstacle: obstacle, ID: fmt.Sprintf("mission-%d-cover", id), Material: material, HP: hp, MaxHP: hp})
-					} else if layout == 2 && i == 0 {
+					} else if layout == 2 {
 						arena.HighCover = append(arena.HighCover, obstacle)
 					} else {
 						arena.Obstacles = append(arena.Obstacles, obstacle)
