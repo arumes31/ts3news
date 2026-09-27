@@ -390,6 +390,8 @@
       case 'alert_propagate': t(440,580,.1,.045,'triangle'); t(580,740,.1,.04,'triangle',.12); break;
       case 'flank_attempt': h(.12,.045,1700,pan); t(240,420,.13,.045,'sine'); break;
       case 'pack_attack': t(290,580,.18,.07,'sawtooth'); h(.10,.06,1400,pan); break;
+      case 'boss_summon_warning': t(120,360,.6,.075,'sine');break;
+      case 'summon_dismiss': t(420,100,.3,.05,'sine');break;
       case 'summon_spawn': t(170,620,.28,.075,'sine'); h(.20,.06,2800,pan); break;
       case 'summon_punish': h(.10,.12,2700,pan); t(620,120,.19,.10,'triangle'); break;
       case 'third_strike': h(.18, .25, 2600, pan); t(220, 50, .24, .25, 'triangle'); t(90, 25, .28, .22, 'sine', .01); t(520, 180, .10, .12, 'sawtooth'); break;

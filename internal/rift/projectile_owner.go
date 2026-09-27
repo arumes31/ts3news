@@ -8,7 +8,7 @@ func (r *Run) deadBossProjectile(shot Projectile) bool {
 	}
 	for _, e := range r.Enemies {
 		if e.ID == shot.OwnerID {
-			return e.Kind == "boss" && e.HP <= 0
+			return (e.Kind == "boss" || e.SummonOwner != "") && e.HP <= 0
 		}
 	}
 	return false

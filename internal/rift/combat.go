@@ -115,6 +115,10 @@ type Actor struct {
 	AwarenessTimer float64 `json:"awareness_timer,omitempty"`
 	Pack           bool    `json:"pack,omitempty"`
 	Summoned       bool    `json:"summoned,omitempty"`
+	SummonOwner string `json:"summon_owner,omitempty"`
+	SummonPhase int `json:"summon_phase,omitempty"`
+	SummonTimer float64 `json:"summon_timer,omitempty"`
+	SummonReleased bool `json:"summon_released,omitempty"`
 	ArrivalVulnerability float64 `json:"arrival_vulnerability,omitempty"`
 	Healer         bool    `json:"healer,omitempty"`
 	HealTarget string `json:"heal_target,omitempty"`
@@ -1417,6 +1421,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			r.eventAtHeight("boss_phase", e.X, e.Y-30, 2, e.Elevation)
 		}
 		if e.Phase != previousPhase {
+			if e.RingAttack && r.Practice == nil && e.SummonPhase < e.Phase {
+				e.SummonPhase, e.SummonTimer, e.SummonReleased = e.Phase, 4, false
+				r.event("boss_summon_warning", e.X, e.Y, 4)
+			}
 			e.Windup = 0
 			e.AttackName = ""
 			e.Cooldown = math.Max(e.Cooldown, 1)
@@ -1435,6 +1443,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		return
 	}
 	if e.HP == 0 {
+		if e.Kind == "boss" {
+			r.dismissBossSummons(e.ID)
+		}
 		e.RecoilX = 0
 		r.endTargetMark(*e, "defeated")
 		if e.isObjectiveProp() {
@@ -1664,6 +1675,9 @@ func (r *Run) SummonEnemy(kind string, x, y float64) *Actor {
 const treasureEscapeMargin = 55.0
 
 func (r *Run) enemyTick(i int, dt float64) {
+	if r.tickBossSummon(i, dt) {
+		return
+	}
 	if r.tickRitualEnemy(i, dt) {
 		return
 	}

@@ -96,7 +96,7 @@
   }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
-  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_fan','lane_slam','boss_phase','victory']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_summon_warning','boss_fan','lane_slam','boss_phase','victory']);
   function combatTextCategory(e) {
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
@@ -607,6 +607,7 @@
   }
   function enemyIntent(e){
     if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
+    if(e.kind==='boss'&&e.summon_timer>0)return 'Summoning allies';
     if(e.kind==='boss'&&e.boss_guard_break>0)return 'Guard broken';
     if(e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0)return 'Preparing ring';
     if(e.knockdown>0)return 'Getting up';
@@ -1291,6 +1292,14 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.summon_timer>0){
+        const owned=run.enemies.filter(a=>a.hp>0&&a.summon_owner===e.id).length;
+        ctx.save();ctx.fillStyle='#e1bcff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt((e.summon_released?'MINION INTERMISSION':'SUMMONS IN '+Math.max(0,e.summon_timer-3).toFixed(1)+'s')+' · '+owned+'/2 ALLIES',e.x-camera,e.y-75,true);ctx.restore();
+      }
+      if(!display.cleanScreenshot&&e.hp>0&&e.summon_owner&&e.arrival_vulnerability>0){
+        ctx.save();ctx.fillStyle='#b1f3df';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SUMMON · ARRIVAL VULNERABLE',e.x-camera,e.y-65,true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0){
         const x=e.target_x-camera,y=e.target_y;voidRing(x,y,e.ring_gap||0);ringGapOverlays.push({x,y,gap:e.ring_gap||0});
         ctx.save();ctx.fillStyle='#efdbff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
@@ -1734,6 +1743,7 @@
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
       }
       if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(e.kind==='summon_dismiss'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d9c7ef';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SUMMON DISMISSED',e.x-camera,e.y-30,true);ctx.restore();}
       if(e.kind==='boss_ring'&&age<.45&&!display.cleanScreenshot)voidRing(e.x-camera,e.y,e.value||0,true);
       if(e.kind==='dive_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#ffe3bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BURROW INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
