@@ -802,7 +802,12 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if custom := r.URL.Query().Get("challenge"); custom != "" {
 				ch = riftChallengeFor(custom)
 			}
-			response := map[string]any{"ok": true, "run": run, "build": build, "objective_options": rift.ObjectiveOptions(build), "challenge": ch}
+			response, wireErr := riftHTTPResponse(r, run, "load")
+			if wireErr != nil {
+				riftFailure(w, r, wireErr)
+				return
+			}
+			response["build"], response["objective_options"], response["challenge"] = build, rift.ObjectiveOptions(build), ch
 			if r.Header.Get("X-Rift-Metadata") != "separate" {
 				for key, value := range riftPublicMetadata(time.Now()) {
 					response[key] = value
@@ -822,7 +827,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		if req.Kind == "start" {
 			if run != nil && run.StartKey == req.RequestID {
-				writeJSON(w, map[string]any{"ok": true, "run": run})
+				writeRiftSnapshot(w, r, req.Kind, run)
 				return
 			}
 			if run != nil && (run.Status == "fighting" || run.Status == "cleared") {
@@ -866,7 +871,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					writeJSONStatus(w, http.StatusConflict, map[string]any{"ok": false, "error": errRiftConflict.Error()})
 					return
 				}
-				writeJSON(w, map[string]any{"ok": true, "run": run})
+				writeRiftSnapshot(w, r, req.Kind, run)
 				return
 			}
 			switch req.Kind {
@@ -936,6 +941,6 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				drop.Gear.FoundBoss = riftGearOrigin(run)
 			}
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run})
+		writeRiftSnapshot(w, r, req.Kind, run)
 	})
 }

@@ -2,6 +2,7 @@ package bot
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -127,4 +128,34 @@ func BenchmarkRiftWireSnapshot(b *testing.B) {
 			}
 		}
 	})
+}
+
+func TestRiftHTTPProjectionOptInAndBaselineInvalidation(t *testing.T) {
+	run := largeRiftReceipt(t)
+	run.Status = "fighting"
+	request := httptest.NewRequest("POST", "/api/abyss/rift", nil)
+	legacy, err := riftHTTPResponse(request, run, "step")
+	if err != nil || legacy["snapshot_kind"] != nil || legacy["run"] != run {
+		t.Fatal("legacy contract changed")
+	}
+	request.Header.Set("X-Rift-Snapshot", "lean-v1")
+	first, err := riftHTTPResponse(request, run, "load")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := first["snapshot_base"].(string)
+	request.Header.Set("X-Rift-Snapshot-Base", token)
+	lean, err := riftHTTPResponse(request, run, "step")
+	if err != nil || lean["snapshot_kind"] != "lean-v1" {
+		t.Fatal("opt-in step not lean")
+	}
+	for _, change := range []func(){func() { run.BankedItems = append(run.BankedItems, "new receipt") }, func() { run.Level.Name += " updated" }, func() { run.EncounterPlan[0][0].HP++ }} {
+		change()
+		fresh, err := riftHTTPResponse(request, run, "step")
+		if err != nil || fresh["snapshot_kind"] != "full" || fresh["snapshot_base"] == token {
+			t.Fatal("retained data change did not force full response")
+		}
+		token = fresh["snapshot_base"].(string)
+		request.Header.Set("X-Rift-Snapshot-Base", token)
+	}
 }

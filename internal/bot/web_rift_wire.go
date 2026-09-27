@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"ts3news/internal/rift"
 )
 
@@ -60,4 +61,19 @@ func riftWireSnapshot(run *rift.Run, action, base string) (map[string]any, error
 		response["run"] = riftLeanRun{Run: run}
 	}
 	return response, nil
+}
+
+func riftHTTPResponse(r *http.Request, run *rift.Run, action string) (map[string]any, error) {
+	if r.Header.Get("X-Rift-Snapshot") != "lean-v1" {
+		return map[string]any{"ok": true, "run": run}, nil
+	}
+	return riftWireSnapshot(run, action, r.Header.Get("X-Rift-Snapshot-Base"))
+}
+func writeRiftSnapshot(w http.ResponseWriter, r *http.Request, action string, run *rift.Run) {
+	response, err := riftHTTPResponse(r, run, action)
+	if err != nil {
+		riftFailure(w, r, err)
+		return
+	}
+	writeJSON(w, response)
 }

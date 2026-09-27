@@ -174,7 +174,7 @@
     btn.setAttribute('aria-label',action+' expedition');
     btn.setAttribute('aria-keyshortcuts',key);
   }
-  let pendingRead=null,pendingRequest=null,loadGeneration=0;
+  let pendingRead=null,pendingRequest=null,loadGeneration=0,snapshotBase=null;
   async function request(method, body, timing) {
     const previousRequest=pendingRequest;
     let settleRequest;
@@ -185,7 +185,10 @@
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     if(method==='GET')pendingRead=controller;
     try {
-      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:{'X-Rift-Metadata':'separate'},body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
+      const baseForRequest=snapshotBase;
+      const wireHeaders={'X-Rift-Snapshot':'lean-v1',...(body?{'Content-Type':'application/json'}:{'X-Rift-Metadata':'separate'})};
+      if(body?.kind==='step'&&baseForRequest)wireHeaders['X-Rift-Snapshot-Base']=baseForRequest.token;
+      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:wireHeaders,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409){
         const problem=await response.json().catch(()=>null);
@@ -210,8 +213,9 @@
         if(!metadata||typeof metadata!=='object'||Array.isArray(metadata))throw new Error('Campaign information is incomplete. Retry loading.');
         for(const key of ['class_names','class_options','rooms','levels','bestiary','rarities'])data[key]=metadata[key];
       }
-      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:statusCopy.unconfirmed);const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error(statusCopy.wrongDrill);
+      if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:statusCopy.unconfirmed);data=window.RiftProtocol.hydrate(data,method,body,baseForRequest);const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error(statusCopy.wrongDrill);
       if(method==='POST'&&body.kind!=='start'&&result.run.revision>body.revision)throw saveConflictError();
+      snapshotBase=window.RiftProtocol.captureBase(result,baseForRequest);
       if(payloadDiagnostics){
         payloadDiagnostics.count++;payloadDiagnostics.totalResponseBytes+=responseBytes;payloadDiagnostics.maxResponseBytes=Math.max(payloadDiagnostics.maxResponseBytes,responseBytes);
         payloadDiagnostics.samples.push({method,action:body?.kind||'load',requestBytes:requestBody?payloadEncoder.encode(requestBody).byteLength:0,responseBytes,runBytes});

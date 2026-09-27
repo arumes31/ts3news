@@ -132,5 +132,19 @@
     if(!valid)throw new Error('Received an incomplete expedition update. Recover the saved expedition before continuing.');
     return data;
   }
-  window.RiftProtocol={validate};
+  const retainedKeys=['build','encounter_plan','level','mission_history','region_versions','region_records','objective_history','completed_levels','attempt_history','banked_items','banked_loot','past_expeditions','room_baseline','last_encounter','last_objectives'];
+  function hydrate(data,method,request,base){
+    if(data?.snapshot_kind===undefined||data.snapshot_kind==='full')return data;
+    if(data.snapshot_kind!=='lean-v1'||method!=='POST'||request?.kind!=='step'||!base||data.snapshot_base!==base.token||data.run?.id!==base.id||request.run_id!==base.id||retainedKeys.some(key=>Object.hasOwn(data.run,key)))throw new Error('The expedition baseline changed. Reload the saved expedition before continuing.');
+    return {...data,run:{...data.run,...base.fields}};
+  }
+  // Call only after complete-response and revision validation have succeeded.
+  function captureBase(data,previous){
+    if(data.snapshot_kind===undefined||data.run===null)return null;
+    if(!['full','lean-v1'].includes(data.snapshot_kind)||typeof data.snapshot_base!=='string'||! /^[a-f0-9]{64}$/.test(data.snapshot_base))throw new Error('The expedition baseline is incomplete. Reload the saved expedition.');
+    if(previous?.token===data.snapshot_base&&previous.id===data.run.id)return previous;
+    const fields={};for(const key of retainedKeys)if(Object.hasOwn(data.run,key))fields[key]=data.run[key];
+    return {token:data.snapshot_base,id:data.run.id,fields:structuredClone(fields)};
+  }
+  window.RiftProtocol={validate,hydrate,captureBase};
 })();

@@ -215,7 +215,12 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		response := map[string]any{"ok": true, "run": run, "build": build, "objective_options": rift.ObjectiveOptions(build), "challenge": riftChallenge(time.Now())}
+		response, wireErr := riftHTTPResponse(r, run, "load")
+		if wireErr != nil {
+			riftFailure(w, r, wireErr)
+			return
+		}
+		response["build"], response["objective_options"], response["challenge"] = build, rift.ObjectiveOptions(build), riftChallenge(time.Now())
 		if r.Header.Get("X-Rift-Metadata") != "separate" {
 			for key, value := range riftPublicMetadata(time.Now()) {
 				response[key] = value
@@ -286,7 +291,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 		riftFailure(w, r, err)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "run": run})
+	writeRiftSnapshot(w, r, req.Kind, run)
 }
 
 func validRiftRequest(r riftRequest) bool {
