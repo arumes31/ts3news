@@ -1467,3 +1467,14 @@
   /* Keep basic actions from stretching to the full height of a multirow skill grid. */
   #rift-app :is(.rift-basics, .rift-skills) { flex-basis: 100%; }
 }
+
+
+#rift-minimap { flex-wrap: wrap; }
+#rift-minimap p { flex: 1; min-width: 0; }
+#rift-minimap .map-floor[data-cleared="true"] { fill: #294a39; stroke: #b9daa2; }
+#rift-minimap-progress { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); flex-basis: 100%; width: 100%; gap: 6px; margin: 0; padding: 0; list-style: none; font: 10px/1.5 ui-monospace,monospace; }
+#rift-minimap-progress li { min-width: 0; padding: 5px 7px; border: 1px solid #476051; color: #b5c6b8; }
+#rift-minimap-progress strong, #rift-minimap-progress span { display: block; }
+#rift-minimap-progress [data-state="cleared"] { color: #d3efba; background: #263e2e; }
+#rift-minimap-progress [aria-current="step"] { border: 2px solid #e9bd70; padding: 4px 6px; }
+@media (max-width: 600px) { #rift-minimap-progress { flex-basis: auto; } }

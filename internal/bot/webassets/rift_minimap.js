@@ -1,12 +1,26 @@
 (function(){
   'use strict';
   const root=document.getElementById('rift-minimap'),svg=root.querySelector('svg'),copy=root.querySelector('p'),ns='http://www.w3.org/2000/svg';
+  const progress=document.createElement('ol');progress.id='rift-minimap-progress';progress.setAttribute('aria-label','Current mission tier progress');root.append(progress);
+  let progressKey='';
+  function cleared(run,index){
+    if(run.practice||index>run.room)return false;
+    return index<run.room||['cleared','complete','banked'].includes(run.status)||(Number.isFinite(run.room_splits?.[index])&&run.room_splits[index]>=0);
+  }
+  function tierProgress(run){
+    progress.hidden=!!run.practice;if(progress.hidden)return;
+    const tiers=(run.level?.rooms||[]).map((room,index)=>({name:room.name,current:index===run.room,state:cleared(run,index)?'cleared':index>run.room?'ahead':['defeated','expired'].includes(run.status)?'ended':'current'}));
+    const key=JSON.stringify([run.level?.id,tiers]);if(key===progressKey)return;progressKey=key;
+    const labels={cleared:'✓ Cleared',ahead:'Ahead',current:'Current',ended:'Not cleared'};
+    progress.replaceChildren(...tiers.map((tier,index)=>{const item=document.createElement('li'),title=document.createElement('strong'),status=document.createElement('span');item.dataset.state=tier.state;if(tier.current)item.setAttribute('aria-current','step');title.textContent='Tier '+(index+1);status.textContent=labels[tier.state];item.append(title,status);item.setAttribute('aria-label','Tier '+(index+1)+': '+tier.name+' · '+labels[tier.state]+(tier.current?' · current location':''));return item;}));
+  }
   const mx=x=>Math.round(x*.2*10)/10,my=y=>Math.round((6+(y-315)*.24)*10)/10;
   function node(tag,attrs,label){const el=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));if(label){const title=document.createElementNS(ns,'title');title.textContent=label;el.append(title);}return el;}
   function update(run){
     const arena=run?.practice?.arena||run?.level?.rooms?.[run.room];root.hidden=!arena;if(!arena)return;
-    const drawing=document.createDocumentFragment();
-    drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor'},'Walkable arena bounds'));
+    tierProgress(run);
+    const currentCleared=cleared(run,run.room),drawing=document.createDocumentFragment();
+    drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor','data-cleared':currentCleared},currentCleared?'Cleared arena':'Walkable arena bounds'));
     const rect=(o,kind,label,phase)=>drawing.append(node('rect',{x:mx(o.x),y:my(o.y),width:mx(o.w),height:Math.round(o.h*.24*10)/10,'data-kind':kind,...(phase?{'data-phase':phase}:{})},label));
     for(const p of arena.platforms||[])rect(p,'platform','Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
@@ -23,7 +37,7 @@
     drawing.append(node('circle',{cx:mx(run.player.x),cy:my(run.player.y),r:2.6,'data-kind':'player'},'You'));
     svg.replaceChildren(drawing);
     const guidance=run.practice?'Practice arena: no checkpoint banking.':exit?'Exit marked on map.':run.status==='cleared'?'Bank & leave is available from anywhere.':['complete','banked','defeated','expired'].includes(run.status)?'Expedition finished.':'Clear the tier, then bank and leave from anywhere.';
-    svg.setAttribute('aria-label','Current arena: '+arena.name+'. '+enemies.length+' enemies, '+active+' active hazards. Player '+Math.round(run.player.x)+', '+Math.round(run.player.y)+(exit?'. Exit '+Math.round(exit.x)+', '+Math.round(exit.y):'. '+guidance));
+    svg.setAttribute('aria-label','Current arena: '+arena.name+(currentCleared?' · cleared. ':'. ')+enemies.length+' enemies, '+active+' active hazards. Player '+Math.round(run.player.x)+', '+Math.round(run.player.y)+(exit?'. Exit '+Math.round(exit.x)+', '+Math.round(exit.y):'. '+guidance));
     const title=document.createElement('strong');title.textContent=arena.name;
     copy.replaceChildren(title,document.createElement('br'),document.createTextNode('○ You · △ Enemies · Red zones: active hazards. '+guidance));
   }
