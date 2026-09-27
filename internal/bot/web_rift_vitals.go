@@ -13,7 +13,11 @@ func validateRiftVitals(run *rift.Run) error {
 	valid := func(a rift.Actor) bool {
 		return a.MaxHP > 0 && !math.IsInf(a.MaxHP, 0) && a.HP >= 0 && a.HP <= a.MaxHP && a.Mana >= 0 && a.Mana <= 100
 	}
-	invalid := errors.New("invalid rift snapshot health or mana")
+	return validateRiftActors(run, valid, errors.New("invalid rift snapshot health or mana"))
+}
+
+// validateRiftActors includes templates that can reenter simulation after a reset.
+func validateRiftActors(run *rift.Run, valid func(rift.Actor) bool, invalid error) error {
 	if !valid(run.Player) {
 		return invalid
 	}
