@@ -527,6 +527,19 @@
       setTimeout(()=>{if(!playing)silence();},1500);
     }
   }
+  const pendingStartKey='riftPendingStart:'+(practice||'campaign');
+  let pendingStart=null;
+  try{const saved=sessionStorage.getItem(pendingStartKey);if(saved&&saved.length<=8192)pendingStart=JSON.parse(saved);}catch(_){}
+  function retainStartIdentity(body){
+    const fingerprint=JSON.stringify({...body,request_id:undefined});
+    if(pendingStart?.version===1&&pendingStart.fingerprint===fingerprint&&typeof pendingStart.id==='string'&&pendingStart.id.length>=16&&pendingStart.id.length<=80)body.request_id=pendingStart.id;
+    pendingStart={version:1,id:body.request_id,fingerprint};
+    try{sessionStorage.setItem(pendingStartKey,JSON.stringify(pendingStart));}catch(_){}
+  }
+  function confirmStartIdentity(saved){
+    if(!pendingStart||saved?.start_key!==pendingStart.id)return;
+    pendingStart=null;try{sessionStorage.removeItem(pendingStartKey);}catch(_){}
+  }
   async function send(kind) {
     if(busy)return false;
     busy=true;if(kind!=='step')setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
@@ -537,10 +550,10 @@
     if(practice==='hazard'&&['start','practice_reset'].includes(kind))body.hazard_intensity=$('rift-hazard-intensity').value;
     if(kind==='practice_spawn')body.enemy_name=$('rift-practice-enemy').value;
     if(practice==='boss'&&['start','practice_reset'].includes(kind)){body.boss_name=$('rift-practice-boss').value;body.boss_phase=Number($('rift-practice-phase').value);body.slow_telegraphs=$('rift-practice-slow').checked;}
-    if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);}
+    if(kind==='start'){body.level_id=selectedLevel;body.skills=[...root.querySelectorAll('#rift-loadout select')].map(el=>el.value).filter(Boolean);retainStartIdentity(body);}
     root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>setSafeDisabled(btn,true));
     try {
-      const data=await request('POST',body,inputTiming);await renderer.prepareRun(data.run);update(data.run,false);confirmInput(inputTiming);
+      const data=await request('POST',body,inputTiming);confirmStartIdentity(data.run);await renderer.prepareRun(data.run);update(data.run,false);confirmInput(inputTiming);
       if(banking){if(window.RiftLoot.confirmBank(previousReceipt,data.run))audio.play('bank',0);window.RiftLoot.banking('confirmed');}
       return true;
     } catch(error){
@@ -770,6 +783,7 @@
       const [,initialData]=await Promise.all([renderer.ready.catch(error=>{artworkFailed=true;throw error;}),initialRead]);
       if(generation!==loadGeneration)return;
       const data=initialData===null?await request('GET'):initialData;
+      confirmStartIdentity(data.run);
       await Promise.all([renderer.prepareBuild(data.build),renderer.prepareRun(data.run)]).catch(error=>{artworkFailed=true;throw error;});
       if(generation!==loadGeneration)return;
       window.RiftRecords.init(data.class_names);window.RiftClassChallenges.update(data.run);window.RiftClassCompare.init(data.class_options,data.run?.build?.class||data.build?.class);window.RiftObjectives.init(data.objective_options||[]);build=data.build;rooms=data.rooms;run=data.run;levels=data.levels||[];challenge=data.challenge||null;window.RiftLoot.init(data.rarities||[]);loadout();campaign();window.RiftBestiary.render(data.bestiary||[],run);if(practice==='skills'){const select=$('rift-practice-enemy');select.replaceChildren();(data.bestiary||[]).forEach(unit=>{text('option',unit.name,select).value=unit.name;});const saved=run?.enemies?.find(enemy=>enemy.id==='practice-enemy');if(saved&&[...select.options].some(option=>option.value===saved.name))select.value=saved.name;}if(practice==='hazard')$('rift-hazard-intensity').value=run?.practice?.hazard_intensity||'standard';if(practice==='boss'){const select=$('rift-practice-boss');select.replaceChildren();(data.bestiary||[]).filter(unit=>unit.kind==='boss').forEach(unit=>{text('option',unit.name,select).value=unit.name;});if(run?.practice?.boss_start){const saved=run.practice.boss_start;if(![...select.options].some(option=>option.value===saved.name))text('option',saved.name,select).value=saved.name;select.value=saved.name;$('rift-practice-phase').value=String(saved.phase||1);$('rift-practice-slow').checked=!!run.practice.slow_telegraphs;}}ready=true;

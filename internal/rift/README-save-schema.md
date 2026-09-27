@@ -76,6 +76,23 @@ control by rejecting stale actions, rather than assigning a permanent tab lease.
 A player can explicitly reload and resume in a different tab; stale tabs must then
 recover their state before controlling the expedition again.
 
+## Uncertain client starts
+
+The client retains one pending start ID and its request-content fingerprint per
+practice mode in tab-scoped session storage. Only an unchanged explicit start
+retry reuses that ID; mission, skills, previous run/revision or practice settings
+changes create a new intent. Storage content supplies only a validated request ID,
+never executable code or arbitrary request fields. Reads are size-bounded. Storage
+failure falls back to page memory, so persistence across reload then depends on
+session storage availability. Server start-key idempotency and active-run guards
+remain authoritative regardless of browser storage.
+
+A confirmed POST or GET whose `start_key` matches clears the pending metadata.
+Recovery itself never automatically posts: a committed start is resumed from the
+saved run, while an uncommitted unchanged start keeps its original identity when
+the user tries again. Metadata contains request IDs and game selections, not
+credentials, actor profiles, loot or inventory contents.
+
 ## Bounded receipt history
 
 `BankedItemsTotal` supplies the independent confirmed item count; absent or zero
