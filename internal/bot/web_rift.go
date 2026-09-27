@@ -23,6 +23,7 @@ import (
 )
 
 var errRiftConflict = errors.New("the expedition changed; reload its saved state")
+var errRiftCharacterMissing = errors.New("the Abyss character is no longer available")
 
 type riftRequest struct {
 	EnemyName string `json:"enemy_name,omitempty"`
@@ -57,6 +58,9 @@ func (b *Bot) riftBuild(ctx context.Context, uid string) (rift.Build, error) {
 	var name sql.NullString
 	var level int
 	if err := b.DB.QueryRowContext(ctx, "SELECT nickname, level FROM users WHERE client_uid=$1", uid).Scan(&name, &level); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return rift.Build{}, errRiftCharacterMissing
+		}
 		return rift.Build{}, err
 	}
 	u := UserInCombat{Stats: stats, Skills: b.getSkills(uid), Equipped: abyssPlayerEquipment(b.getEquippedItems(uid)), Pets: b.getPets(uid), Ultimates: b.getActiveUltimates(uid)}
@@ -304,6 +308,10 @@ func validRiftRequest(r riftRequest) bool {
 }
 
 func riftFailure(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, errRiftCharacterMissing) {
+		writeJSONStatus(w, http.StatusGone, map[string]any{"ok": false, "code": "CHARACTER_MISSING", "error": errRiftCharacterMissing.Error()})
+		return
+	}
 	slog.ErrorContext(r.Context(), "rift expedition request failed", "error", err)
 	writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "The expedition could not be confirmed. Reload to recover its saved state."})
 }
@@ -449,6 +457,9 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 	defer func() { _ = tx.Rollback() }()
 	var owner string
 	if err := tx.QueryRowContext(ctx, "SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&owner); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errRiftCharacterMissing
+		}
 		return nil, err
 	}
 	var epoch string

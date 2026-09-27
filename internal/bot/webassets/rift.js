@@ -132,12 +132,17 @@
   }
   const introduction={title:$('rift-overlay-title').textContent,copy:$('rift-overlay-copy').textContent,kicker:$('rift-overlay-kicker').textContent};
   function message(title, copy, button, kicker) {
-    $('rift-sign-in').hidden=true;
+    $('rift-sign-in').hidden=true;$('rift-character-return').hidden=true;
     $('rift-result-actions').hidden=true;
     if($('rift-result-banner'))$('rift-result-banner').hidden=true;
     if($('rift-result-rewards'))$('rift-result-rewards').hidden=true;
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
+  }
+  function showMissingCharacter(banking=false){
+    ready=false;playing=false;clearTimeout(timer);resetInput();silence();
+    message('Character unavailable.','This expedition can no longer use its saved Abyss character. Return to Abyss to check your character.'+(banking?' Reward delivery is unconfirmed. Check your inventory after restoring access.':''),'Character unavailable','CHARACTER UNAVAILABLE');
+    $('rift-character-return').hidden=false;
   }
   function saveConflictError(){return Object.assign(new Error(statusCopy.saveConflict),{code:'SAVE_CONFLICT'});}
   function showSaveConflict(banking=false){
@@ -183,6 +188,7 @@
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409)throw saveConflictError();
+      if(response.status===410)throw Object.assign(new Error('The Abyss character is no longer available.'),{code:'CHARACTER_MISSING'});
       if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
       let data,responseBytes=0,runBytes=0;
       try{
@@ -536,7 +542,8 @@
     } catch(error){
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
-      if(error.code==='SESSION_EXPIRED')showExpiredSession(banking);
+      if(error.code==='CHARACTER_MISSING')showMissingCharacter(banking);
+      else if(error.code==='SESSION_EXPIRED')showExpiredSession(banking);
       else if(error.code==='SAVE_CONFLICT')showSaveConflict(banking);
       else message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');
       $('rift-start').dataset.recover='true';return false;
@@ -605,7 +612,7 @@
   }
   document.addEventListener('click',async event=>{
     const link=event.target.closest?.('a[href]');
-    if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self')||link.id==='rift-sign-in')return;
+    if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self')||['rift-sign-in','rift-character-return'].includes(link.id))return;
     const destination=new URL(link.href,location.href);
     if(!['http:','https:'].includes(destination.protocol))return;
     if(destination.hash&&destination.origin===location.origin&&destination.pathname===location.pathname&&destination.search===location.search)return;
@@ -775,6 +782,7 @@
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status(statusCopy.practiceReady($('rift-practice-instructions').textContent));}
     }catch(error){
       if(generation!==loadGeneration)return;silence();ready=false;
+      if(error.code==='CHARACTER_MISSING'){showMissingCharacter();status(error.message);return;}
       if(error.code==='SESSION_EXPIRED')showExpiredSession();
       else{$('rift-sign-in').hidden=true;$('rift-start').textContent=artworkFailed?'Reload artwork':'Retry loading';}
       $('rift-start').dataset.retry='true';$('rift-start').dataset.artworkRetry=String(artworkFailed);$('rift-start').disabled=false;status(error.message);
