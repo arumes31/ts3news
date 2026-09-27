@@ -699,6 +699,8 @@
     put(node.querySelector('p'),copy+' Move out of attack warnings; guard facing incoming attacks.'+(current.class==='vanguard'?' Perfect-guard an enemy attack to gain one charge per guard raise (maximum three).':'')+(current.class==='berserker'?' Fury grants +15% damage at impact while alive at 30% HP or below.':'')+(current.class==='marksman'?' A mark lasts until your finisher, a new target mark, target defeat or escape, or a new tier.':''));
   }
   function loadout(){
+    const selectedSkills=[...root.querySelectorAll('#rift-loadout select')].map(select=>select.value);
+    const restoreSelection=selectedSkills.length>0&&!['fighting','cleared'].includes(run?.status);
     refreshPracticeInstructions();
     classPrimer();
     renderer.build(build);
@@ -710,7 +712,7 @@
     $('rift-loadout').replaceChildren();
     for(let i=0;i<Math.min(3,build.skills.length);i++){
       const label=text('label','Skill '+(i+1),$('rift-loadout')),select=document.createElement('select');select.setAttribute('aria-label','Expedition skill '+(i+1));
-      text('option','None',select).value='';build.skills.forEach(s=>{text('option',s.name,select).value=s.id;});select.value=run?(run.build.skills[i]?.id||''):build.skills[i].id;label.append(select);
+      text('option','None',select).value='';build.skills.forEach(s=>{text('option',s.name,select).value=s.id;});const remembered=selectedSkills[i]||'';select.value=restoreSelection?(build.skills.some(skill=>skill.id===remembered)?remembered:''):run?(run.build.skills[i]?.id||''):build.skills[i].id;label.append(select);
       select.addEventListener('change',()=>{const others=[...root.querySelectorAll('#rift-loadout select')].filter(el=>el!==select);if(select.value&&others.some(el=>el.value===select.value)){select.value='';status(statusCopy.uniqueSkill);}});
     }
     window.RiftLoadouts.init(build,()=>busy||starting||!!run&&['fighting','cleared'].includes(run.status));
