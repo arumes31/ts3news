@@ -604,6 +604,7 @@
     const guardNode=$('rift-guard-reduction'),staminaNode=$('rift-guard-stamina');
     const guardStamina=Math.round(run.player.guard_stamina??100);
     const guardBroken=(run.skill_timers?.guard_break_recovery||0)>0;
+    put($('rift-guard-state'),['fighting','cleared'].includes(run.status)?guardBroken?'Guard broken. Wait for recovery.':'Guard available.':'');
     if(staminaNode){
       put(staminaNode,guardBroken?'Stamina: Broken ('+run.skill_timers.guard_break_recovery.toFixed(1)+'s)':'Stamina: '+guardStamina+'%');
       staminaNode.dataset.stamina=String(guardStamina);
@@ -715,7 +716,7 @@
     coaching.hidden=!hintsEnabled||coachingDismissed||!builder||!finisher||(stats.empty_finishers||0)<3||!classCoachingAllowed(run);
     if(!coaching.hidden)put(coaching.querySelector('p'),'Three or more finishers used no charges. Practice '+builder.name+' ('+window.RiftControls.label('signature0')+') before '+finisher.name+' ('+window.RiftControls.label('signature1')+'). Build up to three charges, then spend them with your finisher.');
     const relic=$('rift-relic-synergy');relic.hidden=run.build.class!=='runesmith';
-    if(!relic.hidden){const state=!run.build.relic?'missing':run.resource>0&&finisher?'armed':'equipped';attr(relic,'data-state',state);put(relic,(state==='missing'?'Relic synergy unavailable: no relic in this expedition build.':state==='equipped'?'Relic equipped: build charges and use a finisher for ×1.15 damage.':'Relic synergy armed: charged finisher damage ×1.15 before defenses. Finisher: '+reason(finisher,run,playing)+'.')+' The class barrier works with or without a relic.');}
+    if(!relic.hidden){const state=!run.build.relic?'missing':run.resource>0&&finisher?'armed':'equipped';attr(relic,'data-state',state);put(relic,(state==='missing'?'Relic synergy unavailable: no relic in this expedition build.':state==='equipped'?'Relic equipped: build charges and use a finisher for ×1.15 damage.':'Relic synergy armed: charged finisher damage ×1.15 before defenses. Finisher: '+reason(finisher,run,playing,true)+'.')+' The class barrier works with or without a relic.');}
     const furyNode=$('rift-berserker-fury'),fury=run.player.hp>0&&run.player.max_hp>0&&run.player.hp<=run.player.max_hp*.3;
     furyNode.hidden=run.build.class!=='berserker';attr(furyNode,'data-active',String(fury&&!furyNode.hidden));
     if(!furyNode.hidden)put(furyNode,fury?'Fury active: +15% damage at impact while at 30% HP or below.':'Fury inactive: +15% damage while alive at 30% HP or below.');
