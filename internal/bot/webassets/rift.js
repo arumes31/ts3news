@@ -581,16 +581,41 @@
     }
     if(playing)timer=setTimeout(loop,85);
   }
-  async function pause(){
-    if(!playing)return;
+  let pausePending=null,leavingPage=false;
+  function pause(){
+    if(pausePending)return pausePending;
+    pausePending=persistPause().finally(()=>{pausePending=null;});
+    return pausePending;
+  }
+  async function persistPause(){
     playing=false;clearTimeout(timer);resetInput();silence();
     if(run)window.RiftHUD.update(run,false);
     clearedAt=0;countdownAnnounced=-1;$('rift-transition').hidden=true;
-    // Wait for the single pending input request, then persist the pause.
+    // Share this operation with navigation and wait for the pending input save.
     while(busy)await new Promise(resolve=>setTimeout(resolve,20));
-    if(!run||!['fighting','cleared'].includes(run.status))return;
-    if(await send('pause')&&['fighting','cleared'].includes(run.status)){message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');updatePauseButton(false);$('rift-room-actions').hidden=true;}
+    playing=false;
+    if($('rift-start').dataset.recover)return false;
+    if(!run||!['fighting','cleared'].includes(run.status)||run.paused)return true;
+    if(!await send('pause'))return false;
+    if(['fighting','cleared'].includes(run.status)){
+      if(!run.paused)return false;
+      message('A moment by the lantern.','Take your time. The expedition will wait.','Resume expedition','PAUSED');updatePauseButton(false);$('rift-room-actions').hidden=true;
+    }
+    return true;
   }
+  document.addEventListener('click',async event=>{
+    const link=event.target.closest?.('a[href]');
+    if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self')||link.id==='rift-sign-in')return;
+    const destination=new URL(link.href,location.href);
+    if(!['http:','https:'].includes(destination.protocol))return;
+    if(destination.hash&&destination.origin===location.origin&&destination.pathname===location.pathname&&destination.search===location.search)return;
+    if(!starting&&!pausePending&&!playing&&(!run||run.paused||!['fighting','cleared'].includes(run.status)))return;
+    event.preventDefault();
+    if(leavingPage)return;
+    leavingPage=true;startIntent++;
+    try{if(await pause())location.assign(destination.href);}
+    finally{leavingPage=false;}
+  });
   function dismissVirtualKeyboard(){
     const el=document.activeElement;
     if(el&&typeof el.blur==='function'&&['INPUT','TEXTAREA'].includes(el.tagName)&&!['checkbox','radio','range','button','submit'].includes(el.type)){
@@ -599,7 +624,7 @@
   }
   async function begin(){
     dismissVirtualKeyboard();
-    if(busy||starting||practiceToolPending||controls.opened)return;
+    if(busy||starting||practiceToolPending||controls.opened||leavingPage||pausePending)return;
     if($('rift-start').dataset.retry){
       if($('rift-start').dataset.artworkRetry==='true'){location.reload();return;}
       delete $('rift-start').dataset.retry;$('rift-start').disabled=true;await load();return;
