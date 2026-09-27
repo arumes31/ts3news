@@ -379,6 +379,9 @@
       case 'guard_break': h(.16,.13,5200,pan); t(720,95,.24,.12,'square'); break;
       case 'dodge_action': h(.12,.07,2000,pan); t(180,320,.10,.04,'sine'); break;
       case 'first_hit_grace': t(660,880,.17,.055,'sine'); t(990,1320,.17,.04,'sine',.04); break;
+      case 'charge_warning': t(160,320,.28,.08,'sawtooth'); break;
+      case 'charge_rush': h(.22,.12,1800,pan); t(120,65,.2,.08,'triangle'); break;
+      case 'charge_recovery': h(.1,.08,800,pan); t(100,45,.18,.06,'triangle'); break;
       case 'enemy_aware': t(380,610,.12,.06,'triangle'); break;
       case 'alert_propagate': t(440,580,.1,.045,'triangle'); t(580,740,.1,.04,'triangle',.12); break;
       case 'flank_attempt': h(.12,.045,1700,pan); t(240,420,.13,.045,'sine'); break;

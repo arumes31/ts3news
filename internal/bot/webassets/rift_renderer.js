@@ -1220,6 +1220,15 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.charging&&(e.attack_name==='Charge'||e.charge_recovery>0)) {
+        ctx.save();ctx.strokeStyle='#ffd18a';ctx.fillStyle='#ffe3b0';ctx.lineWidth=3;
+        ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
+        if(e.attack_name==='Charge') {
+          ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0));ctx.lineTo(e.target_x-camera,e.target_y-surfaceHeight(e.target_x,e.target_y));ctx.stroke();ctx.setLineDash([]);
+          interactionPrompt('CHARGE · SIDESTEP',e.target_x-camera,e.target_y-surfaceHeight(e.target_x,e.target_y)-24,true);
+        } else interactionPrompt('RECOVERING · '+e.charge_recovery.toFixed(1)+'s',e.x-camera,e.y-(e.elevation||0)-60,true);
+        ctx.restore();
+      }
       const rangedWindup = e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0;
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
         ctx.save();

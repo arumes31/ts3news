@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"ts3news/internal/content"
+	"ts3news/internal/i18n"
 )
 
 // AdaptMonster reads identity and relative strengths from the canonical Abyss
@@ -62,6 +63,7 @@ func AdaptMonster(m content.Mob) Actor {
 			}
 		}
 	}
+	a.Charging = (a.Kind == "goblin" || a.Kind == "knight") && (a.Charging || m.Name == i18n.T("mob.raging_behemoth"))
 	a.MaxHP = a.HP
 	return a
 }
