@@ -67,6 +67,7 @@ func AdaptMonster(m content.Mob) Actor {
 		}
 	}
 	a.Explosive = a.Explosive || m.Type == content.MobCommon && a.Shot == "fire"
+	a.Burrowing = a.Burrowing || canonicalBurrower(m)
 	a.Healer = a.Healer || m.Name == i18n.T("mob.frost_lich")
 	a.Support = a.Support || a.Healer
 	a.VolleyFan = a.Kind == "boss" && m.Name == i18n.T("mob.kraken")

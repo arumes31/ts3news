@@ -123,6 +123,9 @@ type Actor struct {
 	SupportCoverID string `json:"support_cover_id,omitempty"`
 	Explosive      bool    `json:"explosive,omitempty"`
 	ArmingTimer    float64 `json:"arming_timer,omitempty"`
+	Burrowing      bool    `json:"burrowing,omitempty"`
+	Burrowed       bool    `json:"burrowed,omitempty"`
+	BurrowRecovery float64 `json:"burrow_recovery,omitempty"`
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
@@ -1389,6 +1392,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		e.ReactMissTimer = 0
 		e.SupportCoverID = ""
 		r.cancelEnemyArming(e)
+		r.cancelEnemyBurrow(e)
 		cancelEnemyMend(e)
 		r.interruptEnemyCharge(e)
 		r.interruptRitual(e.ID)
@@ -1686,6 +1690,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	e.Guard = false
 	if e.Knockdown > 0 || e.Pose == "stagger" && e.PoseTime > 0 {
 		r.cancelEnemyArming(e)
+		r.cancelEnemyBurrow(e)
 		cancelEnemyMend(e)
 		e.ReactMissTimer = 0
 		r.interruptEnemyCharge(e)
@@ -1694,6 +1699,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 		e.TurnDelay = 0
 	}
 	if e.HP <= 0 {
+		r.cancelEnemyBurrow(e)
 		return
 	}
 	r.updateElitePriorities(e)
@@ -1808,6 +1814,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		return
 	}
 	if r.tickEnemyArming(e, dt) {
+		return
+	}
+	if r.tickEnemyBurrow(e, dt) {
 		return
 	}
 	if r.tickEnemyCharge(e, dt) {

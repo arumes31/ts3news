@@ -2,6 +2,7 @@ package rift
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -31,6 +32,8 @@ func TestPursuitFromEveryAuthoredCampaignSpawn(t *testing.T) {
 					hp := r.Player.HP
 					reached := false
 					for step := 0; step < 3000; step++ {
+						// Match the shared cooldown advancement in Run.tick.
+						r.PackAttackLockout = math.Max(0, r.PackAttackLockout-.02)
 						r.enemyTick(0, .02)
 						e := &r.Enemies[0]
 						if e.Kind == "treasure" {
@@ -46,7 +49,7 @@ func TestPursuitFromEveryAuthoredCampaignSpawn(t *testing.T) {
 					seen[spawn.ArtKey] = true
 					if !reached {
 						e := r.Enemies[0]
-						t.Fatalf("%s failed from %.1f,%.1f to entry %.1f,%.1f; ended %.1f,%.1f route %.1f,%.1f windup %.2f attacks %d", spawn.Name, spawn.X, spawn.Y, r.Player.X, r.Player.Y, e.X, e.Y, e.RouteX, e.RouteY, e.Windup, e.Attacks)
+						t.Fatalf("%s failed from %.1f,%.1f to entry %.1f,%.1f; ended %.1f,%.1f route %.1f,%.1f windup %.2f attacks %d pack lockout %.2f", spawn.Name, spawn.X, spawn.Y, r.Player.X, r.Player.Y, e.X, e.Y, e.RouteX, e.RouteY, e.Windup, e.Attacks, r.PackAttackLockout)
 					}
 				})
 			}
@@ -85,6 +88,8 @@ func TestEveryAuthoredSpawnSupportsAllCombatRoles(t *testing.T) {
 						hp := r.Player.HP
 						reached := false
 						for step := 0; step < 3000; step++ {
+							// Match the shared cooldown advancement in Run.tick.
+							r.PackAttackLockout = math.Max(0, r.PackAttackLockout-.02)
 							r.enemyTick(0, .02)
 							e = r.Enemies[0]
 							if kind == "treasure" {

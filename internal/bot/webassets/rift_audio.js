@@ -422,6 +422,9 @@
         [880, 1175, 1480].forEach((f, i) => t(f, f * 1.05, .18, .05, 'sine', i * .03));
         break;
       }
+      case 'burrow_start': {h(.3,.08,500,pan);t(100,42,.3,.09,'sine');break;}
+      case 'burrow_cancel': {h(.09,.06,1700,pan);t(180,440,.12,.07,'triangle');break;}
+      case 'burrow_emerge': {h(.24,.14,850,pan);t(190,40,.25,.13,'triangle');break;}
       case 'arming_start': {h(.16,.06,2600,pan);t(220,700,.4,.07,'triangle');break;}
       case 'arming_cancel': {h(.07,.08,3800,pan);t(650,180,.15,.07,'triangle');break;}
       case 'enemy_blast': {h(.4,.2,1600,pan);t(120,35,.4,.16,'sine');break;}
