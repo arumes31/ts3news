@@ -113,6 +113,9 @@ type Actor struct {
 	Pack           bool    `json:"pack,omitempty"`
 	Summoned       bool    `json:"summoned,omitempty"`
 	ArrivalVulnerability float64 `json:"arrival_vulnerability,omitempty"`
+	Healer         bool    `json:"healer,omitempty"`
+	HealTarget string `json:"heal_target,omitempty"`
+	HealCooldown float64 `json:"heal_cooldown,omitempty"`
 	Charging       bool    `json:"charging,omitempty"`
 	ChargeActive   bool    `json:"charge_active,omitempty"`
 	ChargeRecovery float64 `json:"charge_recovery,omitempty"`
@@ -1370,6 +1373,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
 		e.ReactMissTimer = 0
+		cancelEnemyMend(e)
 		r.interruptEnemyCharge(e)
 		r.interruptRitual(e.ID)
 		r.eventAtHeight(e.HurtCue(), e.X, e.Y-30, damage, e.Elevation)
@@ -1662,6 +1666,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	e := &r.Enemies[i]
 	e.Guard = false
 	if e.Knockdown > 0 || e.Pose == "stagger" && e.PoseTime > 0 {
+		cancelEnemyMend(e)
 		e.ReactMissTimer = 0
 		r.interruptEnemyCharge(e)
 	}
@@ -1674,6 +1679,7 @@ func (r *Run) enemyTick(i int, dt float64) {
 	r.updateElitePriorities(e)
 	e.WeakPoint = math.Max(0, e.WeakPoint-dt)
 	e.Cooldown = math.Max(0, e.Cooldown-dt)
+	e.HealCooldown = math.Max(0, math.Min(5, e.HealCooldown)-dt)
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
 	if e.PoseTime < 0.0001 {
 		e.PoseTime = 0
@@ -1767,6 +1773,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 		if e.X <= treasureEscapeMargin || e.X >= Width-treasureEscapeMargin {
 			r.escapeEnemy(i)
 		}
+		return
+	}
+	if r.tickEnemyMend(i, dt) {
 		return
 	}
 	if r.tickMissReaction(e, dt) {

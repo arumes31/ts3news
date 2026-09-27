@@ -588,6 +588,7 @@
     if(e.charge_recovery>0||e.pose==='recovery')return 'Recovering';
     if(e.charge_active)return 'Charging';
     if(e.react_miss_timer>0)return 'Pressing';
+    if(e.heal_target&&e.windup>0)return 'Mending ally';
     if(e.windup>0)return e.attack_name==='Charge'?'Preparing charge':e.kind==='archer'?'Aiming':'Preparing attack';
     if(e.pose==='attack'&&e.pose_time>0)return 'Attacking';
     if(e.fleeing)return 'Fleeing';
@@ -1259,7 +1260,11 @@
         const intent=enemyIntent(e);
         if(intent){ctx.save();ctx.fillStyle='#b7f2ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('INTENT · '+intent,e.x-camera,e.y-(e.elevation||0)-108,true);ctx.restore();}
       }
-      const rangedWindup = e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0;
+      if(!display.cleanScreenshot&&e.hp>0&&e.heal_target&&e.windup>0){
+        const ally=run.enemies.find(unit=>unit.id===e.heal_target&&unit.hp>0);
+        if(ally){ctx.save();ctx.strokeStyle='#9df6d3';ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(e.x-camera,e.y-(e.elevation||0)-30);ctx.lineTo(ally.x-camera,ally.y-(ally.elevation||0)-30);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(ally.x-camera,ally.y-(ally.elevation||0),14,6,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#9df6d3';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('MEND · INTERRUPT',e.x-camera,e.y-(e.elevation||0)-68,true);ctx.restore();}
+      }
+      const rangedWindup = !e.heal_target && (e.kind === 'archer' || e.kind === 'boss' && e.art_key && (e.attacks + 1) % 2 === 0);
       if (!display.cleanScreenshot && e.hp > 0 && e.windup > 0 && rangedWindup) {
         ctx.save();
         ctx.strokeStyle = '#ffbd81';

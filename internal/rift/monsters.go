@@ -66,6 +66,7 @@ func AdaptMonster(m content.Mob) Actor {
 			}
 		}
 	}
+	a.Healer = a.Healer || m.Name == i18n.T("mob.frost_lich")
 	a.Charging = (a.Kind == "goblin" || a.Kind == "knight") && (a.Charging || m.Name == i18n.T("mob.raging_behemoth"))
 	a.MaxHP = a.HP
 	return a

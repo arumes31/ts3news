@@ -6,7 +6,7 @@ test('combat event cues create sources, respect mute, and retire on pause',async
  await page.locator('button').click();
  const result=await page.evaluate(async()=>{
   const a=RiftAudio;
-  const kinds=['elite_desperation','miss_reaction','charge_warning','charge_rush','charge_recovery','ground_strike','airborne_launch','juggle_hit','backstab','guard_break','dodge_action','first_hit_grace','enemy_aware','alert_propagate','flank_attempt','pack_attack','summon_spawn','summon_punish'];
+  const kinds=['enemy_mend','elite_desperation','miss_reaction','charge_warning','charge_rush','charge_recovery','ground_strike','airborne_launch','juggle_hit','backstab','guard_break','dodge_action','first_hit_grace','enemy_aware','alert_propagate','flank_attempt','pack_attack','summon_spawn','summon_punish'];
   const results=[];
   for(const kind of kinds){
    await a.setActive(true,0);
