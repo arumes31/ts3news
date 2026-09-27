@@ -422,6 +422,7 @@
         [880, 1175, 1480].forEach((f, i) => t(f, f * 1.05, .18, .05, 'sine', i * .03));
         break;
       }
+      case 'boss_guard_break':
       case 'boss_stagger': {
         h(.25, .18, 900, pan);
         t(140, 42, .32, .18, 'triangle');

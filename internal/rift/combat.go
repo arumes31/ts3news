@@ -96,6 +96,9 @@ type Actor struct {
 	TargetX   float64 `json:"target_x"`
 	TargetY   float64 `json:"target_y"`
 	Phase          int     `json:"phase,omitempty"`
+	BossStagger float64 `json:"boss_stagger,omitempty"`
+	BossGuardBreak float64 `json:"boss_guard_break,omitempty"`
+	BossStaggerGrace float64 `json:"boss_stagger_grace,omitempty"`
 	GuardStamina   float64 `json:"guard_stamina,omitempty"`
 	JuggleCount    int     `json:"juggle_count,omitempty"`
 	InterruptCount int     `json:"interrupt_count,omitempty"`
@@ -1325,6 +1328,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		e.Facing = -hitDir
 		e.TurnDelay = 0
 	}
+	if e.Kind == "boss" && e.BossGuardBreak > 0 {
+		armor *= .5
+	}
 	baseFactor := 1 - armor
 	effectiveFactor := 1 - armor*(1-clamp(pierce, 0, 1))
 	damage *= effectiveFactor
@@ -1401,6 +1407,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			e.PoseTime = math.Max(e.PoseTime, .6)
 		}
 	}
+	r.addBossStagger(e, damage)
 	if r.Practice != nil {
 		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++
@@ -1688,6 +1695,9 @@ func (r *Run) enemyTick(i int, dt float64) {
 	e.PoseTime = math.Max(0, e.PoseTime-dt)
 	if e.PoseTime < 0.0001 {
 		e.PoseTime = 0
+	}
+	if r.tickBossGuardBreak(e, dt) {
+		return
 	}
 	if e.Jump > 0 {
 		e.Jump = math.Max(0, e.Jump-dt)

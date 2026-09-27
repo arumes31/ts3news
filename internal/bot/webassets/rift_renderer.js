@@ -96,7 +96,7 @@
   }
   const damageNumberBudget = 16;
   const optionalTextKinds = new Set(['elemental_reaction','beacon_captured','sigil_pickup','pickup','resource','heal','barrier','treasure_escape','rare_item','rare_discovery']);
-  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_phase','victory']);
+  const hiddenTextKinds = new Set(['area','slash','third_strike','finisher_cast','ultimate_anticipation','heavy_recovery','shield_absorb','mark_target','thaw','boss_stagger','boss_guard_break','boss_phase','victory']);
   function combatTextCategory(e) {
     if(!(e.value>0||['block','perfect_guard','treasure_escape','rare_item','rare_discovery'].includes(e.kind))||hiddenTextKinds.has(e.kind)||e.kind.endsWith('_hurt'))return '';
     return optionalTextKinds.has(e.kind)?'optional':'damage';
@@ -579,6 +579,7 @@
   const intentRoles=new Set(['goblin','knight','archer','wolf','spore','boss','treasure']);
   function enemyIntent(e){
     if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
+    if(e.kind==='boss'&&e.boss_guard_break>0)return 'Guard broken';
     if(e.knockdown>0)return 'Getting up';
     if(e.pose==='stagger'&&e.pose_time>0)return 'Stunned';
     if(e.pose==='hit'&&e.pose_time>0)return 'Hit reaction';
@@ -1249,6 +1250,12 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&(display.healthBars||e.boss_guard_break>0)){
+        const broken=e.boss_guard_break>0,grace=e.boss_stagger_grace>0;
+        const label=broken?'GUARD BROKEN · '+e.boss_guard_break.toFixed(1)+'s':grace?'STAGGER RECOVERING · '+e.boss_stagger_grace.toFixed(1)+'s':'STAGGER '+Math.round(Math.max(0,Math.min(100,e.boss_stagger||0)))+'/100';
+        ctx.save();ctx.fillStyle=broken?'#ffe3a4':'#c1e5ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt(label,e.x-camera,e.y-(e.elevation||0)-133,true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.charging&&(e.attack_name==='Charge'||e.charge_recovery>0)) {
         ctx.save();ctx.strokeStyle='#ffd18a';ctx.fillStyle='#ffe3b0';ctx.lineWidth=3;
         ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
