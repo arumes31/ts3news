@@ -32,6 +32,7 @@ type Hazard struct {
 }
 
 type Arena struct {
+	WaterCurrents []WaterCurrent `json:"water_currents,omitempty"`
 	WindGusts  []WindGust `json:"wind_gusts,omitempty"`
 	SteamVents []Obstacle `json:"steam_vents,omitempty"`
 	// CameraLead is the preferred player screen X; zero preserves the default 350.
@@ -268,6 +269,12 @@ func buildCampaign() []Level {
 				}
 				if region == 1 {
 					arena.SteamVents = []Obstacle{{350, 235, 90, 65}, {1110, 235, 90, 65}}
+				}
+				if region == 5 && room == 0 {
+					arena.WaterCurrents = []WaterCurrent{{Obstacle: Obstacle{460, 400, 500, 65}, VX: 35}}
+					if layout%2 == 1 {
+						arena.WaterCurrents[0].VX = -35
+					}
 				}
 				if region == 3 && room == 1 {
 					arena.WindGusts = []WindGust{{Obstacle: Obstacle{420, 330, 720, 150}, Period: 8, Duration: 3, VX: 60}}

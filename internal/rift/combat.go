@@ -1060,6 +1060,7 @@ func (r *Run) tick(in Input, dt float64) {
 		r.cast(in.Skill)
 	}
 	if r.Status == "fighting" {
+		r.waterCurrentTick(dt)
 		r.hazardTick()
 		r.windGustTick()
 		for i := range r.Enemies {

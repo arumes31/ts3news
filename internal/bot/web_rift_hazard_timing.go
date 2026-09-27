@@ -2,6 +2,7 @@ package bot
 
 import (
 	"errors"
+	"math"
 
 	"ts3news/internal/rift"
 )
@@ -14,6 +15,14 @@ func validateRiftHazardTiming(run *rift.Run) error {
 		return invalid
 	}
 	validArena := func(arena rift.Arena) bool {
+		if len(arena.WaterCurrents) > 4 {
+			return false
+		}
+		for _, c := range arena.WaterCurrents {
+			if !(math.Hypot(c.VX, c.VY) > 0 && math.Hypot(c.VX, c.VY) <= 40 && c.X >= 35 && c.Y >= 315 && c.W > 0 && c.H > 0 && c.X+c.W <= 1565 && c.Y+c.H <= 490) {
+				return false
+			}
+		}
 		if len(arena.WindGusts) > 4 {
 			return false
 		}

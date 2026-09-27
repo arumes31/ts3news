@@ -1149,6 +1149,19 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    for(const current of arena?.water_currents||[]){
+      if(run.status!=='fighting')continue;
+      const x=current.x-camera,speed=Math.hypot(current.vx,current.vy),dx=current.vx/speed,dy=current.vy/speed;
+      ctx.save();ctx.fillStyle='#4bbedc25';ctx.fillRect(x,current.y,current.w,current.h);ctx.strokeStyle='#85def0';ctx.lineWidth=1.5;ctx.strokeRect(x,current.y,current.w,current.h);
+      ctx.beginPath();ctx.rect(x,current.y,current.w,current.h);ctx.clip();
+      const offset=renderer.reduced||motion===0?0:(run.clock*25)%60;
+      for(let row=-60;row<current.h+60;row+=35)for(let col=-60;col<current.w+60;col+=60){
+        const ax=x+col+dx*offset,ay=current.y+row+dy*offset;
+        ctx.beginPath();ctx.moveTo(ax-dx*12,ay-dy*12);ctx.lineTo(ax+dx*12,ay+dy*12);ctx.lineTo(ax+dx*5-dy*5,ay+dy*5+dx*5);ctx.moveTo(ax+dx*12,ay+dy*12);ctx.lineTo(ax+dx*5+dy*5,ay+dy*5-dx*5);ctx.stroke();
+      }
+      ctx.restore();
+      if(!display.cleanScreenshot&&display.hazardLabels){ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#c0f3ff';interactionPrompt('CURRENT · GUARD TO BRACE / JUMP',x+current.w/2,current.y-8,true);ctx.restore();}
+    }
     for(const wind of arena?.wind_gusts||[]){
       if(run.status!=='fighting')continue;
       const phase=(run.clock+wind.offset)%wind.period,warning=phase<1.2,active=phase>=1.2&&phase<1.2+wind.duration&&run.status==='fighting';
