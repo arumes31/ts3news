@@ -25,9 +25,13 @@ func TestRiftDecodeRejectsInvalidHazardTiming(t *testing.T) {
 				change(&h)
 				switch place {
 				case "current":
-					r.Level = &rift.Level{Rooms: []rift.Arena{{Hazards: []rift.Hazard{h}}}}
+					level := rift.Campaign()[0]
+					r.Level = &level
+					r.Level.Rooms[0].Hazards = []rift.Hazard{h}
 				case "future":
-					r.Level = &rift.Level{Rooms: []rift.Arena{{}, {Hazards: []rift.Hazard{h}}}}
+					level := rift.Campaign()[0]
+					r.Level = &level
+					r.Level.Rooms[1].Hazards = []rift.Hazard{h}
 				case "practice":
 					r.Practice.Arena.Hazards = []rift.Hazard{h}
 				}
