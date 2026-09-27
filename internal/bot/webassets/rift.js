@@ -74,7 +74,7 @@
     fullscreenUnavailable:"Fullscreen is unavailable in this browser.",
     fullscreenReview:"Review your controls before entering fullscreen.",
     sessionExpired:"Your session expired. Sign in again, then resume this expedition.",
-    saveConflict:"The saved expedition changed. Recover it before continuing.",
+    saveConflict:"This page no longer matches the saved expedition. Reload its latest confirmed state before continuing.",
     connectionInterrupted:"Connection interrupted. Recover the saved expedition before continuing.",
     responseInterrupted:"The expedition response was interrupted. Recover the saved expedition before continuing.",
     unconfirmed:"Could not confirm the expedition.",
@@ -139,6 +139,10 @@
     $('rift-overlay').hidden = false; $('rift-overlay-title').textContent = title; $('rift-overlay-copy').textContent = copy;
     $('rift-overlay-kicker').textContent = practice?(String(kicker||'').startsWith('PRACTICE')?kicker:'PRACTICE · '+(kicker||drillNames[practice])):kicker || 'MOSSBOUND RUINS'; $('rift-start').textContent = button; $('rift-start').disabled = !ready || busy;
   }
+  function saveConflictError(){return Object.assign(new Error(statusCopy.saveConflict),{code:'SAVE_CONFLICT'});}
+  function showSaveConflict(banking=false){
+    message('Expedition changed.',statusCopy.saveConflict+(banking?' Reward delivery is unconfirmed. Review banked rewards after reloading.':''),'Reload saved expedition','SAVE CONFLICT');
+  }
   function showExpiredSession(banking=false){
     message('Sign in to continue.',statusCopy.sessionExpired+(banking?' Reward delivery is unconfirmed. Check the saved expedition after signing in.':''),'Check session again','SESSION EXPIRED');
     const link=$('rift-sign-in');link.href='/login?next='+encodeURIComponent(location.pathname+location.search);link.hidden=false;
@@ -178,7 +182,7 @@
     try {
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
-      if(response.status===409)throw new Error(statusCopy.saveConflict);
+      if(response.status===409)throw saveConflictError();
       if(!response.ok)throw new Error(statusCopy.connectionInterrupted);
       let data,responseBytes=0,runBytes=0;
       try{
@@ -186,6 +190,7 @@
         else data=await response.json();
       }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error(statusCopy.responseInterrupted);}
       if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:statusCopy.unconfirmed);const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error(statusCopy.wrongDrill);
+      if(method==='POST'&&body.kind!=='start'&&result.run.revision>body.revision)throw saveConflictError();
       if(payloadDiagnostics){
         payloadDiagnostics.count++;payloadDiagnostics.totalResponseBytes+=responseBytes;payloadDiagnostics.maxResponseBytes=Math.max(payloadDiagnostics.maxResponseBytes,responseBytes);
         payloadDiagnostics.samples.push({method,action:body?.kind||'load',requestBytes:requestBody?payloadEncoder.encode(requestBody).byteLength:0,responseBytes,runBytes});
@@ -532,6 +537,7 @@
       playing=false;resetInput();clearTimeout(timer);silence();if(run)update(run,true);status(error.message);
       if(banking)window.RiftLoot.banking('uncertain');
       if(error.code==='SESSION_EXPIRED')showExpiredSession(banking);
+      else if(error.code==='SAVE_CONFLICT')showSaveConflict(banking);
       else message('Your expedition is saved.',banking?'Reward delivery is unconfirmed. Recover the saved expedition to check what was banked. '+error.message:error.message,'Recover expedition','CONNECTION PAUSED');
       $('rift-start').dataset.recover='true';return false;
     } finally {busy=false;practiceToolButtons();setSafeDisabled($('rift-practice-reset'),!practice||!ready||!run);window.RiftLoadouts.refresh();setSafeDisabled($('rift-start'),!ready);root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,!ready||checkpointPending));}
