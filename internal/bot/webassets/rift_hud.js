@@ -140,12 +140,12 @@
   }
   let lastResourceRunId='',lastObservedResource=null,lastObservedHp=null,lastObservedMana=null;
   function duration(seconds){seconds=Math.max(0,Math.floor(seconds));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
-  function reason(skill,run,playing){
+  function reason(skill,run,playing,stable=false){
     if(!['fighting','cleared'].includes(run.status))return 'Expedition ended';
     if(!playing||run.paused)return 'Paused';
     const remaining=run.skill_timers[skill.id]||0;
-    if(remaining>0)return remaining.toFixed(1)+' seconds cooldown';
-    if(run.player.mana<skill.cost)return Math.ceil(skill.cost-run.player.mana)+' more mana needed';
+    if(remaining>0)return stable?'Cooling down':remaining.toFixed(1)+' seconds cooldown';
+    if(run.player.mana<skill.cost)return stable?'More mana needed':Math.ceil(skill.cost-run.player.mana)+' more mana needed';
     return 'Ready · '+skill.cost+' mana';
   }
   let latencySamples=[];
@@ -682,7 +682,7 @@
     }
     if(!pack.hidden)put(pack,marked?'Pack target: '+marked.name+'. Face and line up your shot; it hits the first enemy in that lane.':'Pack target: none. Land a builder hit to direct the pack.');
     const precision=$('rift-precision-state');precision.hidden=run.build.class!=='marksman';
-    if(!precision.hidden)put(precision,!marked?'Precision: land a builder hit to mark a target.':!(run.resource>0)?'Precision target: '+marked.name+'. Build charges before firing your finisher.':!finisher?'Precision target: '+marked.name+'. Equip a finisher in Abyss.':'Precision armed on '+marked.name+': next charged finisher gains +60 percentage points of armor piercing on this target (total capped at 100%). Finisher: '+reason(finisher,run,playing)+'.');
+    if(!precision.hidden)put(precision,!marked?'Precision: land a builder hit to mark a target.':!(run.resource>0)?'Precision target: '+marked.name+'. Build charges before firing your finisher.':!finisher?'Precision target: '+marked.name+'. Equip a finisher in Abyss.':'Precision armed on '+marked.name+': next charged finisher gains +60 percentage points of armor piercing on this target (total capped at 100%). Finisher: '+reason(finisher,run,playing,true)+'.');
     put($('rift-finisher-state'),!finisher?'Class abilities unlock in Abyss':run.resource>0?'Finisher: '+reason(finisher,run,playing)+' · '+run.resource+' charges':'Build charges with '+window.RiftControls.label('signature0'));
     const blood=run.last_blood_recovery,bloodNode=$('rift-blood-recovery');bloodNode.hidden=run.build.class!=='bloodblade'||!blood;
     if(!bloodNode.hidden)put(bloodNode,'Last blood recovery · '+blood.skill_name+': +'+blood.healed.toFixed(1)+' HP; '+blood.overflow.toFixed(1)+' HP overflow discarded.');
