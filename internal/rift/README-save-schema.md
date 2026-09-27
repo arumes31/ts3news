@@ -10,8 +10,8 @@ compress larger JSON within those limits. Never relax these bounds to migrate da
 
 `decodeRift` in `internal/bot/web_rift.go` decodes the envelope, unmarshals JSON,
 checks schema/identity/room/timer-map presence, validates vitals, cooldowns, hazard
-timing, actor positions and level metadata, then bounds event presentation to the
-latest 40 entries. It does not write the database. Invalid or unsupported saves
+timing, actor positions and level metadata, then bounds receipt presentation to the
+latest 200 items and event presentation to the latest 40 entries. It does not write the database. Invalid or unsupported saves
 return an error; they are not silently reset or replaced with a fresh expedition.
 
 Legacy schema-1 runs can lack level metadata, mission history, content-version
@@ -58,19 +58,26 @@ schema 1 or bypass validation. Keep old-save fixtures and failure atomicity test
 for every supported conversion. A rollback must either understand the new schema
 or restore from a tested backup; it must never replay banking to reconstruct it.
 
-## Receipt compaction prerequisite
+## Bounded receipt history
 
-`BankedItemsTotal` now supplies the independent confirmed item count; absent or
-zero legacy totals fall back to the complete `BankedItems` list through
-`TotalBankedItems()`. Banking updates the total only after inventory insertion.
-Career and encounter summaries use it. `BankedLoot` supplies receipt provenance.
-Presentation has not yet been truncated. Before compaction, persist the legacy
-derived total before trimming and update
-career totals, encounter summaries, HUD, receipt/export text and banking-change
-announcements to use it. Bound presentation independently and tell the player
-when only recent entries are shown. Prove every collected item is inserted once,
-that totals survive reload/expiration/new expeditions, and that retries never
-redeliver inventory. This work remains pending under improvement 0825.
+`BankedItemsTotal` supplies the independent confirmed item count; absent or zero
+legacy totals fall back to the complete `BankedItems` list through
+`TotalBankedItems()`. Decode rejects negative, inconsistent nonzero, or JavaScript-
+unsafe totals. `BoundReceiptHistory()` persists the derived legacy total in memory
+before copying only the latest 200 names and provenance entries. The next normal
+save persists that representation. Both lists release oversized backing storage.
+
+Banking records the total and recent receipt only after each inventory insertion
+succeeds; trimming does not skip delivery or change drop banking flags. Career,
+encounter, HUD, terminal results, exports and banking-change announcements use the
+independent count. The UI and copied receipt explain when only recent items are
+shown. Old full receipts without the new total still render correctly.
+
+Tests cover a 5,000-item legacy receipt, retained exact recent provenance and total,
+idempotent saves, 250 inventory inserts despite the 200-entry presentation cap,
+repeat settlement without redelivery, economy expiration and fresh expeditions.
+Browser coverage checks desktop/mobile totals, filters, copied history notices,
+record exports and feedback when the receipt length remains constant.
 
 ## Verification
 

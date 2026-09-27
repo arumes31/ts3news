@@ -842,7 +842,7 @@
     const runImproved=formatImprovedRecords(run.last_clear);
     if(runImproved)values.push(['Improved personal records',runImproved]);
     const past=run.past_expeditions||{};
-    const career=[['Enemies defeated',(past.enemies||0)+(stats.kills||0)],['Bosses defeated',(past.bosses||0)+(stats.bosses||0)],['Treasure goblins defeated',(past.treasure_goblins||0)+(stats.treasure_goblins||0)],['Gold banked',(past.gold||0)+(run.banked_gold||0)],['Gear pieces banked',(past.gear||0)+(run.banked_items?.length||0)]];
+    const career=[['Enemies defeated',(past.enemies||0)+(stats.kills||0)],['Bosses defeated',(past.bosses||0)+(stats.bosses||0)],['Treasure goblins defeated',(past.treasure_goblins||0)+(stats.treasure_goblins||0)],['Gold banked',(past.gold||0)+(run.banked_gold||0)],['Gear pieces banked',(past.gear||0)+(RiftLoot.bankedCount(run))]];
     const careerKey=JSON.stringify(career);if($('rift-career-statistics').dataset.values!==careerKey){$('rift-career-statistics').dataset.values=careerKey;$('rift-career-statistics').replaceChildren();for(const [label,value] of career){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=numbers.format(value);$('rift-career-statistics').append(dt,dd);}}
     const key=JSON.stringify(values);
     if(summaryKey!==key){summaryKey=key;$('rift-statistics').replaceChildren();for(const [label,value] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=typeof value==='string'?value:numbers.format(value||0);if(['Current mission clear streak','Best mission clear streak','Highest basic combo strike (of 3)','Largest hit'].includes(label)){dt.dataset.personalRecord='true';dd.dataset.personalRecord='true';}$('rift-statistics').append(dt,dd);}}
@@ -852,7 +852,7 @@
       announced=state;
       if(run.status==='cleared')put($('rift-announcer'),'Room '+(run.room+1)+' cleared. Loot is ready to bank.');
       else if(run.status==='defeated')put($('rift-announcer'),'Expedition ended. Banked rewards are safe.');
-      else if(['complete','banked'].includes(run.status))put($('rift-announcer'),'Expedition finished. '+numbers.format(run.banked_gold)+' gold and '+numbers.format(run.banked_items.length)+' '+(run.banked_items.length===1?'item':'items')+' banked.');
+      else if(['complete','banked'].includes(run.status))put($('rift-announcer'),'Expedition finished. '+numbers.format(run.banked_gold)+' gold and '+numbers.format(RiftLoot.bankedCount(run))+' '+(RiftLoot.bankedCount(run)===1?'item':'items')+' banked.');
       else if(run.paused)put($('rift-announcer'),'Expedition paused.');
     }
   }
@@ -904,7 +904,7 @@
     const duration=Number(stats.seconds||0).toFixed(1)+'s combat';
     const damageDealt=numbers.format(stats.damage_dealt||0);
     const damageTaken=numbers.format(stats.damage_taken||0)+' ('+numbers.format(stats.hits_taken||0)+' '+((stats.hits_taken===1)?'hit':'hits')+')';
-    const bankedRewards=numbers.format(run.banked_gold||0)+' gold · '+numbers.format(run.banked_items?.length||0)+' '+((run.banked_items?.length===1)?'item':'items');
+    const bankedRewards=numbers.format(run.banked_gold||0)+' gold · '+numbers.format(RiftLoot.bankedCount(run))+' '+((RiftLoot.bankedCount(run)===1)?'item':'items');
 
     const lines=[
       'Abyss Rift Brawl — Result Summary',

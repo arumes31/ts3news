@@ -448,7 +448,7 @@
       playing=false;clearTimeout(timer);resetInput();$('rift-room-actions').hidden=true;
       if(audio.bossMusicActive)audio.fadeBossMusic?.(1.8);
       const lost=run.status==='defeated';
-      message(lost?(run.room_objective?.kind==='split_defense'&&run.room_objective.lanes.some(l=>l.ward.hp<=0)?'A lane ward fell.':run.room_objective?.kind==='protect_lantern'&&run.room_objective.lantern.hp<=0?'The lantern went out.':'The rift takes its toll.'):'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' banked '+(run.banked_items.length===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+run.banked_items.length.toLocaleString()+' Abyss '+(run.banked_items.length===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
+      message(lost?(run.room_objective?.kind==='split_defense'&&run.room_objective.lanes.some(l=>l.ward.hp<=0)?'A lane ward fell.':run.room_objective?.kind==='protect_lantern'&&run.room_objective.lantern.hp<=0?'The lantern went out.':'The rift takes its toll.'):'Returned from the ruins.',lost?'Unbanked finds were lost. This includes collected bag items and uncollected floor drops. Kept: '+run.banked_gold.toLocaleString()+' gold and '+RiftLoot.bankedCount(run).toLocaleString()+' banked '+(RiftLoot.bankedCount(run)===1?'item':'items')+'. Your equipped gear is safe.':run.banked_gold.toLocaleString()+' gold and '+RiftLoot.bankedCount(run).toLocaleString()+' Abyss '+(RiftLoot.bankedCount(run)===1?'item':'items')+' safely in your inventory.','Enter a new expedition',lost?'EXPEDITION ENDED':'REWARDS SECURED');
       if(run.status==='expired')message('A new chapter begins.','This expedition belongs to an earlier economy. Start a fresh run with your current character.','Enter a new expedition','EXPEDITION EXPIRED');
       const banner=$('rift-result-banner'),headingEl=$('rift-result-heading'),causeEl=$('rift-result-cause'),clearResult=$('rift-clear-result');
       if(run.status==='complete'){
@@ -482,7 +482,7 @@
       }
       const rewardsEl=$('rift-result-rewards'),bankedVal=$('rift-rewards-banked-val'),lostVal=$('rift-rewards-lost-val'),lostGroup=$('rift-rewards-lost-group');
       if(rewardsEl&&bankedVal&&lostVal&&lostGroup){
-        bankedVal.textContent=(run.banked_gold||0).toLocaleString()+' gold · '+(run.banked_items?.length||0)+' '+((run.banked_items?.length===1)?'item':'items');
+        bankedVal.textContent=(run.banked_gold||0).toLocaleString()+' gold · '+(RiftLoot.bankedCount(run))+' '+((RiftLoot.bankedCount(run)===1)?'item':'items');
         if(lost){
           const lostGold=run.gold||0;
           const lostDrops=(run.drops||[]).filter(d=>!d.banked).length;
@@ -520,7 +520,7 @@
   async function send(kind) {
     if(busy)return false;
     busy=true;if(kind!=='step')setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
-    const previousReceipt=run?{id:run.id,banked_gold:run.banked_gold,banked_items:[...run.banked_items]}:null;
+    const previousReceipt=run?{id:run.id,banked_gold:run.banked_gold,banked_items:[...run.banked_items],banked_items_total:RiftLoot.bankedCount(run)}:null;
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
     const inputTiming=kind==='step'?takeInputTiming(body.input):null;

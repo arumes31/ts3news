@@ -2,6 +2,8 @@
   'use strict';
   const $=id=>document.getElementById(id),format=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   const count=(n,noun)=>format.format(n)+' '+noun+(n===1?'':'s');
+  const bankedCount=value=>Math.max(value.banked_items?.length||0,Number.isSafeInteger(value.banked_items_total)?value.banked_items_total:0);
+  const historyNote=value=>bankedCount(value)>(value.banked_items?.length||0)?'Showing the most recent '+format.format(value.banked_items.length)+' of '+format.format(bankedCount(value))+' banked items. Older items were delivered to your Abyss inventory.':'';
   const put=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
   const create=(tag,value,parent)=>{const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;};
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -103,16 +105,16 @@
       else{const list=create('ul','',details);[...sources].slice(0,200).forEach(([source,count])=>create('li',source+(count>1?' × '+format.format(count):''),list));if(sources.size>200)create('p',format.format(sources.size-200)+' additional origin entries retained in the saved receipt.',details);}
     });
     $('rift-receipt-empty').hidden=matches.length>0;
-    $('rift-receipt-empty').textContent=run.banked_items.length?'No banked items match these filters.':'No gear was banked.';
-    $('rift-receipt-limit').hidden=matches.length<=200;
-    $('rift-receipt-limit').textContent='Showing 200 of '+format.format(matches.length)+' matching item names. Search to narrow the receipt.';
+    $('rift-receipt-empty').textContent=bankedCount(run)?'No banked items match these filters.':'No gear was banked.';
+    $('rift-receipt-limit').hidden=matches.length<=200&&!historyNote(run);
+    $('rift-receipt-limit').textContent=[historyNote(run),matches.length>200?'Showing 200 of '+format.format(matches.length)+' matching item names. Search to narrow the receipt.':''].filter(Boolean).join(' ');
     put($('rift-receipt-breakdown'),'Fight loot: '+format.format(run.banked_gold-(run.banked_objective_gold||0))+' gold · Objective bonuses: '+format.format(run.banked_objective_gold||0)+' gold');
-    put($('rift-receipt-total'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item')+' safely banked');
+    put($('rift-receipt-total'),format.format(run.banked_gold)+' gold · '+count(bankedCount(run),'item')+' safely banked');
   }
   function update(value,replay=false){
     pickups(value,replay);run=value;
     const items=run.drops.filter(d=>d.collected&&!d.banked&&d.gear);
-    put($('rift-gold'),format.format(run.gold));put($('rift-banked'),format.format(run.banked_gold)+' gold · '+count(run.banked_items.length,'item'));
+    put($('rift-gold'),format.format(run.gold));put($('rift-banked'),format.format(run.banked_gold)+' gold · '+count(bankedCount(run),'item'));
     put($('rift-loot-count'),count(items.length,'item')+' pending');
     const pending=run.drops.filter(d=>!d.banked);put($('rift-checkpoint-total'),format.format(pending.reduce((sum,d)=>sum+d.gold,0))+' gold · '+count(pending.filter(d=>d.gear).length,'item')+' ready to bank');
     const bonus=window.RiftObjectives.pendingGold(run);put($('rift-checkpoint-bonus'),bonus?'Objective bonus: '+format.format(bonus)+' gold (separate from fight loot)':'');
@@ -125,23 +127,24 @@
     const directions=['→ right','↘ lower right','↓ down','↙ lower left','← left','↖ upper left','↑ up','↗ upper right'];
     put($('rift-nearest-drop'),nearest?'Nearest drop: '+(distance<1?'here':directions[(Math.round(Math.atan2(nearest.dy,nearest.dx)/(Math.PI/4))+8)%8]):'No uncollected drops');
     const key=run.id+':'+JSON.stringify([run.build.equipment,run.build.class_scaling,items.map(d=>[d.id,d.gear,d.gear_description])]);if(key!==bagKey){bagKey=key;bag();}
-    put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||run.banked_items.length?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
-    const next=JSON.stringify([run.id,run.banked_gold,run.banked_objective_gold,run.banked_items,run.banked_loot]);
-    $('rift-receipt').hidden=!run.banked_gold&&!run.banked_items.length&&!['defeated','banked','complete'].includes(run.status);
+    put($('rift-banked-at'),run.banked_at_ms?'Last banked: '+new Date(run.banked_at_ms).toLocaleString():run.banked_gold||bankedCount(run)?'Banking time unavailable for this older receipt.':'No rewards banked yet.');
+    const next=JSON.stringify([run.id,run.banked_gold,run.banked_objective_gold,bankedCount(run),run.banked_items,run.banked_loot]);
+    $('rift-receipt').hidden=!run.banked_gold&&!bankedCount(run)&&!['defeated','banked','complete'].includes(run.status);
     if(next!==receiptKey){receiptKey=next;receipt();$('rift-receipt-copy-status').textContent='';}
   }
   $('rift-receipt-rarity').onchange=receipt;$('rift-loot-sort').onchange=bag;$('rift-receipt-search').oninput=receipt;
   $('rift-copy-receipt').onclick=async()=>{
     if(!run)return;
     const names=new Map();run.banked_items.forEach(name=>names.set(name,(names.get(name)||0)+1));
-    const lines=['Rift Brawl — banked rewards',format.format(run.banked_gold)+' gold','Fight loot: '+format.format(run.banked_gold-(run.banked_objective_gold||0))+' gold','Objective bonuses: '+format.format(run.banked_objective_gold||0)+' gold',count(run.banked_items.length,'item'),...[...names].map(([name,n])=>name+(n>1?' × '+format.format(n):''))];
+    const lines=['Rift Brawl — banked rewards',format.format(run.banked_gold)+' gold','Fight loot: '+format.format(run.banked_gold-(run.banked_objective_gold||0))+' gold','Objective bonuses: '+format.format(run.banked_objective_gold||0)+' gold',count(bankedCount(run),'item'),...[...names].map(([name,n])=>name+(n>1?' × '+format.format(n):''))];
+    if(historyNote(run))lines.splice(5,0,historyNote(run));
     try{await navigator.clipboard.writeText(lines.join('\n'));$('rift-receipt-copy-status').textContent='Receipt copied.';}catch(_){$('rift-receipt-copy-status').textContent='Copy is unavailable. Select the receipt text to copy it.';}
   };
   const celebratedReceipts=new Set();let bankAnimation=null,bankHighlight=0;
   function confirmBank(previous,current){
     if(!previous||!current||previous.id!==current.id)return false;
-    const increased=current.banked_gold>previous.banked_gold||current.banked_items.length>previous.banked_items.length;
-    const key=JSON.stringify([current.id,current.banked_gold,current.banked_items.length]);
+    const increased=current.banked_gold>previous.banked_gold||bankedCount(current)>bankedCount(previous);
+    const key=JSON.stringify([current.id,current.banked_gold,bankedCount(current)]);
     if(!increased||celebratedReceipts.has(key))return false;
     celebratedReceipts.add(key);if(celebratedReceipts.size>100)celebratedReceipts.delete(celebratedReceipts.values().next().value);
     const target=$('rift-banked');bankAnimation?.cancel();clearTimeout(bankHighlight);target.dataset.bankConfirmed='true';
@@ -149,5 +152,5 @@
     bankHighlight=setTimeout(()=>{delete target.dataset.bankConfirmed;bankAnimation=null;},700);
     return true;
   }
-  window.RiftLoot={icon,legendary,floorLabels,confirmBank,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
+  window.RiftLoot={bankedCount,icon,legendary,floorLabels,confirmBank,banking(state){const messages={pending:'Banking rewards… Inventory delivery is not confirmed yet.',uncertain:'Inventory delivery is unconfirmed. Use Recover expedition to reload saved rewards before continuing.',confirmed:'Reward delivery confirmed. The banked total and receipt are up to date.',reloaded:'Saved reward state loaded. The banked total and receipt show confirmed rewards.'};put($('rift-banking-status'),messages[state]||'');},init(values){rarities=new Map(values.filter(v=>v&&Number.isInteger(v.value)&&typeof v.name==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)).map(v=>[v.value,v]));bagKey='';},update};
 })();

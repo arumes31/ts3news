@@ -62,7 +62,7 @@ func TestRiftLongReceiptFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(restored.BankedLoot) != len(run.BankedLoot) {
-		t.Fatal("codec truncated fixture")
+	if len(restored.BankedLoot) != rift.ReceiptHistoryLimit || restored.TotalBankedItems() != len(run.BankedItems) {
+		t.Fatal("receipt compaction lost its authoritative total")
 	}
 }

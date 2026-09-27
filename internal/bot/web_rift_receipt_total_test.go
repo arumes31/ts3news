@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/DATA-DOG/go-sqlmock"
+	"strconv"
 	"testing"
 	"ts3news/internal/content"
 	"ts3news/internal/rift"
@@ -61,10 +62,14 @@ func TestRiftBankIncrementsIndependentTotalOnce(t *testing.T) {
 	r.Practice = nil
 	r.BankedItems = []string{"Recent sword"}
 	r.BankedItemsTotal = 1234
-	r.Drops = []rift.Drop{{ID: "new-item", Collected: true, Gear: &content.Gear{ID: "test", Name: "New sword", MaxDurability: 80}}}
+	for i := 0; i < 250; i++ {
+		r.Drops = append(r.Drops, rift.Drop{ID: strconv.Itoa(i), Collected: true, Gear: &content.Gear{ID: "test", Name: "New sword", MaxDurability: 80}})
+	}
 	mock.ExpectBegin()
 	mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", "bank", r.ID, "").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "test", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	for i := 0; i < 250; i++ {
+		mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "test", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	}
 	mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", "bank", r.ID, "").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	tx, err := database.Begin()
@@ -79,7 +84,7 @@ func TestRiftBankIncrementsIndependentTotalOnce(t *testing.T) {
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if r.BankedItemsTotal != 1235 || r.TotalBankedItems() != 1235 || len(r.BankedItems) != 2 || !r.Drops[0].Banked {
+	if r.BankedItemsTotal != 1484 || r.TotalBankedItems() != 1484 || len(r.BankedItems) != rift.ReceiptHistoryLimit || !r.Drops[0].Banked {
 		t.Fatal("banked total or delivery replayed")
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {

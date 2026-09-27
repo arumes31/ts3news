@@ -94,18 +94,23 @@ func TestRiftSnapshotCodecBoundaries(t *testing.T) {
 	}
 }
 
-type compressedRiftReceiptArg struct{ items int }
+type boundedRiftReceiptArg struct{ items int }
 
-func (a compressedRiftReceiptArg) Match(value driver.Value) bool {
+func (a boundedRiftReceiptArg) Match(value driver.Value) bool {
 	saved, ok := value.(string)
-	if !ok || !strings.HasPrefix(saved, riftCompressedSnapshotPrefix) || len(saved) > riftStoredSnapshotLimit {
+	if !ok || len(saved) > riftStoredSnapshotLimit {
 		return false
 	}
-	run, err := decodeRift(saved)
-	return err == nil && len(run.BankedItems) == a.items && len(run.BankedLoot) == a.items && run.Revision == 2
+	payload, err := riftSnapshotJSON(saved)
+	if err != nil {
+		return false
+	}
+	var run rift.Run
+	err = json.Unmarshal(payload, &run)
+	return err == nil && run.TotalBankedItems() == a.items && len(run.BankedItems) == rift.ReceiptHistoryLimit && len(run.BankedLoot) == rift.ReceiptHistoryLimit && run.Revision == 2
 }
 
-func TestRiftLargeLegacyReceiptCompressesOnNextTransaction(t *testing.T) {
+func TestRiftLargeLegacyReceiptCompactsOnNextTransaction(t *testing.T) {
 	run := largeRiftReceipt(t)
 	run.Epoch = "2"
 	run.Revision = 1
@@ -122,14 +127,14 @@ func TestRiftLargeLegacyReceiptCompressesOnNextTransaction(t *testing.T) {
 	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
 	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
 	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(raw)))
-	mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", compressedRiftReceiptArg{len(run.BankedItems)}).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", boundedRiftReceiptArg{len(run.BankedItems)}).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	out, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", riftRequest{Kind: "pause", RunID: run.ID, Revision: 2, RequestID: "compact-existing"}, rift.Build{}, time.Unix(101, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out.BankedItems) != len(run.BankedItems) {
-		t.Fatal("transaction lost receipt")
+	if out.TotalBankedItems() != len(run.BankedItems) || len(out.BankedItems) != rift.ReceiptHistoryLimit {
+		t.Fatal("transaction lost reward totals or failed to bound receipt")
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

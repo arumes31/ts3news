@@ -335,6 +335,10 @@ func decodeRift(saved string) (*rift.Run, error) {
 	if err := validateRiftLevelMetadata(&run); err != nil {
 		return nil, err
 	}
+	if run.BankedItemsTotal < 0 || (run.BankedItemsTotal > 0 && run.BankedItemsTotal < len(run.BankedItems)) || int64(run.BankedItemsTotal) > 9007199254740991 {
+		return nil, errors.New("invalid rift snapshot banked item total")
+	}
+	run.BoundReceiptHistory()
 	// Match the live event ring and release oversized historical backing storage.
 	if len(run.Events) > 40 {
 		recent := make([]rift.Event, 40)
