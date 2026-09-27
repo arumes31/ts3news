@@ -7,7 +7,7 @@
   let state=null,prepared='';
   // Copy only technical scalars. Never retain a run, build, request or error object.
   function update(run){
-    state=run?{schema:integer(run.schema,1,100),status:choice(run.status,['fighting','cleared','complete','defeated','exited','expired']),mission:integer(run.level?.id,1,100000),tier:integer(run.room,0,2)===null?null:run.room+1,paused:boolean(run.paused)}:null;
+    state=run?{schema:integer(run.schema,1,100),status:choice(run.status,['fighting','cleared','complete','defeated','banked','expired']),mission:integer(run.level?.id,1,100000),tier:integer(run.room,0,2)===null?null:run.room+1,paused:boolean(run.paused)}:null;
   }
   function summary(source,key){
     if(!Array.isArray(source?.samples))return null;

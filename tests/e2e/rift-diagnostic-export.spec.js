@@ -60,3 +60,12 @@ test('diagnostics summarize live frame debug samples without exporting raw sampl
  const data=JSON.parse(await page.locator('#rift-diagnostic-preview').inputValue());
  for(const key of ['frame_interval_ms','render_ms']){const stats=data.measurements[key];expect(stats.samples).toBeGreaterThan(2);expect(stats.samples).toBeLessThanOrEqual(120);expect(stats.average).toBeGreaterThanOrEqual(0);expect(stats.max).toBeGreaterThanOrEqual(stats.p95);expect(Array.isArray(stats)).toBe(false);}
 });
+
+
+test('diagnostics report the confirmed bank-and-leave terminal state',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-auto').uncheck();
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.locator('#rift-exit').click();
+ await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
+ await page.locator('.rift-settings > summary').click();await page.locator('#rift-prepare-diagnostics').click();
+ const data=JSON.parse(await page.locator('#rift-diagnostic-preview').inputValue());expect(data.last_confirmed_state.status).toBe('banked');
+});
