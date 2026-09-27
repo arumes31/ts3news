@@ -422,6 +422,7 @@
         [880, 1175, 1480].forEach((f, i) => t(f, f * 1.05, .18, .05, 'sine', i * .03));
         break;
       }
+      case 'boss_ring': {h(.35,.12,1200,pan);[150,225,300].forEach((frequency,i)=>t(frequency,frequency*.5,.35,.08,'sine',i*.04));break;}
       case 'dive_warning': {h(.08,.05,3800,pan);t(900,1400,.22,.07,'triangle');break;}
       case 'dive_swoop': {h(.22,.1,2400,pan);t(550,170,.2,.07,'sine');break;}
       case 'dive_land': {h(.16,.11,900,pan);t(150,55,.18,.1,'sine');break;}

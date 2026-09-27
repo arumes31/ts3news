@@ -595,9 +595,20 @@
   }
   let interactionPrompts = null;
   const intentRoles=new Set(['goblin','knight','archer','wolf','spore','boss','treasure']);
+  function voidRing(x,y,gap,impact=false){
+    const angle=gap===1?Math.PI/2:-Math.PI/2,start=angle+Math.PI/4,end=angle+Math.PI*2-Math.PI/4;
+    ctx.save();ctx.fillStyle=impact?'#d3a4ff55':'#bd7dff38';ctx.setLineDash(impact?[]:[7,4]);
+    ctx.beginPath();ctx.ellipse(x,y,200,90,0,start,end);ctx.lineTo(x+Math.cos(end)*100,y+Math.sin(end)*45);ctx.ellipse(x,y,100,45,0,end,start,true);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#20132c';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#e1bcff';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
+    ctx.restore();
+  }
+  function ringGapArrow(x,y,gap){
+    const sign=gap===1?1:-1;ctx.save();ctx.globalAlpha=1;ctx.beginPath();ctx.moveTo(x,y+sign*40);ctx.lineTo(x,y+sign*76);ctx.moveTo(x-8,y+sign*65);ctx.lineTo(x,y+sign*76);ctx.lineTo(x+8,y+sign*65);ctx.strokeStyle='#071b16';ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle='#b1f3df';ctx.lineWidth=3;ctx.stroke();ctx.restore();
+  }
   function enemyIntent(e){
     if(!(e.hp>0)||e.id==='practice-target'||!intentRoles.has(e.kind))return '';
     if(e.kind==='boss'&&e.boss_guard_break>0)return 'Guard broken';
+    if(e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0)return 'Preparing ring';
     if(e.knockdown>0)return 'Getting up';
     if(e.pose==='stagger'&&e.pose_time>0)return 'Stunned';
     if(e.pose==='hit'&&e.pose_time>0)return 'Hit reaction';
@@ -1132,6 +1143,7 @@
     if (!snapshot) { const index=Math.max(0,styles.indexOf(foundations[previewStyle]||previewStyle));sprite(index%6,renderer.reduced?0:Math.floor(decorationTime/650)%2,630,400,113,-1,1,index<6?'heroesA':'heroesB');return; }
     interactionPrompts=[];
     const hazardOverlays=[];
+    const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
     // Rear scenery only: all actors, pickups, attacks and warnings draw afterward.
@@ -1279,6 +1291,12 @@
       ctx.restore();
     });
     run.enemies.forEach(e => {
+      if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Void Ring'&&e.windup>0){
+        const x=e.target_x-camera,y=e.target_y;voidRing(x,y,e.ring_gap||0);ringGapOverlays.push({x,y,gap:e.ring_gap||0});
+        ctx.save();ctx.fillStyle='#efdbff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt('VOID RING · '+e.windup.toFixed(1)+'s · CENTER, GAP OR OUTSIDE',x,y-119,true);
+        ctx.fillStyle='#b1f3df';interactionPrompt('OPEN GAP · RING SAFE',e.ring_gap===1?x:Math.max(110,Math.min(850,x+125)),y+(e.ring_gap===1?105:-80),true);ctx.restore();
+      }
       if(!display.cleanScreenshot&&e.hp>0&&(e.diving||e.attack_name==='Dive'&&e.windup>0)){
         const x=e.target_x-camera,y=e.target_y;ctx.save();ctx.setLineDash([9,5]);
         ctx.beginPath();ctx.moveTo(e.x-camera,e.y);ctx.lineTo(x,y);ctx.strokeStyle='#08232e';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#a7edff';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
@@ -1360,7 +1378,7 @@
         ctx.stroke();
         ctx.restore();
       }
-      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge'&&e.attack_name!=='Lane Slam') {
+      if(!display.cleanScreenshot&&e.hp>0 && e.windup>0 && e.kind==='boss'&&!rangedWindup&&e.attack_name!=='Charge'&&e.attack_name!=='Lane Slam'&&e.attack_name!=='Void Ring') {
         const attackName=e.attack_name||(e.art_key&&(e.attacks+1)%2===0?'Aimed Volley':'Ground Slam'),targetY=e.target_y-surfaceHeight(e.target_x,e.target_y);
         ctx.fillStyle='#c8783b55';ctx.strokeStyle='#ffce7d';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.target_x-camera,targetY,125,62,0,0,Math.PI*2);ctx.fill();ctx.stroke();
         ctx.fillStyle='#ffe2b0';ctx.font='bold '+(12*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillText(attackName.toUpperCase()+' · JUMP OR MOVE',e.target_x-camera,targetY+4);
@@ -1716,6 +1734,7 @@
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
       }
       if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(e.kind==='boss_ring'&&age<.45&&!display.cleanScreenshot)voidRing(e.x-camera,e.y,e.value||0,true);
       if(e.kind==='dive_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d0f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('DIVE INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_cancel'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#ffe3bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('BURROW INTERRUPTED',e.x-camera,e.y-20,true);ctx.restore();}
       if(e.kind==='burrow_emerge'&&age<.5){ctx.save();ctx.strokeStyle='#e7c49a';ctx.lineWidth=3;ctx.globalAlpha=renderer.reduced?.7:Math.max(0,1-age*2);ctx.beginPath();ctx.ellipse(e.x-camera,e.y,75,40,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
@@ -2211,6 +2230,7 @@
       ctx.strokeStyle='#071b16';ctx.lineWidth=5;ctx.strokeRect(h.x,h.y,h.w,h.h);
       ctx.strokeStyle=display.hazardContrast?'#fff8d8':h.color;ctx.lineWidth=display.hazardContrast?3:2;ctx.strokeRect(h.x,h.y,h.w,h.h);ctx.restore();
     }
+    for(const gap of ringGapOverlays)ringGapArrow(gap.x,gap.y,gap.gap);
     drawInteractionPrompts();
     const isMovingFootstep = (run.player.pose === 'run' && now - footstep > 320) || (run.player.pose === 'guard_walk' && now - footstep > 460);
     if(run.status==='fighting' && !run.paused && isMovingFootstep && run.player.jump===0){const floorMat=run.floor||run.level?.rooms?.[run.room]?.floor||'stone';if(window.RiftAudio.step)window.RiftAudio.step(floorMat,0);else window.RiftAudio.play('step',0);footstep=now;}

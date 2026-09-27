@@ -136,6 +136,8 @@ type Actor struct {
 	FanRotation float64 `json:"fan_rotation,omitempty"`
 	LaneSlams bool `json:"lane_slams,omitempty"`
 	SlamLane int `json:"slam_lane,omitempty"`
+	RingAttack bool `json:"ring_attack,omitempty"`
+	RingGap int `json:"ring_gap,omitempty"`
 	Elite          bool    `json:"elite,omitempty"`
 	Enraged        bool    `json:"enraged,omitempty"`
 	ReactMissTimer float64 `json:"react_miss_timer,omitempty"`
@@ -1849,6 +1851,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 			if e.Kind == "boss" {
 				e.Cooldown = plan.Recovery
 			}
+			if plan.Kind == "ring" {
+				r.releaseBossRing(e)
+				return
+			}
 			if plan.Kind == "lane_slam" {
 				r.releaseLaneSlam(e)
 				return
@@ -2019,6 +2025,13 @@ func (r *Run) enemyTick(i int, dt float64) {
 			r.event("boss_roar", e.X, e.Y, 0)
 			plan := r.NextBossAttack(*e)
 			e.AttackName, e.Windup = plan.Name, plan.Windup
+			if plan.Kind == "ring" {
+				e.TargetX, e.TargetY = e.X, e.Y
+				e.RingGap = 0
+				if e.Y < 402.5 {
+					e.RingGap = 1
+				}
+			}
 			if plan.Kind == "lane_slam" {
 				if e.Attacks == 0 {
 					e.SlamLane = bossLane(p.Y)
