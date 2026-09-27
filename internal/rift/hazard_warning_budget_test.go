@@ -30,8 +30,12 @@ func TestMythicHazardsKeepFullWarningBeforeDamage(t *testing.T) {
 					}
 					if phase < 1.2 {
 						found := false
+						warningKind := "hazard_warning"
+						if h.Kind == "falling_rock" {
+							warningKind = "rock_warning"
+						}
 						for _, e := range r.Events {
-							if e.Kind == "hazard_warning" {
+							if e.Kind == warningKind {
 								found = true
 							}
 						}

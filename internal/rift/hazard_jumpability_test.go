@@ -55,6 +55,12 @@ func TestCampaignFloorHazardsAreExplicitlyJumpable(t *testing.T) {
 		for _, room := range level.Rooms {
 			for _, h := range room.Hazards {
 				count++
+				if h.Kind == "falling_rock" {
+					if h.Jumpable {
+						t.Fatal("overhead rock incorrectly allows jump evasion")
+					}
+					continue
+				}
 				if !h.Jumpable {
 					t.Fatalf("mission %d has unmarked floor hazard", level.ID)
 				}

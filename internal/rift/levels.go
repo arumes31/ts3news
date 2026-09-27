@@ -264,6 +264,11 @@ func buildCampaign() []Level {
 						}
 					}
 				}
+				if region == 9 && room == 0 {
+					arena.Hazards[0].Kind = "falling_rock"
+					arena.Hazards[0].Jumpable = false
+					arena.Hazards[0].Duration = .18
+				}
 				if region == 6 && room == 0 {
 					arena.Hazards[0].Kind = "spikes"
 				}
@@ -651,9 +656,16 @@ func (r *Run) hazardTick() {
 		if phase < 1.2 {
 			if r.SkillTimers[warnKey] <= 0 {
 				r.SkillTimers[warnKey] = math.Max(1.5, h.Period-phase+.05)
-				r.event("hazard_warning", h.X+h.W/2, h.Y+h.H/2, 0)
+				kind := "hazard_warning"
+				if h.Kind == "falling_rock" {
+					kind = "rock_warning"
+				}
+				r.event(kind, h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		} else if phase >= 1.2 && phase < 1.2+h.Duration {
+			if h.Kind == "falling_rock" && r.SkillTimers[activeKey] <= 0 {
+				r.event("rock_impact", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
 			r.SkillTimers[activeKey] = 1
 		} else if phase >= 1.2+h.Duration {
 			if r.SkillTimers[activeKey] > 0 {

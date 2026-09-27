@@ -576,6 +576,8 @@
       case 'perfect_guard': t(1350,920,.1,.1,'triangle'); [1175,1760,2350].forEach((f,i)=>t(f,f*.96,.28,.06,'sine',i*.02)); h(.05,.08,8500,pan); break;
       case 'elemental_reaction': t(440,880,.18,.07,'triangle');t(660,990,.22,.055,'sine',.04);break;
       case 'spikes': t(1350,330,.12,.07,'triangle'); h(.12,.055,4200,pan); break;
+      case 'rock_warning': [0,.15].forEach(d=>t(240,180,.12,.045,'triangle',d)); h(.18,.04,1100,pan); break;
+      case 'rock_impact': t(100,35,.28,.085,'triangle'); h(.3,.09,1800,pan); break;
       case 'water_current': h(.35,.05,1300,pan); t(260,180,.24,.035,'sine'); break;
       case 'wind_warning': t(420,620,.18,.05,'sine'); h(.2,.04,1800,pan); break;
       case 'wind_gust': h(.65,.07,2400,pan); t(160,240,.4,.025,'sine'); break;

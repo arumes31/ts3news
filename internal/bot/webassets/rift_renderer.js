@@ -1280,11 +1280,25 @@
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
 
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
-      const x=h.x-camera,color={spikes:'#d6dce4',fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
+      const x=h.x-camera,color={falling_rock:'#e6c6a5',spikes:'#d6dce4',fire:'#ff9a52',ice:'#9be5ff',rune:'#d1acff',poison:'#c7ee76',thorns:'#b5d780',radiant:'#d7dfff',void:'#b194ff'}[h.kind]||'#ffbf70';
       ctx.save();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=active?3:1;ctx.globalAlpha=active?.55:warning?.18:.06;ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=active?1:warning?.7:.2;
       ctx.setLineDash(warning?[5,4]:[]);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);
       if(h.tile&&!warning&&!active){
         ctx.save();ctx.globalAlpha=.35;ctx.fillStyle='#427d65';ctx.fillRect(x,h.y,h.w,h.h);ctx.globalAlpha=.9;ctx.strokeStyle='#addec7';ctx.lineWidth=2;ctx.strokeRect(x+2,h.y+2,h.w-4,h.h-4);ctx.restore();
+      }
+      if(h.kind==='falling_rock'&&(warning||active)){
+        const cx=x+h.w/2,cy=h.y+h.h/2;
+        ctx.save();ctx.globalAlpha=1;ctx.fillStyle='#142027bb';ctx.strokeStyle='#f4d6aa';ctx.lineWidth=2;
+        ctx.beginPath();ctx.ellipse(cx,cy,h.w*.44,h.h*.4,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+        if(active||!renderer.reduced){
+          const height=active?0:Math.max(0,1-phase/1.2)*150;
+          for(let rock=0;rock<3;rock++){
+            const rx=cx+(rock-1)*h.w*.23,ry=cy-height-(rock%2)*9;
+            ctx.fillStyle=rock%2?'#787975':'#99988c';ctx.strokeStyle='#343e3d';ctx.beginPath();ctx.moveTo(rx-10,ry-4);ctx.lineTo(rx-6,ry-17);ctx.lineTo(rx+6,ry-19);ctx.lineTo(rx+13,ry-7);ctx.lineTo(rx+8,ry+2);ctx.lineTo(rx-5,ry+4);ctx.closePath();ctx.fill();ctx.stroke();
+          }
+        }
+        if(active){ctx.strokeStyle='#f8e6bf';ctx.lineWidth=2;for(let ray=0;ray<8;ray++){const angle=ray*Math.PI/4;ctx.beginPath();ctx.moveTo(cx+Math.cos(angle)*h.w*.3,cy+Math.sin(angle)*h.h*.25);ctx.lineTo(cx+Math.cos(angle)*h.w*.48,cy+Math.sin(angle)*h.h*.46);ctx.stroke();}}
+        ctx.restore();
       }
       if(h.kind==='spikes'){
         const extension=renderer.reduced?(active?1:0):phase<1.2?Math.max(0,(phase-1.02)/.18):active?1:Math.max(0,1-(phase-1.2-h.duration)/.18);
@@ -1306,24 +1320,24 @@
         }
         ctx.restore();
       }
-      if(display.hazardPatterns!==false&&(warning||active)){ctx.save();ctx.beginPath();ctx.rect(x,h.y,h.w,h.h);ctx.clip();drawHazardPattern(ctx,h.kind,x,h.y,h.w,h.h,active,color);ctx.restore();}
+      if(h.kind!=='falling_rock'&&display.hazardPatterns!==false&&(warning||active)){ctx.save();ctx.beginPath();ctx.rect(x,h.y,h.w,h.h);ctx.clip();drawHazardPattern(ctx,h.kind,x,h.y,h.w,h.h,active,color);ctx.restore();}
       if(display.hazardContrast&&(warning||active)){ctx.globalAlpha=1;ctx.strokeStyle='#fff8d8';ctx.lineWidth=3;ctx.setLineDash(active?[]:[8,4]);ctx.strokeRect(x-2,h.y-2,h.w+4,h.h+4);ctx.setLineDash([]);}
       if(!display.cleanScreenshot&&display.hazardLabels){
         // The frozen combat clock also drives damage; do not count down with wall time.
         const remaining=active?1.2+h.duration-phase:warning?1.2-phase:h.period-phase+1.2;
         const seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
-        const label=active?(h.jumpable===true?'JUMP':'MOVE')+' · '+seconds:warning?h.kind.toUpperCase()+' IN '+seconds:'SAFE · '+seconds;
+        const label=active?(h.jumpable===true?'JUMP':'MOVE')+' · '+seconds:warning?(h.kind==='falling_rock'?'ROCK FALL':h.kind.toUpperCase())+' IN '+seconds:'SAFE · '+seconds;
         ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
         interactionPrompt(label,x+h.w/2,h.y-6,true);
         // Current floor hazards remain harmful throughout their active interval.
         if(warning||active){
           const duration=(Math.ceil(Math.max(0,h.duration-1e-9)*10)/10).toFixed(1)+'s';
           ctx.font='bold '+(9*display.textScale)+'px monospace';
-          interactionPrompt(h.slippery&&h.kind==='ice'?'SLIPPERY · GUARD BRAKES':active?'DANGER REMAINS':'LINGERS '+duration,x+h.w/2,h.y-6-16*display.textScale,true);
+          interactionPrompt(h.kind==='falling_rock'?'MOVE OUT · JUMP WON’T HELP':h.slippery&&h.kind==='ice'?'SLIPPERY · GUARD BRAKES':active?'DANGER REMAINS':'LINGERS '+duration,x+h.w/2,h.y-6-16*display.textScale,true);
         }
       }
       if(warning||active)hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color});
-      if(active&&h.kind!=='spikes'&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
+      if(active&&h.kind!=='spikes'&&h.kind!=='falling_rock'&&!renderer.reduced)fx(effectRows[h.kind]??3,Math.floor(now/90)%6,x+h.w/2,h.y+h.h/2,h.w,.7);
       ctx.restore();
     });
     run.enemies.forEach(e => {
