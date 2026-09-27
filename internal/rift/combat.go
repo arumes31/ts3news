@@ -1651,6 +1651,10 @@ func (r *Run) enemyTick(i int, dt float64) {
 		return
 	}
 	e := &r.Enemies[i]
+	e.Guard = false
+	if e.PoseTime > 0 || e.Knockdown > 0 {
+		e.TurnDelay = 0
+	}
 	if e.HP <= 0 {
 		return
 	}
@@ -1751,8 +1755,8 @@ func (r *Run) enemyTick(i int, dt float64) {
 		}
 		return
 	}
-	if dx != 0 {
-		e.Facing = math.Copysign(1, dx)
+	if guardShieldTurn(e, dx, dy, dt) {
+		return
 	}
 	if e.Kind == "knight" && e.Pose == "attack" && e.PoseTime > 0 {
 		return
