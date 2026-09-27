@@ -89,9 +89,12 @@ fails both the 20s target and 3MB byte budget. Explicit image priorities do not
 establish a new pass; repeat the measurement after reducing startup bytes.
 
 Frame-scheduling, bounded-canvas and cache-retirement regressions prove their
-specific invariants. The remaining physical-device, full-window frame, input and
-long-session/restart memory gates are unmeasured against this budget. Do not mark
-them passed from the existence of the overlay or seeded fixture.
+specific invariants. The [restart memory capture](README-restart-memory-baseline.md)
+completed three20-restart samples: JS heap grew0.839–0.911MiB, below10MiB.
+The no-growth criterion is not met because bounded attempt history is still
+filling; the overall restart memory gate is not passed. The physical-device,
+full-window frame, input and30-minute session gates remain unmeasured against
+this budget. Do not mark them passed from overlays or seeded fixtures.
 
 ## Adaptive decoration setting
 

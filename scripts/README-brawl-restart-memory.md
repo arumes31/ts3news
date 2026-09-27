@@ -40,3 +40,9 @@ actor/effect objects. Record that review before marking the gate passed.
 This uses headless Chromium at 1280x900/DPR1, Lower power and CPU slowdown4. It is
 a development comparison, not physical minimum-device evidence. Browser process
 memory and the separate 30-minute session gate are not measured by this command.
+
+Analyze saved captures with `python scripts/analyze-brawl-restart-memory.py <output-directory>`.
+This writes reachable payload counts and direct run retainers, checks retained run
+IDs against the current expedition, and leaves the leak verdict to review.
+See [the initial measurement](../internal/rift/README-restart-memory-baseline.md)
+for results and the still-unmet object plateau criterion.
