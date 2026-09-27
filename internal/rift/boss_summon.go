@@ -90,7 +90,7 @@ func (r *Run) dismissBossSummons(owner string) {
 		a.PoseTime = 0
 		a.Windup = 0
 		a.AttackName = ""
-		r.endTargetMark(*a, "dismissed")
+		r.endTargetMark(*a, "escaped")
 		r.eventAtHeight("summon_dismiss", a.X, a.Y, 0, a.Elevation)
 	}
 }

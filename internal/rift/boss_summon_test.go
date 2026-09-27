@@ -49,7 +49,11 @@ func TestBossSummonIntermissionSavedBoundedAndCleanup(t *testing.T) {
 	if len(saved.Enemies) != 3 {
 		t.Fatal("phase replay bypassed population cap")
 	}
+	saved.Marked = saved.Enemies[1].ID
 	saved.hurtEnemy(0, 10000, "hit")
+	if saved.LastMarkEnd == nil || saved.LastMarkEnd.Reason != "escaped" {
+		t.Fatal("dismissal must use a supported mark-end reason")
+	}
 	for _, e := range saved.Enemies[1:] {
 		if e.HP != 0 || e.Pose != "escape" {
 			t.Fatal("victory left a hostile summon")
