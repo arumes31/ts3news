@@ -9,11 +9,13 @@ test('select and restart a boss phase without changing campaign',async({page})=>
  await boss.selectOption(names[1]);await phase.selectOption('3');await page.locator('#rift-practice-slow').check();await page.locator('#rift-start').click();
  const saved=async()=>(await(await page.request.get('/api/abyss/rift?practice=boss')).json()).run;
  await expect.poll(async()=>(await saved())?.practice?.boss_start?.phase).toBe(3);
+ await expect(page.locator('#rift-practice-announcement')).toHaveText(names[1]+' · Phase 3 · Longer warnings (2×)');
  expect((await saved()).enemies[0].name).toBe(names[1]);expect((await saved()).practice.slow_telegraphs).toBe(true);await expect(page.locator('#rift-skills')).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
  await page.reload();await expect(page.locator('#rift-start')).toHaveText('Resume drill');await expect(boss).toHaveValue(names[1]);await expect(phase).toHaveValue('3');await expect(page.locator('#rift-practice-slow')).toBeChecked();
  await boss.selectOption(names[0]);await phase.selectOption('2');await page.locator('#rift-practice-slow').uncheck();await page.locator('#rift-practice-reset').click();
  await expect.poll(async()=>(await saved()).practice.boss_start.phase).toBe(2);
+ await expect(page.locator('#rift-practice-announcement')).toHaveText(names[0]+' · Phase 2');
  const reset=await saved();expect(reset.practice.slow_telegraphs||false).toBe(false);expect(reset.enemies[0].name).toBe(names[0]);expect(reset.enemies[0].hp).toBe(reset.enemies[0].max_hp*.5);expect(reset.drops).toEqual([]);expect(reset.gold).toBe(0);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(campaign);expect(errors).toEqual([]);
