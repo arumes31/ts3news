@@ -569,6 +569,7 @@ func (s *WebServer) routes() *http.ServeMux {
 	if s.bot.Cfg.EnableAbyss {
 		mux.HandleFunc("/abyss/rift", s.auth(s.handleRiftPage))
 		mux.HandleFunc("/api/abyss/rift", s.authAPI(s.handleRiftAPI))
+		mux.HandleFunc("/api/abyss/rift/metadata", handleRiftMetadata)
 		mux.HandleFunc("/api/abyss/public/stats", s.handleAbyssPublicStats)
 		mux.HandleFunc("/api/abyss/stats", s.handleAbyssTokenStats)
 		mux.HandleFunc("/abyss", s.auth(s.handleAbyssPage))

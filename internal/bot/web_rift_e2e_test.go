@@ -16,6 +16,7 @@ import (
 // registerRiftFixture uses the production simulation with explicitly isolated
 // character/reward storage. No fixture route is compiled into production.
 func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
+	mux.HandleFunc("/api/abyss/rift/metadata", handleRiftMetadata)
 	var mu sync.Mutex
 	runs := map[string]*rift.Run{}
 	builds := map[string]rift.Build{}
@@ -801,7 +802,13 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			if custom := r.URL.Query().Get("challenge"); custom != "" {
 				ch = riftChallengeFor(custom)
 			}
-			writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "class_names": riftClassNames(), "class_options": content.AbyssClasses(), "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(build), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": ch})
+			response := map[string]any{"ok": true, "run": run, "build": build, "objective_options": rift.ObjectiveOptions(build), "challenge": ch}
+			if r.Header.Get("X-Rift-Metadata") != "separate" {
+				for key, value := range riftPublicMetadata(time.Now()) {
+					response[key] = value
+				}
+			}
+			writeJSON(w, response)
 			return
 		}
 		var req riftRequest

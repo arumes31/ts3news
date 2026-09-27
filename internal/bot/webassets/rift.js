@@ -185,7 +185,7 @@
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
     if(method==='GET')pendingRead=controller;
     try {
-      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
+      const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:{'X-Rift-Metadata':'separate'},body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409){
         const problem=await response.json().catch(()=>null);
@@ -199,6 +199,17 @@
         if(payloadDiagnostics){const raw=await response.text();responseBytes=payloadEncoder.encode(raw).byteLength;data=JSON.parse(raw);runBytes=data.run?payloadEncoder.encode(JSON.stringify(data.run)).byteLength:0;}
         else data=await response.json();
       }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error(statusCopy.responseInterrupted);}
+      if(method==='GET'&&data?.ok===true){
+        const metadataResponse=await fetch('/api/abyss/rift/metadata',{credentials:'omit',cache:'no-cache',signal:controller.signal});
+        if(!metadataResponse.ok)throw new Error('Campaign information could not be loaded. Retry loading.');
+        let metadata;
+        try{
+          if(payloadDiagnostics){const raw=await metadataResponse.text();responseBytes+=payloadEncoder.encode(raw).byteLength;metadata=JSON.parse(raw);}
+          else metadata=await metadataResponse.json();
+        }catch(error){if(error?.name==='AbortError')throw error;throw new Error('Campaign information is incomplete. Retry loading.');}
+        if(!metadata||typeof metadata!=='object'||Array.isArray(metadata))throw new Error('Campaign information is incomplete. Retry loading.');
+        for(const key of ['class_names','class_options','rooms','levels','bestiary','rarities'])data[key]=metadata[key];
+      }
       if(data?.ok===false)throw new Error(typeof data.error==='string'?data.error:statusCopy.unconfirmed);const result=window.RiftProtocol.validate(data,method,body);if(result.run&&(result.run.practice?.mode||'')!==practice)throw new Error(statusCopy.wrongDrill);
       if(method==='POST'&&body.kind!=='start'&&result.run.revision>body.revision)throw saveConflictError();
       if(payloadDiagnostics){

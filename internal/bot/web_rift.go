@@ -215,7 +215,13 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 			riftFailure(w, r, err)
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "run": run, "build": build, "class_names": riftClassNames(), "class_options": content.AbyssClasses(), "rooms": rift.Rooms, "levels": rift.Campaign(), "objective_options": rift.ObjectiveOptions(build), "bestiary": riftBestiary(time.Now()), "rarities": riftRarities(), "challenge": riftChallenge(time.Now())})
+		response := map[string]any{"ok": true, "run": run, "build": build, "objective_options": rift.ObjectiveOptions(build), "challenge": riftChallenge(time.Now())}
+		if r.Header.Get("X-Rift-Metadata") != "separate" {
+			for key, value := range riftPublicMetadata(time.Now()) {
+				response[key] = value
+			}
+		}
+		writeJSON(w, response)
 		return
 	}
 	if r.Method != http.MethodPost {

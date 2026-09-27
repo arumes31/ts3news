@@ -9,13 +9,13 @@ test('payload measurement is opt-in',async({page})=>{
 });
 test('payload diagnostics measure UTF-8 and keep a bounded metadata history',async({page})=>{
  await currentClient(page);const responses=[];
- await page.route('**/api/abyss/rift*',async route=>{
+ await page.route('**/api/abyss/rift**',async route=>{
   const response=await route.fetch(),data=await response.json();data.diagnostic_probe='魔法🔥';const body=JSON.stringify(data),request=route.request().postDataJSON();
-  responses.push({action:request?.kind||'load',responseBytes:Buffer.byteLength(body),runBytes:data.run?Buffer.byteLength(JSON.stringify(data.run)):0});
+  responses.push({action:new URL(route.request().url()).pathname.endsWith('/metadata')?'metadata':request?.kind||'load',responseBytes:Buffer.byteLength(body),runBytes:data.run?Buffer.byteLength(JSON.stringify(data.run)):0});
   await route.fulfill({response,body});
  });
  await page.goto('/abyss/rift?practice=movement&riftPayloadDebug=1');await expect(page.locator('#rift-start')).toBeEnabled();
- const first=await page.evaluate(()=>window.RiftPayloadDiagnostics);expect(first).toBeTruthy();expect(first.count).toBe(1);expect(first.samples[0]).toMatchObject(responses[0]);
+ const first=await page.evaluate(()=>window.RiftPayloadDiagnostics);expect(first).toBeTruthy();expect(first.count).toBe(1);expect(first.samples[0]).toMatchObject({...responses.find(r=>r.action==='load'),responseBytes:responses.filter(r=>['load','metadata'].includes(r.action)).reduce((sum,r)=>sum+r.responseBytes,0)});
  await page.locator('#rift-start').click();
  await expect.poll(()=>page.evaluate(()=>window.RiftPayloadDiagnostics.count),{timeout:15000}).toBeGreaterThan(40);
  await page.keyboard.press('Escape');
@@ -29,7 +29,7 @@ test('payload diagnostics measure UTF-8 and keep a bounded metadata history',asy
 
 test('diagnostic parsing preserves recovery from a truncated response',async({page})=>{
  await currentClient(page);let first=true;
- await page.route('**/api/abyss/rift*',async route=>{
+ await page.route('**/api/abyss/rift**',async route=>{
   if(first&&route.request().method()==='GET'){first=false;await route.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"run":'});return;}
   await route.continue();
  });
