@@ -204,12 +204,14 @@
       for(let i=0;i<arena.hazards.length;i++){
         const h=arena.hazards[i];
         if(h.disabled)continue;
-        const inside=p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h;
+        const phaseNow=(run.clock+h.offset)%h.period,sweeping=h.kind==='sweeping_flame'&&phaseNow>=1.2&&phaseNow<1.2+h.duration;
+        const width=sweeping?Math.min(36,h.w):h.w,left=sweeping?h.x+(h.w-width)*Math.max(0,Math.min(1,(phaseNow-1.2)/h.duration)):h.x;
+        const inside=p.x>=left&&p.x<=left+width&&p.y>=h.y&&p.y<=h.y+h.h;
         if(inside){
           const phase=(run.clock+h.offset)%h.period;
           const warning=phase<1.2;
           const active=phase>=1.2&&phase<1.2+h.duration;
-          const kindName=h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
+          const kindName=h.kind==='sweeping_flame'?'Sweeping flame':h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
           if(active){
             const evading=h.jumpable===true&&(p.jump||0)>0.1;
             return{

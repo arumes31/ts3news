@@ -264,6 +264,12 @@ func buildCampaign() []Level {
 						}
 					}
 				}
+				if region == 1 && room == 1 {
+					arena.Hazards[0].Kind = "sweeping_flame"
+					arena.Hazards[0].W = 240
+					arena.Hazards[0].X = min(arena.Hazards[0].X, 1325)
+					arena.Hazards[0].Duration = 1.8
+				}
 				if region == 9 && room == 0 {
 					arena.Hazards[0].Kind = "falling_rock"
 					arena.Hazards[0].Jumpable = false
@@ -666,6 +672,9 @@ func (r *Run) hazardTick() {
 			if h.Kind == "falling_rock" && r.SkillTimers[activeKey] <= 0 {
 				r.event("rock_impact", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
+			if h.Kind == "sweeping_flame" && r.SkillTimers[activeKey] <= 0 {
+				r.event("flame_sweep", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
 			r.SkillTimers[activeKey] = 1
 		} else if phase >= 1.2+h.Duration {
 			if r.SkillTimers[activeKey] > 0 {
@@ -673,7 +682,7 @@ func (r *Run) hazardTick() {
 				r.event("hazard_deactivation", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		}
-		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.Obstacle, r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
+		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.ContactBounds(r.Clock), r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)

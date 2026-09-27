@@ -478,6 +478,8 @@
       case 'wolf_hurt': t(380, 210, .12, .07, 'sine'); h(.06, .05, 1500, pan); break;
       case 'spore_hurt': h(.14, .08, 900, pan); t(220, 110, .12, .07, 'triangle'); break;
       case 'block': t(940, 760, .2, .08, 'square'); t(1510, 1200, .12, .04, 'sine'); h(.04, .09, 7000, pan); break;
+      case 'flame_sweep': h(.65,.075,2000,pan); t(140,260,.4,.04,'sawtooth'); break;
+      case 'sweeping_flame':
       case 'fire': h(.5, .18, 1500, pan); t(200, 45, .45, .1, 'sawtooth'); break;
       case 'ice': [880,1320,1760].forEach((f,i) => t(f, f*.8, .25, .045, 'sine', i*.045)); h(.1,.055,7000,pan); break;
       case 'void': t(240, 38, .6, .13, 'sawtooth'); t(243, 42, .55, .07, 'sine'); break;

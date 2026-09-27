@@ -23,6 +23,8 @@ func TestMythicHazardsKeepFullWarningBeforeDamage(t *testing.T) {
 					r.Player.X = h.X + h.W/2
 					r.Player.Y = h.Y + h.H/2
 					r.Clock = h.Period*2 - h.Offset + phase
+					bounds := h.ContactBounds(r.Clock)
+					r.Player.X = bounds.X + bounds.W/2
 					before := r.Player.HP
 					r.hazardTick()
 					if (r.Player.HP < before) != (phase > 1.2) {
