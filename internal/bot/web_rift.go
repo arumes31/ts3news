@@ -320,6 +320,9 @@ func decodeRift(saved string) (*rift.Run, error) {
 	if run.Schema != 1 || run.ID == "" || run.Room < 0 || run.Room >= len(rift.Rooms) || run.SkillTimers == nil {
 		return nil, errors.New("unsupported rift snapshot")
 	}
+	if err := validateRiftVitals(&run); err != nil {
+		return nil, err
+	}
 	// Match the live event ring and release oversized historical backing storage.
 	if len(run.Events) > 40 {
 		recent := make([]rift.Event, 40)
