@@ -643,3 +643,33 @@ Props (1,553,373 bytes), items (1,392,338) and effects (1,332,867) are now the
 largest startup resources. Future work must preserve their actual preview,
 combat and loot dependencies and visual equivalence. Runtime source is unfrozen
 after this completed capture; later edits require their own measurements.
+
+
+## Verified prop transport preparation (2026-09-28)
+
+Eight prop files and `rift_prop_sections.js` partition the unchanged 1774x887
+source atlas with one-pixel borders around fractional 443.5x443.5 cells. The
+builder rejects changed renderer region mappings, grid dimensions or source
+image dimensions. URLs carry content hashes; encoding round-trips all RGBA bytes.
+
+```powershell
+python scripts/build-brawl-prop-sections.py --write
+python scripts/build-brawl-prop-sections.py --check
+python tests/performance/test_prop_sections.py
+```
+
+Panel sizes are 172,720 / 171,743 / 177,624 / 179,667 / 205,920 / 212,655 /
+209,635 / 190,900 bytes, versus 1,553,373 for the original sheet. The intended
+saving comes from loading the region's panel, not all eight. Two Python tests
+verify pixels, hashes, complete reconstruction in both orders and rejection of
+changed layouts/dimensions. Browser session28219 completed successfully: 1,152
+comparisons, zero differing channels, plus full-sheet reconstruction in forward
+and reverse order with zero differences. Each cell was also tested in isolation,
+using original source coordinates, sizes 58/90/134 by 76/138/200, flips, opacity,
+brightness and rotation. These tests do not cover a production prop loader yet.
+
+Runtime still loads the original full sheet. Integration should retain one
+bounded original-size canvas, clear overlaps before copying panels, prepare
+preview/saved regions and next-region transitions, and keep original-coordinate
+prop cache behavior. It must include decode failure/retry coverage and scene,
+cache and seamless progression regressions before any new performance claim.
