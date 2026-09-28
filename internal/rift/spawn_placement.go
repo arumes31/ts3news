@@ -19,6 +19,7 @@ func (arena Arena) settleEnemySpawn(a *Actor, reserved ...Obstacle) bool {
 		if x < 35+boundaryMargin || x > Width-35-boundaryMargin || y < 315+boundaryMargin || y > 490-boundaryMargin {
 			return false
 		}
+		if !arena.groundPath(x, y, x, y, radius) { return false }
 		for _, o := range walls {
 			if contains(o, x, y, radius) {
 				return false

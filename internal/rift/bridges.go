@@ -36,3 +36,23 @@ func (a Arena) groundPath(x1, y1, x2, y2, radius float64) bool {
 	}
 	return true
 }
+
+// bridgeApproach aligns pursuers with a deck before crossing its boundary.
+// Once on the deck, lateral pursuit stays within the rails until the exit.
+func (a Arena) bridgeApproach(actor *Actor, dx, dy float64) (float64, float64) {
+	radius := actorClearance(actor)
+	for _, b := range a.Bridges {
+		left, right := b.X-radius, b.X+b.W+radius
+		if math.Max(actor.X, actor.X+dx) <= left || math.Min(actor.X, actor.X+dx) >= right {
+			continue
+		}
+		low, high := b.Y+radius, b.Y+b.H-radius
+		if actor.Y < low || actor.Y > high {
+			step := math.Max(math.Abs(dx), math.Abs(dy))
+			return 0, clamp(b.Y+b.H/2-actor.Y, -step, step)
+		}
+		// Keep the approach on the deck even when the chased target is beyond a rail.
+		dy = clamp(actor.Y+dy, low, high) - actor.Y
+	}
+	return dx, dy
+}

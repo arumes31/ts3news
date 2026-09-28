@@ -16,6 +16,7 @@ func (r *Run) safeDropLanding(a *Actor, x, y float64) bool {
 		return false
 	}
 	radius := actorClearance(a)
+	if !r.Arena().groundPath(x, y, x, y, radius) { return false }
 	for _, o := range r.Arena().solidObstacles() {
 		if contains(o, x, y, radius) {
 			return false

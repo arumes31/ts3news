@@ -70,3 +70,56 @@ func TestBridgeMovementAndKnockbackRespectDeckWhileAirborne(t *testing.T) {
 		}
 	}
 }
+
+func TestBridgeSafePlacementAndPursuit(t *testing.T) {
+	r := dropEdgeTestRun()
+	r.Level.Rooms[0] = Arena{Bridges: []NarrowBridge{{Obstacle: Obstacle{400, 370, 200, 90}, ID: "bridge"}}}
+	for _, kind := range []string{"goblin", "wolf", "boss"} {
+		actor := Actor{Kind: kind, X: 500, Y: 340}
+		if !r.Arena().settleEnemySpawn(&actor) {
+			t.Fatal("safe spawn not found")
+		}
+		if !r.Arena().groundPath(actor.X, actor.Y, actor.X, actor.Y, actorClearance(&actor)) {
+			t.Fatalf("%s spawned beside deck", kind)
+		}
+	}
+	if r.safeDropLanding(&r.Player, 500, 340) {
+		t.Fatal("ledge landing allowed in bridge gap")
+	}
+	if !r.safeDropLanding(&r.Player, 500, 410) {
+		t.Fatal("safe deck landing rejected")
+	}
+	from, to := Actor{X: 300, Y: 340}, Actor{X: 700, Y: 340}
+	if r.clearPursuitPath(&from, &to) {
+		t.Fatal("burrow or pursuit can cross bridge gap")
+	}
+	if !r.clearProjectilePath(&from, &to) {
+		t.Fatal("empty bridge gap blocks projectiles")
+	}
+	from.Y, to.Y = 410, 410
+	if !r.clearPursuitPath(&from, &to) {
+		t.Fatal("deck pursuit blocked")
+	}
+}
+
+func TestBridgePursuersReachOppositeBank(t *testing.T) {
+	for _, reverse := range []bool{false, true} {
+		r := dropEdgeTestRun()
+		r.Level.Rooms[0] = Arena{Bridges: []NarrowBridge{{Obstacle: Obstacle{400, 370, 200, 90}, ID: "bridge"}}}
+		actor := Actor{Kind: "goblin", X: 300, Y: 340}
+		target := Actor{X: 700, Y: 470}
+		if reverse {
+			actor.X, actor.Y, target.X, target.Y = 700, 470, 300, 340
+		}
+		for i := 0; i < 200; i++ {
+			dx, dy := clamp(target.X-actor.X, -5, 5), clamp(target.Y-actor.Y, -5, 5)
+			r.moveActor(&actor, dx, dy, true)
+			if !r.Arena().groundPath(actor.X, actor.Y, actor.X, actor.Y, actorClearance(&actor)) {
+				t.Fatal("pursuer left deck")
+			}
+		}
+		if actor.X != target.X || actor.Y != target.Y {
+			t.Fatalf("pursuer stalled: %+v", actor)
+		}
+	}
+}

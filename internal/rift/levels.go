@@ -573,6 +573,7 @@ func (r *Run) clearPursuitPath(from, to *Actor) bool {
 		obstacles = arena.tallObstacles()
 	}
 	radius := actorClearance(from) + 2
+	if !arena.groundPath(from.X, from.Y, to.X, to.Y, radius) { return false }
 	for _, o := range obstacles {
 		clearance := Obstacle{X: o.X - radius, Y: o.Y - radius, W: o.W + radius*2, H: o.H + radius*2}
 		if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, clearance); hit {
@@ -665,6 +666,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	}
 	if navigate {
 		dx, dy = r.navigateDropEdge(a, dx, dy)
+		dx, dy = arena.bridgeApproach(a, dx, dy)
 	}
 	nextX := clamp(a.X+dx, 35, Width-35)
 	if r.waveGateBlocksPath(a.X, a.Y, nextX, a.Y, radius) {
