@@ -431,3 +431,28 @@ boss previews need readiness coverage; bestiary CSS must avoid downloading the
 full sheets again. First-fight waits must remain visible and measured rather
 than being excluded from startup merely by enabling Start earlier. None of that
 integration or its network benefit is claimed complete by this preparation.
+
+
+## Creature row loader preparation (2026-09-28)
+
+`RiftCreatureLoader.create({manifest, decode})` prepares shared actor frames in
+up to four original-coordinate canvases. `prepare(frames)` validates the full
+list before decoding, deduplicates concurrent requests by rig, and retries
+failed loads with a fresh URL. `image(frame)` returns a canvas only when that
+specific rig has finished preparation. Frames without a shared source retain
+the local actor fallback. Callers must await preparation before drawing.
+
+The decoder may return an HTMLImageElement or ImageBitmap. Temporary bitmaps
+are closed after copying, including failure and disposal paths. `dispose()`
+clears retained canvases and prevents late decodes from publishing; it does
+not abort an outstanding network request. Four RGBA surfaces account for
+25,160,256 nominal bytes. This is not a measurement of browser, decoder or
+GPU memory and does not establish the session-memory performance gate.
+
+Seven focused Node tests cover request validation, concurrency, retry,
+dimensions, canvas failure, row visibility and disposal. The browser pixel
+oracle now exercises this module rather than reconstructing rows itself,
+including reverse-order preparation with real ImageBitmaps and their closure.
+Production has not switched to this loader. Encounter and wave readiness,
+bestiary previews, first playable combat timing and memory measurements remain
+required before claiming a startup improvement from creature row loading.
