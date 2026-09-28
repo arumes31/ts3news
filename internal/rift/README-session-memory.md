@@ -50,6 +50,8 @@ reports actor, effect, run and attempt-record shapes, audio/timer counts, detach
 nodes and direct strong retainers of run-shaped objects. Weak edges are excluded
 from the direct-retainer list because they do not keep their target alive. Each
 snapshot must contain only the corresponding current expedition ID; a stale ID
-raises an error and requires inspection. This is a diagnostic check, not a full
-GC-root path search or dominator retained-size calculation. Follow suspicious
-owners in the original snapshot before drawing a leak conclusion.
+raises an error and requires inspection. Each run also has one shortest path from the synthetic snapshot root through
+non-weak edges. Breadth-first traversal handles cycles, and printed paths are
+limited to 128 nodes with explicit truncation status. These are snapshot-graph
+paths, not V8 ephemeron-liveness proofs or dominator retained sizes. Follow
+suspicious owners in the original snapshot before drawing a leak conclusion.

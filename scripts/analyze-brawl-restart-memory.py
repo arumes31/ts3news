@@ -1,11 +1,49 @@
-"""Inspect reachable payload shapes and direct run retainers in local restart or session fixture heaps.
+"""Inspect reachable payload shapes, direct run retainers and root paths in local restart or session fixture heaps.
 
 These counts are diagnostic evidence, not a dominator retained-size calculation
 or an automatic leak verdict. Use only synthetic benchmark artifacts.
 """
 import argparse
+from array import array
+from collections import deque
 import json
 from pathlib import Path
+def root_paths(heap, targets):
+ """One shortest non-weak snapshot-graph path, not a dominator/leak verdict."""
+ meta=heap['snapshot']['meta'];nf=meta['node_fields'];ef=meta['edge_fields']
+ nodes=heap['nodes'];edges=heap['edges'];strings=heap['strings'];ns=len(nf);es=len(ef)
+ ti=nf.index('type');ni=nf.index('name');ec=nf.index('edge_count')
+ et=ef.index('type');en=ef.index('name_or_index');to=ef.index('to_node')
+ types=meta['node_types'][ti];edge_types=meta['edge_types'][et];count=len(nodes)//ns
+ if not count or types[nodes[ti]]!='synthetic':raise ValueError('Expected a synthetic snapshot root')
+ offsets=array('Q',[0]);offset=0
+ for i in range(0,len(nodes),ns):
+  offset+=nodes[i+ec]*es;offsets.append(offset)
+ parents=array('q',[-1])*count;parent_edges=array('q',[-1])*count
+ parents[0]=0;queue=deque([0]);remaining={i//ns for i in targets}
+ while queue and remaining:
+  owner=queue.popleft();remaining.discard(owner)
+  for j in range(offsets[owner],offsets[owner+1],es):
+   if edge_types[edges[j+et]]=='weak':continue
+   child=edges[j+to]//ns
+   if parents[child]!=-1:continue
+   parents[child]=owner;parent_edges[child]=j;queue.append(child)
+ results=[]
+ for target in sorted(targets):
+  current=target//ns;path=[]
+  if parents[current]==-1:
+   results.append({'targetIndex':current,'status':'no non-weak root path','path':[]});continue
+  while len(path)<128:
+   step={'index':current,'type':types[nodes[current*ns+ti]],'name':strings[nodes[current*ns+ni]]}
+   if current:
+    j=parent_edges[current];kind=edge_types[edges[j+et]]
+    step['via']={'edgeType':kind,'edge':edges[j+en] if kind in ('element','hidden') else strings[edges[j+en]]}
+   path.append(step)
+   if current==0:break
+   current=parents[current]
+  results.append({'targetIndex':target//ns,'status':'found' if path[-1]['index']==0 else 'truncated at 128 nodes','path':list(reversed(path))})
+ return results
+
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('directory',type=Path,help='Benchmark output directory containing per-sample memory-report.json files')
 root=parser.parse_args().directory
@@ -41,7 +79,7 @@ for report_path in sorted(root.glob('*/memory-report.json')):
      kind=et[edges[j+eti]];edge=edges[j+eni] if kind in ('element','hidden') else strings[edges[j+eni]]
      retainers.append({'targetIndex':edges[j+eto]//ns,'ownerType':nt[nodes[i+ti]],'ownerName':strings[nodes[i+ni]],'edgeType':kind,'edge':edge})
    off+=count*es
-  sample['checkpoints'].append({checkpoint_key:point[checkpoint_key],'elapsedMS':point.get('elapsedMS'),'shapes':counts,'audioAndTimers':names,'runRetainers':retainers,'retainedRunIDs':run_ids,'detached':point['reachable']['detached'],'dom':point['dom'],'usedSize':point['heap']['usedSize']})
+  sample['checkpoints'].append({checkpoint_key:point[checkpoint_key],'elapsedMS':point.get('elapsedMS'),'shapes':counts,'audioAndTimers':names,'runRetainers':retainers,'runRootPaths':root_paths(h,run_nodes),'retainedRunIDs':run_ids,'detached':point['reachable']['detached'],'dom':point['dom'],'usedSize':point['heap']['usedSize']})
  runs={entry['index']:entry['id'] for entry in report['expeditions']}
  for point in sample['checkpoints']:
   checkpoint=point.get('mission',point.get('cycle'))
