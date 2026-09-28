@@ -9,7 +9,9 @@ Movement tests cover large steps, both directions, actor clearance, jumping,
 knockback, legacy rooms and saved geometry. Pursuers align with an entry before
 crossing. Enemy placement and ledge landing checks reject gaps. Campaign checks
 verify all ten entrances/spawns, clear approaches, footstep surfaces and detached
-copies. The mission 74 hazard switch sits on the entrance bank at X=180 so it
+copies. Rail-defeat tests also confirm that wolf, ordinary enemy and boss drops
+can be reached and collected at both rails while another enemy remains alive;
+the test does not rely on end-of-room automatic collection. The mission 74 hazard switch sits on the entrance bank at X=180 so it
 remains reachable; the full Rift suite passed after fixing that conflict.
 
 Server and browser validators bound bridge dimensions, count, IDs and separation.

@@ -138,7 +138,9 @@ func TestCampaignBridgesHaveClearApproachesAndIsolatedSaves(t *testing.T) {
 			t.Fatalf("invalid mission %d bridge", level.ID)
 		}
 		bridge := arena.Bridges[0]
-		if sw := arena.HazardSwitch; sw != nil && !arena.groundPath(sw.X, sw.Y, sw.X, sw.Y, 10) { t.Fatal("switch placed in bridge gap") }
+		if sw := arena.HazardSwitch; sw != nil && !arena.groundPath(sw.X, sw.Y, sw.X, sw.Y, 10) {
+			t.Fatal("switch placed in bridge gap")
+		}
 		run := NewRunAtLevel("bridge-campaign", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), level.ID)
 		if !arena.groundPath(run.Player.X, run.Player.Y, run.Player.X, run.Player.Y, 10) {
 			t.Fatal("entrance in gap")
@@ -170,5 +172,37 @@ func TestCampaignBridgesHaveClearApproachesAndIsolatedSaves(t *testing.T) {
 	}
 	if count != 10 {
 		t.Fatalf("authored %d bridge rooms, want 10", count)
+	}
+}
+
+func TestBridgeRailDefeatLootRemainsReachableDuringCombat(t *testing.T) {
+	for _, kind := range []string{"wolf", "goblin", "boss"} {
+		for _, lower := range []bool{false, true} {
+			r := dropEdgeTestRun()
+			r.Level.Rooms[0] = Arena{Bridges: []NarrowBridge{{ID: "deck", Obstacle: Obstacle{400, 370, 200, 90}}}}
+			victim := Actor{ID: "rail-victim", Kind: kind, X: 500, HP: 1, MaxHP: 1}
+			victim.Y = 370 + actorClearance(&victim)
+			playerY := 380.0
+			if lower {
+				victim.Y = 460 - actorClearance(&victim)
+				playerY = 450
+			}
+			r.Enemies = []Actor{victim, {ID: "watcher", Kind: "goblin", X: 1400, Y: 410, HP: 100, MaxHP: 100, Knockdown: 1000}}
+			r.Drops = []Drop{}
+			r.Player.X, r.Player.Y = 350, 410
+			r.hurtEnemy(0, 100, "hit")
+			if len(r.Drops) != 1 || r.Drops[0].Collected {
+				t.Fatal("defeat did not leave one floor drop")
+			}
+			r.moveActor(&r.Player, 150, playerY-410, false)
+			if r.Player.X != 500 || r.Player.Y != playerY {
+				t.Fatal("drop approach blocked")
+			}
+			before := r.Gold
+			r.Step(Input{}, time.UnixMilli(r.LastMS+20))
+			if r.Status != "fighting" || !r.Drops[0].Collected || r.Gold != before+r.Drops[0].Gold {
+				t.Fatal("rail loot was not collected during combat")
+			}
+		}
 	}
 }
