@@ -1946,6 +1946,7 @@
     const nearbyCover=window.RiftHUD.nearbyCover(run);
     // Authoritative fuse snapshots drive a static, exact-size ground warning.
     // It remains legible with reduced motion and has no independent clock.
+    const terrainViewportScale=Math.min(1,(canvas.clientWidth||960)/960);
     let terrainWarningLabeled=false;
     if(run.status==='fighting')for(const c of arena?.cover||[]){
       if(!c.volatile||!(c.blast_fuse>0))continue;
@@ -1954,7 +1955,7 @@
       ctx.save();ctx.fillStyle='#c350222b';ctx.strokeStyle='#ffb260';ctx.lineWidth=3;
       ctx.beginPath();ctx.ellipse(x,y,115,55,0,0,Math.PI*2);ctx.fill();ctx.stroke();
       ctx.strokeStyle='#fff0cf';ctx.lineWidth=1;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
-      if(!display.cleanScreenshot&&!terrainWarningLabeled){terrainWarningLabeled=true;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#fff0cf';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt('BLAST · JUMP / MOVE',Math.max(100,Math.min(860,x)),y-61,true);}
+      if(!display.cleanScreenshot&&!terrainWarningLabeled){terrainWarningLabeled=true;ctx.font='bold '+(12*display.textScale/terrainViewportScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#fff0cf';ctx.strokeStyle='#29170c';ctx.lineWidth=3;const label='BLAST · JUMP / MOVE',margin=ctx.measureText(label).width/2+12;interactionPrompt(label,Math.max(margin,Math.min(960-margin,x)),y-61,true);}
       ctx.restore();
     }
     const units=[...run.enemies,run.player];
@@ -1998,7 +1999,7 @@
           const width=c.w+32,height=width*440/600,x=c.x+c.w/2-camera-width/2,y=c.y+c.h-height;
           const opacity=spent?1:foregroundCoverOpacity(c.x+c.w/2-width/2,y,width,height,c.y+c.h);
           ctx.save();ctx.globalAlpha=opacity;drawAtlas(images.volatileCover,index*724+64,200,600,440,x,y,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
-          if(!display.cleanScreenshot&&!spent){ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffd29a';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt(armed?c.blast_fuse.toFixed(1)+'s':'VOLATILE',c.x+c.w/2-camera,y-8,true);ctx.restore();}
+          if(!display.cleanScreenshot&&!spent){ctx.save();ctx.font='bold '+(10*display.textScale/(armed?terrainViewportScale:1))+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffd29a';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt(armed?c.blast_fuse.toFixed(1)+'s':'VOLATILE',c.x+c.w/2-camera,y-8,true);ctx.restore();}
           return;
         }
         const broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
