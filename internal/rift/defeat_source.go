@@ -11,7 +11,7 @@ func (r *Run) hurtPlayerFromEnemyGuardable(damage, x, y float64, ownerID string,
 	guards := r.Stats.Guards
 	alive := r.Player.HP > 0
 	before := r.Stats.DamageTaken
-	r.hurtPlayerGuardable(damage, x, y, guardable)
+	r.hurtPlayerGuardable(r.bossPracticeDamage(damage, ownerID), x, y, guardable)
 	r.rewardVanguardGuard(guards)
 	loss := r.Stats.DamageTaken - before
 	r.Stats.EnemyDamageTaken += loss

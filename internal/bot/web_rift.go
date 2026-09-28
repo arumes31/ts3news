@@ -29,6 +29,7 @@ var errRiftCharacterMissing = errors.New("the Abyss character is no longer avail
 type riftRequest struct {
 	EnemyName string `json:"enemy_name,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
+	EnrageChallenge *bool `json:"enrage_challenge,omitempty"`
 	SlowTelegraphs *bool      `json:"slow_telegraphs,omitempty"`
 	BossName       string     `json:"boss_name,omitempty"`
 	BossPhase      int        `json:"boss_phase,omitempty"`
@@ -295,6 +296,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 }
 
 func validRiftRequest(r riftRequest) bool {
+	if r.EnrageChallenge != nil && r.Kind != "start" && r.Kind != "practice_reset" { return false }
 	if len(r.EnemyName) > 512 || (r.Kind == "practice_spawn" && strings.TrimSpace(r.EnemyName) == "") { return false }
 	if len(r.BossName) > 512 || r.BossPhase < 0 || r.BossPhase > 3 {
 		return false
@@ -344,6 +346,7 @@ func decodeRift(saved string) (*rift.Run, error) {
 	if run.Schema != 1 || run.ID == "" || run.Room < 0 || run.Room >= len(rift.Rooms) || run.SkillTimers == nil {
 		return nil, errors.New("unsupported rift snapshot")
 	}
+	if p := run.Practice; p != nil && ((p.EnrageSeconds != 0 && p.EnrageSeconds != rift.BossPracticeEnrageSeconds) || (p.EnrageSeconds > 0 && p.Mode != "boss") || (p.EnrageTriggered && (p.EnrageSeconds == 0 || run.Clock < p.EnrageSeconds))) { return nil, errors.New("invalid boss practice enrage") }
 	if err := validateRiftVitals(&run); err != nil {
 		return nil, err
 	}

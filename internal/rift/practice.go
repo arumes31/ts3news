@@ -9,6 +9,8 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	EnrageSeconds float64 `json:"enrage_seconds,omitempty"`
+	EnrageTriggered bool `json:"enrage_triggered,omitempty"`
 	CheckpointReady bool `json:"checkpoint_ready,omitempty"`
 	ResourceCycles int `json:"resource_cycles,omitempty"`
 	UltimateTimed bool `json:"ultimate_timed,omitempty"`
@@ -158,6 +160,7 @@ func (r *Run) ResetPractice(now time.Time) error {
 	fresh.Practice.FreezeMovement = r.Practice.FreezeMovement
 	fresh.Practice.FreezeUsed = fresh.Practice.FreezeMovement
 	fresh.Practice.SlowTelegraphs = r.Practice.SlowTelegraphs
+	fresh.Practice.EnrageSeconds = r.Practice.EnrageSeconds
 	fresh.Revision = r.Revision
 	fresh.StartKey = r.StartKey
 	fresh.Epoch = r.Epoch
@@ -212,6 +215,7 @@ func (r *Run) practiceTick() {
 		complete = r.Practice.UltimateTimed
 	}
 	if r.Practice.Mode == "boss" {
+		r.tickBossPracticeEnrage()
 		complete = len(r.Enemies) == 1 && r.Enemies[0].HP <= 0
 	}
 	if r.Practice.Mode == "ranged" {

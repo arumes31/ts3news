@@ -747,6 +747,8 @@
       meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp,bossThreshold);
       const phase=Math.max(1,Math.min(3,boss.phase||1));
       put($('rift-boss-phase'),'Phase '+phase+(phase===1?' · Next: phase 2 at 50% HP':phase===2?' · Next: phase 3 at 25% HP':' · Final phase'));
+      const enrageNode=$('rift-boss-enrage'),enrageSeconds=run.practice?.mode==='boss'?run.practice.enrage_seconds:0;
+      if(enrageNode){enrageNode.hidden=!(enrageSeconds>0);if(!enrageNode.hidden)put(enrageNode,run.clock>=enrageSeconds?'ENRAGED · Boss damage +50%':'Enrage in '+Math.ceil(Math.max(0,enrageSeconds-run.clock))+'s');}
       const bossAttackNode=$('rift-boss-attack');
       if(bossAttackNode){
         if(boss.windup>0){

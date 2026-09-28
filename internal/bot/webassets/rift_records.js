@@ -59,7 +59,7 @@
  function savePractice(records,ignored){try{localStorage.setItem(practiceStore,JSON.stringify({version:1,records,ignored}));practiceRecords=records;ignoredPractice=ignored;return true;}catch(_){document.getElementById('rift-practice-record-status').textContent='Could not save local records in this browser.';return false;}}
  function practiceRecord(run){
   practiceRun=run;practicePanel.hidden=!run.practice;if(!run.practice)return;
-  const p=run.practice,build=run.build,key=JSON.stringify([p.mode,p.hazard_intensity,p.boss_start?.name,p.boss_start?.phase,p.slow_telegraphs,build,...(p.freeze_used||p.freeze_movement?[true]:[])]);
+  const p=run.practice,build=run.build,key=JSON.stringify([p.mode,p.hazard_intensity,p.boss_start?.name,p.boss_start?.phase,p.slow_telegraphs,build,...(p.enrage_seconds>0?["enrage",p.enrage_seconds]:[]),...(p.freeze_used||p.freeze_movement?[true]:[])]);
   const value=run.stats?.seconds,completed=p.completed&&run.status==='complete'&&Number.isFinite(value)&&value>0;
   if(completed&&practiceReceipt(run)!==ignoredPractice&&key.length<20000&&(!practiceRecords[key]||value<practiceRecords[key])){
    const next={...practiceRecords,[key]:value};const entries=Object.entries(next);savePractice(Object.fromEntries(entries.slice(-100)),ignoredPractice);

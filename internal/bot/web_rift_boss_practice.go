@@ -10,6 +10,9 @@ func newRiftPractice(req riftRequest, id string, build rift.Build, mode string, 
 	if !rift.ValidHazardIntensity(req.HazardIntensity) || req.HazardIntensity != "" && mode != "hazard" {
 		return nil, errors.New("invalid hazard practice intensity")
 	}
+	if req.EnrageChallenge != nil && mode != "boss" {
+		return nil, errors.New("enrage challenge requires boss practice")
+	}
 	var run *rift.Run
 	var err error
 	if mode == "boss" && (req.BossName != "" || req.BossPhase != 0) {
@@ -20,6 +23,9 @@ func newRiftPractice(req riftRequest, id string, build rift.Build, mode string, 
 	if err == nil && mode == "boss" && req.SlowTelegraphs != nil {
 		run.Practice.SlowTelegraphs = *req.SlowTelegraphs
 	}
+	if err == nil && mode == "boss" {
+		configureRiftEnrage(run, req.EnrageChallenge)
+	}
 	if err == nil && mode == "hazard" {
 		err = run.ConfigureHazardPractice(req.HazardIntensity)
 	}
@@ -27,6 +33,9 @@ func newRiftPractice(req riftRequest, id string, build rift.Build, mode string, 
 }
 
 func resetRiftPractice(run *rift.Run, req riftRequest, now time.Time) error {
+	if req.EnrageChallenge != nil && (run.Practice == nil || run.Practice.Mode != "boss") {
+		return errors.New("enrage challenge requires boss practice")
+	}
 	if !rift.ValidHazardIntensity(req.HazardIntensity) || req.HazardIntensity != "" && (run.Practice == nil || run.Practice.Mode != "hazard") {
 		return errors.New("invalid hazard practice intensity")
 	}
@@ -37,6 +46,7 @@ func resetRiftPractice(run *rift.Run, req riftRequest, now time.Time) error {
 		if run.Practice.Mode == "boss" && req.SlowTelegraphs != nil {
 			run.Practice.SlowTelegraphs = *req.SlowTelegraphs
 		}
+		configureRiftEnrage(run, req.EnrageChallenge)
 		if req.HazardIntensity != "" {
 			return run.ConfigureHazardPractice(req.HazardIntensity)
 		}
@@ -52,10 +62,22 @@ func resetRiftPractice(run *rift.Run, req riftRequest, now time.Time) error {
 	fresh.Practice.FreezeMovement = run.Practice.FreezeMovement
 	fresh.Practice.FreezeUsed = fresh.Practice.FreezeMovement
 	fresh.Practice.SlowTelegraphs = run.Practice.SlowTelegraphs
+	fresh.Practice.EnrageSeconds = run.Practice.EnrageSeconds
+	configureRiftEnrage(fresh, req.EnrageChallenge)
 	if req.SlowTelegraphs != nil {
 		fresh.Practice.SlowTelegraphs = *req.SlowTelegraphs
 	}
 	fresh.Revision, fresh.StartKey, fresh.Epoch = run.Revision, run.StartKey, run.Epoch
 	*run = *fresh
 	return nil
+}
+
+func configureRiftEnrage(run *rift.Run, enabled *bool) {
+	if enabled == nil {
+		return
+	}
+	run.Practice.EnrageSeconds = 0
+	if *enabled {
+		run.Practice.EnrageSeconds = rift.BossPracticeEnrageSeconds
+	}
 }

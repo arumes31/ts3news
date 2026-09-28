@@ -92,6 +92,15 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "practice-enrage" && r.URL.Query().Get("practice") == "boss" {
+			run, _ := rift.NewPracticeRun("practice-enrage", selectedBuild, "boss", time.Now())
+			run.Epoch, run.Paused, run.Clock = "fixture", true, 28.5
+			run.Practice.EnrageSeconds = rift.BossPracticeEnrageSeconds
+			run.Enemies[0].Cooldown = 3
+			mu.Lock()
+			runs[cookie.Value+":boss"] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "practice-tools" && rift.ValidPracticeMode(r.URL.Query().Get("practice")) {
 			mode := r.URL.Query().Get("practice")
 			run, _ := rift.NewPracticeRun("practice-tools", selectedBuild, mode, time.Now())

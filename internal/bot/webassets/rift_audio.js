@@ -449,6 +449,7 @@
         [340, 480].forEach((f, i) => t(f, f * 0.9, .22, .06, 'triangle', i * .04));
         break;
       }
+      case 'practice_enrage':
       case 'boss_phase': {
         h(.55, .22, 1200, pan);
         t(75, 30, .75, .22, 'sawtooth');
