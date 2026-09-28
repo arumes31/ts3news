@@ -214,7 +214,7 @@
           const phase=(run.clock+h.offset)%h.period;
           const warning=phase<1.2;
           const active=phase>=1.2&&phase<1.2+h.duration;
-          const kindName=h.kind==='sweeping_flame'?'Sweeping flame':h.kind==='rotating_blade'?'Rotating blade':h.kind==='moving_poison'?'Moving poison':h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
+          const kindName=h.kind==='tracking_lightning'?'Tracking lightning':h.kind==='sweeping_flame'?'Sweeping flame':h.kind==='rotating_blade'?'Rotating blade':h.kind==='moving_poison'?'Moving poison':h.kind.charAt(0).toUpperCase()+h.kind.slice(1);
           if(active){
             const evading=h.jumpable===true&&(p.jump||0)>0.1;
             return{

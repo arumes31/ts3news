@@ -55,9 +55,9 @@ func TestCampaignFloorHazardsAreExplicitlyJumpable(t *testing.T) {
 		for _, room := range level.Rooms {
 			for _, h := range room.Hazards {
 				count++
-				if h.Kind == "falling_rock" {
+				if h.Kind == "falling_rock" || h.Kind == "tracking_lightning" {
 					if h.Jumpable {
-						t.Fatal("overhead rock incorrectly allows jump evasion")
+						t.Fatal("overhead hazard incorrectly allows jump evasion")
 					}
 					continue
 				}

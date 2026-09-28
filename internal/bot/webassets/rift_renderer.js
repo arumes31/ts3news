@@ -1316,6 +1316,14 @@
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
 
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
+      if(h.kind==='tracking_lightning'){
+        const x=h.x-camera,cx=x+h.w/2,cy=h.y+h.h/2;
+        ctx.save();ctx.strokeStyle='#e8d78f';ctx.lineWidth=2;ctx.setLineDash(warning?[6,4]:[]);
+        if(warning||active){ctx.fillStyle=active?'#a0c8e578':'#91b4ce24';ctx.fillRect(x,h.y,h.w,h.h);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(cx-9,cy);ctx.lineTo(cx+9,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();hazardOverlays.push({x,y:h.y,w:h.w,h:h.h,warning,color:'#e8d78f'});}
+        if(active){ctx.strokeStyle='#e2f3ff';ctx.lineWidth=renderer.reduced?2:4;ctx.beginPath();ctx.moveTo(cx+9,cy-105);ctx.lineTo(cx-7,cy-63);ctx.lineTo(cx+6,cy-63);ctx.lineTo(cx,cy);ctx.stroke();}
+        if(!display.cleanScreenshot&&display.hazardLabels&&(warning||active)){ctx.fillStyle='#f5e4aa';ctx.strokeStyle='#142330';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(active?'LIGHTNING · MOVE':phase<.5?'TRACKING · KEEP MOVING':'LOCKED · MOVE OUT',cx,h.y+h.h+16,true);}
+        ctx.restore();return;
+      }
       if(h.kind==='moving_poison'){
         const x=h.x-camera,width=Math.min(80,h.w),progress=Math.max(0,Math.min(1,(phase-1.2)/h.duration)),front=x+(h.w-width)*(1-Math.abs(2*progress-1));
         ctx.save();ctx.fillStyle='#95bf6218';ctx.strokeStyle='#b9db7d';ctx.lineWidth=1;ctx.setLineDash([5,4]);ctx.fillRect(x,h.y,h.w,h.h);ctx.strokeRect(x,h.y,h.w,h.h);ctx.setLineDash([]);

@@ -273,6 +273,10 @@ func buildCampaign() []Level {
 						}
 					}
 				}
+				if region == 3 && room == 0 {
+					h := &arena.Hazards[0]
+					h.Kind, h.W, h.H, h.Offset, h.Duration, h.Jumpable = "tracking_lightning", 84, 48, 0, .18, false
+				}
 				if region == 1 && room == 1 {
 					arena.Hazards[0].Kind = "sweeping_flame"
 					arena.Hazards[0].W = 240
@@ -671,6 +675,7 @@ func (r *Run) hazardTick() {
 	if r.SkillTimers == nil {
 		r.SkillTimers = map[string]float64{}
 	}
+	r.trackLightningMarkers()
 	for i, h := range r.Arena().Hazards {
 		if h.Disabled {
 			continue
@@ -688,6 +693,9 @@ func (r *Run) hazardTick() {
 				r.event(kind, h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		} else if phase >= 1.2 && phase < 1.2+h.Duration {
+			if h.Kind == "tracking_lightning" && r.SkillTimers[activeKey] <= 0 {
+				r.event("lightning_strike", h.X+h.W/2, h.Y+h.H/2, 0)
+			}
 			if h.Kind == "falling_rock" && r.SkillTimers[activeKey] <= 0 {
 				r.event("rock_impact", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
