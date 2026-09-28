@@ -22,6 +22,7 @@ func (z ObjectiveZone) contains(actor Actor) bool {
 }
 
 type RoomObjective struct {
+	FloorSegments []WaveFloorSegment `json:"floor_segments,omitempty"`
 	Gate *WaveGate `json:"gate,omitempty"`
 	Lanes               []DefenseLane     `json:"lanes,omitempty"`
 	Sequence            []int             `json:"sequence,omitempty"`

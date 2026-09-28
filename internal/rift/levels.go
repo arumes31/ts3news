@@ -37,6 +37,8 @@ type ArenaEntrance struct {
 }
 
 type Arena struct {
+	FragileFloor []Obstacle `json:"fragile_floor,omitempty"`
+	floorGaps []Obstacle
 	Round *RoundArena `json:"round,omitempty"`
 	Bridges []NarrowBridge `json:"bridges,omitempty"`
 	WaveGate *Obstacle `json:"wave_gate,omitempty"`
@@ -408,6 +410,9 @@ func (r *Run) Arena() Arena {
 	}
 	if r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
 		arena := r.Level.Rooms[r.Room]
+		if o := r.RoomObjective; o != nil && o.Kind == "survive_waves" {
+			for _, segment := range o.FloorSegments { if segment.Collapsed { arena.floorGaps = append(arena.floorGaps, segment.Obstacle) } }
+		}
 		if o := r.RoomObjective; o != nil && o.Kind == "survive_waves" && o.Gate != nil && o.Gate.Closed {
 			arena.HighCover = append(append([]Obstacle(nil), arena.HighCover...), o.Gate.Obstacle)
 		}
@@ -663,6 +668,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	if a.Jump > .1 {
 		obstacles = arena.tallObstacles()
 	}
+	if len(arena.floorGaps) > 0 { obstacles = append(append([]Obstacle(nil), obstacles...), arena.floorGaps...) }
 	radius := actorClearance(a)
 	settle(a, obstacles)
 	for _, o := range obstacles {

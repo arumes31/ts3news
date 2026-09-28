@@ -30,6 +30,7 @@ func cloneCampaignLevel(level Level) Level {
 		room.SteamVents = slices.Clone(room.SteamVents)
 		room.Bridges = slices.Clone(room.Bridges)
 		room.Platforms = slices.Clone(room.Platforms)
+		room.FragileFloor = slices.Clone(room.FragileFloor)
 		room.DropEdges = slices.Clone(room.DropEdges)
 		room.Cover = slices.Clone(room.Cover)
 		if room.RestAlcove != nil {

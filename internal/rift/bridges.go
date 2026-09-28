@@ -12,6 +12,10 @@ type NarrowBridge struct {
 // groundPath checks the whole ground trajectory, including large impulses.
 // Jump height does not change where an actor may land on a railed bridge.
 func (a Arena) groundPath(x1, y1, x2, y2, radius float64) bool {
+	for _, gap := range a.floorGaps {
+  expanded := Obstacle{gap.X-radius+.001, gap.Y-radius+.001, gap.W+2*radius-.002, gap.H+2*radius-.002}
+  if _, hit := obstacleImpact(x1,y1,x2,y2,expanded); hit { return false }
+ }
 	// An ellipse is convex: valid endpoints guarantee the full straight segment.
 	if a.Round != nil && (!a.Round.containsGround(x1,y1,radius) || !a.Round.containsGround(x2,y2,radius)) { return false }
 
