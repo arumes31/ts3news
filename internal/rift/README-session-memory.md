@@ -244,8 +244,12 @@ after replay49,54,59 and60. Including the completed warmup, replay49 reaches the
 the four mandatory checkpoints must each contain50 entries. This establishes that
 the capture exercised pruning rather than assuming elapsed time reached the cap.
 Retained object paths and separate process memory must still be reviewed after
-the capture; numeric JS heap growth alone never closes0798. The existing public
-exporter deliberately does not classify this distinct mode as a standard three-
-sample gate result. Preserve raw heaps locally and export only reviewed aggregates.
+the capture; numeric JS heap growth alone never closes0798. The public exporter recognizes this mode separately and never classifies it as
+a standard three-sample gate result. It verifies a completed three-tier warmup,
+contiguous complete replays, actual history counts, mandatory cap checkpoints,
+ordered times, duration and source hashes. It derives heap growth from checkpoints
+and exports only allowlisted numeric aggregates, including separate renderer
+private bytes when available. Its best status is post_cap_review_required; it
+never claims release readiness. Preserve raw heaps and identifiers locally.
 
     node --test tests/performance/session-options.test.cjs
