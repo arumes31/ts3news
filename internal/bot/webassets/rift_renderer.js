@@ -2060,8 +2060,8 @@
       // the collision footprint so jumping and circling cover read clearly.
       const width=o.w+14,height=o.h+(unit.tall?100:38);
       const opacity=foregroundCoverOpacity(o.x-7,o.y+o.h-height*.9,width,height,o.y+o.h);
-      ctx.save();ctx.globalAlpha=opacity;
-      drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);ctx.restore();fadedCoverFootprint(o,opacity,unit.tall);
+      const coverAlpha=ctx.globalAlpha;ctx.globalAlpha=opacity;
+      drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);ctx.globalAlpha=coverAlpha;fadedCoverFootprint(o,opacity,unit.tall);
       if(!display.cleanScreenshot&&nearbyCover?.obstacle===o){ctx.save();ctx.strokeStyle=unit.tall?'#d6e5e9':'#a5e9ce';ctx.lineWidth=unit.tall?3:2;ctx.setLineDash(unit.tall?[]:[5,4]);ctx.strokeRect(o.x-camera,o.y,o.w,o.h);ctx.setLineDash([]);ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=unit.tall?'#e2edf1':'#beffe4';ctx.strokeStyle='#102419';ctx.lineWidth=3;const label=unit.tall?'TALL · BLOCKS SHOTS':'LOW · VAULT';interactionPrompt(label,o.x+o.w/2-camera,o.y+o.h-height*.9-8);ctx.restore();}
     });
     run.projectiles.forEach(shot=>{

@@ -1,0 +1,35 @@
+const {test,expect}=require('@playwright/test');
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+test('cover alpha assignment preserves pixels and canvas state',async({page},info)=>{
+ test.setTimeout(120000);
+ await page.addInitScript(()=>{const request=requestAnimationFrame;window.requestAnimationFrame=cb=>cb.name==='render'?1:request(cb);});
+ const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ const draw='drawAtlas(img,index%4*sw,Math.floor(index/4)*sh,sw,sh,o.x-7-camera,o.y+o.h-height*.9,width,height);';
+ const old='ctx.save();ctx.globalAlpha=opacity;\n      '+draw+'ctx.restore();';
+ const replacement='const coverAlpha=ctx.globalAlpha;ctx.globalAlpha=opacity;\n      '+draw+'ctx.globalAlpha=coverAlpha;';
+ expect(source.includes(old)||source.includes(replacement)).toBe(true);
+ const blocks=[old,replacement],results=[];
+ for(const block of blocks){
+  const hook=`renderer.coverStateProbe=function(){
+   const outputs=[],img=images.props,sw=img.width/4,sh=img.height/2,camera=0;
+   for(const opacity of [.36,.8,1])for(const tall of [false,true])for(const filter of ['none','brightness(1.3)']){
+    ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
+    ctx.save();ctx.globalAlpha=.71;ctx.filter=filter;ctx.translate(9.5,12.5);ctx.rotate(.07);ctx.beginPath();ctx.rect(0,0,900,500);ctx.clip();
+    const state=()=>({alpha:ctx.globalAlpha,filter:ctx.filter,transform:Array.from(ctx.getTransform().toFloat64Array())}),before=state();
+    for(let index=0;index<8;index++){
+     const o={x:30+index%4*210,y:170+Math.floor(index/4)*200,w:80,h:40},width=o.w+14,height=o.h+(tall?100:38);
+     ${block}
+    }
+    const after=state();ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
+   }
+   return outputs;
+  };`;
+  await page.route('**/static/rift_renderer.js*',r=>r.fulfill({contentType:'application/javascript',body:source.replace('window.RiftRenderer=renderer;',hook+'window.RiftRenderer=renderer;')}));
+  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+  const output=await page.evaluate(async()=>{await RiftRenderer.ready;return RiftRenderer.coverStateProbe();});
+  for(const item of output){expect(item.after).toEqual(item.before);item.png=crypto.createHash('sha256').update(item.png).digest('hex');}
+  results.push(output);await page.unroute('**/static/rift_renderer.js*');
+ }
+ expect(results[1]).toEqual(results[0]);
+ fs.writeFileSync(info.outputPath('cover-alpha-equivalence.json'),JSON.stringify({cases:results[0].length,pixelsEqual:true,statePreserved:true})+'\n');
+});
