@@ -27,9 +27,7 @@ def split_rows(image, count):
     return [image.crop((0, row * height, image.width, (row + 1) * height)) for row in range(count)]
 
 
-def measure(root):
-    if not features.check("webp"):
-        raise RuntimeError("Pillow must include WebP support")
+def hero_classes(root):
     source = (root / "rift_renderer.js").read_text(encoding="utf-8")
     match = re.search(r"const styles = \[(.*?)\]", source)
     if not match:
@@ -37,6 +35,13 @@ def measure(root):
     classes = re.findall(r"'([^']+)'", match[1])
     if len(classes) != 12 or len(set(classes)) != 12:
         raise ValueError("Review the transport plan for the changed class layout")
+    return classes
+
+
+def measure(root):
+    if not features.check("webp"):
+        raise RuntimeError("Pillow must include WebP support")
+    classes = hero_classes(root)
     sheets = []
     for sheet_index, name in enumerate(["rift_heroes_a.png", "rift_heroes_b.png"]):
         raw = (root / name).read_bytes()

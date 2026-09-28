@@ -1,6 +1,9 @@
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import unittest
+from urllib.parse import urlparse, parse_qs
 
 from PIL import Image
 
@@ -10,6 +13,27 @@ spec.loader.exec_module(module)
 
 
 class HeroSectionsTest(unittest.TestCase):
+    def test_generated_manifest_hashes_geometry_and_pixels_match_sources(self):
+        root = Path(__file__).resolve().parents[2] / "internal/bot/webassets"
+        text = (root / "rift_hero_sections.js").read_text(encoding="utf-8")
+        manifest = json.loads(text.split("window.RiftHeroSections=", 1)[1].strip().removesuffix(";"))
+        self.assertEqual(manifest["version"], 1)
+        self.assertEqual(set(manifest["atlases"]), {"heroesA", "heroesB"})
+        for key, atlas in manifest["atlases"].items():
+            source = root / ("rift_heroes_" + key[-1].lower() + ".png")
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), atlas["sourceSHA256"])
+            with Image.open(source) as image:
+                original = image.convert("RGBA")
+            self.assertEqual((atlas["width"], atlas["height"]), original.size)
+            self.assertEqual(len(atlas["rows"]), 6)
+            for index, row in enumerate(atlas["rows"]):
+                url = urlparse(row["url"])
+                section = root / Path(url.path).name
+                self.assertEqual(parse_qs(url.query), {"v": [hashlib.sha256(section.read_bytes()).hexdigest()[:12]]})
+                self.assertEqual((row["y"], row["width"], row["height"]), (index * 128, 2048, 128))
+                with Image.open(section) as image:
+                    self.assertEqual(image.convert("RGBA").tobytes(), original.crop((0, index * 128, 2048, (index + 1) * 128)).tobytes())
+
     def test_rows_keep_transparent_rgb_and_order(self):
         image = Image.new("RGBA", (3, 6))
         pixels = [(x * 51, y * 37, 99, 0 if y % 2 else 127) for y in range(6) for x in range(3)]
