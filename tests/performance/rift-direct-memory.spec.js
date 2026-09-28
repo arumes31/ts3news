@@ -9,11 +9,13 @@ const smoke=process.env.BRAWL_DIRECT_MEMORY_SMOKE==='1',durationMS=smoke?60000:1
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 for(const networkInspection of [false,true])test('direct campaign network inspection '+networkInspection,async({},info)=>{
  const root=path.dirname(info.outputPath('memory-report.json'));fs.mkdirSync(root,{recursive:true});
- const patch=git('diff','HEAD','--binary');
- const report={sample:networkInspection?2:1,mode:smoke?'direct browser smoke; not a gate':'direct browser paired instrumentation diagnostic',networkInspection,startedAt:new Date().toISOString(),server:{revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex')},checkpoints:[],expeditions:[],errors:[],releaseReady:false};
- report.command='node node_modules/@playwright/test/cli.js test --config=playwright.direct-memory.config.js';
+ const sourcePath=path.join(path.dirname(root),'fixture-source.json');
  const driverFiles=['tests/performance/rift-direct-memory.spec.js','scripts/brawl-direct-page.cjs','scripts/brawl-direct-cdp.cjs','scripts/brawl-direct-chromium.cjs','scripts/brawl-session-navigation.cjs'];
- report.driver=driverFiles.map(file=>{const data=fs.readFileSync(file);fs.writeFileSync(path.join(root,path.basename(file)+'.source'),data);return {file,sha256:crypto.createHash('sha256').update(data).digest('hex')};});
+ if(!fs.existsSync(sourcePath)){const patch=git('diff','HEAD','--binary');fs.writeFileSync(sourcePath,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),patch,drivers:driverFiles.map(file=>({file,source:fs.readFileSync(file,'utf8')}))},null,2)+'\n',{flag:'wx'});}
+ const fixtureSource=JSON.parse(fs.readFileSync(sourcePath,'utf8')),patch=fixtureSource.patch;
+ const report={sample:networkInspection?2:1,mode:smoke?'direct browser smoke; not a gate':'direct browser paired instrumentation diagnostic',networkInspection,startedAt:new Date().toISOString(),server:{revision:fixtureSource.revision,trackedDiffSHA256:fixtureSource.trackedDiffSHA256},checkpoints:[],expeditions:[],errors:[],releaseReady:false};
+ report.command='node node_modules/@playwright/test/cli.js test --config=playwright.direct-memory.config.js';
+ report.driver=fixtureSource.drivers.map(({file,source})=>{const data=Buffer.from(source);fs.writeFileSync(path.join(root,path.basename(file)+'.source'),data);return {file,sha256:crypto.createHash('sha256').update(data).digest('hex')};});
  const save=()=>fs.writeFileSync(path.join(root,'memory-report.json'),JSON.stringify(report,null,2)+'\n');fs.writeFileSync(path.join(root,'server-tracked-diff.patch'),patch);
  const browser=await launchDirectChromium({executablePath:chromium.executablePath(),outputDirectory:root});let page,started=0;
  try{
