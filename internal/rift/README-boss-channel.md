@@ -27,3 +27,24 @@ control/phase/death interruption, locked elliptical geometry, movement/jump/dodg
 and slow practice. Full combat suite passed31.832s. Browser cues in both motion
 modes plus shared audio passed3 tests34.2s; reduced-motion screenshot reviewed.
 Implements0333. This is a localized pulse, not an arena-wide or jump-required attack.
+
+
+## Hazard reservation groundwork
+
+The simulation reserves a bounded escape band during a live Time Pulse warning:
+outside the125/62 blast ellipse and inside a200/90 ellipse at its locked center.
+The blast boundary remains dangerous; the outer boundary is reserved. Contact
+with arena hazards is suppressed in this band, including contact slow and credit.
+Hazard clocks, enemy attacks and projectiles continue normally. Simultaneous lane,
+ring or pulse danger overrides any reservation.
+
+A released pulse retains the band for0.45 combat seconds using a saved
+hazard-channel timer. Cancellation or defeat removes an unreleased warning;
+defeat after release preserves its brief impact reservation. Pause freezes it,
+and room changes clear it. Damage and reservation share the blast predicate.
+Tests cover boundaries, contact effects, save/reload, pause, expiry, room reset,
+cancellation, overlapping patterns and unrelated enemy damage.
+
+This is simulation groundwork for0326. The visible band, its hazard-specific
+label and browser verification are still pending. Reachability across campaign
+terrain also needs a focused audit; this change is not a global escape guarantee.

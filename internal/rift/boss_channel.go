@@ -14,10 +14,18 @@ func (r *Run) interruptBossChannel(e *Actor) {
 	r.event("boss_channel_interrupt", e.X, e.Y, 0)
 }
 
+func channelDanger(e Actor, x, y float64) bool {
+	dx, dy := (x-e.TargetX)/125, (y-e.TargetY)/62
+	return dx*dx+dy*dy <= 1
+}
+
 func (r *Run) releaseBossChannel(e *Actor) {
+	if r.SkillTimers == nil {
+		r.SkillTimers = map[string]float64{}
+	}
+	r.SkillTimers["hazard-channel-"+e.ID] = .45
 	r.event("boss_channel_pulse", e.TargetX, e.TargetY, 0)
-	dx, dy := (r.Player.X-e.TargetX)/125, (r.Player.Y-e.TargetY)/62
-	if dx*dx+dy*dy > 1 {
+	if !channelDanger(*e, r.Player.X, r.Player.Y) {
 		e.WeakPoint = .8
 		return
 	}
