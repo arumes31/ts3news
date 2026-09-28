@@ -82,3 +82,15 @@ and stop the remaining sample batch. They write one shared fixture-source record
 and copy that original patch into every sample, plus the server's asset-build ID.
 Do not change source between fixture launch and its first sample source capture.
 Later source edits require a new run before claiming evidence for those edits.
+
+## Replacement capture: first sample completed
+
+The replacement capture in `test-results/session-memory-fixed-full` uses
+`4755892b` plus its recorded original engine diff. Sample one completed 40 full
+mission replays after warmup over 30.49 measured minutes with zero reported
+runtime errors. Retained JS grew by 1.331 MiB (about 7.07 to 8.40 MiB), passing
+only the numeric heap-size threshold. The report explicitly retains
+`retaining-path review required`. Samples two and three and the final heap
+review remain unfinished; this is not a three-sample gate pass. Later terrain
+reaction commits are not served by this running fixture and are not covered by
+its evidence.

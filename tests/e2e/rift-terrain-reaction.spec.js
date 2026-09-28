@@ -18,6 +18,10 @@ test('volatile cluster pauses and reloads its warning, then damages once and dro
  expect(await page.evaluate(()=>terrainCues.filter(c=>c==='terrain_arming').length)).toBe(3);
  await page.waitForTimeout(1400);expect((await saved()).level.rooms[0].cover).toEqual(paused.level.rooms[0].cover);
  await page.locator('#rift-viewport').screenshot({path:info.outputPath('warning-paused.png')});
+ await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});
+ await page.locator('#rift-viewport').screenshot({path:info.outputPath('warning-mobile-reduced.png')});
+ expect((await saved()).level.rooms[0].cover).toEqual(paused.level.rooms[0].cover);
+ await page.setViewportSize({width:1280,height:720});
  await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();
  expect((await saved()).level.rooms[0].cover).toEqual(paused.level.rooms[0].cover);
  await cues();await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').click();
