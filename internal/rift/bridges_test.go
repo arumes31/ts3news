@@ -206,3 +206,30 @@ func TestBridgeRailDefeatLootRemainsReachableDuringCombat(t *testing.T) {
 		}
 	}
 }
+
+func TestBridgeCombatPursuitCrossesBothDirections(t *testing.T) {
+	for _, kind := range []string{"goblin", "wolf", "knight"} {
+		for _, reverse := range []bool{false, true} {
+			r := dropEdgeTestRun()
+			r.Level.Rooms[0] = Arena{Bridges: []NarrowBridge{{ID: "deck", Obstacle: Obstacle{400, 370, 200, 90}}}}
+			r.Player.X, r.Player.Y = 300, 340
+			enemy := Actor{ID: "pursuer", Kind: kind, X: 700, Y: 470, HP: 100, MaxHP: 100, Speed: 100, Cooldown: 2}
+			if reverse {
+				r.Player.X, r.Player.Y, enemy.X, enemy.Y = 700, 470, 300, 340
+			}
+			r.Enemies = []Actor{enemy}
+			for i := 0; i < 1000; i++ {
+				r.enemyTick(0, .02)
+				e := r.Enemies[0]
+				if !r.Arena().groundPath(e.X, e.Y, e.X, e.Y, actorClearance(&e)) {
+					t.Fatal("combat pursuit crossed gap")
+				}
+				if !reverse && e.X < 390 || reverse && e.X > 610 { break }
+			}
+			e := r.Enemies[0]
+			if !reverse && e.X >= 390 || reverse && e.X <= 610 {
+				t.Fatalf("%s reverse=%v did not cross: %.1f,%.1f", kind, reverse, e.X, e.Y)
+			}
+		}
+	}
+}

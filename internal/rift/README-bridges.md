@@ -7,7 +7,8 @@ Projectiles can cross the open gaps. Wood footsteps use the existing audio path.
 
 Movement tests cover large steps, both directions, actor clearance, jumping,
 knockback, legacy rooms and saved geometry. Pursuers align with an entry before
-crossing. Enemy placement and ledge landing checks reject gaps. Campaign checks
+crossing. Actual combat-loop tests also verify goblin, wolf and shield-carrier
+pursuit in both directions with normal cooldowns. Enemy placement and ledge landing checks reject gaps. Campaign checks
 verify all ten entrances/spawns, clear approaches, footstep surfaces and detached
 copies. Rail-defeat tests also confirm that wolf, ordinary enemy and boss drops
 can be reached and collected at both rails while another enemy remains alive;
