@@ -5,8 +5,11 @@ const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*
 const {installCanvasCostProbe}=require('../../scripts/brawl-canvas-cost.cjs');
 const {startTimeline}=require('../../scripts/brawl-timeline.cjs');
 const timeline=process.env.BRAWL_FRAME_TRACE==='1';
+const ablation=process.env.BRAWL_RENDER_ABLATION||'';
+if(ablation&&!['actors','background'].includes(ablation))throw Error('Unknown rendering ablation');
+if(ablation&&process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1')throw Error('Choose one rendering experiment');
 const canvasCosts=process.env.BRAWL_CANVAS_COST==='1';
-const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline;
+const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline||!!ablation;
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
 for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
  const report={sample,startedAt:new Date().toISOString(),smoke,profiling,timelineEnabled:timeline,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
@@ -31,6 +34,20 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
    expect(source.includes(marker)).toBe(true);
    const candidate=source.replace(marker,'  renderer.ready=renderer.ready.then(async()=>{images.props=await createImageBitmap(images.props);});\n'+marker);
    report.experiment={kind:'full-size prop ImageBitmap',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
+   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
+  }
+  if(ablation){
+   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+   let candidate;
+   if(ablation==='actors'){
+    const marker='  function actor(unit, now) {';expect(source.includes(marker)).toBe(true);
+    candidate=source.replace(marker,marker+'return; // diagnostic only: omit actors\n');
+   }else{
+    expect(source.split('drawAtlas(background,').length-1).toBe(2);
+    candidate=source.replaceAll('drawAtlas(background,','void(background,');
+   }
+   report.experiment={kind:'diagnostic omission: '+ablation,rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }

@@ -1,6 +1,6 @@
 "use strict";
 const fs=require('node:fs');
-const categories=['devtools.timeline','disabled-by-default-devtools.timeline','disabled-by-default-devtools.timeline.frame','toplevel','cc','gpu','v8'];
+const categories=['devtools.timeline','disabled-by-default-devtools.timeline','disabled-by-default-devtools.timeline.frame','toplevel','cc','gpu','v8','blink','disabled-by-default-blink.image_decoding','skia','disabled-by-default-skia','cc.debug'];
 async function startTimeline(cdp,output,{timeoutMS=30000,maxBytes=256*1024*1024}={}){
  await cdp.send('Tracing.start',{transferMode:'ReturnAsStream',streamFormat:'json',traceConfig:{recordMode:'recordUntilFull',traceBufferSizeInKb:65536,includedCategories:categories}});
  let stopped;

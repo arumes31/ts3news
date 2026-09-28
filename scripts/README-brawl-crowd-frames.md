@@ -110,3 +110,73 @@ The first smoke completed without data loss (54,096 events,11,808,195 bytes).
 Main-thread LayerTreeHost::DoUpdateLayers events summed5,082.282ms and animation
 callbacks3,921.205ms. These are nested inclusive timings, not additive CPU totals;
 see README-crowd-frame-baseline.md for interpretation and remaining work.
+
+
+## Drawing omission diagnostics
+
+BRAWL_RENDER_ABLATION=actors or background injects a temporary renderer that
+omits that component. The injected source and hash are retained locally; both
+variants always count as profiling and cannot pass the performance gate. Unknown
+values and combinations with the bitmap experiment are rejected. Production
+rendering is unchanged. These variants help locate cost, not propose removals.
+
+Sequential ten-second captures on2026-09-28 produced:
+
+| Omitted drawing | Render p95 | Frame interval p95 | Frame interval p99 |
+| --- | --- | --- | --- |
+| Actors | 25.5ms | 99.9ms | 116.6ms |
+| Background | 66.4ms | 150.1ms | 216.6ms |
+| None (control) | 60.4ms | 150.0ms | 216.6ms |
+
+Background omission did not establish an improvement. Actor omission reduced
+drawing time but left substantial frame delays. Single short sequential samples
+are insufficient to estimate a production speedup; the control also varied from
+the earlier full-length captures. Next investigate actor drawing and browser
+layer work while preserving all visible content. The five timeline collector
+tests still pass with the deeper Blink/Skia categories enabled. Trace durations
+remain overlapping inclusive measurements, not additive CPU or GPU totals.
+
+Public numeric evidence: tests/performance/baselines/crowd-drawing-omissions-2026-09-28.json.
+Raw reports and injected sources remain in the corresponding ignored
+test-results/crowd-without-actors-20260928, crowd-without-background-20260928 and
+crowd-omission-control-20260928 directories. No gate or ledger item is closed.
+
+
+## Rejected duplicate-profile lookup candidate
+
+Passing the actor function's already resolved profile as the seventh catalogActor
+argument removed one duplicate lookup per living or defeated monster draw. The
+helper defaulted that argument to bestiary.profile(unit) for direct callers.
+The regression failed before the change (two lookups) and passed after it (one).
+Three browser checks passed, including124 monsters,32 rigs,7020 frame definitions,
+14688 actor draws, and existing atlas pixel/state/cache checks.
+
+Three60-second candidate and three fresh control captures produced:
+
+| Metric | Candidate | Control |
+| --- | --- | --- |
+| Render p95 (ms) | 64.1 / 67.3 / 89.7 | 70.8 / 66.6 / 76.7 |
+| Frame interval p95 (ms) | 166.7 / 166.7 / 233.4 | 183.3 / 166.6 / 183.4 |
+| Frame interval p99 (ms) | 216.7 / 199.9 / 283.3 | 216.7 / 216.7 / 249.9 |
+
+All six fail the unchanged frame budget. The distributions overlap and vary
+substantially; grouped sequential order limits inference. Median render p95 was
+only4.9% lower, with a slower third candidate sample. This does not establish a
+repeatable improvement, so the production change was reverted. Do not count
+reduced lookup calls as proven frame improvement.
+
+Public aggregates: tests/performance/baselines/actor-profile-reuse-{candidate,control}-2026-09-28.json.
+The regression is archived as actor-profile-reuse-rejected-2026-09-28.txt in that
+directory, since it intentionally fails against the retained original renderer.
+Raw candidate/control output is under test-results/actor-profile-reuse-{full,control-full}-20260928;
+the candidate directory also preserves candidate-renderer.js. No ledger item closes.
+
+
+Deeper Blink/Skia trace analysis found64 layer-update events totaling5977.561ms.
+Wholly contained events included17664 drawPath calls (1833.983ms),21504 drawRect
+calls (824.316ms),3584 drawTextBlob calls (222.459ms), and64 canvas-resource
+production calls (170.252ms). This locates drawing work inside layer updates;
+it does not identify which gameplay primitive caused each call or prove GPU cost.
+Inclusive timings can overlap. Public aggregate: crowd-layer-drawing-2026-09-28.json
+in tests/performance/baselines; ignored raw trace: crowd-timeline-canvas-20260928
+in test-results. No performance gate changes.

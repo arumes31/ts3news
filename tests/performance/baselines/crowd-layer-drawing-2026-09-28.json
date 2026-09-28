@@ -1,0 +1,29 @@
+{
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "sourceRevision": "20c72ebd6f7b40760189a0afccb77199caa3039f",
+  "trackedDiffSHA256": "62fc329fc76e50bdf8a73bcb50b4b07ed168fe04743fcf6d604c1e52b9108f14",
+  "traceBytes": 21431366,
+  "dataLossOccurred": false,
+  "layerEvents": 64,
+  "layerInclusiveMS": 5977.561,
+  "containedEvents": {
+    "drawPath": {
+      "calls": 17664,
+      "inclusiveMS": 1833.983
+    },
+    "drawRect": {
+      "calls": 21504,
+      "inclusiveMS": 824.316
+    },
+    "drawTextBlob": {
+      "calls": 3584,
+      "inclusiveMS": 222.459
+    },
+    "canvasResource": {
+      "calls": 64,
+      "inclusiveMS": 170.252
+    }
+  },
+  "scope": "Selected complete-duration renderer-main-thread events wholly contained by a layer-update event. Inclusive durations may overlap and are not additive CPU or GPU time. Instrumented smoke, not a gate result."
+}
