@@ -20,6 +20,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 	var mu sync.Mutex
 	runs := map[string]*rift.Run{}
 	builds := map[string]rift.Build{}
+	potions := map[string]int{}
 	build := rift.Build{Name: "Rowan", Class: "vanguard", Level: 24, HP: 340, Damage: 32, Armor: 12, Weapon: "Mossbound Longsword", Gear: []string{"Mossbound Longsword", "Warden's Aegis", "Lanternkeeper's Cloak"}, Skills: []rift.Skill{{ID: "guard", Name: "Iron Guard", Kind: "shield", Cost: 18, Cooldown: 5, Power: 1.5}, {ID: "bash", Name: "Resolute Bash", Kind: "slash", Cost: 22, Cooldown: 3, Power: 2.4}, {ID: "spark", Name: "Cinder Bolt", Kind: "fire", Cost: 20, Cooldown: 2, Power: 2}}}
 	mux.HandleFunc("/abyss/rift", func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("rift_fixture")
@@ -57,6 +58,20 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "potions" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("potions", selectedBuild, now, riftMobCatalog(now), 1)
+			run.Epoch = "fixture"
+			run.Player.HP = 100
+			run.Level.Rooms[0] = rift.Arena{Name: "Potion workshop"}
+			run.Enemies = []rift.Actor{{ID: "watcher", Name: "Watcher", Kind: "goblin", X: 1450, Y: 485, HP: 100, MaxHP: 100, Knockdown: 1000}}
+			run.Drops = []rift.Drop{}
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			potions[cookie.Value] = 2
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "visual" {
 			run, err := riftVisualFixture(r.URL.Query(), selectedBuild)
 			if err != nil {
@@ -852,6 +867,14 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		run := runs[key]
 		build := builds[cookie.Value]
+		if r.Method == http.MethodGet && r.URL.Query().Get("inventory") == "potions" {
+			items := []riftPotionOption{}
+			if count := potions[cookie.Value]; mode == "" && count > 0 {
+				items = append(items, riftPotionOption{ID: "small_health_potion", Name: "Small Health Potion", Count: count, HealHP: 50})
+			}
+			writeJSON(w, map[string]any{"ok": true, "potions": items})
+			return
+		}
 		if r.Method == http.MethodGet {
 			ch := riftChallenge(time.Now())
 			if custom := r.URL.Query().Get("challenge"); custom != "" {
@@ -930,6 +953,17 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				return
 			}
 			switch req.Kind {
+			case "potion":
+				amount, err := riftPotionAmount(req.ConsumableID, run.Player.MaxHP)
+				if err != nil || req.ConsumableID != "small_health_potion" || potions[cookie.Value] <= 0 {
+					http.Error(w, "potion unavailable", 409)
+					return
+				}
+				if err := run.UseHealingPotion(amount); err != nil {
+					http.Error(w, err.Error(), 409)
+					return
+				}
+				potions[cookie.Value]--
 			case "practice_spawn", "practice_clear":
 				if err := applyRiftPracticeEnemy(run, req, time.Now()); err != nil { http.Error(w, err.Error(), 409); return }
 			case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
