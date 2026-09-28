@@ -218,3 +218,24 @@ by a mission's frozen tiers is decoded before its first scene, with current save
 actors included for legacy compatibility. Idle required PNG bytes are now
 30114995–30210352; saved expeditions add only the needed objective images.
 This remains far above the 3MB target. No new cold-start timing pass is claimed.
+
+## Deferred legacy ordinary background (2026-09-28)
+
+Modern regional startup no longer requests rift_area.png (3,149,894 bytes).
+Seven base atlases plus four shared creature sheets and the selected hero remain
+required. Saved regionless ordinary rooms prepare the original area background;
+regionless boss rooms prepare the original boss background. Both paths wait for
+decode, deduplicate concurrent loads, and clear rejected promises for retry.
+The renderer now selects the active legacy scene explicitly instead of borrowing
+the selected mission preview's region, and waits until its background is ready.
+
+Browser checks verify absent requests in modern startup, blocked readiness until
+legacy art arrives, actual legacy background draws, reuse, and retry for both
+backgrounds. Decode/progress/priority/recovery checks pass with seven critical
+atlases. The scenery oracle covers all 300 scenes, eight prop cells and 36 effect
+cells, including source rectangles substituted by the offscreen cache; the
+existing cached-versus-direct pixel oracle also passes. No source pixels changed.
+
+The known file-size saving is not a startup timing result. The remaining required
+art still exceeds the 3 MB budget; constrained-network readiness must be measured
+on this candidate and remains an open performance gate.

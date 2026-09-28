@@ -248,7 +248,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','regions','props','mobs','items','effects','terrainCover','platformSurface'];
+  const criticalAtlasKeys = ['regions','props','mobs','items','effects','terrainCover','platformSurface'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -561,12 +561,13 @@
     }));
   }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
-  let legacyBossArt=null;
+  const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
     await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run)]);
-    if(!run||run.room!==2||run.level?.region!==undefined||images.boss)return;
-    if(!legacyBossArt)legacyBossArt=loadDecodedAtlas(root.dataset.boss).then(img=>{images.boss=img;}).catch(()=>{legacyBossArt=null;throw new Error('Could not load saved boss scene artwork. Recover to try again.');});
-    await legacyBossArt;
+    if(!run||run.level?.region!==undefined)return;
+    const key=run.room===2?'boss':'area';if(images[key])return;
+    if(!legacyBackgroundLoads.has(key))legacyBackgroundLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{legacyBackgroundLoads.delete(key);throw new Error('Could not load saved '+(key==='boss'?'boss':'area')+' scene artwork. Recover to try again.');}));
+    await legacyBackgroundLoads.get(key);
   };
   renderer.snapshot = function (run, replay) {
     if (!run) return;
@@ -1234,7 +1235,9 @@
   }
   function renderFrame(now){
     const frameRate=!snapshot&&display.fps===30?15:display.fps;
-    if (!images.area || document.hidden || !ctx || now-last<1000/frameRate-1) return;
+    const region = snapshot && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level?.region : previewLevel?.region;
+    const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
+    if (!background || !atlasProgress.ready || document.hidden || !ctx || now-last<1000/frameRate-1) return;
     adaptParticles(last?now-last:0,frameRate);
     renderer.frameCount++;
     ctx.imageSmoothingEnabled = false;
@@ -1263,8 +1266,6 @@
     renderer.cameraFraming={x:camera,bosses:framing.bosses};
     const backgroundX=Math.min(0,-camera*.35),backgroundWidth=Math.max(1184,960-backgroundX);
     // Slow background parallax retains the full walkable foreground.
-    const region = snapshot?.level && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level.region : previewLevel?.region;
-    const background = region !== undefined ? images.regions : snapshot?.room===2 ? images.boss : images.area;
     if(region !== undefined){
       const row=Math.floor(region/2), top=regionRows[row], bottom=regionRows[row+1];
       drawAtlas(background,region%2*background.width/2+2,top*background.height+2,background.width/2-4,(bottom-top)*background.height-4,backgroundX,0,backgroundWidth,540);
