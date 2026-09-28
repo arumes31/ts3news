@@ -46,5 +46,24 @@ Tests cover boundaries, contact effects, save/reload, pause, expiry, room reset,
 cancellation, overlapping patterns and unrelated enemy damage.
 
 This is simulation groundwork for0326. The visible band, its hazard-specific
-label and browser verification are still pending. Reachability across campaign
-terrain also needs a focused audit; this change is not a global escape guarantee.
+label and browser verification are still pending.
+
+The finite terrain audit covers370 states: all300 campaign rooms, substituting
+all eight floor/gate combinations for each of the ten wave rooms. It samples
+X35..1565 in30-unit steps and ten Y values. After excluding11834 illegal starts,
+all180566 legal starts per speed reach the protected band with one held direction.
+Speeds are235 horizontal/141 depth normally and141/84.6 while slowed. Routes use
+real movement in20ms steps after300ms reaction, within the canonical two-second
+warning. This does not establish arbitrary-coordinate or concurrent-attack safety.
+
+    go test -tags=brawl_audit ./internal/rift -run TestCampaignChannelShelterGridAudit -count=1 -v
+
+A normal-suite regression also runs full combat ticks from all300 actual room
+entrances, keeping slow active and allowing authored hazards/objectives to tick.
+Each stationary control takes damage on the pulse's release; at least one held
+walking direction reaches shelter after300ms reaction and avoids damage on that
+release tick. Simulation HP is increased to keep earlier hazard contact from
+ending the probe; this is not a normal-health campaign completion test. Jumping,
+dodging, attacking and channel interruption are not used to manufacture escape.
+
+    go test ./internal/rift -run TestCampaignChannelShelterWithSlowedCombatTicks -count=1 -v

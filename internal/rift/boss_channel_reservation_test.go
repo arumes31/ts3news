@@ -118,3 +118,72 @@ func TestChannelDangerOverridesExistingLaneReservation(t *testing.T) {
 		t.Fatal("pulse danger inherited lane shelter")
 	}
 }
+
+func TestCampaignChannelShelterWithSlowedCombatTicks(t *testing.T) {
+	checked := 0
+	for _, level := range Campaign() {
+		for room := range level.Rooms {
+			r := channelRun()
+			r.Level = &level
+			r.Room = room
+			r.spawnRoom()
+			r.Clock = 2
+			r.Player.HP, r.Player.MaxHP = 10000, 10000
+			boss := channelRun().Enemies[0]
+			boss.X, boss.Y = r.Player.X+150, r.Player.Y
+			boss.TargetX, boss.TargetY = r.Player.X, r.Player.Y
+			boss.AttackName, boss.Windup = "Time Pulse", r.NextBossAttack(boss).Windup
+			r.Enemies = []Actor{boss}
+			r.SkillTimers["slowed"] = 5
+			raw, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var standing Run
+			if err := json.Unmarshal(raw, &standing); err != nil {
+				t.Fatal(err)
+			}
+			threatened := false
+			for step := 0; step < 120; step++ {
+				hp := standing.Player.HP
+				standing.tick(Input{}, .02)
+				if standing.Enemies[0].Attacks == 4 {
+					threatened = standing.Player.HP < hp && findEvent(standing.Events, "boss_channel_pulse") != nil
+					break
+				}
+			}
+			if !threatened {
+				t.Fatalf("mission%d room%d stationary control was not threatened", level.ID, room)
+			}
+			escaped := false
+			for _, direction := range []Input{{Y: -1}, {Y: 1}, {X: -1}, {X: 1}, {X: -1, Y: -1}, {X: 1, Y: -1}, {X: -1, Y: 1}, {X: 1, Y: 1}} {
+				var moving Run
+				if err := json.Unmarshal(raw, &moving); err != nil {
+					t.Fatal(err)
+				}
+				sheltered := false
+				for step := 0; step < 120; step++ {
+					input := Input{}
+					if step >= 15 && !sheltered {
+						input = direction
+					}
+					hp := moving.Player.HP
+					moving.tick(input, .02)
+					sheltered = moving.reservedBossArea(moving.Player.X, moving.Player.Y)
+					if moving.Enemies[0].Attacks == 4 {
+						escaped = sheltered && moving.Player.HP == hp && moving.SkillTimers["slowed"] > 0
+						break
+					}
+				}
+				if escaped {
+					break
+				}
+			}
+			if !escaped {
+				t.Errorf("mission%d room%d has no tested slowed entry escape", level.ID, room)
+			}
+			checked++
+		}
+	}
+	t.Logf("Checked%d actual campaign entrance escapes with slow, hazards and objective ticks", checked)
+}
