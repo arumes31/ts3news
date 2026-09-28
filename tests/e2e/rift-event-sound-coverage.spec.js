@@ -10,7 +10,7 @@ test('arrival and class resource events synthesize sound and stop on pause',asyn
   const context=audio.context,create=context.createOscillator.bind(context),frequencies=[];
   context.createOscillator=function(){const oscillator=create(),start=oscillator.start.bind(oscillator);oscillator.start=function(...args){frequencies.push(oscillator.frequency.value);return start(...args);};return oscillator;};
   const counts={};
-  for(const cue of ['arrival','barrier','resource','vanguard_guard','wave_gate_warning','wave_gate_close','wave_gate_open','wave_rest_enter','wave_rest_leave']){const before=frequencies.length;audio.play(cue,0);counts[cue]=frequencies.length-before;}
+  for(const cue of ['arrival','barrier','resource','vanguard_guard','wave_gate_warning','wave_gate_close','wave_gate_open','wave_rest_enter','wave_rest_leave','chest_open']){const before=frequencies.length;audio.play(cue,0);counts[cue]=frequencies.length-before;}
   await audio.setActive(false);
   const before=frequencies.length;audio.play('resource',0);
   return {counts,voices:audio.voices,pausedSounds:frequencies.length-before};

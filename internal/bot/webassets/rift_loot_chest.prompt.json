@@ -27,5 +27,5 @@
     "y": 381
   },
   "validation": "Visually inspected six stages. All six alpha>=16 body bounds end at y=541; body left edges range39–44 and right edges335–338 inside each 362px cell. Very faint alpha noise outside the render rectangles remains unchanged in the original PNG.",
-  "status": "Original asset saved; gameplay integration and animation validation pending."
+  "status": "Integrated in confirmed tier-clear world and checkpoint presentation; controller and browser journeys verified, including narrow viewport and missing-art/script paths."
 }

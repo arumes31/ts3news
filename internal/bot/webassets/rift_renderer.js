@@ -89,6 +89,8 @@
     }
     ctx.restore();fadedCoverFootprint(g,opacity,true);
   }
+  const chestPreview=document.getElementById('rift-chest-preview'),chestPreviewContext=chestPreview?.getContext('2d');
+  let chestPreviewIndex=-1;
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
@@ -573,6 +575,7 @@
     else previous = snapshot;
     if (previous && (previous.room !== run.room || previous.level?.id !== run.level?.id)) { previous = null; clearEffects(); decals=[]; deaths.clear(); camera=0; cameraRecovering=false; }
     if(entering)transitionAt=animationTime;else if(changed)transitionAt=-1000;
+    if(window.RiftChest?.observe(run,replay,animationTime))window.RiftAudio.play('chest_open',0);
     snapshot = run; received = performance.now();
     if(entering&&run.status==='fighting'&&!run.practice&&run.player.hp>0){
       const flourish=entryFlourishes[run.build?.class];
@@ -1958,7 +1961,22 @@
     for(const pickup of (run.room_objective?.kind==='sigils'?run.room_objective.pickups:[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
     const gate=run.room_objective?.gate;if(gate&&coverInView(gate))units.push({y:gate.y+gate.h,waveGate:gate});
+    const lootChest=window.RiftChest?.frame(animationTime,renderer.reduced||motion===0||display.lootMotion===false);
+    if(chestPreview){
+      const art=window.RiftChest?.image(),visible=!!(lootChest&&art&&chestPreviewContext);
+      chestPreview.hidden=!visible;
+      if(visible&&chestPreviewIndex!==lootChest.index){chestPreviewContext.clearRect(0,0,64,80);chestPreviewContext.imageSmoothingEnabled=false;chestPreviewContext.drawImage(art,lootChest.index*362+24,160,324,400,0,0,64,80);chestPreviewIndex=lootChest.index;}
+      if(!visible)chestPreviewIndex=-1;
+    }
+    if(lootChest&&window.RiftChest.image()&&lootChest.x-camera>-40&&lootChest.x-camera<1000)units.push({y:lootChest.y,lootChest});
     depthSortedUnits(units).forEach(unit=>{
+      if(unit.lootChest){
+        const c=unit.lootChest,x=c.x-camera,y=c.y-c.elevation,scale=60/324;
+        ctx.save();ctx.fillStyle='#06110a60';ctx.beginPath();ctx.ellipse(x,y,25,6,0,0,Math.PI*2);ctx.fill();
+        drawAtlas(window.RiftChest.image(),c.index*362+24,160,324,400,x-164*scale,y-381*scale,60,400*scale);
+        if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#f1dba7';ctx.strokeStyle='#201a14';ctx.lineWidth=3;interactionPrompt('TIER LOOT · BANK TO KEEP',x,y-76);}
+        ctx.restore();return;
+      }
       if(unit.waveGate){drawWaveGate(unit.waveGate);return;}
       if(unit.terrain){
         const c=unit.terrain,broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;

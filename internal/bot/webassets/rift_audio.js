@@ -557,6 +557,7 @@
       case 'relic_delivered': [523,659,784,1047].forEach((f,i)=>t(f,f,.5,.06,'triangle',i*.1)); break;
       case 'totem_hurt': h(.12,.07,2200,pan); t(160,95,.15,.05,'triangle'); break;
       case 'totem_break': h(.5,.12,3200,pan); t(320,60,.5,.08,'triangle'); break;
+      case 'chest_open': t(180,300,.16,.045,'triangle'); t(660,990,.26,.04,'sine',.12); break;
       case 'wave_rest_enter': t(330,660,.3,.045,'sine'); break;
       case 'wave_rest_leave': t(660,330,.25,.04,'sine'); break;
       case 'wave_incoming': [0,.25].forEach(delay=>t(220,330,.2,.065,'triangle',delay)); break;
