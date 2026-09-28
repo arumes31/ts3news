@@ -322,3 +322,31 @@ measurements, not a physical-device or error-free startup claim. The timing and
 3 MB transfer gates still fail. The fixture was compiled from the frozen worktree;
 no server-reported revision assertion was available. Safe aggregate evidence:
 [hero-row cold capture](../../tests/performance/baselines/cold-hero-row-2026-09-28.json).
+
+## Region transport preparation (2026-09-28)
+
+Ten lossless PNG panels now reproduce the source background sheet's pixels and
+fractional sample rectangles. Individual files are 303,068-466,066 bytes versus
+3,222,009 bytes for the combined sheet; the manifest is 1,607 bytes. Production
+still loads the combined sheet. These sizes describe a potential transport
+saving, not delivered startup improvement.
+
+Generate or verify derived files with:
+
+    python scripts/build-brawl-region-sections.py --write
+    python scripts/build-brawl-region-sections.py --check
+
+The builder reads renderer region boundaries, preserves each original fractional
+sampling rectangle relative to its integer crop origin, verifies decoded RGBA
+pixels and hashes each encoded file. It rejects changed source dimensions and
+invalid layouts. Source artwork remains unchanged. The check mode never writes.
+Two Python checks verify encoded pixels, hashes, bounds and fractional geometry.
+The browser oracle covers all ten regions over four parallax offsets, flipped
+and normal rendering, two opacity settings and two brightness settings: all
+320 cases have zero differing RGBA bytes. These background draws exceed the
+renderer cache's 256px destination limit, so the native drawImage path is the
+relevant sampling contract.
+
+Readiness, rapid preview changes, retry behavior, saved-run region selection and
+seamless advancement still require implementation and integration tests before
+production can use the smaller files.
