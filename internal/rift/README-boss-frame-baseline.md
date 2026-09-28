@@ -36,3 +36,20 @@ The broader crowded-boss improvement remains open pending that additional scope.
 Local capture directories: test-results/boss-frames-full; smoke is separately under
 boss-frames-smoke and excluded from all results above. Next investigate the slow
 submission cost with profiling; do not reduce thresholds or discard slow runs.
+
+## Follow-up CPU profile
+
+One separately instrumented encounter completed in22.602s,342frames, with166.5ms
+interval p95/233.3ms p99 and100.1ms render p95. It is not a new gate result.
+The entire profiler window sampled24.327s including activation/teardown. Render
+inclusive samples total11.625s; three native restore nodes account for8.537s.
+Their calling paths are sprite(4.439s), fx(2.271s), catalogActor(1.826s).
+The renderer's actor path totals7.107s inclusive. Background drawImage is not the
+dominant sampled path. Native attribution can include deferred raster work, so
+this identifies a place to experiment, not proof that removing restore is safe
+or sufficient. Next compare state handling or bounded sprite caching while
+verifying pixels and repeating the original uninstrumented three-run protocol.
+
+[CPU summary](../../tests/performance/baselines/boss-cpu-2026-09-28.json).
+Full local profile is under test-results/boss-cpu-profile. Collection passed in
+49.9s; no production rendering change or performance improvement is claimed.

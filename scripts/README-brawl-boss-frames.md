@@ -26,3 +26,15 @@ Headless CDP slowdown is a development comparison, not physical i5/UHD620 eviden
 Synchronous render time excludes GPU completion. Frame traces may be needed to
 investigate presentation stalls. Raw reports use fixture data only and stay under
 ignored test-results. Preserve failed/slow runs; do not discard them to pass.
+
+## CPU investigation
+
+Set `BRAWL_FRAME_PROFILE=1` to sample one complete encounter with CDP's CPU
+profiler. This writes boss.cpuprofile beside the report. The JSON gate is marked
+unmeasured because profiling instrumentation can alter timings. Remove the
+variable before collecting normal three-run comparisons.
+
+Run `python scripts/analyze-brawl-cpu-profile.py <path-to-boss.cpuprofile>` to
+produce weighted self/inclusive timings. They describe sampled main-thread time,
+not GPU presentation. Native canvas calls may include queued rasterization work;
+large restore timings do not alone prove that state restoration is the cause.

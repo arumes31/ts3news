@@ -3,9 +3,10 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const {execFileSync}=require('node:child_process');
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 const smoke=process.env.BRAWL_FRAME_SMOKE==='1';
+const profiling=process.env.BRAWL_FRAME_PROFILE==='1';
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
-for(let sample=1;sample<=(smoke?1:3);sample++)test('crowded boss frame sample '+sample,async({page,context,browser},info)=>{
- const report={sample,startedAt:new Date().toISOString(),smoke,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
+for(let sample=1;sample<=(smoke||profiling?1:3);sample++)test('crowded boss frame sample '+sample,async({page,context,browser},info)=>{
+ const report={sample,startedAt:new Date().toISOString(),smoke,profiling,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
   server:'fresh managed go test -tags=e2e fixture; production simulation, in-memory synthetic character',scenario:'/abyss/rift?scenario=visual&seed=boss-frames-v1&level=100&room=2&subclass=bloodblade&riftFrameDebug=1',
@@ -41,6 +42,7 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test('crowded boss frame sample '+
    };
    d.samples.push=function(sample){if(capture.active)capture.samples.push({...sample,at:performance.now()});return originalPush.call(this,sample);};
   });
+  if(profiling){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const deadline=Date.now()+(smoke?5000:60000);let run=initial;
   while(Date.now()<deadline){
@@ -51,10 +53,11 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test('crowded boss frame sample '+
   }
   await controls(new Set());
   report.capture=await page.evaluate(()=>{const c=bossFrameCapture;c.ended??=performance.now();c.active=false;return c;});
+  if(profiling){const {profile}=await cdp.send('Profiler.stop');fs.writeFileSync(info.outputPath('boss.cpuprofile'),JSON.stringify(profile));report.cpuProfile='boss.cpuprofile';}
   report.final={status:run.status,clock:run.clock,playerHP:run.player.hp};
   const c=report.capture;report.durationMS=c.ended-c.started;report.termination=c.status||'sampling deadline';report.summary={frames:c.samples.length,intervalP95:percentile(c.samples.map(s=>s.interval),.95),intervalP99:percentile(c.samples.map(s=>s.interval),.99),renderP95:percentile(c.samples.map(s=>s.render),.95)};
   expect(c.started).not.toBeNull();expect(c.samples.length).toBeGreaterThan(0);expect(c.hidden).toBe(false);expect(c.contextLost).toBe(false);
-  const s=report.summary;report.gate=smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
+  const s=report.summary;report.gate=profiling?'unmeasured (profiling instrumentation)':smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
   report.scope='Completed RAF intervals and synchronous canvas submission, not GPU presentation or physical target hardware. Fixture-selected final tier; no artificial crowd or health inflation.';
   console.log(JSON.stringify({sample,durationMS:report.durationMS,final:report.final,peaks:{enemies:c.enemyPeak,projectiles:c.projectilePeak},...s,gate:report.gate}));
  }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{await controls(new Set());save();}
