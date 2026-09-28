@@ -321,3 +321,30 @@ contains only allowlisted filenames, call names, numeric times and source hashes
 Raw profile remains local under`test-results/crowd-current-cpu-20260928` (the run
 started around the local date boundary). Runtime is now unfrozen. Frame and
 release gates remain open.
+
+
+## Offscreen catalog sprite experiment (2026-09-29)
+
+A conservative horizontal rejection inside catalogActor passed four focused browser
+checks, including 576 exact pixel comparisons across six species, four poses,
+edge/offscreen positions, parent transforms and full/faded opacity. Atlas-cache
+and wide health-label checks also passed. Production changes were reverted because
+performance improvement was not established.
+
+The matched harness alternated control/candidate order across three planned
+60-second pairs at the existing development profile. Session40462 terminated with
+ENOSPC while saving the fourth report; the final pair never ran. Three complete
+reports survive. Pair1 render p95 was72.0ms control versus63.2ms candidate, with
+interval p95 unchanged at166.7ms. Candidate2 render p95 was72.7ms. The fourth
+control printed57.0ms before its report write failed; that console-only result is
+not complete archived evidence. These mixed results do not demonstrate a repeatable
+win. Do not treat this partial experiment as a gate pass or a settled speedup.
+
+[Safe partial evidence](../../tests/performance/baselines/catalog-culling-attempt-2026-09-29.json)
+contains validated complete reports only. Raw reports and injected renderer sources
+remain under test-results/crowd-culling-matched-20260929. The test candidate remains
+local under .tmp/rift-catalog-culling-rejected.spec.js; its matched harness is
+.tmp/crowd-culling.spec.cjs. Verified inactive ts3news fixture executables older
+than two hours were removed from TEMP to reclaim1,951,817,728 bytes. No reports,
+source assets or running fixtures were deleted. The production renderer is restored
+and the user Go changes are unchanged.0997 and the release gate remain open.
