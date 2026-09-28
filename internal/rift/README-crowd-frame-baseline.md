@@ -41,3 +41,49 @@ The fixture contains synthetic data only. No user server or player save was used
 [Raw reports](../../tests/performance/baselines/crowd-frames-2026-09-28.json).
 Local artifacts are in test-results/crowd-frames-full. The separate 10-second smoke
 capture is excluded from these results. No runtime optimization is claimed here.
+
+## Profile and rejected cache follow-ups
+
+A separately instrumented 61.491s capture sampled 61.397s of CPU time. The render
+path accounts for 44.792s inclusive; 22.201s is attributed to native restore in
+the depth-sorted scenery callback, compared with 0.115s under catalogActor.
+Native samples may include deferred drawing work. This directs investigation to
+scenery, rather than proving that restore itself is expensive. The instrumented
+frame timings are not a gate result.
+
+[CPU summary and capture](../../tests/performance/baselines/crowd-cpu-2026-09-28.json).
+The full local profile is under test-results/crowd-cpu-profile. The reproduction
+command now supports BRAWL_FRAME_PROFILE=1 and explicitly excludes profiling
+captures from gate verdicts.
+
+Three candidate approaches were rejected:
+
+- Full-width rows for fractional crops still changed one pixel in a flipped,
+  rotated actor comparison. The archived experiment covers all 32 shared rigs;
+  restore it to tests/e2e/rift-row-cache-experiment.spec.js to reproduce. It stays
+  outside the active suite because its candidate deliberately fails equality.
+- Routing terrain-cover draws through the existing cache created no new entries
+  in this scene. Its three render p95 results were 94.6/111.2/95.3ms; interval p95
+  was 133.3/150.0/133.3ms. It did not address the measured scenery workload.
+- Caching the entire prop atlas preserved exact pixels and passed 12 browser
+  checks, but added 6294152 calculated pixel bytes without a frame improvement.
+  Render p95 was 98.8/100.0/97.3ms, interval p95 133.4/133.4/133.3ms, and p99
+  150.0/166.6/150.1ms. All three 60-second runs failed the unchanged thresholds.
+  Five entries occupied 6561440 bytes. No churn occurred in this scene.
+
+A final smaller prop-only fractional crop failed exact pixels: six changed pixels
+in one transformed panel and eleven in its flipped panel. It was not benchmarked.
+The runtime renderer is restored to the retained integer-only cache. No new
+performance improvement or memory-cost increase is shipped by these experiments.
+
+[Rejected terrain measurements](../../tests/performance/baselines/crowd-terrain-rejected-2026-09-28.json),
+[whole-prop candidate and measurements](../../tests/performance/baselines/crowd-whole-prop-rejected-2026-09-28.json),
+[prop-crop candidate and pixel differences](../../tests/performance/baselines/prop-crop-rejected-2026-09-28.json),
+[archived row experiment](../../tests/performance/baselines/row-cache-equivalence-2026-09-28.txt).
+
+The active equality test now includes all eight prop cells under clipping,
+rotation, opacity, brightness and flips. Fade/culling probes follow atlas identity
+through source canvases, preserving their original behavior assertions. A disk-full
+Go linker failure interrupted the first prop-crop test before it could run;
+clearing the reproducible Go build cache allowed the actual comparison to finish.
+No source, player data or measurement artifacts were removed.

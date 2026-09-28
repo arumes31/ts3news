@@ -1,9 +1,12 @@
 const {test,expect}=require('@playwright/test');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-test('cached atlas frames preserve pixels state and memory bounds',async({page},info)=>{
+test('experimental full width row cache preserves fractional source pixels',async({page},info)=>{
  test.setTimeout(120000);
  await page.addInitScript(()=>{const request=requestAnimationFrame;window.requestAnimationFrame=cb=>cb.name==='render'?1:request(cb);});
- const candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ let candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ candidate=candidate.replace('if(![sx,sy,sw,sh].every(Number.isInteger))return null;','');
+ candidate=candidate.replace('const left=Math.max(0,Math.floor(sx)-1)', 'const left=Number.isInteger(sx)&&Number.isInteger(sw)?Math.max(0,Math.floor(sx)-1):0');
+ candidate=candidate.replace('width=Math.min(img.width,Math.ceil(sx+sw)+1)-left', 'width=Number.isInteger(sx)&&Number.isInteger(sw)?Math.min(img.width,Math.ceil(sx+sw)+1)-left:img.width');
  const cached='    const frame=cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh);\n    if(frame)ctx.drawImage(frame.canvas,sx-frame.left,sy-frame.top,sw,sh,dx,dy,dw,dh);\n    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);';
  expect(candidate.includes(cached)).toBe(true);
  const baseline=candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
@@ -27,14 +30,18 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
    }
    outputs.push({before,after:{alpha:ctx.globalAlpha,filter:ctx.filter},png:canvas.toDataURL()});
   }
-  for(const flipped of [false,true]){
+  const names={scribe:'Scribe Without Eyes',remembers:'Abyss That Remembers'};
+  for(const rig of AbyssCombatArt.rigs)for(const flipped of [false,true]){
    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
-   ctx.save();ctx.globalAlpha=.35;ctx.filter='brightness(1.3)';ctx.translate(9.5,12.5);ctx.rotate(.07);ctx.scale(flipped?-1:1,1);if(flipped)ctx.translate(-900,0);
-   ctx.beginPath();ctx.rect(0,0,850,490);ctx.clip();
-   const state=()=>({alpha:ctx.globalAlpha,filter:ctx.filter,transform:Array.from(ctx.getTransform().toFloat64Array())}),before=state();
-   const img=images.props,frames=Array.from({length:8},(_,i)=>[i%4*img.width/4,Math.floor(i/4)*img.height/2,img.width/4,img.height/2]);
-   for(let i=0;i<frames.length;i++)for(const size of [64,128,256])drawAtlas(img,...frames[i],30+(i%4)*190,20+Math.floor(i/4)*220+size/8,size,Math.min(size,140));
-   const after=state();ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
+   const unit={name:names[rig]||rig,art_key:'row-probe:'+rig,kind:'goblin',element:'physical'};
+   ctx.save();ctx.globalAlpha=.71;ctx.filter='brightness(1.3)';ctx.translate(9.5,12.5);ctx.rotate(.07);ctx.scale(flipped?-1:1,1);if(flipped)ctx.translate(-900,0);
+   const before={alpha:ctx.globalAlpha,transform:Array.from(ctx.getTransform().toFloat64Array())};
+   let cell=0;
+   for(const pose of Object.keys(AbyssCombatArt.poses))for(const index of [0,1]){
+    const frame=bestiary.frame(unit,pose,index),img=catalogImages[frame.asset],s=frame.source;
+    drawAtlas(img,s.x*img.width,s.y*img.height,s.width*img.width,s.height*img.height,10+(cell%5)*170,20+Math.floor(cell/5)*220,101+cell*7,140);cell++;
+   }
+   const after={alpha:ctx.globalAlpha,transform:Array.from(ctx.getTransform().toFloat64Array())};ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
   }
   // Exercise eviction with valid distinct rectangles, then draw again after reuse.
   const img=images.heroesA,retired=atlasFrames.values().next().value;

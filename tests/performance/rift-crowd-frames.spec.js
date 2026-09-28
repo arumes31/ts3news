@@ -2,10 +2,10 @@ const {test,expect}=require('@playwright/test');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const {execFileSync}=require('node:child_process');
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
-const smoke=process.env.BRAWL_FRAME_SMOKE==='1';
+const smoke=process.env.BRAWL_FRAME_SMOKE==='1',profiling=process.env.BRAWL_FRAME_PROFILE==='1';
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
-for(let sample=1;sample<=(smoke?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
- const report={sample,startedAt:new Date().toISOString(),smoke,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
+for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
+ const report={sample,startedAt:new Date().toISOString(),smoke,profiling,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
   server:'fresh managed e2e fixture; no real player data',scenario:'/abyss/rift?scenario=visual&seed=crowded-v1&crowd=120&riftFrameDebug=1',
@@ -33,12 +33,14 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test('paused crowd120 frame sample
    document.addEventListener('visibilitychange',()=>{if(capture.active&&document.visibilityState!=='visible')capture.hidden=true;});document.querySelector('#rift-canvas').addEventListener('contextlost',()=>capture.contextLost=true);
    d.samples.push=function(sample){if(capture.active)capture.samples.push({...sample,at:performance.now()});return originalPush.call(this,sample);};
   });
+  if(profiling){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   for(let chunk=0;chunk<(smoke?1:6);chunk++){await page.waitForTimeout(10000);if(chunk%2===1)console.log('Crowd sample '+sample+': '+(chunk+1)*10+'s collected');}
   report.capture=await page.evaluate(()=>{const c=crowdFrameCapture;c.active=false;c.ended=performance.now();c.camera=RiftRenderer.cameraFraming;c.cache=RiftRenderer.atlasCacheStats();return c;});
+  if(profiling){const {profile}=await cdp.send('Profiler.stop');fs.writeFileSync(info.outputPath('crowd.cpuprofile'),JSON.stringify(profile));report.cpuProfile='crowd.cpuprofile';}
   const c=report.capture;report.durationMS=c.ended-c.started;report.summary={frames:c.samples.length,intervalP95:percentile(c.samples.map(s=>s.interval),.95),intervalP99:percentile(c.samples.map(s=>s.interval),.99),renderP95:percentile(c.samples.map(s=>s.render),.95)};
   expect(c.samples.length).toBeGreaterThan(0);expect(c.hidden).toBe(false);expect(c.contextLost).toBe(false);expect(c.camera.x).toBe(report.settings.camera.x);expect(c.cache.bytes).toBeLessThanOrEqual(c.cache.limitBytes);
   const after=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(after.paused).toBe(true);expect(after.clock).toBe(run.clock);expect(after.enemies).toHaveLength(120);
-  const s=report.summary;report.gate=smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
+  const s=report.summary;report.gate=profiling?'unmeasured (profiling instrumentation)':smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
   report.scope='Paused seeded drawing load with normal camera/culling. No combat inputs, enemy AI, projectile load or GPU presentation trace. Not physical target hardware.';
   console.log(JSON.stringify({sample,durationMS:report.durationMS,...s,cache:c.cache,gate:report.gate}));
  }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{save();}

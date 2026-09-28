@@ -23,3 +23,8 @@ BRAWL_FRAME_SMOKE=1 collects one10s sample and cannot pass a gate. Remove it for
 full capture. CPU slowdown/headless software graphics are development comparisons,
 not substitutes for physical i5/UHD620 testing or GPU presentation traces. The
 separate boss harness uses real inputs in mission100's final tier.
+
+Set BRAWL_FRAME_PROFILE=1 for one separately instrumented capture. It writes
+crowd.cpuprofile beside crowd-report.json and marks the gate unmeasured. Summarize
+it with `python scripts/analyze-brawl-cpu-profile.py <path-to-crowd.cpuprofile>`.
+Remove both profiling and smoke environment flags before collecting gate evidence.
