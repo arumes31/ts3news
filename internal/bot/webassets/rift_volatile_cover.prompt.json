@@ -1,0 +1,35 @@
+{
+  "generator": "image_gen.imagegen",
+  "transparent_background": true,
+  "prompt": "Use case: stylized-concept. Asset type: original 2D sprite sheet for an Abyss fantasy side-scrolling brawler. Create a transparent PNG sprite sheet with exactly THREE equally sized cells in a single horizontal row, requested canvas 1536 x 512. Each cell contains the SAME small wooden volatile alchemy crate at the SAME scale, grounded at the same baseline near y=440, with generous transparent padding and no overlap across cells. Front three-quarter view suitable for a belt-scrolling fighter, hand-painted pixel-inspired game art, crisp readable dark outline and restrained warm brown wood with dark iron bands. On its front is one large ivory triangular danger symbol with an orange spark inside, readable when reduced to 44 pixels wide. No words, letters, numbers, labels, grid or background. Cell 1: intact closed squat crate holding sealed ember-red alchemy vials, no flame. Cell 2: same crate split and cracked, vials glowing orange through the gaps, still the same overall silhouette, danger symbol still visible. Cell 3: spent broken crate, short pile of charred boards and broken dark vials on the same baseline, no smoke, no particles, no glow. The three states are production sprites, not a scene. Keep all objects fully within their own cell. Do not draw explosion effects or cast shadows outside the silhouette. Background must be genuinely transparent.",
+  "requested_size": [
+    1536,
+    512
+  ],
+  "status": "generated; integration pending",
+  "actual_size": [
+    2172,
+    724
+  ],
+  "sha256": "78f6282fe68e02b6616d857ba3878fca368722bdaf9f48ab4a8c5ec354d31ed1",
+  "cell_alpha16_bounds": [
+    [
+      126,
+      214,
+      590,
+      627
+    ],
+    [
+      125,
+      214,
+      604,
+      626
+    ],
+    [
+      74,
+      344,
+      657,
+      629
+    ]
+  ]
+}
