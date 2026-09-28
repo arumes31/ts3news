@@ -53,3 +53,37 @@ verifying pixels and repeating the original uninstrumented three-run protocol.
 [CPU summary](../../tests/performance/baselines/boss-cpu-2026-09-28.json).
 Full local profile is under test-results/boss-cpu-profile. Collection passed in
 49.9s; no production rendering change or performance improvement is claimed.
+
+## Rejected explicit-state experiment
+
+Replacing save/restore in sprite/catalog/effect drawing initially produced equal
+PNG hashes, but explicit matrix restoration changed stored transform precision
+under rotated parents. The exact-state comparison rejected that variant.
+
+A narrower fx-only candidate restored just globalAlpha. Exact pixel/state tests
+passed(30.1s) with parent opacity, rotation, clipping, brightness and flipped
+sprites. Three uninstrumented captures then yielded:
+
+| Run | Duration | Frames | Interval p95 | Interval p99 | Render p95 |
+| --- | --- | --- | --- | --- | --- |
+|1|24.867s|357|166.7ms|216.7ms|109.2ms|
+|2|22.080s|345|166.6ms|216.6ms|99.7ms|
+|3|23.254s|343|149.9ms|233.3ms|96.3ms|
+
+All cleared with three enemies, no errors/hidden time/context loss, and all missed
+the numeric gates. Median interval p95 was166.6ms versus150.1ms in the original
+baseline; median render p95 was99.7ms versus100.7ms. This is not a demonstrated
+overall improvement, so the production renderer was restored exactly. A native
+restore sample can account for queued drawing work; replacing the state operation
+did not remove the underlying expense. No performance gain or gate pass claimed.
+
+[Candidate diff and raw captures](../../tests/performance/baselines/effect-alpha-2026-09-28.json).
+[Archived visual comparison harness](../../tests/performance/baselines/effect-alpha-equivalence-2026-09-28.txt)
+compares a candidate fx implementation with its save/restore reference; apply the
+recorded candidate first to repeat this experiment. It is not an active no-op test
+of the restored renderer. The original passing comparison used the whole renderer
+at51ac6875 as its reference; the archived harness isolates the identical old fx
+body to avoid requiring a historical Git object. Local captures remain under
+canvas-state-equivalence(rejected matrix),canvas-alpha-equivalence(passing narrow
+variant),and boss-frames-alpha(three measurements). Next investigate bounded
+sprite/effect raster reuse rather than assuming save/restore itself is the cause.
