@@ -46,7 +46,21 @@ banking. Older saved objective lists are not retroactively expanded.
 A saved eight-second potion cooldown remains frozen through pause and resumes
 with combat time; the focused save/pause test passes.
 
-Still required: request/mode validation coverage, fixture inventory and real-
-browser controls/recovery/objective tests, broader integration checks, and the
-live-database economy verification. Ledger 0363 remains open. No potion UI has
-been verified in a real browser yet.
+Request/mode validation tests now cover missing and oversized potion IDs,
+unrelated actions carrying an item, and practice isolation. Inventory error
+messages remain visible through combat updates until refresh succeeds; the
+control regression test passes.
+
+The isolated E2E fixture and browser tests cover healing, inventory decrement,
+objective failure, paused cooldown recovery, mobile layout and practice isolation.
+The fixture compiles, but these browser tests have not run yet while the separate
+long-session memory capture occupies the browser fixture.
+
+The PostgreSQL integration test `TestRiftActualPotionCommitUncertainty` exercises
+lost COMMIT and lost ROLLBACK confirmations with the existing disposable-database
+helper. It checks inventory/run atomicity and repeated request recovery. Set
+`RIFT_TEST_DATABASE_URL` to a disposable PostgreSQL server with CREATE DATABASE
+permission to execute it; compilation or a skipped test is not live verification.
+
+Still required: real-browser execution and inspection, broader integration checks,
+and live-database economy verification. Ledger 0363 remains open.
