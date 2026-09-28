@@ -44,6 +44,32 @@
     }
     ctx.restore();
   }
+  function exitPortal(x,y){
+    const transform=ctx.getTransform();x=Math.round(x+transform.e);y=Math.round(y+transform.f);
+    if(x+40<0||x-40>canvas.width||y<0||y-112>canvas.height)return;
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);
+    // Copy only seven disjoint strips of already-drawn scenery. Actors, hazard
+    // cues and interaction labels are drawn later and can never be refracted.
+    if(!renderer.reduced&&motion>0){
+      ctx.save();ctx.beginPath();ctx.ellipse(x,y-52,38,56,0,0,Math.PI*2);ctx.clip();
+      ctx.globalAlpha=.45*display.effectIntensity;
+      const left=Math.max(0,x-40),right=Math.min(canvas.width,x+40);
+      for(let i=0;i<7;i++){
+        const top=Math.max(0,y-108+i*16),bottom=Math.min(canvas.height,y-92+i*16);
+        if(bottom<=top||right<=left)continue;
+        const shift=Math.round(Math.sin(decorationTime/850+i*.8)*2*motion);
+        ctx.drawImage(canvas,left,top,right-left,bottom-top,left+shift,top,right-left,bottom-top);
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha=display.effectIntensity;
+    ctx.fillStyle='#211c3866';ctx.strokeStyle='#29243f';ctx.lineWidth=7;
+    ctx.beginPath();ctx.ellipse(x,y-50,32,48,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.strokeStyle='#b0a3da';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='#d8f0f1';ctx.lineWidth=1;ctx.globalAlpha*=.6;
+    ctx.beginPath();ctx.ellipse(x,y-50,28,44,0,-Math.PI*.85,Math.PI*.1);ctx.stroke();
+    ctx.restore();
+  }
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
@@ -1245,8 +1271,9 @@
     if(!run.practice)rearRegionalBanners(run.level?.region);
     if(arena?.exit){
       const x=arena.exit.x-camera,y=arena.exit.y,open=run.status==='cleared'||run.status==='complete';
+      if(open&&!run.practice)exitPortal(x,y);
       ctx.save();ctx.strokeStyle=open?'#bfe9f4':'#8e9da5';ctx.lineWidth=2;ctx.setLineDash(open?[]:[4,4]);ctx.beginPath();ctx.ellipse(x,y,22,10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);regionalInlay(run.practice?null:run.level?.region,x,y);
-      if(!display.cleanScreenshot){ctx.fillStyle=open?'#c5f0ff':'#adb8be';ctx.strokeStyle='#10212a';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(open?'EXIT · OPEN':'EXIT',x,y-18,true);}ctx.restore();
+      if(!display.cleanScreenshot){ctx.fillStyle=open?'#c5f0ff':'#adb8be';ctx.strokeStyle='#10212a';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(open?'EXIT · OPEN':'EXIT',x,y-(open&&!run.practice?116:18),true);}ctx.restore();
     }
     if(arena?.entrance){
       const x=arena.entrance.x-camera,y=arena.entrance.y;
