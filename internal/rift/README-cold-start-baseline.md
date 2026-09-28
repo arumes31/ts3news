@@ -616,3 +616,30 @@ all seven outputs. These are correctness and request-selection results. The
 latest throttled timing capture remains at revision 17c407ca, before conditional
 platform, terrain-cover and local-row integration; no new speed or gate claim
 is made.
+
+
+## Measured conditional scenery and local rows (2026-09-28)
+
+[Sanitized capture](../../tests/performance/baselines/cold-local-mobs-2026-09-28.json)
+uses frozen revision 65fd72f7 plus the same recorded user Go diff, three fresh
+Chromium contexts and the unchanged 150ms/200000 B/s network profile. Playwright
+session56166 completed successfully in 2.7 minutes. No browser or request errors
+occurred in any sample. This is the development fixture, not physical hardware.
+
+| Sample | Start ready | First fighting response plus two frames | Bytes at Start | Bytes at first fight |
+| --- | --- | --- | --- | --- |
+| 1 | 38.296s | 47.861s | 7,385,053 | 9,117,254 |
+| 2 | 37.738s | 48.022s | 7,385,053 | 9,270,870 |
+| 3 | 37.778s | 50.386s | 7,385,053 | 9,732,388 |
+
+Against the previous 17c407ca capture, median Start readiness fell from 70.570s
+to 37.778s (46.47%), and median first-fight readiness from 81.740s to 48.022s
+(41.25%). Start transfer fell by 6,517,564 bytes. This comparison combines the
+platform, terrain-cover and local mob loading changes; it does not isolate any
+one of them. First-fight readiness is not a GPU presentation measurement.
+
+All cold-start thresholds still fail: median <=20s, each <=25s, bytes <=3MB.
+Props (1,553,373 bytes), items (1,392,338) and effects (1,332,867) are now the
+largest startup resources. Future work must preserve their actual preview,
+combat and loot dependencies and visual equivalence. Runtime source is unfrozen
+after this completed capture; later edits require their own measurements.
