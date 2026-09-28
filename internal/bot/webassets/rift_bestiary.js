@@ -103,7 +103,7 @@
     function buildCards(){
       if(built)return;built=true;
       roster.forEach(unit=>{
-        const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize(unit.name+' '+familyName(unit)+' '+unit.tier+' '+elementName(unit)+' '+attackStyle(unit));item.dataset.family=familyName(unit);item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
+        const item=document.createElement('article');item.setAttribute('role','listitem');item.dataset.search=normalize([unit.name,familyName(unit),unit.tier,elementName(unit),attackStyle(unit),...(Array.isArray(unit.aliases)?unit.aliases.filter(alias=>typeof alias==='string'):[])].join(' '));item.dataset.family=familyName(unit);item.dataset.artKey=unit.art_key;item.dataset.tier=unit.tier;item.dataset.element=elementName(unit);item.dataset.style=attackStyle(unit);
         const sprite=document.createElement('span'),pose=frame(unit,'idle',0);sprite.className='rift-monster-art';sprite.setAttribute('aria-hidden','true');sprite.style.backgroundImage='url("'+assetURL(pose.asset)+'")';sprite.style.backgroundPosition=pose.position;sprite.style.backgroundSize=pose.size;
         const body=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=unit.name;detail.textContent=familyName(unit)+' · '+unit.tier+' · '+(unit.kind==='boss'?'Area attacks':unit.kind==='archer'?'Ranged':unit.kind==='treasure'?'Fleeing':'Melee');
         const button=document.createElement('button');button.type='button';button.textContent='Inspect';button.setAttribute('aria-label','Inspect '+unit.name);button.onclick=()=>inspect(unit,button);

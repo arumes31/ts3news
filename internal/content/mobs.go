@@ -78,6 +78,8 @@ type MobDeathEffect struct {
 // Mob is a spawned combat opponent: a monster instance with resolved stats,
 // effects, and (for elites/bosses) equipped gear and spells.
 type Mob struct {
+	// Aliases are optional authored search names; Name remains the identity.
+	Aliases        []string `json:"Aliases,omitempty"`
 	Name           string
 	Type           MobType
 	Level          int
@@ -110,6 +112,7 @@ type Mob struct {
 func (m Mob) Clone() *Mob {
 	newMob := m
 	// Deep copy slices
+	newMob.Aliases = append([]string(nil), m.Aliases...)
 	if m.Effects != nil {
 		newMob.Effects = make([]MobEffect, len(m.Effects))
 		copy(newMob.Effects, m.Effects)
