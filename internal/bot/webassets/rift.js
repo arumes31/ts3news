@@ -25,7 +25,7 @@
     const now=performance.now(),actions=[];let started=now;
     for(const [action,at] of inputMarks){
       const skill=action.startsWith('skill:')?action.slice(6):action==='ultimate'?run?.build.ultimate?.id:action.startsWith('signature')?run?.build.signatures?.[Number(action.slice(9))]?.id:action.startsWith('skill')?run?.build.skills?.[Number(action.slice(5))]?.id:null;
-      const matches=action==='right'?value.x>0:action==='left'?value.x<0:action==='down'?value.y>0:action==='up'?value.y<0:action==='stop'?value.x===0&&value.y===0:skill?value.skill===skill:['attack','guard','jump'].includes(action)&&value[action];
+      const matches=action==='right'?value.x>0:action==='left'?value.x<0:action==='down'?value.y>0:action==='up'?value.y<0:action==='stop'?value.x===0&&value.y===0:skill?value.skill===skill:['attack','guard','jump','dodge'].includes(action)&&value[action];
       if(matches){actions.push(action);started=Math.min(started,at);inputMarks.delete(action);}
     }
     return actions.length?{actions,started,epoch:inputEpoch}:null;

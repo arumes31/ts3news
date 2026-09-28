@@ -46,3 +46,29 @@ test('input history stays bounded and failed requests do not confirm',async({pag
  fail=true;await page.keyboard.press('a');await expect(page.locator('#rift-start')).toHaveText('Recover expedition');
  expect(await page.evaluate(()=>window.RiftInputDiagnostics.count)).toBe(125);
 });
+
+test('dodge timing waits for the response carrying the keyboard action',async({page})=>{
+ await page.route('**/api/abyss/rift*',async route=>{
+  const body=route.request().postDataJSON();
+  if(body?.kind==='step'&&body.input.dodge)await new Promise(resolve=>setTimeout(resolve,350));
+  await route.continue();
+ });
+ await page.goto('/abyss/rift?practice=touch&riftInputDebug=1');
+ await expect(page.locator('#rift-start')).toBeEnabled();
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ await page.locator('#rift-canvas').focus();
+ const response=page.waitForResponse(r=>{
+  const body=r.request().postDataJSON();
+  return new URL(r.url()).pathname==='/api/abyss/rift'&&body?.kind==='step'&&body.input.dodge;
+ });
+ await page.keyboard.press('c');
+ const accepted=await response;expect(accepted.ok()).toBe(true);
+ const body=accepted.request().postDataJSON(),data=await accepted.json();
+ expect(data.run.id).toBe(body.run_id);expect(data.run.revision).toBe(body.revision);
+ expect(data.run.skill_timers.dodge_cooldown).toBeGreaterThan(0);
+ await expect.poll(()=>page.evaluate(()=>window.RiftInputDiagnostics.count)).toBe(1);
+ const sample=await page.evaluate(()=>window.RiftInputDiagnostics.samples[0]);
+ expect(sample.actions).toEqual(['dodge']);
+ expect(sample.request).toBeGreaterThanOrEqual(350);
+ expect(sample.total).toBeGreaterThanOrEqual(sample.queue+sample.request);
+});
