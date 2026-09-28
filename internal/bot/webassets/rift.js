@@ -19,7 +19,12 @@
     inputOverlay.style.cssText='position:absolute;left:8px;bottom:8px;z-index:20;pointer-events:none;padding:6px;background:#071813eb;color:#d9f3ce;font:11px monospace;white-space:pre-line';
     inputOverlay.textContent='Input confirmation: waiting for a control press';$('rift-canvas').parentElement.append(inputOverlay);
   }
-  function markInput(action){if(inputMarks&&playing)inputMarks.set(action,performance.now());}
+  function markInput(action){if(inputMarks&&playing)inputMarks.set(action,performance.now());wakeInput();}
+  function wakeInput(){
+    if(!playing||run?.status!=='fighting')return;
+    pendingInput=true;
+    if(!busy&&!loopRunning&&!checkpointPending){clearTimeout(timer);timer=setTimeout(loop,0);}
+  }
   function takeInputTiming(value){
     if(!inputMarks)return null;
     const now=performance.now(),actions=[];let started=now;
@@ -38,7 +43,7 @@
     const values=inputDiagnostics.samples.map(value=>value.total).sort((a,b)=>a-b);
     inputOverlay.textContent='Input confirmation '+total.toFixed(1)+' ms · p95 '+values[Math.ceil(values.length*.95)-1].toFixed(1)+' ms\nQueue '+queue.toFixed(1)+' ms · response '+request.toFixed(1)+' ms · '+values.length+'/120 samples';
   }
-  let starting = false, startIntent = 0, checkpointPending = false;
+  let starting = false, startIntent = 0, checkpointPending = false, pendingInput = false, loopRunning = false;
   let run = null, build = null, rooms = [], playing = false, busy = false, ready = false, timer = 0, currentSkillIDs = '';
   let levels = [], selectedLevel = 1, campaignKey = '', clearedAt = 0, challenge = null, countdownAnnounced = -1;
   try{$('rift-confirm-boss').checked=localStorage.getItem('riftConfirmBoss')==='true';}catch(_){}
@@ -241,9 +246,9 @@
       dodge:pressed('dodge')||held('dodge'),
       skill:''};
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
-    value.x=value.x||touchJoystick.x||pad.x;value.y=value.y||touchJoystick.y||pad.y;taps.clear();return value;
+    value.x=value.x||touchJoystick.x||pad.x;value.y=value.y||touchJoystick.y||pad.y;taps.clear();pendingInput=false;return value;
   }
-  function resetInput(){potions?.cancel();const captured=[...touchPointers];touchPointers.clear();for(const [id,{button}] of captured)if(button.hasPointerCapture(id))button.releasePointerCapture(id);touchJoystick={x:0,y:0};const stick=$('rift-joystick-stick');if(stick)stick.style.transform='translate(0px, 0px)';const base=$('rift-joystick-base');if(base)base.classList.remove('rift-active');if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
+  function resetInput(){pendingInput=false;potions?.cancel();const captured=[...touchPointers];touchPointers.clear();for(const [id,{button}] of captured)if(button.hasPointerCapture(id))button.releasePointerCapture(id);touchJoystick={x:0,y:0};const stick=$('rift-joystick-stick');if(stick)stick.style.transform='translate(0px, 0px)';const base=$('rift-joystick-base');if(base)base.classList.remove('rift-active');if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');if(!button)return;const isGuarding=Boolean((controls.toggleGuard&&guardLatched)||touch.has('guard'));button.setAttribute('aria-pressed',String(isGuarding));button.classList.toggle('rift-held',isGuarding);if(isGuarding)button.dataset.pressed='true';else delete button.dataset.pressed;}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function practiceToolButtons(){const freeze=$('rift-practice-freeze');if(freeze)freeze.setAttribute('aria-pressed',String(!!run?.practice?.freeze_movement));root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'||button.dataset.practiceAction==='practice_bank'&&!run?.practice?.checkpoint_ready));}
@@ -623,11 +628,13 @@
     }finally{checkpointPending=false;root.querySelectorAll('#rift-next,#rift-exit').forEach(btn=>setSafeDisabled(btn,!ready));}
   }
   async function loop(){
-    if(!playing)return;
+    if(!playing||loopRunning)return;
+    loopRunning=true;
+    try{
     audio.tick?.();
     if(!busy&&!checkpointPending){
       if(run?.status==='cleared' && $('rift-auto').checked){
-        if(awaitingBossConfirmation()||awaitingBossRoomPause()||awaitingNewRegionPause()){timer=setTimeout(loop,85);return;}
+        if(awaitingBossConfirmation()||awaitingBossRoomPause()||awaitingNewRegionPause())return;
         if(!clearedAt){clearedAt=performance.now();countdownAnnounced=-1;}
         const remaining=Math.max(0,transitionDelay-(performance.now()-clearedAt)/1000);
         const next=run.room===2?levels.find(level=>level.id===(run.level?.id||0)+1)?.name:rooms[run.room+1];
@@ -649,7 +656,10 @@
         if(remaining===0)await send('advance');
       }else{countdownAnnounced=-1;const potion=potions?.take();if(potion)potions.finish(await send('potion',potion));else await send('step');}
     }
-    if(playing)timer=setTimeout(loop,85);
+    }finally{
+      loopRunning=false;
+      if(playing)timer=setTimeout(loop,pendingInput&&!checkpointPending&&run?.status==='fighting'?0:85);
+    }
   }
   let pausePending=null,leavingPage=false;
   function pause(){

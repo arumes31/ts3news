@@ -94,3 +94,20 @@ network time; this is not a server CPU profile. The evidence directs the next
 investigation toward input queueing behind idle requests, not validation.
 It is a diagnostic smoke, not a gate result or proof of full-combat behavior.
 Evidence: tests/performance/baselines/input-phases-smoke-2026-09-28.json.
+
+## Fresh input wakes: kept
+
+Recognized controls now wake the idle loop or schedule one immediate follow-up
+after its current request. Idle polling still waits 85ms; requests remain serial.
+Input consumption and resets clear the wake, and pauses/checkpoints retain their
+existing rules. Eleven scheduling tests and 17 browser tests passed, including
+movement+jump queued behind a held idle response and subsequent saved pause.
+
+Three candidate samples preceded three fresh controls on the same source base
+and diagnostic instrumentation, browser, host, display settings and network.
+Candidate p95 was 477.5/490.4/473.6ms; control 545.4/543.5/518.1ms. Median p95
+fell 12.1% (543.5 to 477.5ms), and the ranges do not overlap. All 360 inputs were
+accepted with no browser errors. The exact tested candidate was restored and
+its scheduling tests rerun. This change is retained; all samples still fail
+the 300ms target and do not establish full-combat or physical-device performance.
+Evidence: tests/performance/baselines/input-wake-2026-09-28.json.
