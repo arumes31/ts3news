@@ -28,8 +28,15 @@ metadata and positive owned counts, excluding unsupported items. Practice return
 an empty array without reading real inventory. SQL and response tests pass.
 Frequent combat snapshots do not query potion inventory.
 
-Still required: player controls and
-recovery feedback, the no-potion optional objective, cooldown save/pause coverage,
+The Healing potions panel now loads inventory on demand, lets the player choose
+an owned item and queues one explicit use between combat updates. Selection and
+repeat use are disabled while queued or in flight. Pause/input resets cancel an
+unsent use; an uncertain response requires normal expedition recovery. Inventory
+refreshes after confirmed use and recovery. Control-state tests pass for duplicate
+clicks, pause cancellation, unavailable use and uncertainty. These tests use a
+small DOM fixture; actual browser/server integration is still pending.
+
+Still required: the no-potion optional objective, cooldown save/pause coverage,
 request/mode validation coverage, and real-browser integration. The objective is
 not offered yet, so it cannot award an automatic success without a potion action.
 Ledger 0363 remains open. No potion UI has been verified.

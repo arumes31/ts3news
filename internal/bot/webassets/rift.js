@@ -61,6 +61,7 @@
   const practice=root.dataset.practice||'', drillNames={toxic_tide:'Toxic Tide challenge',touch:'Touch control calibration',banking:'Checkpoint banking',pickup:'Safe loot pickup',resource:'Resource management',ultimate:'Ultimate timing lane',ranged:'Ranged aiming lane',perfect_guard:'Perfect-guard timing',skills:'Skill testing lane',class:'Your class sequence',boss:'Boss phase practice',movement:'Movement lane',jump:'Jump over cover',combo:'Three-hit combo',guard:'Directional guard',hazard:'Read the warning zone'};
   const challengeParam=new URLSearchParams(location.search).get('challenge');
   const api = '/api/abyss/rift'+(practice?'?practice='+encodeURIComponent(practice):challengeParam?'?challenge='+encodeURIComponent(challengeParam):'');
+  const potions=window.RiftPotions?.create({api,practice});
   // Core status-line and request-error copy. Parameters remain plain text.
   const statusCopy=Object.freeze({
     uniqueSkill:"Choose each skill only once.",
@@ -240,7 +241,7 @@
     const intent=window.RiftIntents.take(run,action=>pressed(action)||held(action),value.guard);value.skill=intent.skill;if(intent.wait)value.attack=false;
     value.x=value.x||touchJoystick.x||pad.x;value.y=value.y||touchJoystick.y||pad.y;taps.clear();return value;
   }
-  function resetInput(){const captured=[...touchPointers];touchPointers.clear();for(const [id,{button}] of captured)if(button.hasPointerCapture(id))button.releasePointerCapture(id);touchJoystick={x:0,y:0};const stick=$('rift-joystick-stick');if(stick)stick.style.transform='translate(0px, 0px)';const base=$('rift-joystick-base');if(base)base.classList.remove('rift-active');if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
+  function resetInput(){potions?.cancel();const captured=[...touchPointers];touchPointers.clear();for(const [id,{button}] of captured)if(button.hasPointerCapture(id))button.releasePointerCapture(id);touchJoystick={x:0,y:0};const stick=$('rift-joystick-stick');if(stick)stick.style.transform='translate(0px, 0px)';const base=$('rift-joystick-base');if(base)base.classList.remove('rift-active');if(inputMarks){inputMarks.clear();inputEpoch++;}window.RiftHaptics.stop();window.RiftIntents.reset();window.RiftGamepad.reset();keys.clear();keyOrder.clear();touch.clear();taps.clear();mouse.clear();guardLatched=false;root.querySelectorAll('.rift-held, [data-pressed="true"]').forEach(n=>{n.classList.remove('rift-held');delete n.dataset.pressed;if(n.dataset.bind!=='guard'||!controls.toggleGuard)n.setAttribute('aria-pressed','false');const m=n.dataset.move;if(m&&moveLabels[m])n.setAttribute('aria-label',moveLabels[m][0]);});guardDisplay();}
   function guardDisplay(){const button=root.querySelector('[data-bind="guard"]');if(!button)return;const isGuarding=Boolean((controls.toggleGuard&&guardLatched)||touch.has('guard'));button.setAttribute('aria-pressed',String(isGuarding));button.classList.toggle('rift-held',isGuarding);if(isGuarding)button.dataset.pressed='true';else delete button.dataset.pressed;}
   function toggleGuard(){guardLatched=!guardLatched;guardDisplay();}
   function practiceToolButtons(){const freeze=$('rift-practice-freeze');if(freeze)freeze.setAttribute('aria-pressed',String(!!run?.practice?.freeze_movement));root.querySelectorAll('[data-practice-action]').forEach(button=>setSafeDisabled(button,!practice||!ready||starting||practiceToolPending||run?.status!=='fighting'||button.dataset.practiceAction==='practice_bank'&&!run?.practice?.checkpoint_ready));}
@@ -444,7 +445,7 @@
     });
     [...$('rift-skills').children].forEach((button,i)=>button.dataset.bind='skill'+i);
     [...$('rift-signatures').children].forEach((button,i)=>button.dataset.bind=specials[i]===run.build.ultimate?'ultimate':'signature'+i);
-    controls.prompts();window.RiftHUD.update(run,playing,replay);
+    controls.prompts();window.RiftHUD.update(run,playing,replay);potions?.update(run,playing);
     $('rift-room-actions').hidden=run.status!=='cleared'||!playing;
     put($('rift-clear-label'),run.room===2?(finalBoss?.name||'The boss')+' has fallen':'Area secured');
     if(awaitingNewRegionPause()){const nextReg=nextRegionEntering();put($('rift-transition'),transitionText('Approaching '+(nextReg?.region_name||'new region')+' · Prepare and confirm when ready.'));}
@@ -578,12 +579,13 @@
     if(saved?.last_request_id!==pendingBank.id&&bankCheckpoint(saved)===pendingBank.scope)return;
     pendingBank=null;try{sessionStorage.removeItem(pendingBankKey);}catch(_){}
   }
-  async function send(kind) {
+  async function send(kind,consumableID) {
     if(busy)return false;
     busy=true;if(kind!=='step')setSafeDisabled($('rift-practice-reset'),true);practiceToolButtons();
     const previousReceipt=run?{id:run.id,banked_gold:run.banked_gold,banked_items:[...run.banked_items],banked_items_total:RiftLoot.bankedCount(run)}:null;
     const banking=['bank','exit','next','advance'].includes(kind);if(banking)window.RiftLoot.banking('pending');
     const body={kind,run_id:run?.id||'',request_id:crypto.randomUUID(),revision:(run?.revision||0)+1,input:kind==='step'?input():{}};
+    if(kind==='potion')body.consumable_id=consumableID;
     const inputTiming=kind==='step'?takeInputTiming(body.input):null;
     if(practice==='hazard'&&['start','practice_reset'].includes(kind))body.hazard_intensity=$('rift-hazard-intensity').value;
     if(kind==='practice_spawn')body.enemy_name=$('rift-practice-enemy').value;
@@ -641,7 +643,7 @@
           }
         }
         if(remaining===0)await send('advance');
-      }else{countdownAnnounced=-1;await send('step');}
+      }else{countdownAnnounced=-1;const potion=potions?.take();if(potion)potions.finish(await send('potion',potion));else await send('step');}
     }
     if(playing)timer=setTimeout(loop,85);
   }
@@ -834,7 +836,7 @@
       if(practice==='ultimate'&&!(run?.build||build).ultimate){$('rift-start').disabled=true;$('rift-start').textContent='Ultimate required';}
       if(practice==='ranged'&&![...((run?.build||build).skills||[]),...((run?.build||build).signatures||[]),(run?.build||build).ultimate].some(skill=>skill?.reference?.target==='projectile')){$('rift-start').disabled=true;$('rift-start').textContent='Ranged ability required';put($('rift-practice-instructions'),'Equip a projectile ability in Abyss, then return to ranged practice. Your current build has no ranged projectile.');}
       $('rift-sign-in').hidden=true;
-      window.RiftLoot.banking('reloaded');
+      window.RiftLoot.banking('reloaded');potions?.recover();
       status(root.dataset.fixture?statusCopy.fixtureReady:statusCopy.characterReady);
       if(root.dataset.fixture)$('rift-overlay-note').textContent='Local playtest · Sample character · Isolated rewards';
       if(practice){$('rift-overlay-note').textContent='Your Abyss build · Practice only · No rewards';status(statusCopy.practiceReady($('rift-practice-instructions').textContent));}
