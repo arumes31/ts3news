@@ -5,6 +5,8 @@ const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*
 const {installCanvasCostProbe}=require('../../scripts/brawl-canvas-cost.cjs');
 const {startTimeline}=require('../../scripts/brawl-timeline.cjs');
 const timeline=process.env.BRAWL_FRAME_TRACE==='1';
+const opaque=process.env.BRAWL_OPAQUE_CANVAS_EXPERIMENT==='1';
+if(opaque&&(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 const ablation=process.env.BRAWL_RENDER_ABLATION||'';
 if(ablation&&!['actors','background'].includes(ablation))throw Error('Unknown rendering ablation');
 if(ablation&&process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1')throw Error('Choose one rendering experiment');
@@ -37,6 +39,14 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }
+  if(opaque){
+   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+   expect(source.split("canvas.getContext('2d')").length-1).toBe(1);
+   const candidate=source.replace("canvas.getContext('2d')","canvas.getContext('2d',{alpha:false})");
+   report.experiment={kind:'opaque main canvas',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
+   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
+  }
   if(ablation){
    const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
    let candidate;
@@ -53,6 +63,7 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
   }
   await page.goto(report.scenario);await expect(page.locator('#rift-start')).toBeEnabled({timeout:120000});
   await page.locator('.rift-settings > summary').click();await page.locator('#rift-display-preset').selectOption('lowPower');await page.locator('#rift-apply-preset').click();await page.locator('.rift-settings > summary').click();
+  report.canvasAttributes=await page.evaluate(()=>document.getElementById('rift-canvas').getContext('2d').getContextAttributes());expect(report.canvasAttributes.alpha).toBe(!opaque);
   const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.enemies).toHaveLength(120);expect(run.paused).toBe(true);
   report.scene={count:run.enemies.length,alive:run.enemies.filter(e=>e.hp>0).length,bosses:run.enemies.filter(e=>e.kind==='boss').length,projectiles:run.projectiles.length,class:run.build.class,replaySeed:run.replay_seed,clock:run.clock};expect(report.scene.bosses).toBeGreaterThan(0);
   await page.evaluate(async run=>{await RiftRenderer.ready;RiftRenderer.snapshot(run,true);document.querySelector('#rift-overlay').hidden=true;},run);

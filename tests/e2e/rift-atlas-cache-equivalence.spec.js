@@ -3,10 +3,12 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 test('cached atlas frames preserve pixels state and memory bounds',async({page},info)=>{
  test.setTimeout(120000);
  await page.addInitScript(()=>{const request=requestAnimationFrame;window.requestAnimationFrame=cb=>cb.name==='render'?1:request(cb);});
- const candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ let candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
  const cached='    const frame=cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh);\n    if(frame)ctx.drawImage(frame.canvas,sx-frame.left,sy-frame.top,sw,sh,dx,dy,dw,dh);\n    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);';
  expect(candidate.includes(cached)).toBe(true);
- const baseline=candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
+ const opaque=process.env.BRAWL_OPAQUE_CANVAS_EXPERIMENT==='1';
+ const baseline=opaque?candidate:candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
+ if(opaque){expect(candidate.split("canvas.getContext('2d')").length-1).toBe(1);candidate=candidate.replace("canvas.getContext('2d')","canvas.getContext('2d',{alpha:false})");}
  const hook=`renderer.stateProbe=function(units){
   animationTime=120;decorationTime=120;renderer.reduced=false;motion=1;
   const outputs=[];
@@ -59,6 +61,7 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
  for(const source of [baseline,candidate]){
   await page.route('**/static/rift_renderer.js*',r=>r.fulfill({contentType:'application/javascript',body:source.replace('window.RiftRenderer=renderer;',hook+'window.RiftRenderer=renderer;')}));
   await page.goto('/abyss/rift?scenario=visual&seed=state-pixels&level=100&room=2&subclass=vanguard');await expect(page.locator('#rift-start')).toBeEnabled();
+  expect(await page.evaluate(()=>document.getElementById('rift-canvas').getContext('2d').getContextAttributes().alpha)).toBe(!(opaque&&source===candidate));
   const data=await(await page.request.get('/api/abyss/rift')).json();
   const output=await page.evaluate(async run=>{await RiftRenderer.ready;return RiftRenderer.stateProbe(run.enemies);},data.run);
   output.outputs.forEach((item,index)=>fs.writeFileSync(info.outputPath('variant-'+results.length+'-'+index+'.png'),Buffer.from(item.png.split(',')[1],'base64')));

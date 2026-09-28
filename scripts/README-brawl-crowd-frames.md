@@ -180,3 +180,26 @@ it does not identify which gameplay primitive caused each call or prove GPU cost
 Inclusive timings can overlap. Public aggregate: crowd-layer-drawing-2026-09-28.json
 in tests/performance/baselines; ignored raw trace: crowd-timeline-canvas-20260928
 in test-results. No performance gate changes.
+
+
+## Rejected opaque main-canvas experiment
+
+BRAWL_OPAQUE_CANVAS_EXPERIMENT=1 injects alpha:false only into the main canvas
+context. It cannot combine with other rendering experiments. The actual context
+attributes are asserted and retained with each crowd report. This implements the
+[HTML canvas alpha setting](https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-alpha);
+it does not alter transparency of sprite sources or cache canvases. Production
+still uses its original context settings.
+
+The atlas pixel/state comparison supports the same switch and compares ordinary
+versus opaque contexts with unchanged caching. Initial comparison passed. In a
+sequential ten-second smoke pair, opaque render p95 was62.8ms versus60.8ms for
+control; both interval p95 values were150ms, with p99 200ms versus183.3ms. No
+benefit was established, so this candidate was rejected without longer captures.
+These smoke captures cannot pass the gate. Public numeric evidence is
+tests/performance/baselines/opaque-canvas-smoke-2026-09-28.json. Raw output is in
+test-results/opaque-canvas-{smoke,control-smoke,equivalence}-20260928.
+
+The follow-up pixel/state comparison also passed with explicit assertions for
+alpha:true on control and alpha:false on candidate (19.7s including setup).
+Artifacts: test-results/opaque-canvas-attributes-equivalence-20260928.

@@ -1,0 +1,83 @@
+{
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "scope": "Single sequential ten-second smoke per variant. No repeatable performance gain established; production unchanged.",
+  "samples": [
+    {
+      "variant": "opaque",
+      "alpha": false,
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "5ef5afb6ae2aad63e878f5bdb85aed3426e8504e",
+              "trackedDiffSHA256": "114fe85246fd0cca0809d27aa98fd1e9f5fc3bed201dd77e7232a1f8d6a02335",
+              "rendererSHA256": "1690e9ec6e092e29319e61101d705c9c89f17b45fca6f2503e0e761b51d72d8f"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10127.89999999106,
+            "runtimeErrors": 0,
+            "frames": 84,
+            "intervalP95": 150,
+            "intervalP99": 200,
+            "renderP95": 62.79999999701977,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "variant": "control",
+      "alpha": true,
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "5ef5afb6ae2aad63e878f5bdb85aed3426e8504e",
+              "trackedDiffSHA256": "114fe85246fd0cca0809d27aa98fd1e9f5fc3bed201dd77e7232a1f8d6a02335",
+              "rendererSHA256": null
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10090.59999999404,
+            "runtimeErrors": 0,
+            "frames": 91,
+            "intervalP95": 150,
+            "intervalP99": 183.29999999999927,
+            "renderP95": 60.79999999701977,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    }
+  ]
+}
