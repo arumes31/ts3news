@@ -2,7 +2,7 @@ const {test,expect,chromium}=require('@playwright/test');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {execFileSync}=require('node:child_process');const {setTimeout:delay}=require('node:timers/promises');
 const {launchDirectChromium}=require('../../scripts/brawl-direct-chromium.cjs');
-const {attachDirectPage}=require('../../scripts/brawl-direct-page.cjs');
+const {attachDirectPage,startDirectExpedition}=require('../../scripts/brawl-direct-page.cjs');
 const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs');
 const {summarizeHeap}=require('../../scripts/brawl-heap-summary.cjs');
 const smoke=process.env.BRAWL_DIRECT_MEMORY_SMOKE==='1',durationMS=smoke?60000:1800000;
@@ -31,7 +31,7 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
   await page.evaluate(()=>{const d=RiftRenderer.frameDiagnostics,original=d.samples.push;window.directHealth={frames:0,lastFrame:0,hidden:false,contextLost:false};d.samples.push=function(...values){directHealth.frames+=values.length;directHealth.lastFrame=performance.now();return original.apply(this,values);};document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')directHealth.hidden=true;});document.querySelector('#rift-canvas').addEventListener('contextlost',()=>directHealth.contextLost=true);});
   async function expedition(index){
    const began=Date.now(),existing=await page.read(),tiers=[],waypoint=createLedgeNavigator();let run,lastInputReset=0;
-   await page.click(existing?.status==='complete'?'#rift-replay':'#rift-start');
+   await startDirectExpedition(page,existing);
    try{while(Date.now()-began<360000){
     await page.checkErrors();run=await page.read();expect(run.status).not.toBe('defeated');
     if(run.status==='cleared'){

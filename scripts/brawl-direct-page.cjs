@@ -28,4 +28,14 @@ async function attachDirectPage(cdp,{url,networkInspection=false}){
  const read=async()=>{const response=await fetch(new URL('/api/abyss/rift',url),{headers:{cookie}});if(!response.ok)throw Error('Direct fixture API failed');return (await response.json()).run;};
  return {send,evaluate,wait,click,controls,read,errors,sessionId,get networkEvents(){return networkEvents;},async checkErrors(){const pageErrors=await evaluate(()=>directCaptureErrors);if(errors.length||pageErrors.length)throw Error('Direct capture runtime or HTTP failure');}};
 }
-module.exports={attachDirectPage};
+async function startDirectExpedition(page,existing){
+ // Mouse dispatch does not await the async begin handler or its server response.
+ await page.wait(()=>page.evaluate(()=>{const button=document.getElementById('rift-start');return !!button&&!button.disabled;}));
+ const replay=existing?.status==='complete';
+ await page.click(replay?'#rift-replay':'#rift-start');
+ await page.wait(async()=>{
+  await page.checkErrors();const run=await page.read();
+  return typeof run?.id==='string'&&run.id.length>0&&run.status==='fighting'&&run.paused===false&&(!replay||run.id!==existing.id);
+ });
+}
+module.exports={attachDirectPage,startDirectExpedition};

@@ -113,3 +113,35 @@ development and must not be treated as a matched memory-growth pair. Public
 aggregate: tests/performance/baselines/heap-frequency-smoke-2026-09-28.json.
 The new policy-export regression failed before the fix, then all five paired
 export tests passed. No performance or memory gate is closed by these smokes.
+
+
+## Replay acknowledgement and first frequency attempt
+
+The first full all-snapshot capture stopped after checkpoint54 (54 measured
+replays,42.2minutes including setup) when replay55 observed the previous run
+still complete. Direct mouse dispatch does not await the asynchronous begin
+handler or its API response. The endpoint-only variant never started because
+the sequential shell stops on failure. Keep the partial capture; it cannot
+satisfy60-replay/post-cap comparison requirements. Public aggregate:
+tests/performance/baselines/heap-frequency-partial-2026-09-28.json.
+
+startDirectExpedition now waits for the prior UI request to settle before
+clicking, then waits for an authoritative unpaused fighting run. Replay requires
+a different expedition ID; initial start/resume can retain its identity. Runtime
+errors still fail immediately, and no transition still times out. Four direct
+start tests cover delayed old state, paused replacements, resume, failed starts
+and errors; they failed before the acknowledgement fix and pass after it.
+
+The separate frequency exporter is scripts/brawl-heap-frequency-evidence.cjs.
+Pass two capture directories with one report each. It requires matching complete
+workloads, source/driver/browser/settings/graphics, Network OFF, render/audio
+health and the declared snapshot pattern. It publishes fixed numeric fields
+and hashes, excludes raw heap strings/paths/error messages, and never grants
+release readiness. Seven unit/CLI tests also verify malformed-report privacy.
+The capture-failure error count is not proof of an application memory defect.
+
+The fixed-driver endpoint-only smoke passed in3.1minutes: warmup plus two
+complete measured three-tier replays, zero Network events, and the required
+baseline/intermediate/final snapshot assertions. Raw evidence:
+test-results/direct-start-ack-smoke-20260928. Restart the full comparison in
+fresh directories; the partial attempt cannot be combined with the new driver.
