@@ -58,6 +58,16 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 		}
 		selectedBuild := builds[cookie.Value]
 		mu.Unlock()
+		if r.URL.Query().Get("scenario") == "circular-court" {
+			mu.Lock()
+			now := time.Now()
+			run := rift.NewRunAtLevel("circular-court", selectedBuild, now, riftMobCatalog(now), 2)
+			run.Epoch = "fixture"
+			for index := range run.Enemies { run.Enemies[index].Knockdown = 1000 }
+			run.SetPaused(true, now)
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "potions" {
 			mu.Lock()
 			now := time.Now()

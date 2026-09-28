@@ -22,5 +22,12 @@ starts actors on walkable ground, as it already excluded positions inside walls.
 The full Rift suite passes, including authored-spawn pursuit, every combat role,
 regional arrival consistency, raised-platform access and hazard-safe routes.
 
-Still required: renderer/map previews, real browser combat/recovery and screenshot
-inspection. Do not mark 0416 complete until these paths are verified.
+The renderer now masks non-walkable corners and outlines the saved circular floor.
+Minimap and mission-preview ellipses use the same geometry. The preview explains
+that the two routes avoid floor hazards, not enemy attacks. Browser tests are
+prepared in tests/e2e/rift-circular-court.spec.js for keyboard traversal of both
+routes, hazard contact, recovery, desktop/mobile screenshots and route guidance.
+Syntax checks and E2E fixture compilation pass; browser tests have not run yet.
+
+Still required: real browser combat/recovery and screenshot inspection. Do not
+mark 0416 complete until these paths are verified.

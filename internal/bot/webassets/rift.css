@@ -1501,3 +1501,5 @@
 .rift-potions{margin:10px 0;padding:10px;border:1px solid #81704c}.rift-potions summary{cursor:pointer}.rift-potions select{max-width:100%;margin:8px}.rift-potions button{min-height:40px;margin:4px}.rift-potions p{overflow-wrap:anywhere}
 
 #rift-minimap [data-kind=bridge],#rift-room-previews [data-terrain=bridge]{fill:#725338;stroke:#e8d3a0;stroke-width:2}
+
+#rift-room-previews [data-terrain=round]{fill:#203c3140;stroke:#b5c59b;stroke-width:5}

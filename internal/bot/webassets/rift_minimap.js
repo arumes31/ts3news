@@ -20,7 +20,8 @@
     const arena=run?.practice?.arena||run?.level?.rooms?.[run.room];root.hidden=!arena;if(!arena)return;
     tierProgress(run);
     const currentCleared=cleared(run,run.room),drawing=document.createDocumentFragment();
-    drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor','data-cleared':currentCleared},currentCleared?'Cleared arena':'Walkable arena bounds'));
+    if(arena.round){const r=arena.round;drawing.append(node('ellipse',{cx:mx(r.x),cy:my(r.y),rx:r.radius_x*.2,ry:r.radius_y*.24,class:'map-floor','data-kind':'round','data-cleared':currentCleared},'Circular walkable floor'));}
+    else drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor','data-cleared':currentCleared},currentCleared?'Cleared arena':'Walkable arena bounds'));
     const rect=(o,kind,label,phase)=>drawing.append(node('rect',{x:mx(o.x),y:my(o.y),width:mx(o.w),height:Math.round(o.h*.24*10)/10,'data-kind':kind,...(phase?{'data-phase':phase}:{})},label));
     if(arena.rest_alcove)rect(arena.rest_alcove,'rest','Rest alcove: safe between waves');
     for(const b of arena.bridges||[])rect(b,'bridge','Narrow bridge: stay between the rails');

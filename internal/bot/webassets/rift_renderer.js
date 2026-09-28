@@ -1417,6 +1417,12 @@
       }
       ctx.stroke();ctx.restore();
     });
+    if(arena?.round){
+      const r=arena.round,x=r.x-camera;
+      ctx.save();ctx.fillStyle='#09150f';ctx.beginPath();ctx.rect(0,305,960,200);ctx.moveTo(x+r.radius_x,r.y);ctx.ellipse(x,r.y,r.radius_x,r.radius_y,0,0,Math.PI*2);ctx.fill('evenodd');
+      ctx.strokeStyle='#354c3b';ctx.lineWidth=10;ctx.beginPath();ctx.ellipse(x,r.y,r.radius_x,r.radius_y,0,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#b5c59b';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+    }
     for(const b of arena?.bridges||[]){
       const x=b.x-camera,y=b.y,w=b.w,h=b.h;if(x+w<0||x>960)continue;
       ctx.save();
