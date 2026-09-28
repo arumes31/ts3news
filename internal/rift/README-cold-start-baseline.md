@@ -263,3 +263,21 @@ does not claim a reduction in the preceding fresh-page readiness measurement.
 It removes first-combat/saved-run download duplication; a new total startup
 measurement would be needed for any broader timing claim. Eight browser checks
 passed, covering URL sharing, decode/retry behavior, and queued-input persistence.
+
+## Per-class hero sections: encoding feasibility (2026-09-28)
+
+The two hero atlases each contain six integer rows. An in-memory experiment
+encoded all 12 rows separately, decoded both PNG and lossless WebP variants,
+and compared every RGBA byte, including invisible RGB. Reassembling each set
+of rows also reproduced its complete source atlas exactly. No artwork files
+or production-loading behavior changed in this experiment.
+
+Per-class PNG payloads are 385,138–463,186 bytes versus 2,608,798–2,704,155 bytes
+for an entire source sheet. Lossless WebP rows are 298,982–372,036 bytes. The
+[section report](../../tests/performance/baselines/hero-sections-2026-09-28.json)
+records geometry, class mapping, source/pixel hashes and library versions.
+Reproduce with python scripts/measure-brawl-hero-sections.py --output <path>.
+Two tests cover row order, transparent RGB preservation and rejection of
+non-divisible layouts. Browser compositing/filtering/frame equivalence, selected
+and saved class loading, retry behavior and startup timing remain unverified.
+Do not count these potential savings as delivered network improvements.

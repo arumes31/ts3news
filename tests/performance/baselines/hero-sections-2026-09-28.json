@@ -1,0 +1,160 @@
+{
+  "schema": "brawl-hero-sections-v1",
+  "pillow": "12.2.0",
+  "libwebp": "1.6.0",
+  "sheets": [
+    {
+      "asset": "rift_heroes_a.png",
+      "source_sha256": "bfd62659f52c070f333e68fa1753e003f6e6761d1fc9132f36a9e438bc21c09b",
+      "source_bytes": 2704155,
+      "width": 2048,
+      "height": 768,
+      "sections": [
+        {
+          "class": "vanguard",
+          "row": 0,
+          "x": 0,
+          "y": 0,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 413302,
+          "webp_bytes": 323638,
+          "rgba_sha256": "eb68f161fa4ce6ded93b33a20509cefa38f926c628a4c01c1e5d394762f224e0"
+        },
+        {
+          "class": "berserker",
+          "row": 1,
+          "x": 0,
+          "y": 128,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 420943,
+          "webp_bytes": 324336,
+          "rgba_sha256": "e321a6fbe80f2c92b23ee8044bfef4ed52bfbbbfb88bc03be250a856c33a6080"
+        },
+        {
+          "class": "marksman",
+          "row": 2,
+          "x": 0,
+          "y": 256,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 409305,
+          "webp_bytes": 322570,
+          "rgba_sha256": "2bfd39298710d24789ba5644e592507c957005839163f59910c3bc3d443d845e"
+        },
+        {
+          "class": "beastmaster",
+          "row": 3,
+          "x": 0,
+          "y": 384,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 431174,
+          "webp_bytes": 331392,
+          "rgba_sha256": "29cd897bb50610720b8e23f25713bd2c61e198a02bb86b90872d182e18fd8a79"
+        },
+        {
+          "class": "elementalist",
+          "row": 4,
+          "x": 0,
+          "y": 512,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 446719,
+          "webp_bytes": 363170,
+          "rgba_sha256": "cc0346b9636d12a385e532088bb58378509dbd6c9c3152a93ced347e14407450"
+        },
+        {
+          "class": "chronomancer",
+          "row": 5,
+          "x": 0,
+          "y": 640,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 463186,
+          "webp_bytes": 372036,
+          "rgba_sha256": "bdb74a72b52def601a6504731617a92074ad0265d8aeac0d855b51dca719f568"
+        }
+      ],
+      "reconstruction_pixel_exact": true
+    },
+    {
+      "asset": "rift_heroes_b.png",
+      "source_sha256": "f7ff929da32d2b9a48f63038e0790ced35382000e6a24da57d8cfdf0e9933504",
+      "source_bytes": 2608798,
+      "width": 2048,
+      "height": 768,
+      "sections": [
+        {
+          "class": "oracle",
+          "row": 0,
+          "x": 0,
+          "y": 0,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 430757,
+          "webp_bytes": 339374,
+          "rgba_sha256": "1872b16d81182bf77b4acf18ee7fe48364aacef1c6bbe3965a90100b88aae43c"
+        },
+        {
+          "class": "geomancer",
+          "row": 1,
+          "x": 0,
+          "y": 128,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 443520,
+          "webp_bytes": 347540,
+          "rgba_sha256": "5a89b2665e4cc387fecf8bbd0caf4da0537c54bd7b0eb587fbff04d9dcddfce6"
+        },
+        {
+          "class": "bloodblade",
+          "row": 2,
+          "x": 0,
+          "y": 256,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 389260,
+          "webp_bytes": 312324,
+          "rgba_sha256": "ee6da15af5193188687d448dee5cca46aac72d9301c71229d88e1592906d9fb4"
+        },
+        {
+          "class": "voidwalker",
+          "row": 3,
+          "x": 0,
+          "y": 384,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 385138,
+          "webp_bytes": 298982,
+          "rgba_sha256": "076b864208fc9be283af8aeb72b8529516fec1eff9063c829ead5c02b7ca61db"
+        },
+        {
+          "class": "runesmith",
+          "row": 4,
+          "x": 0,
+          "y": 512,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 440429,
+          "webp_bytes": 349544,
+          "rgba_sha256": "350a93d9cda38ba6893194c7d5bf1f3d623c2f3fdce8e5d6cc2e9b52afa79479"
+        },
+        {
+          "class": "alchemist",
+          "row": 5,
+          "x": 0,
+          "y": 640,
+          "width": 2048,
+          "height": 128,
+          "png_bytes": 394802,
+          "webp_bytes": 311916,
+          "rgba_sha256": "09272ff68c13318d22a8a27dce26c794476ddc30e8675291f493d64ebbf1a7d3"
+        }
+      ],
+      "reconstruction_pixel_exact": true
+    }
+  ],
+  "scope": "In-memory encoding experiment only. Original artwork and production loading unchanged. Browser compositing, filtering, animation, caching, and readiness remain unverified."
+}
