@@ -292,3 +292,46 @@ when interpreting process memory. Raw heaps and retaining paths remain ignored
 under test-results/session-memory-post-cap-20260928. The allowlisted public
 aggregate is tests/performance/baselines/session-post-cap-2026-09-28.json.
 Ledger 0798 remains open for process-memory/instrumentation verification.
+
+
+## Completed direct inspection comparison (2026-09-28)
+
+Both sequential isolated Chromium runs completed60 measured three-tier replays
+plus warmup with zero runtime errors. Fixture ecf7750d2370e56c95cc864fd322eff1dcb42477,
+tracked-diff1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b,
+and driver/browser/graphics/profile/settings hashes matched. Public evidence:
+tests/performance/baselines/direct-memory-2026-09-28.json.
+
+| Measurement | Network inspection off | Network inspection on |
+| --- | ---: | ---: |
+| Measured duration (ms) | 2,629,310 | 2,406,396 |
+| Overall JS heap growth (bytes) | 1,074,816 | 1,232,596 |
+| Post-cap JS heap growth, replay49 to60 (bytes) | 43,304 | 141,940 |
+| Overall renderer private growth (bytes) | 87,605,248 | 317,341,696 |
+| Post-cap renderer private growth (bytes) | 9,515,008 | 49,803,264 |
+| Final network resource records | 0 | 7,183 |
+
+All20 heaps retained only their current expedition IDs. Actor-shaped objects
+stayed163, effect-shaped objects zero and run-shaped objects two. Attempt records
+were149 at49 and150 at54/59/60 in both runs; final paths split into50 current-run,
+50 protocol snapshotBase and50 renderer previous records. Audio/timer/listener
+counts fluctuated within observed bounds. Detached counts plateaued at79 with
+inspection off and77-78 after warmup with it on; counts alone are not a complete
+ownership audit of detached objects.
+
+Inspection-off heaps contained zero NetworkResourcesData::ResourceData objects.
+Inspection-on counts rose165 to7183; three final positional example paths passed
+through DevToolsSession and InspectorNetworkAgent. Total shallow resource size
+was2,068,704 bytes, insufficient to explain all process growth. Renderer growth
+was229,736,448 bytes greater with inspection enabled. This supports an inspector
+contribution, but sequential order, different durations and heap collection in
+both variants prevent full causal attribution from one pair. Remaining9,515,008
+bytes of post-cap growth with inspection off is neither a proven application
+leak nor a demonstrated plateau.
+
+Ledger0798 remains open for remaining process-memory attribution. A next diagnostic
+can keep Network disabled and compare process counters with fewer heap snapshots
+to isolate collector contributions, preserving gameplay and thresholds. Raw heaps,
+profiles and paths remain ignored under test-results/direct-memory-full-20260928.
+Capture and retention analysis completed successfully. No other browser workload
+ran during this paired capture. This is review evidence, not a release pass.

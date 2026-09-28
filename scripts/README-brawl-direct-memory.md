@@ -53,7 +53,7 @@ three-tier replays per variant. Disabled inspection recorded0Network events at
 both checkpoints; enabled inspection recorded162then388. Runtime/error checks
 passed. Artifacts: test-results/direct-memory-smoke-20260928. This establishes
 that both drivers can complete the workload; it does not establish a long-session
-plateau or attribute all process-memory growth. Full comparison remains pending.
+plateau or attribute all process-memory growth. The full comparison is documented in internal/rift/README-session-memory.md.
 
 ## Public aggregate export
 
@@ -72,4 +72,4 @@ only for a complete matching pair. Durations, sequential order, GC/heap capture
 and remaining instrumentation still require review before interpreting that
 difference; one pair cannot establish causality. Release readiness and physical
 hardware verification are always false. Four paired-export tests plus ten shared
-session-export tests passed. Full live comparison remains in progress separately.
+session-export tests passed. The full pair completed; see internal/rift/README-session-memory.md for results and limits.
