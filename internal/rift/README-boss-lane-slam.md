@@ -36,8 +36,8 @@ Browser tests check all three band positions, two clear labels, removed circular
 slam guidance, reduced motion, clean suppression and audio lifecycle.
 Implements 0328; global safe-lane guarantees and whole-arena attacks remain separate.
 
-Safe-lane hazard reservations are an incremental part of 0326. Other large
-patterns and their terrain escape guarantees still need separate verification.
+The completed0326 reservation scope and combined verification are recorded in
+README-boss-safe-areas.md.
 
 ## Slowed escape timing audit
 
@@ -82,5 +82,5 @@ advancing floor warnings, gate transitions, hazard clocks or other actors.
 This is finite geometric coverage, not proof for arbitrary coordinates, compound
 status effects, carried relics, guard-walking, traction, concurrent attacks or
 hazard timing. The two focused regressions additionally run full combat ticks;
-the existing900 entry tests cover actual hazards. Item0326 remains open for the
-broader large-pattern escape guarantees.
+the existing900 entry tests cover actual hazards. The combined pattern audit and
+its finite coverage limits are recorded in README-boss-safe-areas.md.

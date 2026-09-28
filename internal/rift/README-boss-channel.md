@@ -45,7 +45,7 @@ and room changes clear it. Damage and reservation share the blast predicate.
 Tests cover boundaries, contact effects, save/reload, pause, expiry, room reset,
 cancellation, overlapping patterns and unrelated enemy damage.
 
-This is groundwork for0326. A mint outer-band overlay and hazard-specific label
+This completes the Time Pulse portion of0326; see README-boss-safe-areas.md. A mint outer-band overlay and hazard-specific label
 are implemented, including the saved impact interval and clean-screenshot hiding.
 The label says HAZARD SHELTER because hazard clocks continue; it explicitly
 retains enemy and overlapping-warning danger. Lane-slam labels use the same term.

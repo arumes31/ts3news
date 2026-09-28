@@ -44,8 +44,8 @@ freezes the timer and room start clears it. Cancelled warnings have no impact
 reservation. No whole-arena immunity or protection against other enemies is added.
 Tests cover geometric boundaries, hazard damage/slow/contact, saved impact,
 pause/expiry, cancelled/dead warnings, overlapping rings/lanes, completed-impact
-defeat, room cleanup and unrelated enemy damage. This is further progress on
-0326, not a guarantee of reachable escape space from every possible coordinate.
+defeat, room cleanup and unrelated enemy damage. The completed0326 scope is recorded in README-boss-safe-areas.md; this is not a
+guarantee of reachable escape space from every possible coordinate.
 
 
 ## Slowed pillar escapes
