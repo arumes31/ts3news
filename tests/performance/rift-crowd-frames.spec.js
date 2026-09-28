@@ -6,6 +6,8 @@ const {installCanvasCostProbe}=require('../../scripts/brawl-canvas-cost.cjs');
 const {startTimeline}=require('../../scripts/brawl-timeline.cjs');
 const timeline=process.env.BRAWL_FRAME_TRACE==='1';
 const opaque=process.env.BRAWL_OPAQUE_CANVAS_EXPERIMENT==='1';
+const sharedOrigin=process.env.BRAWL_SHARED_ORIGIN_EXPERIMENT==='1';
+if(sharedOrigin&&(opaque||process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 if(opaque&&(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 const ablation=process.env.BRAWL_RENDER_ABLATION||'';
 if(ablation&&!['actors','background'].includes(ablation))throw Error('Unknown rendering ablation');
@@ -36,6 +38,13 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
    expect(source.includes(marker)).toBe(true);
    const candidate=source.replace(marker,'  renderer.ready=renderer.ready.then(async()=>{images.props=await createImageBitmap(images.props);});\n'+marker);
    report.experiment={kind:'full-size prop ImageBitmap',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
+   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
+  }
+  if(sharedOrigin){
+   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+   const candidate=require('../../scripts/brawl-shared-origin-experiment.cjs').sharedOriginCandidate(source);
+   report.experiment={kind:'shared atlas origin prefixes',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }

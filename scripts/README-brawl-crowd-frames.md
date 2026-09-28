@@ -203,3 +203,34 @@ test-results/opaque-canvas-{smoke,control-smoke,equivalence}-20260928.
 The follow-up pixel/state comparison also passed with explicit assertions for
 alpha:true on control and alpha:false on candidate (19.7s including setup).
 Artifacts: test-results/opaque-canvas-attributes-equivalence-20260928.
+
+
+## Rejected shared monster atlas cache experiments
+
+The shared1254x1254 atlases have156.75px columns, which bypass the retained
+integer-only cache. Test-only origin-preserving per-crop prefixes kept pixels
+unchanged but churned the8MiB cache:3810 misses and334.9ms render p95 in a10s
+smoke. That layout was rejected. Its injected renderer is preserved with the raw
+capture in test-results/shared-origin-smoke-20260928.
+
+BRAWL_SHARED_ORIGIN_EXPERIMENT=1 now evaluates the second candidate from
+scripts/brawl-shared-origin-experiment.cjs: one315x1254 origin-preserving strip
+for the first two columns of each shared atlas. Other columns retain native
+drawing, and a new strip is rejected when free cache space is insufficient.
+Both the8MiB overall and2MiB single-entry bounds stay unchanged.
+
+The revised candidate matched all256 atlas cells across flips, fractional
+translation, opacity and brightness, alongside the existing hero/effect/prop
+pixel and state checks. Cache admission with free space and fallback when full
+also passed. An initial admission assertion placed after the cache-fill test
+correctly returned null; the follow-up tests both states separately. Evidence:
+test-results/shared-idle-strip-admission-equivalence-20260928 (25.4s).
+
+Despite eliminating churn (nine misses, nine entries,7379548 bytes), the strip
+candidate measured87.1ms render p95 and200ms interval p95 versus fresh control
+62.5ms and149.9ms. Their interval p99 values were233.4ms and200ms. Single
+sequential smokes do not quantify a reliable regression, but give no reason to
+retain this candidate or run longer captures. Production remains unchanged.
+Public evidence: tests/performance/baselines/shared-origin-smoke-2026-09-28.json.
+Raw strip/control captures: test-results/shared-idle-strip-{smoke,control-smoke}-20260928.
+The exact injected renderer hash is included in each candidate report.
