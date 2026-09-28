@@ -1,8 +1,10 @@
 # Diagonal ranged cover
 
 Pillar Watch missions (3,13,...,93) use three tall stone pillars across all three
-tiers. Their ground footprints form a diagonal, reversed on alternating regional/
-tier parity. The regional offsets and widths still distinguish mission layouts.
+tiers. In the first two tiers their ground footprints form a diagonal, reversed on
+alternating regional/tier parity. Final tiers use the [offset bastion](README-offset-bastions.md)
+formation with unequal straight flank routes. Regional offsets and widths still
+distinguish mission layouts.
 All three pillars block projectiles, unlike the previous one-tall/two-low pattern.
 The mission tactic describes breaking ranged sightlines and flanking between them.
 

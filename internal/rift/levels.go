@@ -136,7 +136,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 2: interrupt ritual channelers before their eight-second pulses"
 			}
 			if layout == 2 {
-				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol"
+				level.Tactic += ". Tier 2: gather three sigils and defeat the patrol. Tier 3: take the upper or lower flank around the offset bastion; the approaches have different lengths"
 			}
 			if layout == 8 {
 				level.Tactic += ". Tier 3: cross checkerboard tiles as the safe group alternates"
@@ -240,6 +240,13 @@ func buildCampaign() []Level {
 					} else {
 						arena.Obstacles = append(arena.Obstacles, obstacle)
 					}
+				}
+				if layout == 2 && room == 2 {
+					// A broad western bastion and two staggered defenses leave unequal
+					// upper/lower flanks. Both remain walkable without a jump skill.
+					shift := float64(region * 7)
+					arena.HighCover = []Obstacle{{640 + shift, 340, 95 + float64(region%4)*3, 100}, {920 + shift, 390, 70, 38}, {1120 + shift, 430, 42, 28}}
+					arena.Name = name + " - Offset Bastion / " + suffix
 				}
 				for h := 0; h < 1+(layout+room)%3; h++ {
 					arena.Hazards = append(arena.Hazards, Hazard{Obstacle: Obstacle{X: 390 + float64((layout*91+region*47+room*73+h*310)%940), Y: 335 + float64((layout+region+room+h)%3)*49, W: 90 + float64(region)*5, H: 32}, Kind: kinds[region], Slippery: kinds[region] == "ice", Jumpable: true, Period: 7 - float64(region)*.23, Offset: float64((layout+room+h)%5) * .7, Duration: .8 + float64(layout%3)*.2})
