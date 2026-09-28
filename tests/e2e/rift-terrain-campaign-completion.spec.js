@@ -4,6 +4,14 @@ const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs
 // Navigation reads saved geometry; all movement, attacks and transitions use UI controls.
 function terrainWaypoint(run,target){
  const p=run.player,arena=run.level.rooms[run.room];
+ const gaps=(run.room_objective?.floor_segments||[]).filter(p=>p.collapsed);
+ const gate=run.room_objective?.gate;if(gate?.closed)gaps.push(gate);
+ for(const gap of gaps){
+  const left=gap.x-24,right=gap.x+gap.w+24;
+  const forward=p.x<right&&target.x>right,backward=p.x>left&&target.x<left;
+  if((forward||backward)&&(p.y>350||target.y>350))return Math.abs(p.y-340)>5?{x:p.x,y:340}:{x:forward?right:left,y:340};
+ }
+
  for(const b of arena.bridges||[]){
   if(Math.min(p.x,target.x)<=b.x+b.w+12&&Math.max(p.x,target.x)>=b.x-12){
    const y=b.y+b.h/2;
@@ -14,7 +22,7 @@ function terrainWaypoint(run,target){
  }
  return target;
 }
-for(const mission of [4,2])test(`mission ${mission} completes terrain combat and all three tiers`,async({page},info)=>{
+for(const mission of [4,2,5])test(`mission ${mission} completes terrain combat and all three tiers`,async({page},info)=>{
  test.setTimeout(420000);
  const report={mission,errors:[],expeditions:[]};
  page.on('pageerror',error=>report.errors.push({message:error.message}));
@@ -32,7 +40,7 @@ for(const mission of [4,2])test(`mission ${mission} completes terrain combat and
   try{
    while(Date.now()-started<360000){
     if(report.errors.length)throw Error('Runtime failure during campaign: '+report.errors[0].message);
-    run=await read();report.lastCombat={room:run.room,status:run.status,player:{x:run.player.x,y:run.player.y,hp:run.player.hp},enemies:run.enemies.filter(e=>e.hp>0).map(e=>({kind:e.kind,x:e.x,y:e.y,hp:e.hp}))};expect(run.status,'combat must reach a checkpoint without death').not.toBe('defeated');
+    run=await read();expect(run.level.id).toBe(mission);if(run.room_objective?.floor_segments?.some(p=>p.collapsed))report.sawCollapsedFloor=true;report.lastCombat={room:run.room,status:run.status,player:{x:run.player.x,y:run.player.y,hp:run.player.hp},enemies:run.enemies.filter(e=>e.hp>0).map(e=>({kind:e.kind,x:e.x,y:e.y,hp:e.hp}))};expect(run.status,'combat must reach a checkpoint without death').not.toBe('defeated');
     if(run.status==='cleared'){
      await controls(new Set());tiers.push({room:run.room,clock:run.clock,kills:run.stats.kills});
      await expect(page.locator('#rift-next')).toBeVisible();await page.locator('#rift-next').click();

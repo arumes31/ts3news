@@ -565,6 +565,9 @@
       case 'wave_rest_enter': t(330,660,.3,.045,'sine'); break;
       case 'wave_rest_leave': t(660,330,.25,.04,'sine'); break;
       case 'wave_incoming': [0,.25].forEach(delay=>t(220,330,.2,.065,'triangle',delay)); break;
+      case 'floor_warning': [0,.14].forEach(d=>t(330,220,.12,.045,'triangle',d));h(.15,.03,1100,pan);break;
+      case 'floor_collapse': h(.32,.08,700,pan);t(110,40,.28,.06,'triangle');break;
+      case 'floor_restore': t(180,360,.25,.05,'triangle');t(440,660,.2,.035,'sine',.1);break;
       case 'wave_gate_warning': t(440,550,.16,.05,'triangle'); break;
       case 'wave_gate_close': t(130,55,.2,.07,'triangle'); t(880,440,.08,.035,'square'); break;
       case 'wave_gate_open': t(180,360,.24,.06,'triangle'); break;

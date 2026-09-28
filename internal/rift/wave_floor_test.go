@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"testing"
+	"time"
 )
 
 func floorWaveRun() *Run {
@@ -186,5 +187,67 @@ func TestWaveFloorFinalRepairAndEventsAreOncePerRound(t *testing.T) {
 		if counts[kind] != 3 {
 			t.Fatalf("%s fired %d times", kind, counts[kind])
 		}
+	}
+}
+
+func TestAuthoredWaveFloorsHaveBothBypassesForEveryFootprint(t *testing.T) {
+	rooms := 0
+	for _, level := range Campaign() {
+		for room, arena := range level.Rooms {
+			if arena.Objective != "survive_waves" {
+				continue
+			}
+			rooms++
+			if len(arena.FragileFloor) != 2 || !arena.ValidFragileFloor() {
+				t.Fatalf("mission %d missing bounded panels", level.ID)
+			}
+			for _, kind := range []string{"player", "boss", "wolf", "knight"} {
+				for _, lane := range []float64{340, 465} {
+					r := testRun()
+					r.Level = &level
+					r.Room = room
+					r.RoomObjective = &RoomObjective{Kind: "survive_waves"}
+					for _, box := range arena.FragileFloor {
+						r.RoomObjective.FloorSegments = append(r.RoomObjective.FloorSegments, WaveFloorSegment{Obstacle: box, Collapsed: true})
+					}
+					if arena.WaveGate != nil {
+						r.RoomObjective.Gate = &WaveGate{Obstacle: *arena.WaveGate, Closed: true}
+					}
+					actor := Actor{ID: kind, Kind: kind, HP: 100, X: arena.Entrance.X, Y: arena.Entrance.Y}
+					for i := 0; i < 100 && math.Abs(actor.Y-lane) > 1; i++ {
+						r.moveActor(&actor, 0, clamp(lane-actor.Y, -2, 2), false)
+					}
+					for i := 0; i < 700 && actor.X < 1450; i++ {
+						r.moveActor(&actor, 2, 0, false)
+					}
+					if actor.X < 1450 || math.Abs(actor.Y-lane) > 1 {
+						t.Fatalf("mission %d %s bypass %.0f blocked at %.1f/%.1f", level.ID, kind, lane, actor.X, actor.Y)
+					}
+				}
+			}
+		}
+	}
+	if rooms != 10 {
+		t.Fatalf("authored wave rooms=%d", rooms)
+	}
+}
+
+func TestWaveFloorRepairMakesDroppedLootReachable(t *testing.T) {
+	r := floorWaveRun()
+	r.tickWaveObjective(3)
+	r.Drops = []Drop{{ID: "panel-loot", X: 555, Y: 405, Gold: 10}}
+	r.Player.X, r.Player.Y = 450, 405
+	r.moveActor(&r.Player, 105, 0, false)
+	if r.Player.X != 450 {
+		t.Fatal("missing panel unexpectedly walkable")
+	}
+	for i := range r.Enemies {
+		r.Enemies[i].HP = 0
+	}
+	r.tickWaveObjective(.02)
+	r.moveActor(&r.Player, 105, 0, false)
+	r.Step(Input{}, time.UnixMilli(r.LastMS+20))
+	if !r.Drops[0].Collected || r.Gold < 10 || r.RoomObjective.Complete {
+		t.Fatal("intermission did not allow normal loot pickup")
 	}
 }

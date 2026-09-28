@@ -152,7 +152,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 1: cross the narrow bridge between its rails. Tier 2: hold the circle for 15 uncontested seconds. Tier 3: linked hazards pulse one at a time from left to right"
 			}
 			if layout == 4 {
-				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements"
+				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements; cracked floor panels drop when vacant and rebuild between waves"
 			}
 			if layout == 5 {
 				level.Tactic += ". Tier 1: separate linked guardians to remove their damage protection. Tier 2: destroy three ritual totems and defeat the patrol"
@@ -188,6 +188,7 @@ func buildCampaign() []Level {
 				}
 				if layout == 4 && room == 1 {
 					arena.Objective = "survive_waves"
+					arena.FragileFloor = []Obstacle{{440+float64(region*7),380,100,50},{1180+float64(region*7),380,100,50}}
 					arena.WaveGate = &Obstacle{840 + float64(region*7), 370, 24, 50}
 					arena.RestAlcove = &Obstacle{70, 335, 210, 140}
 				}

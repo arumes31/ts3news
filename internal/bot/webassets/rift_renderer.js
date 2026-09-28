@@ -215,6 +215,9 @@
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
     else if(e.kind==='block'||e.kind==='perfect_guard'){color=e.kind==='perfect_guard'?'#ffd700':'#7fd7ff';label=(e.kind==='perfect_guard'?'⭐ Perfect Guard':'🛡️ Guarded')+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='floor_warning'){color='#ffdc97';label='Floor cracking';}
+    else if(e.kind==='floor_collapse'){color='#ffbc8f';label='Use side routes';}
+    else if(e.kind==='floor_restore'){color='#bce7cf';label='Floor rebuilt';}
     else if(e.kind==='platform_board'){color='#ecd49c';label='Aboard';}
     else if(e.kind==='platform_ready'){color='#c6f5c6';label='Exit ready';}
     else if(e.kind==='beacon_captured'){color='#b9eaff';label='Beacon '+Math.round(e.value)+' / 3';}
@@ -1436,6 +1439,15 @@
       ctx.fillStyle='#ddc495';for(let post=0;post<=w;post+=40){ctx.fillRect(x+post-3,y-4,6,8);ctx.fillRect(x+post-3,y+h-4,6,8);}
       ctx.strokeStyle='#e8d3a0';ctx.lineWidth=2;ctx.beginPath();for(const edge of [x,x+w]){ctx.moveTo(edge,y+10);ctx.lineTo(edge,y+h-10);}ctx.stroke();
       ctx.restore();
+    }
+    for(const panel of run.room_objective?.floor_segments||[]){
+      const x=panel.x-camera,y=panel.y,w=panel.w,h=panel.h,rest=run.room_objective.complete||run.room_objective.next_wave_seconds>0;
+      const label=panel.collapsed?'GAP · GO AROUND':rest?'FLOOR RESTORED':panel.collapse_in>0?'CRACKING · '+panel.collapse_in.toFixed(1)+'s':'WAITING · MOVE OFF';
+      ctx.save();ctx.fillStyle=panel.collapsed?'#071217':'#756653';ctx.fillRect(x,y,w,h);
+      ctx.strokeStyle=panel.collapsed?'#dfb794':rest?'#afe0bd':'#ffe0a0';ctx.lineWidth=3;ctx.setLineDash(panel.collapsed||rest?[]:[6,4]);ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+      if(panel.collapsed){ctx.fillStyle='#182b31';ctx.fillRect(x+4,y+4,w-8,9);ctx.fillStyle='#030a0d';ctx.fillRect(x+9,y+15,w-18,h-22);}
+      else{ctx.strokeStyle='#342f29';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+10,y+6);ctx.lineTo(x+w*.45,y+h*.45);ctx.lineTo(x+w*.25,y+h-5);ctx.moveTo(x+w*.45,y+h*.45);ctx.lineTo(x+w-8,y+h*.65);ctx.stroke();}
+      if(!display.cleanScreenshot){ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.strokeStyle='#071217';ctx.fillStyle='#fff0c6';ctx.lineWidth=3;const labelY=panel.collapsed?y-9:y-90;ctx.strokeText(label,x+w/2,labelY);ctx.fillText(label,x+w/2,labelY);}ctx.restore();
     }
     if(run.practice?.mode==='moving_platform'){
       ctx.save();ctx.strokeStyle='#d9bb81';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(390-camera,410);ctx.lineTo(990-camera,410);ctx.stroke();ctx.setLineDash([]);

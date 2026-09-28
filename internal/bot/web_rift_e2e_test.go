@@ -727,6 +727,11 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				}
 				run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
 			}
+			if r.URL.Query().Get("condition") == "floor" {
+                run.Player.X,run.Player.Y=410,405
+                for group:=range run.RoomObjective.Waves {for i:=range run.RoomObjective.Waves[group] {run.RoomObjective.Waves[group][i].X=780;run.RoomObjective.Waves[group][i].Y=405}}
+                run.Enemies=append([]rift.Actor(nil),run.RoomObjective.Waves[0]...)
+            }
 			if r.URL.Query().Get("condition") == "gate" {
 				run.Player.X, run.Player.Y = 800, 395
 				for group := range run.RoomObjective.Waves {

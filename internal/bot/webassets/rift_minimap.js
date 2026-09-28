@@ -28,6 +28,7 @@
     for(const p of arena.platforms||[])rect(p,'platform',run.practice?.mode==='moving_platform'?'Moving wooden ferry: stand aboard to ride':'Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
+    for(const panel of run.room_objective?.floor_segments||[])rect(panel,panel.collapsed?'floor-gap':'floor-panel',panel.collapsed?'Missing floor: use a side route':panel.collapse_in>0?'Floor cracking: move clear':run.room_objective.next_wave_seconds>0||run.room_objective.complete?'Floor rebuilt':'Floor waiting for occupants to leave');
     if(run.room_objective?.gate?.closed)rect(run.room_objective.gate,'stone','Wave gate closed; use either bypass');
     for(const o of arena.cover||[]){
       if(o.material==='stone'||o.hp>0)rect(o,o.material,o.volatile?'Volatile cover: breaking it ignites nearby crates':o.material==='wood'?'Breakable wood':'Permanent stone');

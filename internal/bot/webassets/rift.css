@@ -1503,3 +1503,6 @@
 #rift-minimap [data-kind=bridge],#rift-room-previews [data-terrain=bridge]{fill:#725338;stroke:#e8d3a0;stroke-width:2}
 
 #rift-room-previews [data-terrain=round]{fill:#203c3140;stroke:#b5c59b;stroke-width:5}
+
+#rift-minimap [data-kind="floor-panel"],#rift-room-previews [data-terrain="floor-panel"]{fill:#756653;stroke:#ffdc97;stroke-width:2;stroke-dasharray:5 3}
+#rift-minimap [data-kind="floor-gap"]{fill:#071217;stroke:#dfb794;stroke-width:2}

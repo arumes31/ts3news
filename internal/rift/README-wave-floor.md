@@ -1,4 +1,4 @@
-# Recovering wave-floor panels (0479 in progress)
+# Recovering wave-floor panels (0479 verified)
 
 The engine supports authored FragileFloor rectangles and saved FloorSegments
 inside a survive_waves objective. Each panel warns for three combat seconds,
@@ -31,7 +31,31 @@ intermission/final-clear panels are rejected. Legacy rooms remain valid; content
 updates do not substitute the current campaign definition into saved runs.
 Focused decode tests and nine terrain protocol tests pass.
 
-Still required: authored rooms with verified bypasses for
-all supported enemy sizes, rendering and sound cues, minimap and preview,
-accessible warning/occupancy guidance, and real browser combat/loot/completion
-journeys. No campaign room uses the new panels yet. Keep ledger 0479 open.
+Tier 2 of missions 5, 15, ..., 95 now includes two panels. Authored movement
+tests exercise both side routes with the player, boss, wolf and ordinary enemy
+footprints, including a closed wave gate. Both routes remain walkable. They are
+not immunity lanes: ordinary enemy attacks and floor hazards still apply.
+Intermission repair also makes drops on a formerly missing panel reachable by
+the normal pickup mechanism.
+
+Original procedural cracked-tile and gap graphics show warning, occupied,
+missing and rebuilt states. The minimap, mission preview and objective directions
+explain the same rules. Distinct synthesized warning, collapse and rebuild cues
+use the shared audio controls. Reduced motion preserves essential state changes.
+
+Four focused browser cases passed: normal/reduced-motion collapse, swept jump
+blocking, keyboard bypass, save/recovery, malformed geometry rejection, repair,
+mobile layout, sound playback, preview and waiting for an occupying player.
+Desktop/mobile captures were inspected under test-results/brawl-wave-floor-verified
+and test-results/brawl-wave-floor-occupied. The final label check passed, and its screenshot was inspected under
+test-results/brawl-wave-floor-label; waiting text is readable above the fighter.
+
+The separate normal-combat mission 5 journey passed in
+tests/e2e/rift-terrain-campaign-completion.spec.js. It observed collapsed panels,
+completed all three tiers, defeated 18 enemies including one boss and banked
+625 gold. Results are local under test-results/brawl-wave-floor-campaign. The
+controlled one-hit terrain fixture is not used as evidence of full combat;
+this campaign journey uses normal engine health and combat. Banking uses the
+E2E fixture, with production persistence covered separately.
+
+The full Rift suite passed with the authored panels. This completes ledger 0479.
