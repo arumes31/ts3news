@@ -239,3 +239,11 @@ existing cached-versus-direct pixel oracle also passes. No source pixels changed
 The known file-size saving is not a startup timing result. The remaining required
 art still exceeds the 3 MB budget; constrained-network readiness must be measured
 on this candidate and remains an open performance gate.
+
+Three cold captures of 8b38bb63 plus the recorded gameplay worktree changes
+completed at 145.91/145.53/145.48 seconds, each transferring 28,852,215 bytes.
+All three recovered one initial API GET timeout. This is a completed measurement
+with recovered errors, not error-free startup or a performance pass. Both timing
+and transfer budgets fail. The fixture was compiled from the frozen worktree;
+the measurement CLI does not assert a server-reported revision. Safe evidence:
+[legacy-area capture](../../tests/performance/baselines/cold-legacy-area-2026-09-28.json).
