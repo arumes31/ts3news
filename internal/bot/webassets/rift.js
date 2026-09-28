@@ -33,7 +33,7 @@
   function confirmInput(timing){
     if(!timing||timing.epoch!==inputEpoch)return;
     const total=performance.now()-timing.started,queue=timing.sent-timing.started,request=timing.received-timing.sent;
-    const sample={actions:timing.actions,total,queue,request};
+    const sample={actions:timing.actions,total,queue,request,headers:timing.headers-timing.sent,decode:timing.decoded-timing.headers,validation:timing.received-timing.decoded,apply:total-(timing.received-timing.started)};
     inputDiagnostics.count++;inputDiagnostics.samples.push(sample);if(inputDiagnostics.samples.length>120)inputDiagnostics.samples.shift();
     const values=inputDiagnostics.samples.map(value=>value.total).sort((a,b)=>a-b);
     inputOverlay.textContent='Input confirmation '+total.toFixed(1)+' ms · p95 '+values[Math.ceil(values.length*.95)-1].toFixed(1)+' ms\nQueue '+queue.toFixed(1)+' ms · response '+request.toFixed(1)+' ms · '+values.length+'/120 samples';
@@ -190,6 +190,7 @@
       const wireHeaders={'X-Rift-Snapshot':'lean-v1',...(body?{'Content-Type':'application/json'}:{'X-Rift-Metadata':'separate'})};
       if(body?.kind==='step'&&baseForRequest)wireHeaders['X-Rift-Snapshot-Base']=baseForRequest.token;
       const response = await fetch(api,{method,credentials:'same-origin',cache:'no-store',headers:wireHeaders,body:requestBody,signal:controller.signal,keepalive:method==='POST'&&body?.kind==='pause'});
+      if(timing)timing.headers=performance.now();
       if(response.status===401)throw Object.assign(new Error(statusCopy.sessionExpired),{code:'SESSION_EXPIRED'});
       if(response.status===409){
         const problem=await response.json().catch(()=>null);
@@ -203,6 +204,7 @@
         if(payloadDiagnostics){const raw=await response.text();responseBytes=payloadEncoder.encode(raw).byteLength;data=JSON.parse(raw);runBytes=data.run?payloadEncoder.encode(JSON.stringify(data.run)).byteLength:0;}
         else data=await response.json();
       }catch(error){if(method==='GET'&&error?.name==='AbortError')throw error;throw new Error(statusCopy.responseInterrupted);}
+      if(timing)timing.decoded=performance.now();
       if(method==='GET'&&data?.ok===true){
         const metadataResponse=await fetch('/api/abyss/rift/metadata',{credentials:'omit',cache:'no-cache',signal:controller.signal});
         if(!metadataResponse.ok)throw new Error('Campaign information could not be loaded. Retry loading.');

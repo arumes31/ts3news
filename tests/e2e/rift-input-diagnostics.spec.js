@@ -17,6 +17,10 @@ test('input confirmation overlay includes delayed response and excludes idle ste
  const sample=await page.evaluate(()=>window.RiftInputDiagnostics.samples[0]);
  expect(sample.total).toBeGreaterThanOrEqual(350);expect(sample.request).toBeGreaterThanOrEqual(350);expect(sample.queue).toBeGreaterThanOrEqual(0);
  expect(sample.actions).toEqual(['right']);expect(sample.total).toBeGreaterThanOrEqual(sample.queue+sample.request);
+ for(const phase of ['headers','decode','validation','apply'])expect(sample[phase]).toBeGreaterThanOrEqual(0);
+ expect(sample.headers).toBeGreaterThanOrEqual(350);
+ expect(sample.headers+sample.decode+sample.validation).toBeCloseTo(sample.request,5);
+ expect(sample.queue+sample.request+sample.apply).toBeCloseTo(sample.total,5);
  await expect(page.locator('#rift-input-diagnostics')).toContainText('Input confirmation');
  await page.waitForTimeout(250);expect(await page.evaluate(()=>window.RiftInputDiagnostics.count)).toBe(1);
 });

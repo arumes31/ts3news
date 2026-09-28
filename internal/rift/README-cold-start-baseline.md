@@ -101,6 +101,11 @@ Open `/abyss/rift?riftInputDebug=1` for a bottom-left development overlay. It
 reports the latest recognized-control-to-applied-response duration and rolling
 p95 over at most120 samples. `window.RiftInputDiagnostics` contains the lifetime
 sample count and bounded records with actions, total, queue and request milliseconds.
+Records also split request time into `headers` (fetch until response headers),
+`decode` (body transfer and JSON decoding), and `validation` (protocol hydration,
+validation and baseline capture). `apply` is the remaining client work before
+confirmation. These phases add up to the existing request and total measurements;
+header wait includes network and server time, not server CPU time alone.
 It is absent without the flag. No character or response payloads are retained.
 
 Keyboard non-repeat presses, on-screen buttons, canvas mouse controls and controller
