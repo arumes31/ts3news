@@ -37,6 +37,7 @@ type ArenaEntrance struct {
 }
 
 type Arena struct {
+	Exit *ArenaEntrance `json:"exit,omitempty"`
 	Entrance *ArenaEntrance `json:"entrance,omitempty"`
 	HazardSwitch *HazardSwitch `json:"hazard_switch,omitempty"`
 	WaterCurrents []WaterCurrent `json:"water_currents,omitempty"`
@@ -165,7 +166,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 1: defend both lane wards and defeat the patrol. Tier 2: stay near the spirit and clear threats along its escort route"
 			}
 			for room, suffix := range landmarks[region] {
-				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region], Entrance: &ArenaEntrance{X: entrances[region].X, Y: entrances[region].Y}}
+				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region], Exit: &ArenaEntrance{X: 1450 + float64(region)*10, Y: 320}, Entrance: &ArenaEntrance{X: entrances[region].X, Y: entrances[region].Y}}
 				if layout == 0 && id > 1 && room == 1 {
 					arena.Objective = "interrupt_ritual"
 				}

@@ -1149,6 +1149,11 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    if(arena?.exit){
+      const x=arena.exit.x-camera,y=arena.exit.y,open=run.status==='cleared'||run.status==='complete';
+      ctx.save();ctx.strokeStyle=open?'#bfe9f4':'#8e9da5';ctx.lineWidth=2;ctx.setLineDash(open?[]:[4,4]);ctx.beginPath();ctx.ellipse(x,y,22,10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      if(!display.cleanScreenshot){ctx.fillStyle=open?'#c5f0ff':'#adb8be';ctx.strokeStyle='#10212a';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(open?'EXIT · OPEN':'EXIT',x,y-18,true);}ctx.restore();
+    }
     if(arena?.entrance){
       const x=arena.entrance.x-camera,y=arena.entrance.y;
       ctx.save();ctx.strokeStyle='#accab7';ctx.globalAlpha=.65;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,18,8,0,0,Math.PI*2);ctx.moveTo(x-38,y);ctx.lineTo(x-23,y);ctx.lineTo(x-29,y-4);ctx.moveTo(x-23,y);ctx.lineTo(x-29,y+4);ctx.stroke();

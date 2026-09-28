@@ -104,7 +104,7 @@ func TestSpiritCampaignRoutesStayClear(t *testing.T) {
 			if !strings.Contains(level.Tactic, "escort route") {
 				t.Fatal("missing escort preview")
 			}
-			for x := 350.0; x <= 1450; x += 5 {
+			for x := 350.0; x <= arena.Exit.X; x += 5 {
 				for _, cover := range arena.solidObstacles() {
 					if contains(cover, x, 320, 15) {
 						t.Fatalf("mission %d spirit path blocked", level.ID)

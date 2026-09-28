@@ -4,6 +4,9 @@ import "math"
 
 func (r *Run) beginCollapseObjective() {
 	exit := Actor{X: 1450, Y: 320}
+	if e := r.Arena().Exit; e != nil {
+		exit.X, exit.Y = e.X, e.Y
+	}
 	settle(&exit, r.Arena().solidObstacles())
 	r.RoomObjective = &RoomObjective{Kind: "escape_collapse", Name: "Escape the collapse", Description: "After a three-second warning, the collapse advances from the left. Stay ahead of it and reach the exit seal. Surviving enemies grant no loot or kill credit.", Target: 1, Zone: &ObjectiveZone{X: exit.X, Y: exit.Y, RadiusX: 45, RadiusY: 28}}
 }

@@ -3,7 +3,11 @@ package rift
 import "math"
 
 func (r *Run) beginEscortObjective() {
-	r.RoomObjective = &RoomObjective{Kind: "escort_spirit", Name: "Escort the spirit", Description: "Stay near the spirit and clear nearby enemies so it can reach the exit. The spirit waits when threatened or left behind. Defeat the patrol to secure the tier.", Target: 1, Escort: &Actor{ID: "escort-spirit", Name: "Lost spirit", Kind: "spirit", X: 350, Y: 320, HP: 1, MaxHP: 1, Facing: 1, Speed: 75, Pose: "idle"}, Zone: &ObjectiveZone{X: 1450, Y: 320, RadiusX: 45, RadiusY: 28}}
+	exit := ArenaEntrance{X: 1450, Y: 320}
+	if e := r.Arena().Exit; e != nil {
+		exit = *e
+	}
+	r.RoomObjective = &RoomObjective{Kind: "escort_spirit", Name: "Escort the spirit", Description: "Stay near the spirit and clear nearby enemies so it can reach the exit. The spirit waits when threatened or left behind. Defeat the patrol to secure the tier.", Target: 1, Escort: &Actor{ID: "escort-spirit", Name: "Lost spirit", Kind: "spirit", X: 350, Y: 320, HP: 1, MaxHP: 1, Facing: 1, Speed: 75, Pose: "idle"}, Zone: &ObjectiveZone{X: exit.X, Y: exit.Y, RadiusX: 45, RadiusY: 28}}
 }
 func (r *Run) tickEscortObjective(dt float64) {
 	o := r.RoomObjective

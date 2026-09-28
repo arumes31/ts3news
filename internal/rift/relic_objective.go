@@ -5,6 +5,9 @@ import "math"
 func (r *Run) beginRelicObjective() {
 	relic := Actor{X: 430, Y: 330}
 	destination := Actor{X: 1450, Y: 480}
+	if e := r.Arena().Exit; e != nil {
+		destination.X, destination.Y = e.X, e.Y
+	}
 	settle(&relic, r.Arena().solidObstacles())
 	settle(&destination, r.Arena().solidObstacles())
 	r.RoomObjective = &RoomObjective{Kind: "carry_relic", Name: "Carry the relic", Description: "Pick up the relic and carry it to the exit seal. Movement is 30% slower while carrying; attacks and jumps remain available. Defeat the patrol to secure the tier.", Target: 1, Relic: &ObjectivePickup{ID: 1, X: relic.X, Y: relic.Y}, Zone: &ObjectiveZone{X: destination.X, Y: destination.Y, RadiusX: 45, RadiusY: 28}}
