@@ -1,0 +1,31 @@
+{
+  "asset": "rift_loot_chest.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "generatedDate": "2026-09-28",
+  "prompt": "Create a production game sprite sheet for a small loot chest opening in a dark fantasy side-scrolling sprite brawler. Use case: stylized-concept. One image, transparent alpha background. Exactly six equal square cells in a single horizontal row, no gutters, no text, no borders, no additional rows. Requested canvas 1536 by 256 pixels: six 256 by 256 cells. Each cell shows the SAME compact dark oak chest with worn brass bands and a teal gem clasp, consistent three-quarter front view from slightly above, matching a hand-painted pixel-art fantasy fighter game. The chest body stays identical in size and position across all six cells: centered at local x=128, floor baseline at local y=214, outer body width about 148 px. All art including the opening lid fits within its own cell, with clear transparent margins. Frame 1 lid shut; frame 2 clasp unlocked and lid barely lifted; frame 3 lid tilted halfway open; frame 4 lid fully open; frame 5 same fully open chest with a modest warm gold glow from inside; frame 6 same fully open chest with the glow settled. No floating coins, no particles leaving a cell, no floor or backdrop, no lettering, no watermark. Crisp readable silhouette, restrained teal and brass palette, painted pixel edges without blurry bloom, stable chest base for animation. Only the lid and contained inner light change between frames. Keep the chest compact and recognizable when displayed at 60 px width.",
+  "requestedSize": [
+    1536,
+    256
+  ],
+  "actualSize": [
+    2172,
+    724
+  ],
+  "format": "RGBA PNG",
+  "bytes": 952201,
+  "sha256": "91efaa93a3e55981da3facd27f631ef8732b59612acc5bdfde9b6d45fe3a757b",
+  "frames": 6,
+  "frameStride": 362,
+  "renderSourceRect": {
+    "xOffset": 24,
+    "y": 160,
+    "width": 324,
+    "height": 400
+  },
+  "groundAnchor": {
+    "x": 164,
+    "y": 381
+  },
+  "validation": "Visually inspected six stages. All six alpha>=16 body bounds end at y=541; body left edges range39–44 and right edges335–338 inside each 362px cell. Very faint alpha noise outside the render rectangles remains unchanged in the original PNG.",
+  "status": "Original asset saved; gameplay integration and animation validation pending."
+}
