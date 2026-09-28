@@ -312,3 +312,13 @@ The selected-row suite checks four classes, saved/current rows on the same and
 different sheets, shared concurrent retries, invalid dimensions and manifest
 failure. This delivers the hero image saving; the overall startup and frame
 budgets remain open.
+
+Three fresh-context captures of e9cd5e72 plus the recorded gameplay worktree
+changes completed at 134.369/133.925/133.945 seconds. Each transferred 26,564,308
+bytes and recovered one initial API GET timeout. Median readiness fell from
+145.529 to 133.945 seconds (7.96%); transfer bytes fell by 2,287,907 (7.93%)
+compared with the previous legacy-area capture. These are sequential synthetic
+measurements, not a physical-device or error-free startup claim. The timing and
+3 MB transfer gates still fail. The fixture was compiled from the frozen worktree;
+no server-reported revision assertion was available. Safe aggregate evidence:
+[hero-row cold capture](../../tests/performance/baselines/cold-hero-row-2026-09-28.json).
