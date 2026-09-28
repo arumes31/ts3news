@@ -13,6 +13,7 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
  if(opaque){expect(candidate.split("canvas.getContext('2d')").length-1).toBe(1);candidate=candidate.replace("canvas.getContext('2d')","canvas.getContext('2d',{alpha:false})");}
  if(sharedOrigin)candidate=require('../../scripts/brawl-shared-origin-experiment.cjs').sharedOriginCandidate(candidate);
  const hook=`renderer.stateProbe=async function(units){
+  await renderer.prepareEffects();
   await Promise.all(Array.from({length:10},(_,region)=>renderer.prepareRegion(region)));
   await Promise.all(styles.map(className=>renderer.prepareBuild({class:className})));
   const oracleHero=await loadDecodedAtlas(root.dataset.heroesA);

@@ -249,7 +249,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['regions','props','effects'];
+  const criticalAtlasKeys = ['regions','props'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -677,22 +677,28 @@
       return sceneLoads.get(key);
     }));
   }
-  let lootLoad=null,lootRetry=0;
-  function prepareLootArt(run){
-    if(!run||images.items)return Promise.resolve();
-    if(!lootLoad){
-      const url=root.dataset.items,src=url+(lootRetry?(url.includes('?')?'&':'?')+'retry='+lootRetry:'');
-      lootLoad=loadDecodedAtlas(src).then(img=>{
-        if(img.width!==1254||img.height!==1254)throw new Error('Loot artwork dimensions differ.');
-        images.items=img;
-      }).catch(()=>{lootLoad=null;lootRetry++;throw new Error('Could not load loot artwork. Recover to try again.');});
+  const combatAtlasLoads=new Map(),combatAtlasRetries=new Map();
+  function prepareCombatAtlas(key,label){
+    if(images[key])return Promise.resolve();
+    if(!combatAtlasLoads.has(key)){
+      const retry=combatAtlasRetries.get(key)||0,url=root.dataset[key],src=url+(retry?(url.includes('?')?'&':'?')+'retry='+retry:'');
+      combatAtlasLoads.set(key,loadDecodedAtlas(src).then(img=>{
+        if(img.width!==1254||img.height!==1254)throw new Error('Combat artwork dimensions differ.');
+        images[key]=img;
+        if(key==='effects')root.style.setProperty('--rift-effects-image','url("'+src+'")');
+      }).catch(()=>{combatAtlasLoads.delete(key);combatAtlasRetries.set(key,retry+1);throw new Error('Could not load '+label+' artwork. Recover to try again.');}));
     }
-    return lootLoad;
+    return combatAtlasLoads.get(key);
+  }
+  renderer.prepareEffects=()=>prepareCombatAtlas('effects','effects');
+  function prepareEncounterAtlases(run){
+    if(!run)return Promise.resolve();
+    return Promise.all([prepareCombatAtlas('items','loot'),renderer.prepareEffects()]);
   }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
-    await Promise.all([prepareLootArt(run),renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),prepareSceneArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
+    await Promise.all([prepareEncounterAtlases(run),renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),prepareSceneArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
     if(Number.isInteger(run?.level?.region)&&run.level.id%10===0&&run.level.id<100){
       const next=run.level.region+1;
       if(run.status==='cleared'&&run.room===2)await prepareRegion(next);

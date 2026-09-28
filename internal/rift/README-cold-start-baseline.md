@@ -750,3 +750,32 @@ Each sample now meets the25s per-run limit, but median readiness still exceeds
 development fixture does not establish physical-device support. The full effects
 sheet (1,332,867 bytes) is now the largest startup resource; any change must
 preserve skill-button CSS icons, reference animations and combat effects.
+
+
+## Effects prepare for encounters and reference playback (2026-09-28)
+
+The idle hero preview does not draw spell effects, and skill-button backgrounds
+appear with a run. The1,332,867-byte effects sheet now shares the bounded,
+retryable combat-atlas preparation path with loot. Every real run waits for both
+complete sheets before display. CSS icons use the successfully decoded effects
+URL, including its recovery suffix, so canvas and CSS share the same resource.
+The two preview-critical atlases are regions and props.
+
+Reference animation buttons independently prepare effects before showing the
+canvas or starting their750ms playback clock. Loading status and retry feedback
+are visible; closing, searching or switching previews invalidates pending
+playback. Failure re-enables replay. Reduced-motion and silent reference playback
+retain their existing behavior, and no expedition is created for previews.
+
+Session58969 RED2 demonstrated eager idle loading and absent dimension recovery.
+Session87161 GREEN19 covered new/saved decode gates, loot regressions, concurrent
+retry, reference failure/replay/cancellation, and existing reference behavior.
+Session23037 GREEN7 (50.3s) verified shared CSS/canvas requests for fresh and saved
+runs, cached pixel/state/bounds equivalence, all300 scenes/26,440 draws/36 effect
+cells, hashed versions and both seamless progression journeys. User Go diff is
+unchanged. Original graphics, source coordinates and effect drawing are intact.
+
+This defers the complete effects sheet until an encounter or requested reference
+animation. It does not remove those bytes from first-fight loading. The latest
+measurement remains2fdb7052, before this change; no new timing or performance-gate
+claim is made. Post-Start waiting must remain visible in the next capture.

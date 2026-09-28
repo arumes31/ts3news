@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id),key='riftLoadoutPresets';
   let presets=[],skills=[],blocked=()=>true,previewVersion=0,animationFrame=0;
-  function cancelSkillPreview(){previewVersion++;cancelAnimationFrame(animationFrame);animationFrame=0;document.querySelectorAll('.rift-skill-animation-status').forEach(status=>{if(status.textContent.startsWith('Playing'))status.textContent='Preview stopped. Replay at any time.';});window.RiftAudio.cancelPreview();}
+  function cancelSkillPreview(){previewVersion++;cancelAnimationFrame(animationFrame);animationFrame=0;document.querySelectorAll('.rift-skill-animation-status').forEach(status=>{if(status.textContent.startsWith('Playing')||status.textContent.startsWith('Loading'))status.textContent='Preview stopped. Replay at any time.';});window.RiftAudio.cancelPreview();}
 
   try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved))presets=saved.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.skills)&&p.skills.length<=3&&p.skills.every(id=>typeof id==='string'&&id.length<=120)).slice(0,10).map(p=>({...p,name:p.name.slice(0,40)}));}catch(_){}
   const section=document.createElement('div');section.id='rift-loadout-presets';section.hidden=true;section.setAttribute('role','group');section.setAttribute('aria-label','Skill presets');
@@ -84,11 +84,16 @@
       animation.type='button';animation.className='rift-skill-animation';animation.textContent='Preview '+skill.name+' animation';
       preview.width=320;preview.height=160;preview.hidden=true;preview.className='rift-skill-animation-canvas';preview.setAttribute('role','img');preview.setAttribute('aria-label',skill.name+' cast and effect artwork preview');
       animationStatus.setAttribute('role','status');animationStatus.className='rift-skill-animation-status';
-      animation.onclick=()=>{
-        cancelSkillPreview();const version=previewVersion,start=performance.now();
+      animation.onclick=async()=>{
+        cancelSkillPreview();const version=previewVersion;
         $('rift-glossary-entries').querySelectorAll('.rift-skill-animation-canvas').forEach(canvas=>canvas.hidden=true);
         $('rift-glossary-entries').querySelectorAll('.rift-skill-animation-status').forEach(status=>status.textContent='');
-        preview.hidden=false;
+        animation.disabled=true;animationStatus.textContent='Loading animation artwork…';
+        try{await window.RiftRenderer.prepareEffects();}
+        catch(_){if(version===previewVersion&&preview.isConnected&&glossary.open)animationStatus.textContent='Could not load animation artwork. Select Preview to try again.';return;}
+        finally{animation.disabled=false;}
+        if(version!==previewVersion||document.hidden||!preview.isConnected||!glossary.open)return;
+        const start=performance.now();preview.hidden=false;
         const draw=now=>{
           if(version!==previewVersion||document.hidden||!preview.isConnected||!glossary.open)return;
           const still=window.RiftRenderer.drawSkillPreview(preview,skill,build,now-start);

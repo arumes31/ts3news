@@ -10,9 +10,9 @@ test('shows loading-progress count for critical atlases', async ({ page }) => {
   await expect(progress).toHaveAttribute('aria-live', 'polite');
 
   // Verify critical atlas loading progress indicators
-  await expect(progress).toHaveAttribute('data-total', '3');
-  await expect(progress).toHaveAttribute('data-loaded', '3');
-  await expect(progress).toHaveText('Critical atlases loaded (3/3)');
+  await expect(progress).toHaveAttribute('data-total', '2');
+  await expect(progress).toHaveAttribute('data-loaded', '2');
+  await expect(progress).toHaveText('Critical atlases loaded (2/2)');
 
   // Verify exposed RiftRenderer properties
   const rendererData = await page.evaluate(() => {
@@ -24,15 +24,14 @@ test('shows loading-progress count for critical atlases', async ({ page }) => {
   });
 
   expect(rendererData.atlasProgress).toEqual({
-    loaded: 3,
-    total: 3,
+    loaded: 2,
+    total: 2,
     ready: true,
   });
 
   expect(rendererData.criticalKeys).toEqual([
     'regions',
     'props',
-    'effects',
   ]);
 
   // Starting an expedition hides the overlay (and its progress indicator)
