@@ -82,3 +82,9 @@ engine; no new animation timer is created. Existing fire atlas frames and a
 brief ellipse provide the explosion. Audio uses short synthesized warning and
 blast envelopes within the existing voice lifecycle and event deduplication.
 All of this still requires browser testing; syntax checks alone are insufficient.
+
+Warning presentation uses one shared visible escape instruction plus a short
+countdown on each armed crate, avoiding overlapping long labels. The instruction
+stays inside the viewport. Cleared/ended rooms show consumed crates as spent,
+even if their saved fuse was still positive when combat ended; they cannot blast
+outside fighting status. Browser visual confirmation remains pending.
