@@ -1,0 +1,13 @@
+{
+  "asset": "rift_totem.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create one original game sprite for a small 2D dark-fantasy side-view beat-em-up: a breakable ritual totem, carved charcoal stone with bronze bands and a bright violet crystal eye, squat pillar with angular broken-looking silhouette, readable at 64 pixels. Pixel-art inspired crisp painterly sprite matching retro animated fantasy fighters. Single intact object centered, front three-quarter view, base at bottom, generous transparent padding, genuinely transparent RGBA background. No floor, shadow, scenery, text, border, other objects, or sprite sheet. The object should occupy about 80 percent of the image height. It is an in-game prop to destroy with weapons and spells.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1142,
+    1377
+  ],
+  "bytes": 1056080,
+  "sha256": "3594051d70cc29e3ce101ebc8ac6bf155242276415cd502927677ae89f046a51"
+}

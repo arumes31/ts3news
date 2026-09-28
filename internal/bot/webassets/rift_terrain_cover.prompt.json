@@ -1,0 +1,13 @@
+{
+  "asset": "rift_terrain_cover.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Use case: stylized-concept. Asset type: original game sprite atlas for a small animated dark fantasy side-scrolling brawler. Create ONE transparent PNG sprite sheet, square, precisely 2 columns by 2 rows of equal square cells. No labels, no text, no background, no floor, no cast shadow outside each object, true transparent alpha. Pixel-art-inspired painted 16-bit fantasy style, crisp readable forms, muted mossy ruins palette, light from upper left, side view with slight view of top surface (belt scrolling brawler camera). Each object centered horizontally in its own cell with its ground contact baseline at 85% of cell height, ample transparent margins, same object width about 70% of cell. TOP LEFT: intact waist-high barricade made of warm brown rough vertical wooden planks with two horizontal beams and dark iron fasteners. TOP RIGHT: exact same wooden barricade, same dimensions and alignment, heavily cracked and splintered but still standing. BOTTOM LEFT: the same barricade completely broken into a low pile of wooden splinters and fallen beams, ground baseline same 85%, no upright wall, clearly walkable rubble. BOTTOM RIGHT: sturdy indestructible gray-blue stone block wall of the same width, tall enough to block arrows, chunky masonry blocks, tiny moss patches, visibly distinct from the brown wood. Keep every sprite entirely inside its own quadrant, no overlap, no decorative frames, no weapons, no people. Production sprite sheet with clean alpha silhouettes and no checkerboard texture.",
+  "promptRecord": "Recovered from contemporaneous asset task note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 1484178,
+  "sha256": "b56b76c20d9fc85da23efb4491a9326d9c44d1af29db2e10377e352fa41ba820"
+}

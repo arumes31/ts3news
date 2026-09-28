@@ -1,0 +1,13 @@
+{
+  "asset": "rift_area.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create a production-ready pixel-art background for a browser beat-em-up game named Abyss Rift Brawl. Landscape 1536x1024. Original 1990s 16-bit arcade fantasy art, crisp square pixels, limited nuanced palette. Mossbound Ruins at twilight: ancient broken stone arches and monumental root-covered gate, distant turquoise mist forest, warm amber lanterns. Side-view LF2-style arena with depth: lower 48 percent is a broad FLAT WALKABLE stone courtyard seen slightly from above, open clear fighting space, no obstacles in middle. Architecture and lush hanging moss in upper 52 percent, dark foreground grass only at extreme bottom edge. Moody luminous teal and deep greens, restrained golden highlights, beautiful detailed pixel craftsmanship. No characters, no text, no UI, no borders. Whole image fills canvas.",
+  "promptRecord": "Preserved final generation prompt in rift_assets.md",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1536,
+    1024
+  ],
+  "bytes": 3149894,
+  "sha256": "5e3ec1f4b7fa8e6be2033a1d136a21aeb3374c4fe1baa6a0a48c06aff709d317"
+}

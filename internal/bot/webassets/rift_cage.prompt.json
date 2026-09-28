@@ -1,0 +1,13 @@
+{
+  "asset": "rift_cage.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create one original game prop sprite: an empty ancient iron prison cage for a side-view 2D dark-fantasy beat-em-up game. Front three-quarter view, tall rounded iron bars, small weathered stone base, bronze padlock, subtle pale cyan rune glow. Interior MUST be empty and fully transparent between the bars, suitable for separately drawing a friendly spirit behind the cage. No captive, person, creature, background or scenery. Full intact cage centered with generous transparent padding. Crisp retro fantasy pixel-art-inspired painterly sprite, readable at about 90 pixels tall. Real transparent RGBA background, including spaces between bars. No text, no frame, no extra objects.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1024,
+    1536
+  ],
+  "bytes": 2228684,
+  "sha256": "39d8f6b7791cfe6c191374e34069ffaa0f142a817fd9b4c07a167011849ce90b"
+}

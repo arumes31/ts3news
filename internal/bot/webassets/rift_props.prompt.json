@@ -1,0 +1,13 @@
+{
+  "asset": "rift_props.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Production pixel-art prop sprite atlas for a 16-bit fantasy side-scrolling beat-em-up. TRUE TRANSPARENT ALPHA background. Exact canvas 1536x768, FOUR columns and TWO rows, eight equal 384x384 cells, no labels, no grid lines, no scenery, no shadows outside sprite. Each sprite occupies central 80 percent of its cell, feet/base precisely aligned at 85 percent cell height. Small LOW COVER blocks, viewed side-on with slightly visible top, not tall towers. Detailed crisp chunky pixel clusters, rich texture, moss and cracks, high contrast silhouette, matching atmospheric retro fantasy game. Row1: 1 low moss-covered ruined stone barricade, 2 squat rune-carved broken square pillar stump with amber volcanic cracks, 3 low blue ice-covered stone block with snowy cap, 4 broken purple storm temple pillar stump with violet runes. Row2: 1 low toxic moss and twisted roots stone barrier, 2 squat teal underwater carved coral altar, 3 low rusty crimson fortress battlement block, 4 low ancient obsidian rune altar with gold edge highlights. All independent fully contained objects with transparent margin, no characters, no UI, no decorative frames. Genuine hand-crafted game sprites with stone textures and jagged silhouettes, no soft vector look.\n\nGenerated with the built-in image generator, September 13, 2026. Source: exec-195e17de-b8b1-4c03-b7b8-6096f5c2d6e0.png. Eight transparent props, four columns and two rows, drawn in depth order with actors.",
+  "promptRecord": "Preserved adjacent generation prompt text",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1774,
+    887
+  ],
+  "bytes": 1553373,
+  "sha256": "6f93fd6ce2c6d39d50b0c27a46fcd8717535eae26b514dca1080954c1fef87d1"
+}

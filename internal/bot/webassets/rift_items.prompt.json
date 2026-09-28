@@ -1,0 +1,13 @@
+{
+  "asset": "rift_items.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create a production pixel-art item icon atlas for Abyss Rift Brawl, an original 16-bit fantasy arcade game. GENUINE TRANSPARENT ALPHA background. Exactly FOUR rows and FOUR columns in a 1024x1024 image, each icon centered in its 256x256 square cell, no grid lines, no text, no labels or borders. Each object occupies only central 65 percent of its cell. Row1: a silver sword with teal hilt, a silver shield with golden trim, a rusted battle axe, a violet recurve bow. Row2: moss-green armoured helmet, moss-green chest armour, leather boots, ornate leather gloves. Row3: glowing golden coin stack, closed wooden treasure chest with golden metalwork, crimson healing potion in glass, blue mana potion in glass. Row4: gold ring with blue gemstone, amber pendant, a teal spellbook with glowing rune, a violet crystal relic. Cohesive crisp chunky pixel clusters, warm highlights and dark defined outlines, readable when reduced to 24px. Same scale and pixel density for all icons, no shadows outside the icons, no baked checkerboard.",
+  "promptRecord": "Preserved final generation prompt in rift_assets.md",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 1392338,
+  "sha256": "e4a68719182b7446ee19b21dfbfb5d4a2e30a13de12511f6ed4c8026c41ebc7c"
+}

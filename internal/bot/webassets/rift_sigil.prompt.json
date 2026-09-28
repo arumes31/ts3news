@@ -1,0 +1,13 @@
+{
+  "asset": "rift_sigil.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create a single game pickup sprite for a dark fantasy pixel-art side-scrolling brawler. A small ancient bronze rune medallion, diamond-shaped outer frame, bright mint-teal glowing carved sigil in its center, subtle warm gold edge highlights. Crisp chunky pixel-art silhouette readable at 44 by 44 pixels, front-facing symmetrical icon, no text, no letters, no scene, no ground, no border, no other objects. Transparent background with real alpha; entire medallion centered and filling about 80% of a square canvas. Original asset.",
+  "promptRecord": "Recovered original imagegen call; archived generated-image SHA-256 matches this output",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 897704,
+  "sha256": "b73c86019ffcf4df6977b4d548e47940873a55c07e2aaee25e18361d0d462d39"
+}

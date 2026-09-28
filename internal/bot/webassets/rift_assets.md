@@ -75,3 +75,25 @@ Create a production game spell effects animation atlas with GENUINE TRANSPARENT 
 ### rift_items.png
 
 Create a production pixel-art item icon atlas for Abyss Rift Brawl, an original 16-bit fantasy arcade game. GENUINE TRANSPARENT ALPHA background. Exactly FOUR rows and FOUR columns in a 1024x1024 image, each icon centered in its 256x256 square cell, no grid lines, no text, no labels or borders. Each object occupies only central 65 percent of its cell. Row1: a silver sword with teal hilt, a silver shield with golden trim, a rusted battle axe, a violet recurve bow. Row2: moss-green armoured helmet, moss-green chest armour, leather boots, ornate leather gloves. Row3: glowing golden coin stack, closed wooden treasure chest with golden metalwork, crimson healing potion in glass, blue mana potion in glass. Row4: gold ring with blue gemstone, amber pendant, a teal spellbook with glowing rune, a violet crystal relic. Cohesive crisp chunky pixel clusters, warm highlights and dark defined outlines, readable when reduced to 24px. Same scale and pixel density for all icons, no shadows outside the icons, no baked checkerboard.
+
+
+## Adjacent prompt records
+
+Every Brawl-owned `rift_*.png` now has a matching `.prompt.json` beside it,
+including all20 current backgrounds, fighter/effect/icon atlases and objective
+props. Each record preserves the generation prompt and binds it to the current
+PNG using SHA-256, byte count and dimensions. Existing prompt text files and the
+final prompts above remain available as the original records.
+
+Recovered records identify their source category. Contemporaneous task-note
+line wraps were normalized; their text was not invented from the images. The
+sigil prompt was recovered from the original image-generation call, and the
+archived generated image was verified byte-for-byte against the installed PNG.
+`recordedDate` is the date the sidecar was recovered, not an inferred generation
+date. Historical generation status fields describe their original checkpoint.
+
+Run `node --test scripts/check-brawl-prompts.test.cjs` from the repository root.
+The test discovers all Brawl PNGs, so future additions require an adjacent prompt
+record and replacements require matching hash, size and dimensions. This checks
+record coverage and output integrity, not visual quality or deterministic image
+regeneration. Shared pre-existing Abyss art is outside this Brawl-owned inventory.

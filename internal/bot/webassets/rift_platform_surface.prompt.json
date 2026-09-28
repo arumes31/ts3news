@@ -1,0 +1,13 @@
+{
+  "asset": "rift_platform_surface.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Use case: stylized-concept. Asset type: seamless square stone floor texture for an original fantasy pixel-art brawler. Create a flat orthographic top-down material swatch filling the entire image edge to edge, no perspective, no scene, no border, no text. Medium-small weathered gray limestone paving blocks laid in staggered rows, subdued olive-gray mineral tones, narrow dark grout, lightly chipped edges and subtle cracks. Crisp hand-painted retro game texture with controlled pixel-like detail, matching lush ruined-stone fantasy game environments. Even neutral illumination, modest contrast so small fighters remain readable. No objects, no vegetation, no symbols, no large holes, no shadows cast across the texture. Intended to be mapped onto a short raised platform and its sloped sides; create only the material, not a platform silhouette. Square 512x512 or similar square resolution.",
+  "promptRecord": "Recovered from contemporaneous asset task note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 2771164,
+  "sha256": "ed7e60717ab0c141c7538c0dbc865c5ade4f5c00a1af48cee0f4e45e66c11a2b"
+}

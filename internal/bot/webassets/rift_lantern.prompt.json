@@ -1,0 +1,13 @@
+{
+  "asset": "rift_lantern.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create one original ward lantern game prop sprite for a side-view 2D dark-fantasy beat-em-up. A squat weathered stone pedestal supports a compact ornate bronze lantern with clear glass and a bright warm golden flame, small turquoise protective runes on the base. Front three-quarter view, complete intact object, sturdy readable silhouette at 90 pixels tall. Retro fantasy pixel-art-inspired painterly style with crisp edges. Single centered lantern and pedestal only, generous transparent padding, truly transparent RGBA background. No ground plane, floor, scenery, people, text, border or extra objects. Glow should remain close to the flame and not create a large background haze.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1086,
+    1448
+  ],
+  "bytes": 844782,
+  "sha256": "63318dbc8bd676a2f8742b6e7a43e855b0715b564c85336a391d907517e32f7a"
+}

@@ -1,0 +1,13 @@
+{
+  "asset": "rift_generator.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "One original transparent RGBA game prop sprite: a dark-fantasy arcane hazard generator for a small 2D side-view beat-em-up. Squat brass-and-charcoal machine with a glowing cyan crystal core, two curved copper conductor prongs around the core, stone base, clearly different from a carved totem. Crisp pixel-art inspired painterly style for retro fantasy fighter sprites, readable at 70 pixels high. Front three-quarter view, one centered intact machine, generous transparent padding, no text, no floor, no shadows, no scenery, no character, no frame. Genuinely transparent background. Width about 80 percent of height. The prop powers magical floor hazards and can be smashed.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1122,
+    1402
+  ],
+  "bytes": 1175989,
+  "sha256": "119932ca5ca115c661ed073f365f5c08557b88479399eac17efa00eee7e0c0fa"
+}
