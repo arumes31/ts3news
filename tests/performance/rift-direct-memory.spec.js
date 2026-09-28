@@ -6,6 +6,7 @@ const {attachDirectPage}=require('../../scripts/brawl-direct-page.cjs');
 const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs');
 const {summarizeHeap}=require('../../scripts/brawl-heap-summary.cjs');
 const smoke=process.env.BRAWL_DIRECT_MEMORY_SMOKE==='1',durationMS=smoke?60000:1800000;
+const endpointSnapshots=process.env.BRAWL_DIRECT_SNAPSHOT_ENDPOINTS==='1';
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 for(const networkInspection of [false,true])test('direct campaign network inspection '+networkInspection,async({},info)=>{
  const root=path.dirname(info.outputPath('memory-report.json'));fs.mkdirSync(root,{recursive:true});
@@ -13,7 +14,7 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
  const driverFiles=['tests/performance/rift-direct-memory.spec.js','scripts/brawl-direct-page.cjs','scripts/brawl-direct-cdp.cjs','scripts/brawl-direct-chromium.cjs','scripts/brawl-session-navigation.cjs'];
  if(!fs.existsSync(sourcePath)){const patch=git('diff','HEAD','--binary');fs.writeFileSync(sourcePath,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),patch,drivers:driverFiles.map(file=>({file,source:fs.readFileSync(file,'utf8')}))},null,2)+'\n',{flag:'wx'});}
  const fixtureSource=JSON.parse(fs.readFileSync(sourcePath,'utf8')),patch=fixtureSource.patch;
- const report={sample:networkInspection?2:1,mode:smoke?'direct browser smoke; not a gate':'direct browser paired instrumentation diagnostic',networkInspection,startedAt:new Date().toISOString(),server:{revision:fixtureSource.revision,trackedDiffSHA256:fixtureSource.trackedDiffSHA256},checkpoints:[],expeditions:[],errors:[],releaseReady:false};
+ const report={sample:networkInspection?2:1,mode:smoke?'direct browser smoke; not a gate':endpointSnapshots?'direct browser endpoint-snapshot instrumentation diagnostic':'direct browser paired instrumentation diagnostic',heapSnapshotPolicy:endpointSnapshots?'endpoints':'all',networkInspection,startedAt:new Date().toISOString(),server:{revision:fixtureSource.revision,trackedDiffSHA256:fixtureSource.trackedDiffSHA256},checkpoints:[],expeditions:[],errors:[],releaseReady:false};
  report.command='node node_modules/@playwright/test/cli.js test --config=playwright.direct-memory.config.js';
  report.driver=fixtureSource.drivers.map(({file,source})=>{const data=Buffer.from(source);fs.writeFileSync(path.join(root,path.basename(file)+'.source'),data);return {file,sha256:crypto.createHash('sha256').update(data).digest('hex')};});
  const save=()=>fs.writeFileSync(path.join(root,'memory-report.json'),JSON.stringify(report,null,2)+'\n');fs.writeFileSync(path.join(root,'server-tracked-diff.patch'),patch);
@@ -58,7 +59,7 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
    }}finally{await page.controls(new Set());}
    expect(run?.status).toBe('complete');expect(tiers.map(t=>t.room)).toEqual([0,1,2]);report.expeditions.push({index,id:run.id,replaySeed:run.replay_seed,tiers,status:run.status,durationMS:Date.now()-began});save();
   }
-  async function checkpoint(mission){
+  async function checkpoint(mission,final=false){
    await delay(2000);await page.send('HeapProfiler.collectGarbage');await delay(1000);await page.send('HeapProfiler.collectGarbage');
    await page.checkErrors();const run=await page.read();const point={mission,elapsedMS:started?Date.now()-started:0,attemptHistoryCount:(run.attempt_history||[]).length,heap:await page.send('Runtime.getHeapUsage'),dom:await page.send('Memory.getDOMCounters'),networkEvents:page.networkEvents};
    const processes=(await browser.cdp.send('SystemInfo.getProcessInfo')).processInfo,ids=processes.map(p=>p.id);expect(ids.every(id=>Number.isSafeInteger(id)&&id>0)).toBe(true);
@@ -66,13 +67,20 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
    point.browserProcesses=(Array.isArray(counters)?counters:[counters]).map(p=>({type:processes.find(v=>v.id===p.Id)?.type,pid:p.Id,workingSet:p.WorkingSet64,privateBytes:p.PrivateMemorySize64}));
    point.health=await page.evaluate(()=>({...directHealth,frameAgeMS:performance.now()-directHealth.lastFrame,visibility:document.visibilityState}));expect(point.health.frames).toBeGreaterThan(0);expect(point.health.frameAgeMS).toBeLessThan(5000);expect(point.health.hidden).toBe(false);expect(point.health.contextLost).toBe(false);expect(point.health.visibility).toBe('visible');
    point.audio=await page.evaluate(()=>({voices:window.RiftAudio.voices,context:window.RiftAudio.context?.state}));expect(point.audio.voices).toBe(0);
+   point.final=final;point.snapshotTaken=!endpointSnapshots||mission===0||final;
+   if(point.snapshotTaken){
    point.snapshot=path.join(root,'heap-'+mission+'.heapsnapshot');const fd=fs.openSync(point.snapshot,'w');const off=browser.cdp.on('HeapProfiler.addHeapSnapshotChunk',event=>fs.writeSync(fd,event.chunk),page.sessionId);
    try{await page.send('HeapProfiler.takeHeapSnapshot',{reportProgress:false},180000);}finally{off();fs.closeSync(fd);}
-   point.reachable=summarizeHeap(JSON.parse(fs.readFileSync(point.snapshot,'utf8')));report.checkpoints.push(point);save();console.log('Direct inspector='+networkInspection+' mission='+mission+' heap='+point.heap.usedSize+' networkEvents='+point.networkEvents);
+   point.reachable=summarizeHeap(JSON.parse(fs.readFileSync(point.snapshot,'utf8')));
+   }
+   report.checkpoints.push(point);save();console.log('Direct inspector='+networkInspection+' mission='+mission+' heap='+point.heap.usedSize+' networkEvents='+point.networkEvents);
   }
   await expedition('warmup');await delay(5000);await checkpoint(0);started=Date.now();let index=0,nextCheckpoint=smoke?durationMS:300000;
-  while(Date.now()-started<durationMS||(!smoke&&index<60)){await expedition(++index);if(Date.now()-started>=nextCheckpoint||(!smoke&&[49,54,59,60].includes(index))){await checkpoint(index);nextCheckpoint=Date.now()-started+300000;}}
-  if(report.checkpoints.at(-1).mission!==index)await checkpoint(index);
+  while(Date.now()-started<durationMS||index<(smoke?2:60)){await expedition(++index);if(Date.now()-started>=nextCheckpoint||(smoke&&index===1)||(!smoke&&[49,54,59,60].includes(index))){await checkpoint(index,Date.now()-started>=durationMS&&index>=(smoke?2:60));nextCheckpoint=Date.now()-started+300000;}}
+  if(report.checkpoints.at(-1).mission!==index)await checkpoint(index,true);
+  expect(report.checkpoints.at(-1).final).toBe(true);
+  if(endpointSnapshots){expect(report.checkpoints.filter(p=>p.snapshotTaken).length).toBe(2);expect(report.checkpoints.some(p=>!p.snapshotTaken)).toBe(true);}
+  else expect(report.checkpoints.every(p=>p.snapshotTaken)).toBe(true);
   report.measuredDurationMS=Date.now()-started;report.growthBytes=report.checkpoints.at(-1).heap.usedSize-report.checkpoints[0].heap.usedSize;
   if(networkInspection)expect(page.networkEvents).toBeGreaterThan(0);else expect(page.networkEvents).toBe(0);
   report.status='capture_complete_review_required';

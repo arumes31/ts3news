@@ -16,3 +16,13 @@ test('inspection event evidence and matching driver/browser settings are mandato
 test('duplicate variants are rejected and runtime failures do not publish error text',()=>{
  assert.throws(()=>directMemoryEvidence([report(false),report(false)]));const r=report(true);r.errors=[{message:'PRIVATE_ERROR'}];const e=directMemoryEvidence([report(false),r]);assert.equal(e.status,'failed');assert.equal(JSON.stringify(e).includes('PRIVATE_ERROR'),false);
 });
+
+
+test('network comparison cannot qualify a changed heap snapshot policy',()=>{
+ for(const policy of ['endpoints','none','unknown']){
+  const r=report(false);r.heapSnapshotPolicy=policy;
+  assert.equal(directMemoryEvidence([r,report(true)]).status,'incomplete');
+ }
+ const r=report(false);r.heapSnapshotPolicy='all';
+ assert.equal(directMemoryEvidence([r,report(true)]).status,'paired_review_required');
+});

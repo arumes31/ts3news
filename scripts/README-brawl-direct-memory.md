@@ -41,7 +41,7 @@ Do not compare absolute native memory to the earlier Playwright launch as if
 launch flags or browser-process composition were identical; compare the paired
 variants first, and record remaining instrumentation differences.
 
-Every checkpoint uses2s settling, GC,1s settling, GC, process counters, heap/DOM
+By default every checkpoint uses2s settling, GC,1s settling, GC, process counters, heap/DOM
 counters, render/audio health and a heap snapshot. Full runs explicitly capture
 replays49/54/59/60, plus five-minute checkpoints. Driver sources and hashes,
 server diff, launch arguments and graphics settings stay with local raw reports.
@@ -73,3 +73,43 @@ and remaining instrumentation still require review before interpreting that
 difference; one pair cannot establish causality. Release readiness and physical
 hardware verification are always false. Four paired-export tests plus ten shared
 session-export tests passed. The full pair completed; see internal/rift/README-session-memory.md for results and limits.
+
+
+## Heap-snapshot frequency diagnostic
+
+BRAWL_DIRECT_SNAPSHOT_ENDPOINTS=1 retains heap snapshots only at the baseline and
+final checkpoint. Intermediate checkpoints still perform the same settling, two
+explicit garbage collections, JS heap/DOM and browser-process counters, and
+render/audio/error checks. Reports record heapSnapshotPolicy, snapshotTaken and
+final explicitly; missing intermediate retaining paths are intentional and cannot
+support a retaining-path plateau claim. Default behavior still snapshots every
+checkpoint. No production behavior or release budget changes.
+
+For the frequency comparison, use --grep 'inspection false' for both runs so
+Network remains disabled. Run a fresh all-snapshot control with the endpoint flag
+unset, then a fresh endpoint-only capture with it set, in distinct output folders.
+Keep the same source and driver, graphics/settings and complete60-replay workload.
+Both require30 measured minutes and checkpoints49/54/59/60. This comparison can
+help attribute snapshot-collector overhead but does not remove all instrumentation
+or establish causality from one sequential pair.
+
+Smoke mode now completes at least two measured replays and includes a checkpoint
+after replay1. This tests an intermediate checkpoint independently of the final
+one. Endpoint-only smoke must have exactly two snapshots and at least one skipped
+snapshot; the all-snapshot variant must capture every checkpoint.
+
+The network-overhead exporter rejects explicit endpoint-only or unknown snapshot
+policies, even if a report claims its usual paired mode. Historical reports with
+no policy field retain their original all-checkpoint interpretation. Endpoint
+frequency reports need separate comparison evidence; they are not a Network pair
+and must not be relabeled to pass that exporter.
+
+Endpoint-only smoke passed in3.6minutes and all-checkpoint smoke in4.2minutes.
+Both completed warmup plus two measured three-tier replays with0Network events
+and no runtime errors. Snapshot flags at checkpoints0/1/2 were true/false/true
+and true/true/true respectively; the final flag was set only at checkpoint2.
+These method-validation runs used different tracked-diff hashes during harness
+development and must not be treated as a matched memory-growth pair. Public
+aggregate: tests/performance/baselines/heap-frequency-smoke-2026-09-28.json.
+The new policy-export regression failed before the fix, then all five paired
+export tests passed. No performance or memory gate is closed by these smokes.

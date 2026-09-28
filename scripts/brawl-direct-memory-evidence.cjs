@@ -11,7 +11,7 @@ function directMemoryEvidence(reports){
  const seen=new Set();
  const samples=reports.map(r=>{
   if(!r||typeof r.networkInspection!=='boolean'||seen.has(r.networkInspection))throw Error('Invalid or duplicate inspection variant');seen.add(r.networkInspection);
-  const completeMode=r.mode==='direct browser paired instrumentation diagnostic';
+  const completeMode=r.mode==='direct browser paired instrumentation diagnostic'&&(r.heapSnapshotPolicy===undefined||r.heapSnapshotPolicy==='all');
   const base=postCapEvidence({...r,mode:completeMode?postMode:''});
   const driver=files.map(file=>{const matches=(Array.isArray(r.driver)?r.driver:[]).filter(d=>d?.file===file);return matches.length===1&&/^[a-f0-9]{64}$/.test(matches[0].sha256)?matches[0].sha256:null;});
   const driverValid=r.driver?.length===files.length&&driver.every(Boolean);
