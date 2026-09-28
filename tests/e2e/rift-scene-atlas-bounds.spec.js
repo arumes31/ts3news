@@ -6,7 +6,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
  const marker='  function drawAtlas(img,sx,sy,sw,sh,dx,dy,dw,dh){';expect(source.includes(marker)).toBe(true);
  // Inspect original source rectangles before the offscreen cache substitutes them.
- await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:source.replace(marker,marker+'\n    window.riftAtlasSourceProbe?.(img,sx,sy,sw,sh,dx,dy,dw,dh);')}));
+ await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:source.replace(marker,marker+'\n    window.riftPropSource=images.props;window.riftAtlasSourceProbe?.(img,sx,sy,sw,sh,dx,dy,dw,dh);')}));
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
  const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels).toHaveLength(100);
  const result=await page.evaluate(async data=>{
@@ -16,7 +16,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
   const errors=[],cells={},victories=[];let label='',draws=0,scenes=0;
   const inspect=(img,...a)=>{
    if(a.length===8){
-    draws++;const [x,y,w,h]=a,key=img.src?new URL(img.src,location.href).pathname:'cached-frame';
+    draws++;const [x,y,w,h]=a,key=img===window.riftPropSource?'props-canvas':img.src?new URL(img.src,location.href).pathname:'cached-frame';
     if(![x,y,w,h].every(Number.isFinite)||x<0||y<0||w<=0||h<=0||x+w>img.width+.001||y+h>img.height+.001)errors.push({label,key,source:a.slice(0,4),size:[img.width,img.height]});
     (cells[key]??=new Set()).add([x,y,w,h].join(','));
    }
@@ -56,7 +56,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  for(let region=0;region<10;region++)expect(result.cells['/static/rift_region_'+region+'.png'].length).toBe(1);
  expect(result.cells['/static/rift_terrain_cover.png'].length).toBe(4);
  expect(result.cells['/static/rift_items.png'].length).toBe(12);
- expect(result.cells['/static/rift_props.png'].length).toBe(8);
+ expect(result.cells['props-canvas'].length).toBe(8);
  expect(result.cells['/static/rift_effects.png'].length).toBe(36);
  console.log('Scene atlas coverage',JSON.stringify({scenes:result.scenes,draws:result.draws,cells:Object.fromEntries(Object.entries(result.cells).map(([key,value])=>[key,value.length]))}));
 });

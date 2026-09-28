@@ -509,7 +509,7 @@
     });
   }
   const regionImages=new Map(),regionLoads=new Map(),regionRetries=new Map(),regionPrefetch=new Set();
-  async function prepareRegion(region){
+  async function prepareRegionBackground(region){
     if(region===undefined)return;
     if(!Number.isInteger(region)||region<0||region>9)throw new Error('Unknown region artwork.');
     if(regionImages.has(region))return regionImages.get(region);
@@ -522,10 +522,36 @@
     }).catch(()=>{regionLoads.delete(region);regionRetries.set(region,retry+1);throw new Error('Could not load region artwork. Retry to continue.');}));
     return regionLoads.get(region);
   }
+  const propLoads=new Map(),propRetries=new Map(),preparedProps=new Set();
+  async function prepareProps(region=0){
+    const manifest=window.RiftPropSections;
+    if(!Number.isInteger(region)||region<0||region>9)throw new Error('Unknown prop region.');
+    const index=manifest?.regions?.[region],panel=manifest?.panels?.[index];
+    if(manifest?.version!==1||!panel)throw new Error('Prop artwork manifest is unavailable. Reload to try again.');
+    if(preparedProps.has(index))return images.props;
+    if(!propLoads.has(index)){
+      const retry=propRetries.get(index)||0,src=panel.url+(retry?'&retry='+retry:'');
+      propLoads.set(index,loadDecodedAtlas(src).then(img=>{
+        if(img.width!==panel.width||img.height!==panel.height)throw new Error('Prop artwork dimensions differ.');
+        if(!images.props){const surface=document.createElement('canvas');surface.width=manifest.width;surface.height=manifest.height;images.props=surface;}
+        const context=images.props.getContext('2d');if(!context)throw new Error('Prop drawing surface is unavailable.');
+        // Fractional cells keep their original coordinates. Clear overlapping
+        // pixel borders before copying so loading order cannot blend them twice.
+        context.clearRect(panel.left,panel.top,panel.width,panel.height);
+        context.drawImage(img,panel.left,panel.top);preparedProps.add(index);
+        return images.props;
+      }).catch(()=>{propLoads.delete(index);propRetries.set(index,retry+1);throw new Error('Could not load prop artwork. Retry to continue.');}));
+    }
+    return propLoads.get(index);
+  }
+  async function prepareRegion(region){
+    const [background]=await Promise.all([prepareRegionBackground(region),prepareProps(region)]);
+    return background;
+  }
   renderer.prepareRegion=prepareRegion;
   const baseImages = Promise.all(criticalAtlasKeys.map(key => {
-    const src=key==='props'?document.getElementById('rift-props-asset').href:root.dataset[key];
-    return (key==='regions'?prepareRegion(0):loadDecodedAtlas(src)).then(img=>{
+    const src=root.dataset[key];
+    return (key==='regions'?prepareRegionBackground(0):key==='props'?prepareProps(0):loadDecodedAtlas(src)).then(img=>{
       images[key]=img;
       atlasProgress.loaded++;
       atlasProgress.ready=atlasProgress.loaded>=atlasProgress.total;

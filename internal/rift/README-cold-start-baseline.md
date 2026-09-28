@@ -668,8 +668,34 @@ and reverse order with zero differences. Each cell was also tested in isolation,
 using original source coordinates, sizes 58/90/134 by 76/138/200, flips, opacity,
 brightness and rotation. These tests do not cover a production prop loader yet.
 
-Runtime still loads the original full sheet. Integration should retain one
+At preparation time runtime still loaded the original full sheet. The planned
+integration would retain one
 bounded original-size canvas, clear overlaps before copying panels, prepare
 preview/saved regions and next-region transitions, and keep original-coordinate
 prop cache behavior. It must include decode failure/retry coverage and scene,
 cache and seamless progression regressions before any new performance claim.
+
+
+## Regional prop runtime integration (2026-09-28)
+
+The full-sheet preload is removed. Critical readiness now reconstructs panel0
+into a single 1774x887 canvas; mission previews and saved-run preparation add the
+selected region's panel at its original coordinates. Regions3,7,8 share panel3
+and its load promise. The existing region-boundary prefetch/checkpoint path now
+prepares both the background and props. Undefined legacy regions prepare panel0.
+Fractional source rectangles and the prop prefix cache are unchanged. Decoded
+panel images are not retained by the loader after copying; the one canvas has
+6,294,152 nominal pixel bytes, not a measured native-memory limit.
+
+Seven new tests first failed against the old full-sheet loader (session30558).
+The integrated loader passed21 readiness/decoding/region checks (session44660),
+then6 rendering/gameplay checks (session87666,55.3s): 1,152 prop pixel comparisons,
+cache equivalence/state/bounds,300 scenes/26,180 draws/all8 prop cells, two
+seamless progression journeys and hashed asset reuse. Failed dimensions and
+network requests retry with fresh URLs; concurrent shared-region retries dedupe.
+The nine generated files still pass --check; the user Go diff is unchanged.
+
+Mission1 now requests172,720 prop image bytes instead of1,553,373, avoiding
+1,380,653 bytes of prop artwork. This is request-selection evidence, not a new
+throttled timing result. The latest measured capture remains65fd72f7 and does
+not include this integration; performance and release gates remain unpassed.

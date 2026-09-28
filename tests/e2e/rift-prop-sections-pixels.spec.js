@@ -6,7 +6,7 @@ test('prop sections preserve fractional source cells independently and after ove
  await page.addScriptTag({url:'/static/rift_prop_sections.js'});
  const result=await page.evaluate(async()=>{
   const load=async src=>{const img=new Image();img.src=src;await img.decode();return img;};
-  const manifest=RiftPropSections,original=await load(document.getElementById('rift-props-asset').href);
+  const manifest=RiftPropSections,original=await load(document.getElementById('rift-app').dataset.props);
   const make=(width,height)=>{const c=document.createElement('canvas');c.width=width;c.height=height;return c;};
   const outputs=[make(400,300),make(400,300)],merged=make(manifest.width,manifest.height),images=[];
   let cases=0,differences=0,reconstructionDifferences=0;
