@@ -595,9 +595,24 @@ The browser compares direct rows and reconstruction to the original: 64 cases,
 6,144 frame renders, zero differing pixels, including rotation, flips, opacity,
 brightness and sizes 63/80/101/168. All 96 source cells are covered.
 
-Production still loads the complete local atlas. Integration must prepare local
-species and legacy fallbacks alongside shared creatures, all frozen encounter
-rooms and saved waves. It must also cover equipped pets, pack projectiles,
-relevant equipped skill/ultimate kinds, enemy projectile kinds and saved
-projectiles. Legacy runs without a complete encounter plan need their future
-room art prepared before seamless continuation. No new timing claim is made.
+Production now prepares required local rows alongside shared creatures. Four
+universal atlases remain: regions, props, items and effects. Readiness covers
+current enemies, every frozen encounter room, saved objective waves, equipped
+pets and pack skills/signatures/ultimates, enemy pack shots and saved pack
+projectiles. Legacy campaigns without a complete encounter plan prepare all six
+local rows before seamless continuation. Local goblin/wolf/knight animations
+and boss-example shared previews retain their existing behavior.
+
+The fixture's wolf dependency loads 516,716 bytes instead of the 2,782,428-byte
+complete local atlas; a build without creature dependencies loads no mob row
+before starting. Failed or incorrectly sized rows reject readiness and retry
+with a fresh URL; concurrent retries share one load. Original artwork is intact.
+
+The readiness/roster batch passed 20 browser checks, including all 124 monsters,
+32 rigs and 7,020 frame checks. The final batch passed 14 checks covering local
+row dependencies and retry recovery, cached rendering equivalence, all 300 scene
+layouts and both seamless tier/mission transitions. The generator check passed
+all seven outputs. These are correctness and request-selection results. The
+latest throttled timing capture remains at revision 17c407ca, before conditional
+platform, terrain-cover and local-row integration; no new speed or gate claim
+is made.

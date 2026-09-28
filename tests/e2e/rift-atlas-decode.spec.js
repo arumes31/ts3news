@@ -14,7 +14,7 @@ for(const asset of ['rift_region_0.png','rift_heroes_a_row0.png'])test('Start wa
  await expect(page.locator('#rift-start')).toBeEnabled();
  const decoded=await page.evaluate(()=>window.atlasDecodeCalls);
  expect(new Set(decoded).size).toBeGreaterThanOrEqual(6);
- await expect(page.locator('#rift-atlas-progress')).toHaveText('Critical atlases loaded (5/5)');
+ await expect(page.locator('#rift-atlas-progress')).toHaveText('Critical atlases loaded (4/4)');
 });
 for(const asset of ['rift_region_0.png','rift_heroes_a_row0.png'])test('failed decode offers artwork reload: '+asset,async({page})=>{
  await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8')}));

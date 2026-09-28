@@ -249,7 +249,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['regions','props','mobs','items','effects'];
+  const criticalAtlasKeys = ['regions','props','items','effects'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -544,16 +544,35 @@
     if(!response.ok)throw new Error('Creature artwork request failed.');
     return createImageBitmap(await response.blob());
   }});
+  const mobImages=[],mobLoads=new Map(),mobRetries=new Map();
+  function prepareMobRows(rows){
+    return Promise.all([...new Set(rows)].map(row=>{
+      if(mobImages[row])return;
+      const section=window.RiftMobSections?.rows?.[row];
+      if(window.RiftMobSections?.version!==1||!section)throw new Error('Local creature artwork manifest is unavailable. Reload to try again.');
+      if(!mobLoads.has(row)){
+        const retry=mobRetries.get(row)||0,src=section.url+(retry?'&retry='+retry:'');
+        mobLoads.set(row,loadDecodedAtlas(src).then(img=>{
+          if(img.width!==section.width||img.height!==section.height)throw new Error('Local creature artwork dimensions differ.');
+          mobImages[row]=img;
+        }).catch(()=>{mobLoads.delete(row);mobRetries.set(row,retry+1);throw new Error('Could not load local creature artwork. Recover to try again.');}));
+      }
+      return mobLoads.get(row);
+    }));
+  }
   renderer.prepareCreatures=async (units,{preview=false}={})=>{
-    const frames=[];
+    const frames=[],rows=[];
     for(const unit of units||[]){
-      if(!unit?.art_key)continue;
-      const frame=bestiary.frame(unit,'idle',0);
-      // Brawl retains its expanded local animations for these three species.
-      if(!preview&&['goblin','wolf','knight'].includes(frame.rig))continue;
-      frames.push(frame);
+      if(!unit||unit.id==='player'||objectiveActorKeys[unit.kind])continue;
+      if(!preview&&unit.shot==='pack')rows.push(4);
+      const frame=unit.art_key?bestiary.frame(unit,'idle',0):null;
+      if(preview){if(frame)frames.push(frame);continue;}
+      const local=frame?({goblin:0,wolf:4,knight:2}[frame.rig]):undefined;
+      if(local!==undefined)rows.push(local);
+      else if(!frame?.source)rows.push(Math.max(0,window.RiftMobSections.rows.findIndex(row=>row.kind===unit.kind)));
+      else frames.push(frame);
     }
-    await creatureLoader.prepare(frames);
+    await Promise.all([creatureLoader.prepare(frames),prepareMobRows(rows)]);
   };
   function prepareEncounterArt(run){
     const units=[...(run?.enemies||[])];
@@ -561,13 +580,18 @@
     // differ from that plan and must also be prepared before polling starts.
     for(const group of run?.encounter_plan||[])units.push(...group);
     for(const group of run?.room_objective?.waves||[])units.push(...group);
-    return renderer.prepareCreatures(units);
+    const extra=[];
+    if(run?.projectiles?.some(shot=>shot.kind==='pack'))extra.push(4);
+    // Older campaigns can generate later rooms without a frozen encounter plan.
+    if(run&&!run.practice&&['fighting','cleared'].includes(run.status)&&(!Array.isArray(run.encounter_plan)||run.encounter_plan.length<3))extra.push(0,1,2,3,4,5);
+    return Promise.all([renderer.prepareCreatures(units),prepareMobRows(extra)]);
   }
   window.addEventListener('pagehide',event=>{if(!event.persisted)creatureLoader.dispose();});
   // Saved expeditions and current previews can require different rows of one sheet.
   const heroLoads=new Map(),heroRetries=new Map(),heroImages={heroesA:[],heroesB:[]};
   renderer.prepareBuild=async build=>{
     if(!build)return;
+    if(build.pets>0||[...(build.skills||[]),...(build.signatures||[]),build.ultimate].some(skill=>skill?.kind==='pack'))await prepareMobRows([4]);
     const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),key=index<6?'heroesA':'heroesB',row=index%6,loadKey=key+':'+row;
     if(heroImages[key][row])return;
     const section=window.RiftHeroSections?.atlases?.[key]?.rows?.[row];
@@ -744,8 +768,8 @@
     alchemist:{name:'Mixture toast',frame:11,angle:-.1,lift:0,color:'#a9e7b4'}
   };
   function sprite(row, col, x, y, size, flip, alpha, atlas = 'heroesA') {
-    const hero=heroImages[atlas],img=hero?hero[row]:images[atlas];if(!img)return;
-    const height=hero?img.height:img.height/6,top=hero?0:row*height;
+    const rows=atlas==='mobs'?mobImages:heroImages[atlas],img=rows?rows[row]:images[atlas];if(!img)return;
+    const height=rows?img.height:img.height/6,top=rows?0:row*height;
     ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.translate(Math.round(x),Math.round(y)); ctx.scale(flip < 0 ? -1 : 1,1);
     drawAtlas(img,col*img.width/16,top,img.width/16,height,-size/2,-size*.91,size,size); ctx.restore();
   }
