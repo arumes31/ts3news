@@ -54,3 +54,22 @@ both checkpoints; enabled inspection recorded162then388. Runtime/error checks
 passed. Artifacts: test-results/direct-memory-smoke-20260928. This establishes
 that both drivers can complete the workload; it does not establish a long-session
 plateau or attribute all process-memory growth. Full comparison remains pending.
+
+## Public aggregate export
+
+`node scripts/brawl-direct-memory-evidence.cjs <capture-directory>` writes
+public-direct-memory-evidence.json using fixed labels, validated hashes and
+numeric aggregates only. Browser profiles/cookies, launch paths, heap strings,
+run IDs, driver source and error text are excluded. A complete pair requires
+all60replays, all post-cap checkpoints, event evidence for the chosen inspection
+mode, valid process counters and matching fixture/driver/browser/settings hashes.
+Smoke and partial runs remain incomplete. The original two smoke reports were
+exported and correctly remain incomplete; their numeric observations are retained.
+
+Renderer growth is calculated from checkpoint counters, with separate overall
+and post-cap changes. The enabled-minus-disabled growth difference is reported
+only for a complete matching pair. Durations, sequential order, GC/heap capture
+and remaining instrumentation still require review before interpreting that
+difference; one pair cannot establish causality. Release readiness and physical
+hardware verification are always false. Four paired-export tests plus ten shared
+session-export tests passed. Full live comparison remains in progress separately.
