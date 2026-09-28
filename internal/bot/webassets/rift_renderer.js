@@ -1417,6 +1417,18 @@
       }
       ctx.stroke();ctx.restore();
     });
+    for(const b of arena?.bridges||[]){
+      const x=b.x-camera,y=b.y,w=b.w,h=b.h;if(x+w<0||x>960)continue;
+      ctx.save();
+      ctx.fillStyle='#081610';ctx.fillRect(x,305,w,y-305);ctx.fillRect(x,y+h,w,505-y-h);
+      ctx.fillStyle='#26382e';ctx.fillRect(x-5,305,5,y-305);ctx.fillRect(x+w,305,5,y-305);ctx.fillRect(x-5,y+h,5,505-y-h);ctx.fillRect(x+w,y+h,5,505-y-h);
+      ctx.fillStyle='#725338';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#3d3024';ctx.lineWidth=2;
+      ctx.beginPath();for(let plank=0;plank<=w;plank+=16){ctx.moveTo(x+plank,y);ctx.lineTo(x+plank,y+h);}ctx.stroke();
+      ctx.strokeStyle='#b59a6c';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.moveTo(x,y+h);ctx.lineTo(x+w,y+h);ctx.stroke();
+      ctx.fillStyle='#ddc495';for(let post=0;post<=w;post+=40){ctx.fillRect(x+post-3,y-4,6,8);ctx.fillRect(x+post-3,y+h-4,6,8);}
+      ctx.strokeStyle='#e8d3a0';ctx.lineWidth=2;ctx.beginPath();for(const edge of [x,x+w]){ctx.moveTo(edge,y+10);ctx.lineTo(edge,y+h-10);}ctx.stroke();
+      ctx.restore();
+    }
     for(const p of arena?.platforms||[]){
       const x=p.x-camera,y=p.y,w=p.w,h=p.h,r=p.ramp,z=p.rise;
       const outer=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],top=[[x+r,y+r-z],[x+w-r,y+r-z],[x+w-r,y+h-r-z],[x+r,y+h-r-z]];
