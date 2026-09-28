@@ -85,8 +85,10 @@ Do not include credentials, real saves or private player records. Follow the
 
 The [constrained-network baseline](README-cold-start-baseline.md) measured median
 cold readiness 230.403s and 45949975 transferred bytes at its recorded commit. It
-fails both the 20s target and 3MB byte budget. Explicit image priorities do not
-establish a new pass; repeat the measurement after reducing startup bytes.
+fails both the 20s target and 3MB byte budget. Subsequent on-demand hero and
+objective loading reduces idle required PNG bytes to 30,114,995–30,210,352, still
+above the byte budget before other resources. Those byte totals are an asset
+inventory, not a new throttled timing measurement; the cold gate remains failed.
 
 Frame-scheduling, bounded-canvas and cache-retirement regressions prove their
 specific invariants. The [restart memory capture](README-restart-memory-baseline.md)
@@ -101,9 +103,21 @@ profile in all three samples (1.713/2.047/1.740 seconds), with 20 cached artwork
 images per sample and no browser/request errors. The subsequent objective-art
 loader candidate also passed (1.710/1.631/1.699 seconds, 13 cached images). Neither
 result changes the failed cold-start gate or establishes physical-device support.
-The physical-device, ordinary frame, input and30-minute session gates
-remain unmeasured against this budget. Do not mark them passed from overlays or
-seeded fixtures.
+The [completed session captures](README-session-memory.md#completed-ledge-routing-capture-2026-09-28)
+measured three 30-minute sessions with 38/40/40 complete three-tier replays and
+1,334,812 / 1,856,752 / 1,487,536 bytes of JS heap growth. All satisfy the numeric
+10MiB limit. Retaining-path analysis found stable actor/listener/audio counts and
+bounded off-document assets, but these runs did not reach the 50-entry attempt
+history cap. Renderer private bytes grew substantially; sampled inspector
+retaining paths do not explain all of that growth. The session gate therefore
+remains under review, with post-cap and instrumentation comparison outstanding.
+These captures describe their recorded older source revision, not every later
+change or physical target hardware.
+
+Physical-device, ordinary-combat frame and input-confirmation gates remain
+unmeasured against this budget. Do not mark them passed from overlays or seeded
+fixtures. See each linked report for candidate revision and measurement scope;
+a successful capture is not a passing performance gate.
 
 ## Adaptive decoration setting
 
