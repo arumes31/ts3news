@@ -342,6 +342,16 @@ func buildCampaign() []Level {
 					arena.Bridges = []NarrowBridge{{ID: fmt.Sprintf("mission-%d-bridge", id), Obstacle: Obstacle{230, 365 + float64(region%3)*10, 180, 90}}}
 					if arena.HazardSwitch != nil { arena.HazardSwitch.X = 180 }
 				}
+				if layout == 1 && room == 0 && (region == 0 || region == 6 || region == 8) {
+					arena.Round = &RoundArena{X: 800, Y: 402.5, RadiusX: 765, RadiusY: 87.5}
+					arena.Exit = &ArenaEntrance{X: 1440 - float64(region*3), Y: 402.5}
+					arena.Platforms[0].Obstacle = Obstacle{220, 365, 140, 80}
+					for index := range arena.Hazards {
+						arena.Hazards[index].X = 600 + float64(index*400)
+						arena.Hazards[index].Y, arena.Hazards[index].H = 397, 16
+					}
+					level.Tactic += ". Tier 1: the circular court has upper and lower routes clear of floor hazards around the central well"
+				}
 				level.Rooms = append(level.Rooms, arena)
 			}
 			levels = append(levels, level)
@@ -675,6 +685,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	if navigate {
 		dx, dy = r.navigateDropEdge(a, dx, dy)
 		dx, dy = arena.bridgeApproach(a, dx, dy)
+		dx, dy = arena.roundApproach(a, dx, dy)
 	}
 	nextX := clamp(a.X+dx, 35, Width-35)
 	if r.waveGateBlocksPath(a.X, a.Y, nextX, a.Y, radius) {

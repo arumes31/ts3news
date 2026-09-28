@@ -93,8 +93,10 @@ func AuditHazardSafety(arena Arena, horizon float64) ([]HazardUnsafeInterval, er
 // of phases, including combinations that offsets normally keep apart.
 func permanentHazardSafeRoute(arena Arena) bool {
 	r := &Run{Level: &Level{Rooms: []Arena{arena}}}
-	type point struct{ x, y int }
+	type point struct{ x, y float64 }
 	start, goal := point{160, 410}, point{1450, 320}
+	if arena.Entrance != nil { start = point{arena.Entrance.X, arena.Entrance.Y} }
+	if arena.Exit != nil { goal = point{arena.Exit.X, arena.Exit.Y} }
 	safe := func(x, y float64) bool {
 		for _, h := range arena.Hazards {
 			if !h.Disabled && contains(h.Obstacle, x, y, 12) {
@@ -106,7 +108,7 @@ func permanentHazardSafeRoute(arena Arena) bool {
 				return false
 			}
 		}
-		return x >= 35 && x <= 1565 && y >= 315 && y <= 490
+		return x >= 35 && x <= 1565 && y >= 315 && y <= 490 && arena.groundPath(x,y,x,y,12)
 	}
 	if !safe(float64(start.x), float64(start.y)) || !safe(float64(goal.x), float64(goal.y)) {
 		return false
@@ -115,8 +117,17 @@ func permanentHazardSafeRoute(arena Arena) bool {
 	seen := map[point]bool{start: true}
 	for head := 0; head < len(queue); head++ {
 		at := queue[head]
-		if at == goal {
-			return true
+		if math.Hypot(at.x-goal.x, at.y-goal.y) <= 14 {
+			a := Actor{ID: "player", X: at.x, Y: at.y}
+			dx,dy := (goal.x-at.x)/10,(goal.y-at.y)/10
+			clear := true
+			for part:=0;part<10;part++ {
+				x,y:=a.X+dx,a.Y+dy
+				if !safe(x,y) {clear=false;break}
+				r.moveActor(&a,dx,dy,false)
+				if math.Abs(a.X-x)>.001 || math.Abs(a.Y-y)>.001 {clear=false;break}
+			}
+			if clear {return true}
 		}
 		for _, step := range []point{{10, 0}, {-10, 0}, {0, 10}, {0, -10}} {
 			next := point{at.x + step.x, at.y + step.y}

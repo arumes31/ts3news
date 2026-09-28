@@ -2,7 +2,10 @@ package rift
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
+	"time"
+	"ts3news/internal/content"
 )
 
 func TestRoundArenaGroundFootprintsAndSweeps(t *testing.T) {
@@ -54,5 +57,47 @@ func TestRoundArenaMovementSpawnAndDetachedCopy(t *testing.T) {
 	copied.Rooms[0].Round.RadiusX = 500
 	if original.Rooms[0].Round.RadiusX != 740 {
 		t.Fatal("round arena copy aliases source")
+	}
+}
+
+func TestCircularCampaignLanesRemainWalkableAndHazardFree(t *testing.T) {
+	count := 0
+	for _, level := range Campaign() {
+		arena := level.Rooms[0]
+		if arena.Round == nil {
+			continue
+		}
+		count++
+		if !arena.ValidRound() {
+			t.Fatal("invalid circular campaign geometry")
+		}
+		for _, lower := range []bool{false, true} {
+			r := NewRunAtLevel("round-route", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), level.ID)
+			path := []ArenaEntrance{{400, 350}, {1200, 350}, *arena.Exit}
+			if lower {
+				path = []ArenaEntrance{{400, 450}, {600, 465}, {1000, 465}, {1200, 450}, *arena.Exit}
+			}
+			for _, goal := range path {
+				for step := 0; step < 1000 && math.Hypot(r.Player.X-goal.X, r.Player.Y-goal.Y) > .01; step++ {
+					r.moveActor(&r.Player, clamp(goal.X-r.Player.X, -2, 2), clamp(goal.Y-r.Player.Y, -.8, .8), false)
+					for _, h := range arena.Hazards {
+						if contains(h.Obstacle, r.Player.X, r.Player.Y, 10) {
+							t.Fatalf("mission %d route touches hazard", level.ID)
+						}
+					}
+				}
+				if math.Hypot(r.Player.X-goal.X, r.Player.Y-goal.Y) > .01 {
+					t.Fatalf("mission %d lower=%v route stalled at %.1f,%.1f", level.ID, lower, r.Player.X, r.Player.Y)
+				}
+			}
+			for _, e := range r.Enemies {
+				if !arena.groundPath(e.X, e.Y, e.X, e.Y, actorClearance(&e)) {
+					t.Fatal("enemy outside circular court")
+				}
+			}
+		}
+	}
+	if count != 3 {
+		t.Fatalf("circular court count=%d", count)
 	}
 }

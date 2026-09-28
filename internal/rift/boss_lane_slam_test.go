@@ -94,7 +94,7 @@ func TestCampaignLaneSlamsAllowWalkingEscapeAtEntry(t *testing.T) {
 		for room, arena := range level.Rooms {
 			for lane := 0; lane < 3; lane++ {
 				x, y := 160.0, 315+(float64(lane)+.5)*bossLaneHeight
-				blocked := false
+				blocked := !arena.groundPath(x, y, x, y, 10)
 				for _, wall := range arena.solidObstacles() {
 					if contains(wall, x, y, 10) {
 						blocked = true

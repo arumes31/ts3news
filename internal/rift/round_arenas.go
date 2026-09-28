@@ -44,3 +44,13 @@ func (a Arena) ValidRound() bool {
 	}
 	return true
 }
+
+// roundApproach follows the widening center of the court when a curved edge
+// blocks horizontal pursuit or escape. This also keeps fleeing treasure mobile.
+func (a Arena) roundApproach(actor *Actor, dx, dy float64) (float64, float64) {
+	if a.Round == nil || a.Round.containsGround(actor.X+dx, actor.Y+dy, actorClearance(actor)) {
+		return dx, dy
+	}
+	step := math.Max(math.Abs(dx), math.Abs(dy))
+	return dx, clamp(a.Round.Y-actor.Y, -step, step)
+}
