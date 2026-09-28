@@ -1496,7 +1496,7 @@
 .rift-clear-heading{display:flex;align-items:center;justify-content:center;gap:10px}
 #rift-chest-preview{width:40px;height:50px;image-rendering:pixelated;flex:none}
 
-#rift-boss-ward:not([hidden]){display:block;margin:4px 0;color:#fff0cf;font:12px/1.4 ui-monospace,monospace;overflow-wrap:anywhere}
+#rift-boss-ward:not([hidden]){display:block;margin:4px 0;padding:3px 4px;background:#10201bf2;border-left:2px solid #e9bd70;color:#fff0cf;font:12px/1.3 ui-monospace,monospace;letter-spacing:0;overflow-wrap:anywhere}
 
 .rift-potions{margin:10px 0;padding:10px;border:1px solid #81704c}.rift-potions summary{cursor:pointer}.rift-potions select{max-width:100%;margin:8px}.rift-potions button{min-height:40px;margin:4px}.rift-potions p{overflow-wrap:anywhere}
 

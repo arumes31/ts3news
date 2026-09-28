@@ -42,7 +42,7 @@ hits use the new one. Projectiles use the phase at impact, not at launch.
 The boss HUD displays the saved current ward and its weakness as direct hits
 with a ×2 multiplier before defenses. Its text updates with the boss phase and
 clears for legacy bosses or when no boss remains. It is a 12px wrapping status
-line, not a canvas label. The pending browser test covers practice phase reset,
+line, not a canvas label. The browser test covers practice phase reset,
 save/reload, mobile layout, and clearing legacy/missing-boss hints.
 
 ## Verification
@@ -58,5 +58,12 @@ save/reload, mobile layout, and clearing legacy/missing-boss hints.
   exactly three typed elemental entries on a boss in phase 1–3. Canonical
   weakness-to-damage parity is established by the server's exhaustive tests.
 - HUD and browser-test JavaScript syntax checks passed.
-- `tests/e2e/rift-boss-elements.spec.js` is prepared but has not run. Real-browser
-  verification must finish before marking 0349 complete.
+- `tests/e2e/rift-boss-elements.spec.js` passed in 4.5s against the current fixture;
+  output is `test-results/brawl-boss-ward-centered`. Practice reset/recovery keeps
+  the correct ward. Legacy/missing-boss states explicitly hide the hint element.
+  The mobile hint is visible during combat and stays inside the viewport.
+- Desktop/mobile potion and arena tests exposed the initial ward screenshot's
+  pause-overlay and sticky-header capture mistakes; the corrected test resumes
+  combat and centers the battlefield. A dark backing improves ward contrast.
+  The final full mobile battlefield screenshot was inspected and is readable.
+  Ledger 0349 is now verified.

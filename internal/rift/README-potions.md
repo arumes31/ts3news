@@ -34,7 +34,7 @@ repeat use are disabled while queued or in flight. Pause/input resets cancel an
 unsent use; an uncertain response requires normal expedition recovery. Inventory
 refreshes after confirmed use and recovery. Control-state tests pass for duplicate
 clicks, pause cancellation, unavailable use and uncertainty. These tests use a
-small DOM fixture; actual browser/server integration is still pending.
+small DOM fixture; real browser/server verification is recorded below.
 
 The optional Potions in reserve objective is now offered for new missions. It
 uses a mission-start baseline of confirmed potion uses; any use fails it, while
@@ -53,8 +53,11 @@ control regression test passes.
 
 The isolated E2E fixture and browser tests cover healing, inventory decrement,
 objective failure, paused cooldown recovery, mobile layout and practice isolation.
-The fixture compiles, but these browser tests have not run yet while the separate
-long-session memory capture occupies the browser fixture.
+Both tests passed against the current isolated server in
+`test-results/brawl-potions-arenas-verification` (3.7s and 1.2s). The visible failed
+objective, exact healing/count, paused saved cooldown, recovery and empty practice
+inventory were asserted. The 390px potion panel screenshot was inspected: labels,
+buttons, status and shared-inventory/base-potency guidance fit without overflow.
 
 The PostgreSQL integration test `TestRiftActualPotionCommitUncertainty` exercises
 lost COMMIT and lost ROLLBACK confirmations with the existing disposable-database
@@ -69,5 +72,7 @@ a shared transaction-ID check for inventory and the saved expedition. The
 container was stopped after verification. This proves this potion transaction
 path; it is not evidence for unrelated economy flows or browser presentation.
 
-Still required: real-browser execution and inspection and broader integration
-checks. Ledger 0363 remains open.
+The no-potion objective (0363) is verified through engine objective completion and
+banking tests, transaction checks, real PostgreSQL recovery, and browser controls
+and recovery. This does not extend support to the excluded consumable types or
+prove performance of the newer potion code in the earlier memory capture.
