@@ -33,3 +33,8 @@ branches, exact lethal threshold, recovery/disabled/cleared/dead/settings hiding
 malformed preview rejection, and live lean baseline/reload recovery. This covers
 item0465 as a warning for lethal single contacts; ordinary hazards are not made
 inherently fatal.
+
+Browser screenshots use the paused enemy-rock fixture with condition=lethal:
+the API supplies1HP and a1HP contact preview. The HUD's numeric health is checked
+before renderer boundary cases run, so visual evidence uses consistent health,
+critical-health status and warning data.

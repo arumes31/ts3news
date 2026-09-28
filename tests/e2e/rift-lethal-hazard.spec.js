@@ -1,12 +1,12 @@
 const {test,expect}=require('@playwright/test');
 for(const reduced of [false,true])test('lethal hazard warning is conditional and static, reduced='+reduced,async({page},info)=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
- const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.hazard_hit_damage).toBeGreaterThanOrEqual(0);
+ await page.goto('/abyss/rift?scenario=enemy-rock&condition=lethal');await expect(page.locator('#rift-start')).toBeEnabled();
+ const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.hazard_hit_damage).toBe(1);await expect(page.locator('#rift-hp')).toContainText('1 /');
  await page.evaluate(async({data,reduced})=>{
   await RiftRenderer.ready;RiftRenderer.reduced=reduced;RiftDisplay.hazardLabels=true;RiftDisplay.cameraSmooth=false;
   const run=RiftProtocol.validate(data,'GET').run;
-  run.status='fighting';run.paused=true;run.clock=.6;run.events=[];run.enemies=[];run.player.x=480;run.player.hp=10;run.hazard_hit_damage=10;
+  run.status='fighting';run.paused=true;run.clock=.6;run.events=[];run.enemies=[];run.player.x=480;run.player.hp=1;
   run.level.rooms[run.room].hazards=[{x:540,y:410,w:160,h:45,kind:'falling_rock',period:7,offset:0,duration:.18,jumpable:false}];
   const ctx=document.querySelector('#rift-canvas').getContext('2d'),fill=ctx.fillText;
   window.lethalLabels=[];ctx.fillText=function(text,...args){if(text==='! LETHAL IF HIT')lethalLabels.push(text);return fill.call(this,text,...args);};

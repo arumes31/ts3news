@@ -150,6 +150,9 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			mu.Lock()
 			run := rift.NewRunAtLevel("enemy-rock", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 91)
 			run.Paused, run.Clock = true, 1.19
+			if r.URL.Query().Get("condition") == "lethal" {
+				run.Player.HP = 1
+			}
 			run.RoomObjective = nil
 			run.Level.Rooms[0] = rift.Arena{Name: "Falling Rock Trial", Hazards: []rift.Hazard{{Kind: "falling_rock", Obstacle: rift.Obstacle{X: 450, Y: 350, W: 100, H: 100}, Period: 5, Duration: .18}}}
 			run.Enemies = run.Enemies[:2]
