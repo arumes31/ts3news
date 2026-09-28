@@ -196,7 +196,7 @@ test('seamless boss clearance starts the next mission and records completion',as
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   await expect.poll(async()=>(await read()).level.id).toBe(2);
   await page.keyboard.press('Escape');
-  const next=await read();expect(next.room).toBe(0);expect(next.completed_levels).toEqual([1]);expect(next.banked_gold).toBe(30);
+  const next=await read();expect(next.room).toBe(0);expect(next.completed_levels).toEqual([1]);expect(next.banked_gold).toBe(70);expect(next.banked_objective_gold).toBe(40);
   await page.goto('/abyss/rift');
   await expect(page.locator('#rift-progress')).toContainText('1/100 completed');
   await expect(page.locator('[data-level="1"]')).toHaveClass(/completed/);
