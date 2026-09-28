@@ -37,7 +37,7 @@ grouped by the most recent image draw. BRAWL_FRAME_SMOKE=1 limits collection to
 10 seconds; without it the diagnostic uses60 seconds. Either way the canvas-cost
 flag forces diagnostic/profiling mode, never a numeric performance-gate pass.
 The probe restores original method descriptors after collection. It preserves
-return values and thrown errors; two focused Node tests verify those invariants.
+return values and thrown errors; three focused Node tests verify those invariants and preceding-draw state capture.
 It changes instrumentation overhead and cannot prove causality or GPU timing.
 Image labels are static asset filenames or canvas dimensions; it retains no
 image references, per-frame event arrays, query strings or player records.
@@ -70,3 +70,21 @@ baseline diagnostic. These are instrumented short captures, not gate results or
 a controlled regression estimate. No useful improvement was established, so the
 candidate is not shipped. Local evidence is in prop-bitmap-equivalence-20260928
 and prop-bitmap-cost-20260928 beneath test-results.
+
+## Prop draw state and rejected full-atlas clip
+
+The diagnostic now groups costs by the preceding draw's filter, opacity and
+compositing mode. In prop-draw-state-cost-20260928 every prop draw used filter
+none, alpha1 and source-over. There were57 prop draws;57 subsequent saves took
+at least8ms, totaling2868.4ms across171 grouped saves (max110.3ms). This rules out
+an active CSS canvas filter or fractional opacity on those particular draws,
+not every possible rendering cost or every gameplay scene.
+
+A separate candidate used a Path2D destination clip with a full-atlas draw,
+retaining the source atlas's coordinate origin instead of a fractional source
+rectangle. All12 comparison panels changed pixels under the existing transformed,
+clipped and opacity/brightness matrix. It was rejected without benchmarking and
+never applied to production. Restore the archived
+ tests/performance/baselines/prop-clip-equivalence-rejected-2026-09-28.txt
+as tests/e2e/rift-prop-clip-experiment.spec.js to reproduce. Failure artifacts remain
+under test-results/prop-clip-equivalence-20260928.
