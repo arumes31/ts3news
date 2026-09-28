@@ -604,7 +604,7 @@
     if(banking)retainBankIdentity(body);
     root.querySelectorAll(kind==='step'?'#rift-start':'#rift-next,#rift-exit,#rift-start').forEach(btn=>setSafeDisabled(btn,true));
     try {
-      const data=await request('POST',body,inputTiming);confirmStartIdentity(data.run);confirmBankIdentity(data.run);await renderer.prepareRun(data.run);update(data.run,false);confirmInput(inputTiming);
+      const data=await request('POST',body,inputTiming);confirmStartIdentity(data.run);confirmBankIdentity(data.run);if(starting){put($('rift-overlay-copy'),'Preparing your encounter artwork…');status('Preparing encounter artwork…');}await renderer.prepareRun(data.run);update(data.run,false);confirmInput(inputTiming);
       if(banking){if(window.RiftLoot.confirmBank(previousReceipt,data.run))audio.play('bank',0);window.RiftLoot.banking('confirmed');}
       return true;
     } catch(error){
@@ -1472,7 +1472,7 @@
     const times=[300,1000,1250,1800];
     const stop=()=>{version++;if(frame)cancelAnimationFrame(frame);frame=0;canvas.dataset.playing='false';audio.cancelPreview();};
     const paint=elapsed=>{lastElapsed=elapsed;canvas.hidden=false;const result=renderer.drawBossJumpPreview(canvas,run?.build||build,elapsed,controls.label('jump'),run?.enemies?.find(e=>e.kind==='boss')||{kind:'boss',name:$('rift-practice-boss').value,art_key:'monster:'+$('rift-practice-boss').value});put(caption,result.text);};
-    const prepare=async()=>{stop();const current=version;if(playing)await pause();await renderer.ready;return current===version&&example.open&&!document.hidden;};
+    const prepare=async()=>{stop();const current=version;if(playing)await pause();await renderer.ready;await renderer.prepareCreatures([run?.enemies?.find(e=>e.kind==='boss')||{kind:'boss',name:$('rift-practice-boss').value,art_key:'monster:'+$('rift-practice-boss').value}],{preview:true});return current===version&&example.open&&!document.hidden;};
     $('rift-boss-jump-play').onclick=async()=>{
       try{if(!await prepare())return;step=-1;
         if(renderer.reduced||window.RiftDisplay.motionIntensity===0){step=0;paint(times[0]);put(caption,'Reduced motion: '+caption.textContent+' Use Next still frame.');return;}
@@ -1483,6 +1483,7 @@
     };
     $('rift-boss-jump-step').onclick=async()=>{try{if(!await prepare())return;step=(step+1)%times.length;paint(times[step]);}catch(_){put(caption,'Could not load the example artwork. Try again.');}};
     $('rift-boss-jump-sound').onclick=async()=>{try{if(!await prepare())return;const current=version,played=await audio.preview('effects','slam');if(current===version)put(caption,played?(audio.effects===0?'Effects volume is zero. Raise it to hear the slam.':'Previewing the slam impact with your sound settings.'):'Sound is muted or unavailable.');}catch(_){put(caption,'Sound is unavailable.');}};
+    $('rift-practice-boss').addEventListener('change',()=>{stop();canvas.hidden=true;});
     example.addEventListener('toggle',()=>{if(!example.open)stop();});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});window.addEventListener('pagehide',stop);
     $('rift-start').addEventListener('click',stop);

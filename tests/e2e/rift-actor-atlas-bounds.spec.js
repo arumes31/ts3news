@@ -14,6 +14,7 @@ test('live monster roster and class poses stay inside actor atlases',async({page
   const names={scribe:'Scribe Without Eyes',remembers:'Abyss That Remembers'};
   const probes=art.rigs.map(rig=>({name:names[rig]||rig,art_key:'bounds-probe:'+rig,kind:'goblin',element:'physical'}));
   const actors=[...roster,...probes],sharedCells=new Set();
+  await renderer.prepareCreatures(actors);
   for(const unit of actors){
    rigs.add(window.RiftBestiary.profile(unit).rig);
    for(const pose of Object.keys(art.poses))for(const index of [0,1,2,3,4,5,6,7,1000000]){

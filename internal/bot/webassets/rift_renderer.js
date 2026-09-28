@@ -2,7 +2,7 @@
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
   const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, enemy_blast:1, terrain_blast:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
-  const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
+  const bestiary=window.RiftBestiary,display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
   // Flat regional inlays: geometry identifies a region independently of color.
@@ -535,9 +535,35 @@
       throw new Error('Could not load '+key+' artwork. Reload to try again.');
     });
   }));
-  // Gate play on canvas atlases only. CSS mission/bestiary previews reuse these
-  // URLs, but their DOM image requests must never join the readiness promise.
-  renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
+  // Base preview readiness is separate from authoritative encounter preparation.
+  // prepareRun must complete before a saved or newly started fight is displayed.
+  renderer.ready=baseImages;
+  const creatureLoader=window.RiftCreatureLoader.create({manifest:window.RiftCreatureSections,decode:async src=>{
+    if(typeof createImageBitmap!=='function')return loadDecodedAtlas(src);
+    const response=await fetch(src);
+    if(!response.ok)throw new Error('Creature artwork request failed.');
+    return createImageBitmap(await response.blob());
+  }});
+  renderer.prepareCreatures=async (units,{preview=false}={})=>{
+    const frames=[];
+    for(const unit of units||[]){
+      if(!unit?.art_key)continue;
+      const frame=bestiary.frame(unit,'idle',0);
+      // Brawl retains its expanded local animations for these three species.
+      if(!preview&&['goblin','wolf','knight'].includes(frame.rig))continue;
+      frames.push(frame);
+    }
+    await creatureLoader.prepare(frames);
+  };
+  function prepareEncounterArt(run){
+    const units=[...(run?.enemies||[])];
+    // Boss summons reuse the frozen encounter plan. Legacy saved waves can
+    // differ from that plan and must also be prepared before polling starts.
+    for(const group of run?.encounter_plan||[])units.push(...group);
+    for(const group of run?.room_objective?.waves||[])units.push(...group);
+    return renderer.prepareCreatures(units);
+  }
+  window.addEventListener('pagehide',event=>{if(!event.persisted)creatureLoader.dispose();});
   // Saved expeditions and current previews can require different rows of one sheet.
   const heroLoads=new Map(),heroRetries=new Map(),heroImages={heroesA:[],heroesB:[]};
   renderer.prepareBuild=async build=>{
@@ -586,7 +612,7 @@
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
-    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareRegion(run?.level?.region)]);
+    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region)]);
     if(Number.isInteger(run?.level?.region)&&run.level.id%10===0&&run.level.id<100){
       const next=run.level.region+1;
       if(run.status==='cleared'&&run.room===2)await prepareRegion(next);
@@ -745,7 +771,7 @@
     context.fillStyle='#030e16aa';context.beginPath();context.ellipse(160,188,25,5,0,0,Math.PI*2);context.fill();
     const index=Math.max(0,styles.indexOf(foundations[build?.class]||build?.class)),hero=heroImages[index<6?'heroesA':'heroesB'][index%6];
     if(hero){const column=airborne?6:stage==='landing'?10:0;context.drawImage(hero,column*hero.width/16,0,hero.width/16,hero.height,112,92-lift,96,96);}
-    const bossFrame=boss&&bestiary.frame(boss,t<1150?'cast':t<1550?'attack':'idle',Math.floor(t/180)),bossImage=bossFrame&&catalogImages[bossFrame.asset],source=bossFrame?.source;
+    const bossFrame=boss&&bestiary.frame(boss,t<1150?'cast':t<1550?'attack':'idle',Math.floor(t/180)),bossImage=bossFrame&&creatureLoader.image(bossFrame),source=bossFrame?.source;
     if(bossImage&&source){context.save();context.translate(380,188);context.scale(-1,1);context.drawImage(bossImage,source.x*bossImage.width,source.y*bossImage.height,source.width*bossImage.width,source.height*bossImage.height,-68,-124,136,136);context.restore();}
     context.fillStyle='#d8eee7';context.font='bold 13px monospace';context.textAlign='center';context.fillText(t<1150?'SLAM IN '+Math.max(0,(1150-t)/1000).toFixed(2)+'s':'SLAM RESOLVED',240,24);
     target.dataset.stage=stage;target.dataset.lift=String(lift);target.setAttribute('aria-label',copy[stage]);
@@ -1203,7 +1229,7 @@
     let localRow={goblin:0,wolf:4,knight:2}[profile.rig];
     let mapped=pose==='hit'?'hurt':pose==='windup'?'cast':pose==='knockdown'?'defeat':pose==='land'||pose==='guard_walk'||pose==='recovery'?'idle':pose==='ultimate_anticipation'?'cast':pose==='stagger'?'hurt':pose;
     const frame=localRow===undefined?bestiary.frame(unit,mapped,Math.floor((mapped==='idle'?decorationTime:animationTime)/(pose==='run'?110:200))):null;
-    const img=frame&&catalogImages[frame.asset],source=frame?.source;
+    const img=frame&&creatureLoader.image(frame),source=frame?.source;
     // Legacy saves can outlive a shared art entry. Keep their combat silhouette
     // and animation visible using the required base atlas, without changing state.
     if(localRow===undefined&&(!img||!source))localRow=({archer:1,knight:2,boss:3,wolf:4,spore:5}[unit.kind]??0);

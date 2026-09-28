@@ -181,7 +181,7 @@ test('seamless tiers bank once without navigation and pause stops the transition
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   expect((await read()).room).toBe(0);
   let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
-  const assets=[];page.on('request',request=>{if(request.resourceType()==='image')assets.push(request.url());});
+  const assets=[];page.on('request',request=>{if(request.resourceType()==='image'||/\/rift_creature_[^/]+\.png/.test(request.url()))assets.push(request.url());});
   await page.locator('#rift-start').click();
   await expect.poll(async()=>(await read()).room).toBe(1);
   const next=await read();expect(next.banked_gold).toBe(30);expect(next.banked_items).toHaveLength(1);

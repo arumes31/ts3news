@@ -15,9 +15,13 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
  const hook=`renderer.stateProbe=async function(units){
   await Promise.all(styles.map(className=>renderer.prepareBuild({class:className})));
   const oracleHero=await loadDecodedAtlas(root.dataset.heroesA);
+  const creatureNames={scribe:'Scribe Without Eyes',remembers:'Abyss That Remembers'};
+  const creatureFrames=AbyssCombatArt.rigs.map(rig=>bestiary.frame({name:creatureNames[rig]||rig,art_key:'cache-probe:'+rig,kind:'goblin'},'idle',0));
+  await creatureLoader.prepare(creatureFrames);
+  const creatureSheet=asset=>creatureLoader.image(creatureFrames.find(frame=>frame.asset===asset));
   animationTime=120;decorationTime=120;renderer.reduced=false;motion=1;
   const outputs=[];
-  const prefix=cachedAtlasFrame(catalogImages[bestiary.assets[0]],0,0,156.75,158,80,80);
+  const prefix=cachedAtlasFrame(creatureSheet(bestiary.assets[0]),0,0,156.75,158,80,80);
   const sharedPrefix=prefix?{left:prefix.left,top:prefix.top,bytes:prefix.bytes}:null;
   for(const filter of ['none','brightness(1.3)'])for(const flipped of [false,true]){
    ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
@@ -55,7 +59,7 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
    ctx.save();ctx.translate(.5,.5);ctx.globalAlpha=.73;ctx.filter='brightness(1.3)';
    if(flip){ctx.translate(960,0);ctx.scale(-1,1);}
-   for(const frame of cells.values())if(frame.asset===asset){const img=catalogImages[asset],s=frame.source;drawAtlas(img,s.x*img.width,s.y*img.height,s.width*img.width,s.height*img.height,20+frame.column*115,10+frame.row*65,58,58);}
+   for(const frame of cells.values())if(frame.asset===asset){const img=creatureSheet(asset),s=frame.source;drawAtlas(img,s.x*img.width,s.y*img.height,s.width*img.width,s.height*img.height,20+frame.column*115,10+frame.row*65,58,58);}
    ctx.restore();outputs.push({png:canvas.toDataURL(),sharedCells:[...cells.values()].filter(f=>f.asset===asset).length});
   }
   // Prop prefixes preserve fractional coordinates; other fractional crops stay native.
@@ -75,7 +79,7 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
   const img=oracleHero,retired=atlasFrames.values().next().value;
   for(let i=0;i<200;i++)drawAtlas(img,i,0,128,128,0,0,64,64);
   for(let i=0;i<40;i++)drawAtlas(img,i,0,512,512,0,0,64,64);
-  const sharedFullRejected=cachedAtlasFrame(catalogImages[bestiary.assets[0]],0,0,156.75,158,80,80)===null;
+  const sharedFullRejected=cachedAtlasFrame(creatureSheet(bestiary.assets[0]),0,0,156.75,158,80,80)===null;
   return {outputs,sharedPrefix,sharedFullRejected,propFrames,fractionalCached,cache:renderer.atlasCacheStats(),retired:retired?[retired.canvas.width,retired.canvas.height]:null};
  };`;
  const results=[];

@@ -456,3 +456,29 @@ including reverse-order preparation with real ImageBitmaps and their closure.
 Production has not switched to this loader. Encounter and wave readiness,
 bestiary previews, first playable combat timing and memory measurements remain
 required before claiming a startup improvement from creature row loading.
+
+
+## Selective encounter artwork integration (2026-09-28)
+
+Brawl now includes the creature manifest and loader. Initial canvas readiness
+loads the seven base atlases; the current hero and saved encounter are prepared
+by the existing load flow. `prepareRun` prepares current enemies, every frozen
+encounter-plan room and saved wave groups. Boss summons reuse plan actors.
+The three species with expanded local combat animations keep those animations.
+Boss examples explicitly request their shared rows, including those species,
+and invalidate pending examples when their selected boss changes.
+
+The POST response is prepared before rendering or starting combat polling.
+Fresh starts display a preparing-artwork message while this happens. Failed
+preparation uses the saved-expedition recovery path. ImageBitmap decoding
+releases temporary decoded rows; browsers without that API use decoded images.
+A normal page exit disposes the loader, while a page entering the back-forward
+cache retains its prepared artwork.
+
+This removes four full shared-sheet requests from the idle canvas preview,
+but does not establish the cold-start performance gate: fresh encounter artwork
+is now requested after the authoritative start response. The next measurement
+must include first playable combat and its transfer bytes, alongside the
+existing idle-ready metric. Bestiary CSS still uses the full sheets and needs
+separate integration and visual verification. Native-memory costs are also
+unmeasured. No startup-budget or memory-gate pass is claimed.
