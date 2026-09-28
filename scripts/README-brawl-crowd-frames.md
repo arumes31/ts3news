@@ -88,3 +88,25 @@ never applied to production. Restore the archived
  tests/performance/baselines/prop-clip-equivalence-rejected-2026-09-28.txt
 as tests/e2e/rift-prop-clip-experiment.spec.js to reproduce. Failure artifacts remain
 under test-results/prop-clip-equivalence-20260928.
+
+
+## Browser timeline diagnostic
+
+Set BRAWL_FRAME_TRACE=1 for one diagnostic sample; add BRAWL_FRAME_SMOKE=1 for
+10 seconds or leave it unset for60 seconds. CPU sampling is separate: it remains
+off unless BRAWL_FRAME_PROFILE or BRAWL_CANVAS_COST is also enabled. Trace mode
+always marks the capture as profiling and cannot pass a numeric gate.
+
+The collector uses [Tracing.start and tracingComplete](https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/pdl/domains/Tracing.pdl)
+with ReturnAsStream and JSON output, then [IO.read and IO.close](https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/pdl/domains/IO.pdl).
+The trace buffer is64MiB and disk output is bounded to256MiB; known data loss
+invalidates the test. Completion waits at most30 seconds. Five focused tests cover
+mixed encoding, cleanup after read/size errors, missing streams and timeout.
+The ignored crowd.timeline.json can contain URLs and event arguments; do not
+publish it as release evidence. Public summaries must use selected numeric fields
+and fixed event names, excluding raw args, process IDs and paths.
+
+The first smoke completed without data loss (54,096 events,11,808,195 bytes).
+Main-thread LayerTreeHost::DoUpdateLayers events summed5,082.282ms and animation
+callbacks3,921.205ms. These are nested inclusive timings, not additive CPU totals;
+see README-crowd-frame-baseline.md for interpretation and remaining work.

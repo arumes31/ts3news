@@ -1,0 +1,50 @@
+{
+  "sourceRevision": "504aa37aa116df9f30e57c09206e01cadb978235",
+  "trackedDiffSHA256": "cd6532992b12c35b5291f9623e1c302c72360c43c4926650a48096055e96e276",
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "smoke": true,
+  "captureDurationMS": 10385.90000000596,
+  "traceBytes": 11808195,
+  "dataLossOccurred": false,
+  "traceEvents": 54096,
+  "rendererMainThreads": 1,
+  "events": {
+    "Commit": {
+      "calls": 71,
+      "inclusiveMS": 5169.36,
+      "maximumMS": 101.445
+    },
+    "LayerTreeHost::DoUpdateLayers": {
+      "calls": 71,
+      "inclusiveMS": 5082.282,
+      "maximumMS": 99.048
+    },
+    "SoftwareImageDecodeCache::ReduceCacheUsageUntilWithinLimit": {
+      "calls": 4615,
+      "inclusiveMS": 104.871,
+      "maximumMS": 1.402
+    },
+    "RunTask": {
+      "calls": 621,
+      "inclusiveMS": 9937.873,
+      "maximumMS": 216.409
+    },
+    "ProxyMain::BeginMainFrame": {
+      "calls": 70,
+      "inclusiveMS": 9716.793,
+      "maximumMS": 215.979
+    },
+    "FireAnimationFrame": {
+      "calls": 141,
+      "inclusiveMS": 3921.205,
+      "maximumMS": 81.838
+    },
+    "Paint": {
+      "calls": 34,
+      "inclusiveMS": 179.705,
+      "maximumMS": 16.134
+    }
+  },
+  "scope": "Complete-duration trace events grouped on renderer main threads. Nested inclusive times overlap and must not be added. Diagnostic instrumentation changes timing; this is not a performance gate or GPU attribution."
+}

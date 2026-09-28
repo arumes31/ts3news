@@ -3,11 +3,13 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const {execFileSync}=require('node:child_process');
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 const {installCanvasCostProbe}=require('../../scripts/brawl-canvas-cost.cjs');
+const {startTimeline}=require('../../scripts/brawl-timeline.cjs');
+const timeline=process.env.BRAWL_FRAME_TRACE==='1';
 const canvasCosts=process.env.BRAWL_CANVAS_COST==='1';
-const smoke=process.env.BRAWL_FRAME_SMOKE==='1',profiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts;
+const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline;
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
 for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
- const report={sample,startedAt:new Date().toISOString(),smoke,profiling,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
+ const report={sample,startedAt:new Date().toISOString(),smoke,profiling,timelineEnabled:timeline,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
   server:'fresh managed e2e fixture; no real player data',scenario:'/abyss/rift?scenario=visual&seed=crowded-v1&crowd=120&riftFrameDebug=1',
@@ -19,6 +21,7 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
  page.on('pageerror',e=>report.errors.push({kind:'page',message:e.message}));
  page.on('console',m=>{if(m.type()==='error')report.errors.push({kind:'console',message:m.text()});});
  page.on('response',r=>{if(r.status()>=400)report.errors.push({kind:'http',path:new URL(r.url()).pathname,status:r.status()});});
+ let timelineCDP,timelineCapture;
  try{
   const browserCDP=await browser.newBrowserCDPSession();const system=await browserCDP.send('SystemInfo.getInfo');report.graphics={devices:system.gpu.devices,featureStatus:system.gpu.featureStatus};await browserCDP.detach();
   const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
@@ -45,16 +48,21 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
    d.samples.push=function(sample){if(capture.active)capture.samples.push({...sample,at:performance.now()});return originalPush.call(this,sample);};
   });
   if(canvasCosts)await page.evaluate(installCanvasCostProbe);
-  if(profiling){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
+  if(timeline){timelineCDP=await browser.newBrowserCDPSession();timelineCapture=await startTimeline(timelineCDP,info.outputPath('crowd.timeline.json'));}
+  if(cpuProfiling){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   for(let chunk=0;chunk<(smoke?1:6);chunk++){await page.waitForTimeout(10000);if(chunk%2===1)console.log('Crowd sample '+sample+': '+(chunk+1)*10+'s collected');}
   report.capture=await page.evaluate(()=>{const c=crowdFrameCapture;c.active=false;c.ended=performance.now();c.camera=RiftRenderer.cameraFraming;c.cache=RiftRenderer.atlasCacheStats();return c;});
   if(canvasCosts)report.canvasCosts=await page.evaluate(()=>brawlCanvasCost.stop());
-  if(profiling){const {profile}=await cdp.send('Profiler.stop');fs.writeFileSync(info.outputPath('crowd.cpuprofile'),JSON.stringify(profile));report.cpuProfile='crowd.cpuprofile';}
+  if(timelineCapture){report.timeline=await timelineCapture.stop();expect(report.timeline.dataLossOccurred).toBe(false);}
+  if(cpuProfiling){const {profile}=await cdp.send('Profiler.stop');fs.writeFileSync(info.outputPath('crowd.cpuprofile'),JSON.stringify(profile));report.cpuProfile='crowd.cpuprofile';}
   const c=report.capture;report.durationMS=c.ended-c.started;report.summary={frames:c.samples.length,intervalP95:percentile(c.samples.map(s=>s.interval),.95),intervalP99:percentile(c.samples.map(s=>s.interval),.99),renderP95:percentile(c.samples.map(s=>s.render),.95)};
   expect(c.samples.length).toBeGreaterThan(0);expect(c.hidden).toBe(false);expect(c.contextLost).toBe(false);expect(c.camera.x).toBe(report.settings.camera.x);expect(c.cache.bytes).toBeLessThanOrEqual(c.cache.limitBytes);
   const after=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(after.paused).toBe(true);expect(after.clock).toBe(run.clock);expect(after.enemies).toHaveLength(120);
   const s=report.summary;report.gate=profiling?'unmeasured (profiling instrumentation)':smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
-  report.scope='Paused seeded drawing load with normal camera/culling. No combat inputs, enemy AI, projectile load or GPU presentation trace. Not physical target hardware.';
+  report.scope='Paused seeded drawing load with normal camera/culling. No combat inputs, enemy AI or projectile load. Not physical target hardware.';
   console.log(JSON.stringify({sample,durationMS:report.durationMS,...s,cache:c.cache,gate:report.gate}));
- }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{save();}
+ }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{
+  if(timelineCapture&&!report.timeline){try{report.timeline=await timelineCapture.stop();}catch(error){report.timelineFailure=error.message;}}
+  if(timelineCDP)await timelineCDP.detach().catch(()=>{});save();
+ }
 });

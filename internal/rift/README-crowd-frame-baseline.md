@@ -147,3 +147,29 @@ prop-origin-regression-red-20260928. No real player data is included.
 
 Nine production cover fading/culling checks passed in31.0s; artifacts are in
 test-results/prop-origin-cover-regressions-20260928.
+
+
+## Profile and timeline after prop-origin cache
+
+At504aa37a, a61.23-second CPU profile captured557 frames. Actor inclusive time
+was16,363.198ms, catalogActor7,935.636ms, and native save self time893.470ms in its
+largest stack. The previous22.5-second save hotspot disappeared. The program
+bucket still occupied37,008.272ms, so JS-only attribution was insufficient.
+The compact aggregate is crowd-prop-origin-profile-2026-09-28.json in the public
+baselines directory; raw profiles remain under crowd-profile-prop-origin-20260928.
+
+A subsequent10.386-second timeline smoke captured54,096 events with no reported
+buffer loss. On the renderer main thread, complete-duration layer-update events
+summed5,082.282ms (71 calls,99.048ms maximum), and FireAnimationFrame events summed
+3,921.205ms. Commit included5,169.360ms. These nested inclusive values overlap;
+do not add Commit and layer-update durations or equate them to GPU execution.
+The trace suggests substantial browser work after animation callbacks, explaining
+why synchronous render improved without a similar frame-interval gain. Remaining
+work is to attribute layer-update internals before choosing another optimization.
+
+Public selected-event evidence is crowd-timeline-smoke-2026-09-28.json. The raw
+trace is ignored under test-results/crowd-timeline-smoke-20260928. The capture used
+new diagnostic-only harness changes on504aa37a; its tracked-diff hash records
+the tracked harness changes. The initially untracked collector is committed
+alongside this evidence, rather than covered by that tracked-diff hash. Neither profile nor smoke changes the failed frame gate or physical-device
+status. Five timeline lifecycle tests and the browser smoke passed.
