@@ -30,3 +30,9 @@ with ice artwork to ensure presentation does not overwrite combat metadata.
 Old saves with no element remain empty; no animation-based migration is applied.
 Ultimates have no canonical element field in their source definition and remain
 unspecified here. No new multiplier or phase hint is active yet.
+
+Browser protocol validation accepts absent legacy fields and source element
+strings, including future values (neutral until explicitly supported). It rejects
+objects, arrays, numbers, booleans and null in weapon, skill, signature and
+ultimate element fields. `node --test tests/performance/element-protocol.test.cjs`
+checks the public response validator, not a duplicate predicate.
