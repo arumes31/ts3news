@@ -482,3 +482,21 @@ must include first playable combat and its transfer bytes, alongside the
 existing idle-ready metric. Bestiary CSS still uses the full sheets and needs
 separate integration and visual verification. Native-memory costs are also
 unmeasured. No startup-budget or memory-gate pass is claimed.
+
+
+### Rejected bestiary cropping experiments (2026-09-28)
+
+CSS row backgrounds eliminated the four original sheet requests when opening
+and inspecting the bestiary, but did not preserve the existing rendered pixels.
+A browser screenshot comparison covering all 256 shared cells at 66 by 72 pixels
+found 14,781 differing RGBA channel values. A second experiment drawing original
+source rectangles into card-sized canvases also differed (10,127 channel values).
+Both failed the exact-image criterion at card size; detail-size comparison was
+not reached, so no detail-size result is claimed. The production bestiary was
+restored unchanged. Neither experiment changes the shared source artwork.
+
+The existing bestiary continues to load original sheets only when opened.
+Creature rows remain active for combat. Do not repeat direct cropped CSS or
+card-sized canvas replacement as a proven visual optimization. An alternative
+must preserve browser sampling and demonstrate its memory cost. First-playable
+combat measurements can proceed without depending on this rejected change.
