@@ -203,7 +203,7 @@
   }
   function detectPlayerAreaEffects(run){
     if(!run||!run.player||!['fighting','cleared'].includes(run.status))return null;
-    if(run.status==='fighting'&&(run.skill_timers?.connection_grace||0)>0)return {kind:'connection',state:'evading',announcement:'Connection recovered: temporarily protected',label:'Connection recovered: protected ('+run.skill_timers.connection_grace.toFixed(1)+'s)'};
+    if(run.status==='fighting'&&(run.skill_timers?.connection_grace||0)>0)return {kind:'connection',state:'evading',name:'Connection protection',announcement:'Connection recovered: temporarily protected',label:'Connection recovered: protected ('+run.skill_timers.connection_grace.toFixed(1)+'s)'};
     const p=run.player;
     const arena=run.practice?.arena||run.level?.rooms?.[run.room];
     if(run.status==='fighting'&&arena&&Array.isArray(arena.hazards)){

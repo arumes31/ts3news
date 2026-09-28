@@ -55,3 +55,30 @@ non-weak edges. Breadth-first traversal handles cycles, and printed paths are
 limited to 128 nodes with explicit truncation status. These are snapshot-graph
 paths, not V8 ephemeron-liveness proofs or dominator retained sizes. Follow
 suspicious owners in the original snapshot before drawing a leak conclusion.
+
+## Failed first full-duration attempt
+
+The first long capture at `329e7e7b` plus the preserved engine diff was stopped
+after 35 measured mission replays and 27 renderer errors. Its last complete heap
+checkpoint was after 31 replays at 22.45 minutes. It is incomplete and failed,
+not a 30-minute pass. Raw reports/heaps and `capture-provenance.json` remain in
+`test-results/session-memory-full`; no samples were silently discarded.
+
+Connection recovery returned an area-effect indicator without a `name`. The
+renderer uppercased that missing field, throwing on every affected frame. The
+previous regression updated only the text HUD. An expanded test now passes the
+server-produced recovery snapshot through the actual renderer, reproducing the
+crash before the fix and passing once the indicator supplies its name.
+
+Across the five preserved checkpoints, actor-shaped payloads stay at 163,
+run-shaped payloads at two, and live effect-shaped payloads at zero. Both run IDs
+match the current expedition. Latest root paths lead through the Window globals
+to existing loot/renderer closure contexts. Attempt-record shapes grow from two
+to 95, so this capture does not establish a retention plateau. Heap grows from
+7.071 to 8.35 MiB; low growth does not override the renderer failure.
+
+Future captures stop on the first runtime error, preserve its stack/timestamp,
+and stop the remaining sample batch. They write one shared fixture-source record
+and copy that original patch into every sample, plus the server's asset-build ID.
+Do not change source between fixture launch and its first sample source capture.
+Later source edits require a new run before claiming evidence for those edits.

@@ -10,16 +10,23 @@ const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*
 const {summarizeHeap}=require('../../scripts/brawl-heap-summary.cjs');
 
 for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory sample ${sample}`,async({page,context,browser},info)=>{
+ const path=require('node:path'),output=info.outputPath('memory-report.json');
+ fs.mkdirSync(path.dirname(output),{recursive:true});
+ const sourceFile=path.join(path.dirname(path.dirname(output)),'fixture-source.json');
+ if(!fs.existsSync(sourceFile)){
+  const patch=git('diff','HEAD','--binary');
+  fs.writeFileSync(sourceFile,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),dirtyFiles:git('status','--short'),patch,capturedAt:new Date().toISOString(),scope:'Checkout captured by first sample immediately after fresh shared fixture startup; no rebuild between samples.'},null,2)+'\n',{flag:'wx'});
+ }
+ const source=JSON.parse(fs.readFileSync(sourceFile,'utf8'));
  const report={startedAt:new Date().toISOString(),mode:smoke?'smoke (not a gate run)':'30 minutes of repeated complete three-tier missions',sample,durationMS,
-  server:{command:'go test -tags=e2e ./internal/bot -run TestAbyssE2EServer -count=1 -v -timeout=130m',managedFresh:true,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short')},
+  server:{command:'go test -tags=e2e ./internal/bot -run TestAbyssE2EServer -count=1 -v -timeout=130m',managedFresh:true,revision:source.revision,trackedDiffSHA256:source.trackedDiffSHA256,dirtyFiles:source.dirtyFiles,sourceCapturedAt:source.capturedAt},
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},
   browser:browser.version(),profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,display:'lowPower',physicalMinimumDevice:false},
   scenario:'/abyss/rift?subclass=bloodblade&riftFrameDebug=1',seed:'production random; replay seeds and run IDs captured per cycle',mission:1,
   protocol:'At completed-mission boundaries after each five-minute interval: settle 2s, GC, settle 1s, GC, heap and DOM counters plus heap snapshot. Record actual elapsed time; no reloads.',
   checkpoints:[],expeditions:[],errors:[],gate:'unmeasured',processMemory:'Windows working set and private bytes for CDP-listed browser processes; kept separate from JS heap'};
- const output=info.outputPath('memory-report.json');fs.mkdirSync(require('node:path').dirname(output),{recursive:true});
  const save=()=>fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
- fs.writeFileSync(info.outputPath('server-tracked-diff.patch'),git('diff','HEAD','--binary'));
+ fs.writeFileSync(info.outputPath('server-tracked-diff.patch'),source.patch);
  report.command='node node_modules/@playwright/test/cli.js test --config=playwright.session-memory.config.js';
  const session=await context.newCDPSession(page);
  const browserSession=await browser.newBrowserCDPSession();
@@ -37,6 +44,7 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   let run;const tiers=[];let lastInputReset=0;
   try{
    while(Date.now()-started<360000){
+    if(report.errors.length)throw Error('Runtime failure during campaign: '+report.errors[0].message);
     run=await read();report.lastCombat={room:run.room,status:run.status,player:{x:run.player.x,y:run.player.y,hp:run.player.hp},enemies:run.enemies.filter(e=>e.hp>0).map(e=>({kind:e.kind,x:e.x,y:e.y,hp:e.hp}))};expect(run.status,'combat must reach a checkpoint without death').not.toBe('defeated');
     if(run.status==='cleared'){
      await controls(new Set());tiers.push({room:run.room,clock:run.clock,kills:run.stats.kills});
@@ -95,11 +103,11 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   report.checkpoints.push(point);save();console.log(`Memory sample ${sample}, mission ${index}: ${(point.heap.usedSize/1048576).toFixed(2)} MiB`);
  }
  page.on('console',message=>{if(message.type()==='error')report.errors.push({kind:'console',message:message.text()});});
- page.on('pageerror',error=>report.errors.push({kind:'page',message:error.message}));
+ page.on('pageerror',error=>{report.errors.push({kind:'page',message:error.message,stack:error.stack,at:new Date().toISOString()});save();});
  page.on('response',response=>{if(response.status()>=400)report.errors.push({kind:'http',path:new URL(response.url()).pathname,status:response.status()});});
  try{
   await session.send('Emulation.setCPUThrottlingRate',{rate:4});
-  await page.goto(report.scenario);await expect(page.locator('#rift-start')).toBeEnabled({timeout:120000});
+  await page.goto(report.scenario);report.server.assetBuild=(await(await page.request.get('/api/abyss/rift')).json()).build;await expect(page.locator('#rift-start')).toBeEnabled({timeout:120000});
   await page.locator('#rift-auto').uncheck();
   await page.locator('.rift-settings > summary').click();
   await page.locator('#rift-display-preset').selectOption('lowPower');
@@ -133,6 +141,6 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   report.finalFive=final.map(p=>({mission:p.mission,usedSize:p.heap.usedSize,...p.dom}));
   report.gate=smoke?'unmeasured (smoke only)':report.heapSizeGate==='fail'||report.errors.length?'fail':'retaining-path review required';
   expect(report.errors).toEqual([]);expect(report.growthBytes).toBeLessThanOrEqual(10*1048576);
- }catch(error){report.error=error.message;if(report.gate!=='fail')report.gate='incomplete';throw error;}
+ }catch(error){report.error=error.message;report.gate=report.errors.length?'fail (runtime error)':report.gate==='fail'?'fail':'incomplete';throw error;}
  finally{report.finishedAt=new Date().toISOString();save();await session.detach();await browserSession.detach();}
 });
