@@ -123,6 +123,29 @@ uses repeated heap snapshots and browser automation, so allocation ownership
 and measurement overhead must be investigated before attributing the growth.
 The low JS growth does not establish stable process memory.
 
+## Retention ownership review of completed sample two
+
+The final original heap contains 137 history-shaped objects. Shortest non-weak
+root paths divide into 46 records through the current run, 46 through the
+protocol response base (`snapshotBase.fields.attempt_history`), and 45 through
+the renderer's previous snapshot. The source caps each attempt history at 50
+and validates that cap in the client. This is consistent with three bounded
+views still filling; it does not prove a post-cap plateau. The two run-shaped
+objects belong to the current expedition and are held by current presentation
+closures and the renderer's previous snapshot, not earlier expedition IDs.
+Local path details are in `history-retention-review.json` and the original
+`retention-review.json` under this capture directory.
+
+Native `blink::NetworkResourcesData::ResourceData` objects grow from 183 to
+5,591, with reported shallow size from 52,704 to 1,610,208 bytes. Inspected paths
+in both original heaps lead from C++ persistent roots through DevToolsSession,
+InspectorNetworkAgent and NetworkResourcesData. This identifies browser
+inspection bookkeeping as a contributor; shallow sizes do not explain the
+entire 239.55 MiB renderer private-byte increase. No claim that all native
+growth is instrumentation, or that process memory is stable, follows from this.
+Local example paths are retained in `network-retention-review.json`. Raw paths
+are excluded from the public aggregate export.
+
 ## Shareable aggregate export
 
 Run `node scripts/brawl-session-evidence.cjs <capture-directory>` to write
