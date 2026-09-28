@@ -173,3 +173,39 @@ new diagnostic-only harness changes on504aa37a; its tracked-diff hash records
 the tracked harness changes. The initially untracked collector is committed
 alongside this evidence, rather than covered by that tracked-diff hash. Neither profile nor smoke changes the failed frame gate or physical-device
 status. Five timeline lifecycle tests and the browser smoke passed.
+
+
+## Current transport-source baseline (2026-09-28)
+
+Three complete60-second captures at frozen9f5136a3 plus the unchanged user Go diff
+measure the retained renderer with regional prop canvases, reconstructed shared
+creature canvases and local actor rows. All experimental/profiling/omission flags
+were disabled. Session29965 completed successfully in4.2m; all three numeric
+frame gates fail. A successful harness run does not mean a passing workload.
+
+| Sample | Duration | Frames | Interval p95 | Interval p99 | Render p95 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 60.062s | 477 | 183.4ms | 216.7ms | 76.3ms |
+| 2 | 60.076s | 419 | 183.4ms | 216.7ms | 77.5ms |
+| 3 | 60.085s | 458 | 183.2ms | 200.0ms | 72.3ms |
+
+Thresholds remain50/100/16ms. Every sample has120 living enemies,14 bosses,
+zero projectiles, no browser/HTTP errors, no hidden time/context loss/camera
+movement, and an unchanged paused simulation. The cache retains5 entries and
+1,056,292 calculated bytes with5 misses per sample; no cache churn occurred.
+The existing1280x900/DPR1/CPU4x/Lower power development profile is unchanged.
+This remains a paused visual workload, not the live crowded-boss requirement.
+
+These values are worse than the earlier prop-origin candidate, but no matched
+old-source control was captured alongside them and host contention was not
+isolated. They establish a current failure, not causation by a particular loading
+change. Do not revert pixel-equivalent transport based solely on this comparison.
+The next diagnostic should isolate actor drawing layers and their browser paint
+costs before selecting an optimization; prior whole-actor/background omissions
+and rejected fractional/opaque caches are already recorded above.
+
+[Sanitized evidence](../../tests/performance/baselines/crowd-after-transport-2026-09-28.json)
+was rebuilt from all raw timing samples and verified against frozen source/diff
+and scene counts. Raw reports remain local in
+`test-results/crowd-after-transport-20260928`. Source is now unfrozen. No physical
+hardware or release pass is established, and0997 remains open.
