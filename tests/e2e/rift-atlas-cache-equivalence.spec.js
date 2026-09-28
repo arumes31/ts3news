@@ -3,7 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 test('cached atlas frames preserve pixels state and memory bounds',async({page},info)=>{
  test.setTimeout(120000);
  await page.addInitScript(()=>{const request=requestAnimationFrame;window.requestAnimationFrame=cb=>cb.name==='render'?1:request(cb);});
- const candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ let candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
+ if(process.env.BRAWL_PROP_ORIGIN_EXPERIMENT==='1')candidate=require('../../scripts/brawl-prop-origin-experiment.cjs').propOriginCandidate(candidate);
  const cached='    const frame=cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh);\n    if(frame)ctx.drawImage(frame.canvas,sx-frame.left,sy-frame.top,sw,sh,dx,dy,dw,dh);\n    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);';
  expect(candidate.includes(cached)).toBe(true);
  const baseline=candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
