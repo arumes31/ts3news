@@ -36,3 +36,25 @@ strings, including future values (neutral until explicitly supported). It reject
 objects, arrays, numbers, booleans and null in weapon, skill, signature and
 ultimate element fields. `node --test tests/performance/element-protocol.test.cjs`
 checks the public response validator, not a duplicate predicate.
+
+## Boss-phase engine integration
+
+New canonical elemental bosses now freeze three wards starting at their Abyss
+element and advancing Fire, Air, Earth, Water for successive phases. Each ward
+stores its canonical weakness for the eventual UI. The fixed-size array preserves
+Actor comparability; its zero value is omitted from JSON. Physical/unknown bosses
+and older saved actors without wards remain neutral.
+
+Direct basic hits use the saved weapon element. Direct skill and projectile hits
+use the skill's canonical element, independently of its visual effect name.
+The shared Abyss multiplier applies before existing armor, shield, weak-point
+and class accounting. Environmental damage and effect-only legacy paths remain
+unchanged. A phase-crossing hit uses the phase before that hit; later hits use
+the new phase. Projectiles use the phase at impact.
+
+`TestBossElementPhases*` verifies all four elemental starting wards, three phases,
+six attack-element cases, saved metadata, legacy/environment neutrality, actual
+weapon/skill/projectile paths and phase-transition ordering. The new tests passed
+with GOMAXPROCS=2 during the isolated older-build memory capture. Full regression,
+protocol validation, player-facing hints and browser verification remain pending;
+0349 is still open. The running memory fixture does not include these edits.

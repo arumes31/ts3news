@@ -137,7 +137,7 @@ func (r *Run) skillHit(index int, damage float64, skill Skill, charges int, mark
 	}
 	before := e.HP
 	dealtBefore := r.Stats.DamageDealt
-	r.hurtEnemyPiercing(index, damage, effect, pierce)
+	r.hurtEnemyElement(index, damage, effect, pierce, skill.Element)
 	if dealt := r.Stats.DamageDealt - dealtBefore; dealt > 0 && skill.ID != "" {
 		if r.Stats.SkillDamage == nil {
 			r.Stats.SkillDamage = map[string]float64{}

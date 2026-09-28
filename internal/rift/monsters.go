@@ -40,6 +40,9 @@ func AdaptMonster(m content.Mob) Actor {
 		a.Kind = "treasure"
 		a.Speed *= 1.2
 	}
+	if a.Kind == "boss" {
+		a.ElementalPhases = bossElementPhases(m.Element)
+	}
 	name := strings.ToLower(m.Name)
 	ranged := len(m.Spells) > 0 || m.Stats.INT > m.Stats.STR
 	for _, word := range []string{"lich", "archer", "mage", "wizard", "scribe", "weaver"} {

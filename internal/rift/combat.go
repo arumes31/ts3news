@@ -98,6 +98,7 @@ type Actor struct {
 	TargetX   float64 `json:"target_x"`
 	TargetY   float64 `json:"target_y"`
 	Phase          int     `json:"phase,omitempty"`
+	ElementalPhases [3]BossElementPhase `json:"elemental_phases,omitzero"`
 	BossStagger float64 `json:"boss_stagger,omitempty"`
 	BossGuardBreak float64 `json:"boss_guard_break,omitempty"`
 	BossStaggerGrace float64 `json:"boss_stagger_grace,omitempty"`
@@ -1016,7 +1017,7 @@ func (r *Run) tick(in Input, dt float64) {
 					e.StunResist = math.Min(0.75, float64(e.InterruptCount)*0.25)
 				}
 
-				r.hurtEnemy(i, dmg, "hit_"+r.WeaponFamily())
+				r.hurtEnemyElement(i, dmg, "hit_"+r.WeaponFamily(), 0, r.Build.WeaponElement)
 				if e.HP == 0 && !e.isObjectiveProp() && p.Jump > .1 && r.Practice == nil {
 					r.Stats.AerialFinishes++
 				}
