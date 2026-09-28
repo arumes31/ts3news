@@ -22,7 +22,13 @@ rejection states. SQL transaction tests pass for success, missing inventory,
 save-failure rollback and replay without a second charge. These are sqlmock
 checks; no live database economy test has run yet.
 
-Still required: owned-item availability in API responses, player controls and
+Owned-item availability is exposed through the separate no-cache GET
+`/api/abyss/rift?inventory=potions`. It returns canonical fixed/fractional healing
+metadata and positive owned counts, excluding unsupported items. Practice returns
+an empty array without reading real inventory. SQL and response tests pass.
+Frequent combat snapshots do not query potion inventory.
+
+Still required: player controls and
 recovery feedback, the no-potion optional objective, cooldown save/pause coverage,
 request/mode validation coverage, and real-browser integration. The objective is
 not offered yet, so it cannot award an automatic success without a potion action.

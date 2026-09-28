@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
+	"net/http/httptest"
 	"testing"
 	"time"
 	"ts3news/internal/rift"
@@ -73,5 +74,55 @@ func TestRiftPotionInventoryAndSaveShareTransaction(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestRiftPotionInventoryReadFiltersOwnedSupportedItems(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	mock.ExpectQuery("SELECT cons_id, remaining_fights FROM user_consumables").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}).
+		AddRow("small_health_potion", 2).AddRow("rejuvenation_potion", 3).AddRow("strength_elixir", 1).AddRow("corrupted_great_health_potion", 1).AddRow("unknown", 1).AddRow("elixir_of_life", 0))
+	items, err := (&Bot{DB: database}).riftPotions(context.Background(), "owner")
+	if err != nil || len(items) != 2 {
+		t.Fatalf("inventory: %+v %v", items, err)
+	}
+	if items[0].ID != "small_health_potion" || items[0].Count != 2 || items[0].HealHP != 50 || items[0].HealFraction != 0 {
+		t.Fatal("fixed potion metadata")
+	}
+	if items[1].ID != "rejuvenation_potion" || items[1].Count != 3 || items[1].HealFraction != .6 || items[1].HealHP != 0 {
+		t.Fatal("fractional potion metadata")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRiftPotionInventoryReadIsSeparateAndPracticeHasNoRealInventory(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	server := &WebServer{bot: &Bot{DB: database}}
+	mock.ExpectQuery("SELECT cons_id, remaining_fights FROM user_consumables").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}))
+	for _, url := range []string{"/api/abyss/rift?inventory=potions", "/api/abyss/rift?inventory=potions&practice=boss"} {
+		response := httptest.NewRecorder()
+		server.handleRiftAPI(response, httptest.NewRequest("GET", url, nil), "owner")
+		if response.Code != 200 || response.Header().Get("Cache-Control") != "no-store, no-cache, must-revalidate" {
+			t.Fatalf("read failed: %d", response.Code)
+		}
+		var data struct {
+			OK      bool               `json:"ok"`
+			Potions []riftPotionOption `json:"potions"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &data); err != nil || !data.OK || data.Potions == nil || len(data.Potions) != 0 {
+			t.Fatalf("invalid empty inventory: %s", response.Body.String())
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }

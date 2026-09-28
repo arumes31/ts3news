@@ -207,6 +207,15 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 		return
 	}
 	if r.Method == http.MethodGet {
+  if r.URL.Query().Get("inventory")=="potions" {
+   items:=[]riftPotionOption{}
+   if mode=="" {
+    var err error
+    items,err=s.bot.riftPotions(r.Context(),uid)
+    if err!=nil {riftFailure(w,r,err);return}
+   }
+   writeJSON(w,map[string]any{"ok":true,"potions":items});return
+  }
 		build, err := s.bot.riftBuild(r.Context(), uid)
 		if err != nil {
 			riftFailure(w, r, err)
