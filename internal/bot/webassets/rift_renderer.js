@@ -550,7 +550,7 @@
     await Promise.all([...keys].map(key=>{
       if(images[key])return;
       if(!objectiveLoads.has(key))objectiveLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{
-        objectiveLoads.delete(key);throw new Error('Could not load '+key+' artwork. Recover to try again.');
+        objectiveLoads.delete(key);const label=key==='volatileCover'?'volatile crate':key;throw new Error('Could not load '+label+' artwork. Recover to try again.');
       }));
       return objectiveLoads.get(key);
     }));

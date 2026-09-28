@@ -334,7 +334,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					run.Level.Rooms[0].Cover = append(run.Level.Rooms[0].Cover, rift.TerrainCover{Obstacle: rift.Obstacle{X: x, Y: 395, W: 32, H: 30}, ID: "volatile-" + strconv.Itoa(i), Material: "wood", HP: 60, MaxHP: 60, Volatile: true})
 				}
 				run.Player.X, run.Player.Y = 260, 410
-				run.Drops = nil
+				run.Drops = []rift.Drop{}
 				run.Enemies = append(run.Enemies,
 					rift.Actor{ID: "blast-target", Name: "Blast target", Kind: "goblin", X: 410, Y: 450, HP: 100, MaxHP: 100, Knockdown: 1000},
 					rift.Actor{ID: "blast-loot", Name: "Blast loot", Kind: "goblin", X: 500, Y: 450, HP: 1, MaxHP: 100, Knockdown: 1000})
