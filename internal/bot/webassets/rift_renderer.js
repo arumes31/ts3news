@@ -5,6 +5,24 @@
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
+  // Flat regional inlays: geometry identifies a region independently of color.
+  // Cache paths once; these marks do not animate or allocate paths each frame.
+  const regionalInlays=[
+    'M-13 9 Q-15-8 14-12 Q17 7-13 9 M-13 9 L10-8 M-4 2 L-6-6 M3-3 L10 0', // leaf
+    'M-12 8 Q-18 0-5-9 L-3 1 Q7-3 5-14 Q20 0 11 9 Z M-4 8 L0 0 L5 8', // flame
+    'M-15 0 H15 M-8-13 L8 13 M8-13 L-8 13 M-11-4 L-7 0 L-11 4 M11-4 L7 0 L11 4', // frost
+    'M3-15 L-12 3 H-2 L-6 15 L13-4 H3 Z', // lightning
+    'M-14 9 L13-10 M-10 5 L-15-5 L-4-1 M1-5 L0-14 L9-10 M-3 1 L7 11 L6-6', // thorns
+    'M-16-7 Q-8-15 0-7 T16-7 M-16 2 Q-8-6 0 2 T16 2 M-16 11 Q-8 3 0 11 T16 11', // water
+    'M-14 12 V-12 H-6 V-4 H6 V-12 H14 V12 Z M-4 12 V3 H4 V12', // battlement
+    'M-8 4 Q-17 2-13-8 Q0-19 13-8 Q17 2 8 4 V12 H-8 Z M-8-3 H-3 M3-3 H8 M0 3 V7 M-3 9 V12 M3 9 V12', // skull
+    'M0-15 L4-4 L15 0 L4 4 L0 15 L-4 4 L-15 0 L-4-4 Z M-11-11 L-8-8 M11-11 L8-8 M11 11 L8 8 M-11 11 L-8 8', // star
+    'M-14-9 L-10 10 H10 L14-9 L6-2 L0-14 L-6-2 Z M-10 5 H10' // crown
+  ].map(path=>new Path2D(path));
+  function regionalInlay(region,x,y){
+    if(!Number.isInteger(region)||!regionalInlays[region])return;
+    ctx.save();ctx.translate(x,y);ctx.scale(1,.48);ctx.globalAlpha*=.85;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.stroke(regionalInlays[region]);ctx.restore();
+  }
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
@@ -1151,16 +1169,17 @@
     const arena=run.practice?.arena||run.level?.rooms[run.room];
     if(arena?.exit){
       const x=arena.exit.x-camera,y=arena.exit.y,open=run.status==='cleared'||run.status==='complete';
-      ctx.save();ctx.strokeStyle=open?'#bfe9f4':'#8e9da5';ctx.lineWidth=2;ctx.setLineDash(open?[]:[4,4]);ctx.beginPath();ctx.ellipse(x,y,22,10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.save();ctx.strokeStyle=open?'#bfe9f4':'#8e9da5';ctx.lineWidth=2;ctx.setLineDash(open?[]:[4,4]);ctx.beginPath();ctx.ellipse(x,y,22,10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);regionalInlay(run.practice?null:run.level?.region,x,y);
       if(!display.cleanScreenshot){ctx.fillStyle=open?'#c5f0ff':'#adb8be';ctx.strokeStyle='#10212a';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(open?'EXIT · OPEN':'EXIT',x,y-18,true);}ctx.restore();
     }
     if(arena?.entrance){
       const x=arena.entrance.x-camera,y=arena.entrance.y;
-      ctx.save();ctx.strokeStyle='#accab7';ctx.globalAlpha=.65;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,18,8,0,0,Math.PI*2);ctx.moveTo(x-38,y);ctx.lineTo(x-23,y);ctx.lineTo(x-29,y-4);ctx.moveTo(x-23,y);ctx.lineTo(x-29,y+4);ctx.stroke();
+      ctx.save();ctx.strokeStyle='#accab7';ctx.globalAlpha=.65;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,18,8,0,0,Math.PI*2);ctx.moveTo(x-38,y);ctx.lineTo(x-23,y);ctx.lineTo(x-29,y-4);ctx.moveTo(x-23,y);ctx.lineTo(x-29,y+4);ctx.stroke();regionalInlay(run.practice?null:run.level?.region,x,y);
       if(!display.cleanScreenshot){ctx.globalAlpha=1;ctx.fillStyle='#c4dfca';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('ENTRY',x,y+23,true);}ctx.restore();
     }
     if(arena?.hazard_switch){
       const sw=arena.hazard_switch,x=sw.x-camera,y=sw.y;
+      ctx.save();ctx.strokeStyle=sw.used?'#a4efd0':'#ffe1aa';regionalInlay(run.practice?null:run.level?.region,x+30,y+2);ctx.restore();
       ctx.save();ctx.fillStyle=sw.used?'#477967':'#cbaf78';ctx.strokeStyle='#1e3532';ctx.lineWidth=2;ctx.fillRect(x-10,y-9,20,13);ctx.strokeRect(x-10,y-9,20,13);ctx.strokeStyle=sw.used?'#a4efd0':'#ffe1aa';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+(sw.used?7:-7),y-22);ctx.stroke();
       if(!sw.used&&sw.charge>0){ctx.fillStyle='#0b211e';ctx.fillRect(x-18,y+8,36,4);ctx.fillStyle='#a4efd0';ctx.fillRect(x-18,y+8,36*Math.min(1,sw.charge/.6),4);}
       if(!display.cleanScreenshot){ctx.fillStyle=sw.used?'#b5f3d4':'#ffe1aa';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt(sw.used?'HAZARDS OFF':run.status==='fighting'?'HOLD GUARD · SHUT DOWN':'SWITCH INACTIVE',x,y-30,true);}
