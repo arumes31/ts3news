@@ -721,3 +721,32 @@ it does not remove those bytes from first-fight loading or establish a speedup.
 The latest measured first-fight capture65fd72f7 predates both regional props and
 this change. A new matched measurement must report both milestones and retain
 all existing budgets. Performance and release gates remain unpassed.
+
+
+## Measured regional props and encounter loot readiness (2026-09-28)
+
+[Sanitized capture](../../tests/performance/baselines/cold-props-loot-2026-09-28.json)
+records frozen2fdb7052 with the unchanged user Go diff and the same three fresh
+Chromium contexts, viewport and network profile. Session95377 completed in2.4m;
+all three samples had zero browser/request errors. Runtime source remained frozen
+through collection and export; it is now unfrozen.
+
+| Sample | Start ready | First fight | Wait after Start | Bytes at Start | Bytes at first fight |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 24.839s | 38.552s | 13.649s | 4,615,444 | 7,161,092 |
+| 2 | 24.206s | 43.209s | 18.902s | 4,615,444 | 8,212,658 |
+| 3 | 24.256s | 43.731s | 19.367s | 4,615,444 | 8,302,064 |
+
+Compared with65fd72f7, median preview readiness improved35.79% (37.778s to
+24.256s) and observed median first-fight readiness improved10.02% (48.022s to
+43.209s). Startup transfer fell2,769,609 bytes. These combine regional props and
+loot deferral; encounter composition and first-fight byte counts vary across
+samples, so this is not an isolated estimate for either change. Waiting after
+Start increased from9.499-12.539s to13.649-19.367s. Report that tradeoff alongside
+the earlier preview; deferred loot is still downloaded before play.
+
+Each sample now meets the25s per-run limit, but median readiness still exceeds
+20s and transfer still exceeds3MB. Overall cold startup remains failed, and this
+development fixture does not establish physical-device support. The full effects
+sheet (1,332,867 bytes) is now the largest startup resource; any change must
+preserve skill-button CSS icons, reference animations and combat effects.
