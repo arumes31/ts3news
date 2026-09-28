@@ -28,3 +28,19 @@ func (a RoundArena) valid() bool {
 	}
 	return a.RadiusX >= 300 && a.RadiusY >= 70 && a.X-a.RadiusX >= 35 && a.X+a.RadiusX <= Width-35 && a.Y-a.RadiusY >= 315 && a.Y+a.RadiusY <= 490
 }
+
+// ValidRound checks saved floor geometry and explicit entry/exit anchors.
+func (a Arena) ValidRound() bool {
+	if a.Round == nil {
+		return true
+	}
+	if !a.Round.valid() {
+		return false
+	}
+	for _, point := range []*ArenaEntrance{a.Entrance, a.Exit} {
+		if point != nil && !a.Round.containsGround(point.X, point.Y, 10) {
+			return false
+		}
+	}
+	return true
+}
