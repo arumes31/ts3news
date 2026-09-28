@@ -22,6 +22,15 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
  try{
   const browserCDP=await browser.newBrowserCDPSession();const system=await browserCDP.send('SystemInfo.getInfo');report.graphics={devices:system.gpu.devices,featureStatus:system.gpu.featureStatus};await browserCDP.detach();
   const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
+  if(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'){
+   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+   const marker='  // Saved expeditions and current build previews can require different sheets.';
+   expect(source.includes(marker)).toBe(true);
+   const candidate=source.replace(marker,'  renderer.ready=renderer.ready.then(async()=>{images.props=await createImageBitmap(images.props);});\n'+marker);
+   report.experiment={kind:'full-size prop ImageBitmap',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
+   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
+  }
   await page.goto(report.scenario);await expect(page.locator('#rift-start')).toBeEnabled({timeout:120000});
   await page.locator('.rift-settings > summary').click();await page.locator('#rift-display-preset').selectOption('lowPower');await page.locator('#rift-apply-preset').click();await page.locator('.rift-settings > summary').click();
   const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.enemies).toHaveLength(120);expect(run.paused).toBe(true);

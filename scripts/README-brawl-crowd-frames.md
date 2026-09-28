@@ -48,3 +48,25 @@ Maximum was87.3ms. Saves following creature images stayed below2.3ms. This
 isolates a prop-associated state boundary for the next experiment, not proof
 that save itself is expensive. No production drawing behavior changed.
 Raw local evidence: test-results/crowd-canvas-cost-20260928.
+
+## Rejected full-size prop ImageBitmap experiment
+
+BRAWL_PROP_BITMAP_EXPERIMENT=1 injects a test-only readiness step that replaces
+images.props with createImageBitmap(images.props). The exact experimental
+renderer and its SHA-256 are retained with the report; production is unchanged.
+Combine with BRAWL_CANVAS_COST=1 and BRAWL_FRAME_SMOKE=1 for the diagnostic.
+
+Twelve image/state comparisons passed across all eight prop cells, both cover
+heights, opacity, clipping, rotation and brightness. The archived probe is
+ tests/performance/baselines/prop-bitmap-equivalence-2026-09-28.txt;
+restore it as tests/e2e/rift-prop-bitmap-experiment.spec.js to reproduce.
+
+The short instrumented candidate still attributed3155.6ms to saves following
+the1774x887 bitmap (144 calls,48 >=8ms,max102.3ms), versus3223.7ms across183calls
+and61slow calls for the earlier image baseline. Each had one slow boundary per
+rendered frame; differing frame counts and host conditions prevent treating raw
+total time as a speedup. Candidate render p95 was273.7ms versus183.4ms in the
+baseline diagnostic. These are instrumented short captures, not gate results or
+a controlled regression estimate. No useful improvement was established, so the
+candidate is not shipped. Local evidence is in prop-bitmap-equivalence-20260928
+and prop-bitmap-cost-20260928 beneath test-results.
