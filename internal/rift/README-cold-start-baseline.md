@@ -281,3 +281,34 @@ Two tests cover row order, transparent RGB preservation and rejection of
 non-divisible layouts. Browser compositing/filtering/frame equivalence, selected
 and saved class loading, retry behavior and startup timing remain unverified.
 Do not count these potential savings as delivered network improvements.
+
+## Per-class hero delivery (2026-09-28)
+
+Production now requests the selected class's PNG row and prepares a saved run's
+row separately when needed. Foundation aliases share the same row and in-flight
+promise. Sprite, skill-preview and boss-jump drawing use the decoded row directly.
+A missing manifest blocks readiness; request, decode and dimension failures stay
+retryable. Failed requests receive a retry query parameter because a decoded but
+incorrect image may remain in the browser cache after rejecting its promise.
+
+Generate the 12 derived PNGs and content-hashed manifest with:
+
+    python scripts/build-brawl-hero-sections.py --write
+    python scripts/build-brawl-hero-sections.py --check
+
+The check command performs no writes and rejects missing or stale outputs. The
+builder validates the twelve renderer styles, source dimensions, decoded pixels
+and per-file hashes. Original full sheets remain unchanged as pixel references.
+Normal selected-class startup downloads one row, not an entire hero sheet.
+For vanguard this replaces 2,704,155 image bytes with 413,302 (2,290,853 saved),
+plus the small shared manifest. Total startup timing has not been remeasured.
+
+The browser pixel oracle compares original sheets against both reconstructed
+sheets and direct row draws: 96 cases, 9,216 frame renderings, zero pixel
+mismatches across scale, clipping, rotation, flip, opacity and brightness.
+Integration retains coverage for all 124 monsters, 32 rigs and 300 scenes;
+all classes are explicitly prepared before tests manually draw their frames.
+The selected-row suite checks four classes, saved/current rows on the same and
+different sheets, shared concurrent retries, invalid dimensions and manifest
+failure. This delivers the hero image saving; the overall startup and frame
+budgets remain open.

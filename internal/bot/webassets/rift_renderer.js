@@ -522,14 +522,21 @@
   // Gate play on canvas atlases only. CSS mission/bestiary previews reuse these
   // URLs, but their DOM image requests must never join the readiness promise.
   renderer.ready=Promise.all([baseImages,...bestiary.assets.map(path=>loadDecodedAtlas(bestiary.assetURL(path)).then(img=>{catalogImages[path]=img;}).catch(()=>{throw new Error('Could not load Abyss creature art. Reload to try again.');}))]);
-  // Saved expeditions and current build previews can require different sheets.
-  const heroLoads=new Map();
+  // Saved expeditions and current previews can require different rows of one sheet.
+  const heroLoads=new Map(),heroRetries=new Map(),heroImages={heroesA:[],heroesB:[]};
   renderer.prepareBuild=async build=>{
     if(!build)return;
-    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),key=index<6?'heroesA':'heroesB';
-    if(images[key])return;
-    if(!heroLoads.has(key))heroLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{heroLoads.delete(key);throw new Error('Could not load character artwork. Recover to try again.');}));
-    await heroLoads.get(key);
+    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),key=index<6?'heroesA':'heroesB',row=index%6,loadKey=key+':'+row;
+    if(heroImages[key][row])return;
+    const section=window.RiftHeroSections?.atlases?.[key]?.rows?.[row];
+    if(window.RiftHeroSections?.version!==1||!section||section.class!==styles[index])throw new Error('Could not load character artwork. Reload to try again.');
+    // A decoded but invalid image can remain cached even after its promise is removed.
+    const retry=heroRetries.get(loadKey)||0,src=section.url+(retry?(section.url.includes('?')?'&':'?')+'retry='+retry:'');
+    if(!heroLoads.has(loadKey))heroLoads.set(loadKey,loadDecodedAtlas(src).then(img=>{
+      if(img.width!==section.width||img.height!==section.height)throw new Error('Character artwork dimensions differ.');
+      heroImages[key][row]=img;
+    }).catch(()=>{heroLoads.delete(loadKey);heroRetries.set(loadKey,retry+1);throw new Error('Could not load character artwork. Recover to try again.');}));
+    await heroLoads.get(loadKey);
   };
   const objectiveAtlasKeys={
     sigils:['sigil'],rune_gate:['sigil'],moving_beacons:['sigil'],hold_circle:['sigil'],
@@ -672,9 +679,10 @@
     alchemist:{name:'Mixture toast',frame:11,angle:-.1,lift:0,color:'#a9e7b4'}
   };
   function sprite(row, col, x, y, size, flip, alpha, atlas = 'heroesA') {
-    const img = images[atlas]; if (!img) return;
+    const hero=heroImages[atlas],img=hero?hero[row]:images[atlas];if(!img)return;
+    const height=hero?img.height:img.height/6,top=hero?0:row*height;
     ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.translate(Math.round(x),Math.round(y)); ctx.scale(flip < 0 ? -1 : 1,1);
-    drawAtlas(img,col*img.width/16,row*img.height/6,img.width/16,img.height/6,-size/2,-size*.91,size,size); ctx.restore();
+    drawAtlas(img,col*img.width/16,top,img.width/16,height,-size/2,-size*.91,size,size); ctx.restore();
   }
   function fx(row, frame, x, y, size, alpha) {
     const img = images.effects; if (!img) return;
@@ -687,11 +695,11 @@
   renderer.drawSkillPreview = function(target,skill,build,elapsed){
     const context=target.getContext('2d'),still=renderer.reduced||display.motionIntensity===0;
     const age=still?.35:Math.min(1,Math.max(0,elapsed/750)),frame=still?2:Math.min(5,Math.floor(age*6));
-    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),hero=images[index<6?'heroesA':'heroesB'];
+    const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),hero=heroImages[index<6?'heroesA':'heroesB'][index%6];
     context.clearRect(0,0,target.width,target.height);context.fillStyle='#101d24';context.fillRect(0,0,target.width,target.height);
     context.strokeStyle='#486068';context.beginPath();context.moveTo(12,132);context.lineTo(308,132);context.stroke();
     const column=skill.kind==='slash'?8+(still?1:Math.min(2,Math.floor(age*3))):11;
-    if(hero)context.drawImage(hero,column*hero.width/16,(index%6)*hero.height/6,hero.width/16,hero.height/6,24,42,96,96);
+    if(hero)context.drawImage(hero,column*hero.width/16,0,hero.width/16,hero.height,24,42,96,96);
     const row=effectRows[skill.kind],self=['heal','shield'].includes(skill.kind),x=self?72:190;
     context.save();context.globalAlpha=display.effectIntensity*(still?1:1-age*.5);
     if(skill.kind==='arrow'){
@@ -714,8 +722,8 @@
     context.beginPath();context.ellipse(160,186,74,18,0,0,Math.PI*2);context.fill();context.stroke();context.setLineDash([]);
     if(t<1150){context.beginPath();context.ellipse(160,186,74+25*(1-t/1150),18+8*(1-t/1150),0,0,Math.PI*2);context.stroke();}
     context.fillStyle='#030e16aa';context.beginPath();context.ellipse(160,188,25,5,0,0,Math.PI*2);context.fill();
-    const index=Math.max(0,styles.indexOf(foundations[build?.class]||build?.class)),hero=images[index<6?'heroesA':'heroesB'];
-    if(hero){const column=airborne?6:stage==='landing'?10:0;context.drawImage(hero,column*hero.width/16,(index%6)*hero.height/6,hero.width/16,hero.height/6,112,92-lift,96,96);}
+    const index=Math.max(0,styles.indexOf(foundations[build?.class]||build?.class)),hero=heroImages[index<6?'heroesA':'heroesB'][index%6];
+    if(hero){const column=airborne?6:stage==='landing'?10:0;context.drawImage(hero,column*hero.width/16,0,hero.width/16,hero.height,112,92-lift,96,96);}
     const bossFrame=boss&&bestiary.frame(boss,t<1150?'cast':t<1550?'attack':'idle',Math.floor(t/180)),bossImage=bossFrame&&catalogImages[bossFrame.asset],source=bossFrame?.source;
     if(bossImage&&source){context.save();context.translate(380,188);context.scale(-1,1);context.drawImage(bossImage,source.x*bossImage.width,source.y*bossImage.height,source.width*bossImage.width,source.height*bossImage.height,-68,-124,136,136);context.restore();}
     context.fillStyle='#d8eee7';context.font='bold 13px monospace';context.textAlign='center';context.fillText(t<1150?'SLAM IN '+Math.max(0,(1150-t)/1000).toFixed(2)+'s':'SLAM RESOLVED',240,24);

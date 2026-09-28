@@ -11,7 +11,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels).toHaveLength(100);
  const result=await page.evaluate(async data=>{
   const r=window.RiftRenderer,ctx=document.getElementById('rift-canvas').getContext('2d'),draw=ctx.drawImage;
-  await Promise.all(['vanguard','bloodblade'].map(className=>r.prepareBuild({class:className})));
+  await Promise.all(['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'].map(className=>r.prepareBuild({class:className})));
   const errors=[],cells={},victories=[];let label='',draws=0,scenes=0;
   const inspect=(img,...a)=>{
    if(a.length===8){

@@ -12,7 +12,9 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
  const baseline=opaque||sharedOrigin?candidate:candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
  if(opaque){expect(candidate.split("canvas.getContext('2d')").length-1).toBe(1);candidate=candidate.replace("canvas.getContext('2d')","canvas.getContext('2d',{alpha:false})");}
  if(sharedOrigin)candidate=require('../../scripts/brawl-shared-origin-experiment.cjs').sharedOriginCandidate(candidate);
- const hook=`renderer.stateProbe=function(units){
+ const hook=`renderer.stateProbe=async function(units){
+  await Promise.all(styles.map(className=>renderer.prepareBuild({class:className})));
+  const oracleHero=await loadDecodedAtlas(root.dataset.heroesA);
   animationTime=120;decorationTime=120;renderer.reduced=false;motion=1;
   const outputs=[];
   const prefix=cachedAtlasFrame(catalogImages[bestiary.assets[0]],0,0,156.75,158,80,80);
@@ -61,16 +63,16 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
    const img=images.props,frame=cachedAtlasFrame(img,i%4*img.width/4,Math.floor(i/4)*img.height/2,img.width/4,img.height/2,128,128);
    return frame?{left:frame.left,top:frame.top,bytes:frame.bytes}:null;
   });
-  const fractionalCached=!!cachedAtlasFrame(images.heroesA,20.25,20.125,128.5,128.25,100,100);
+  const fractionalCached=!!cachedAtlasFrame(oracleHero,20.25,20.125,128.5,128.25,100,100);
   for(const flipped of [false,true]){
    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
    ctx.save();ctx.translate(480,240);ctx.rotate(.07);ctx.scale(flipped?-1:1,1);ctx.globalAlpha=.71;ctx.filter='brightness(1.3)';
    const before={alpha:ctx.globalAlpha,filter:ctx.filter};
-   for(let i=0;i<6;i++)drawAtlas(images.heroesA,20.25+i*128,20.125,128.5,128.25,-430+i*145,-100,100,100);
+   for(let i=0;i<6;i++)drawAtlas(oracleHero,20.25+i*128,20.125,128.5,128.25,-430+i*145,-100,100,100);
    const after={alpha:ctx.globalAlpha,filter:ctx.filter};ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
   }
   // Exercise eviction with valid distinct rectangles, then draw again after reuse.
-  const img=images.heroesA,retired=atlasFrames.values().next().value;
+  const img=oracleHero,retired=atlasFrames.values().next().value;
   for(let i=0;i<200;i++)drawAtlas(img,i,0,128,128,0,0,64,64);
   for(let i=0;i<40;i++)drawAtlas(img,i,0,512,512,0,0,64,64);
   const sharedFullRejected=cachedAtlasFrame(catalogImages[bestiary.assets[0]],0,0,156.75,158,80,80)===null;

@@ -9,7 +9,7 @@ test('live monster roster and class poses stay inside actor atlases',async({page
  const result=await page.evaluate(async({roster,player})=>{
   const art=window.AbyssCombatArt,renderer=window.RiftRenderer;
   // Direct actor probes must prepare both lazily loaded hero sheets first.
-  await Promise.all(['vanguard','bloodblade'].map(className=>renderer.prepareBuild({class:className})));
+  await Promise.all(['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'].map(className=>renderer.prepareBuild({class:className})));
   const errors=[],assets=new Set(),rigs=new Set();let frames=0,draws=0;
   const names={scribe:'Scribe Without Eyes',remembers:'Abyss That Remembers'};
   const probes=art.rigs.map(rig=>({name:names[rig]||rig,art_key:'bounds-probe:'+rig,kind:'goblin',element:'physical'}));
