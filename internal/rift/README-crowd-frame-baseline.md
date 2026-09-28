@@ -289,3 +289,35 @@ records basee3b895b2, the harness/user diff hash, injected renderer hashes and
 validated numeric counters. Raw reports and injected sources remain local under
 `test-results/outside-actor-layers-smoke-20260928`. The original game renderer was
 not modified. Performance gates and0997 remain open.
+
+
+## Current complete-scene CPU attribution (2026-09-29)
+
+Session23616 completed a61.210-second instrumented capture at frozen36400880
+plus the unchanged user Go diff. No layer omissions or smoke mode were active.
+The profile contains37,045 samples covering61,208.566ms and590 rendered frames;
+there were no browser/HTTP errors. The cache retained five entries/1,056,292
+calculated bytes with five misses. Instrumented frame/render timings do not
+establish a gate result.
+
+Actor inclusive time is16,388.965ms, catalogActor8,019.462ms, and renderFrame
+22,429.477ms. Actor self time is3,899.606ms. The largest drawImage stack has
+2,298.163ms self time; the largest native save stack862.296ms. Program time still
+accounts for37,368.390ms. Inclusive values overlap; program time is not identified
+GPU time and native calls may charge queued drawing. This profile is broadly
+consistent with the earlier post-prop-cache attribution, not a new speedup.
+
+Source inspection identifies a concrete next experiment: catalogActor resolves
+profiles/frames and issues sprites without a viewport rejection. The crowd fixture
+places20 columns fromX260 through1400 while the camera stays at0. Some sprites
+are therefore entirely outside the960-wide canvas. Test conservative rejection
+inside catalogActor, retaining generous transform margins and leaving the outer
+actor's labels, health bars and combat indicators intact. Require pixel/state and
+edge-visibility checks before measuring a candidate; do not infer its speedup from
+inclusive CPU totals or remove gameplay indicators to lower the cost.
+
+[Sanitized profile summary](../../tests/performance/baselines/crowd-current-cpu-2026-09-29.json)
+contains only allowlisted filenames, call names, numeric times and source hashes.
+Raw profile remains local under`test-results/crowd-current-cpu-20260928` (the run
+started around the local date boundary). Runtime is now unfrozen. Frame and
+release gates remain open.

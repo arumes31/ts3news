@@ -1,0 +1,256 @@
+{
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "sourceRevision": "364008802781d376b7db56a1639a428317920c8a",
+  "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+  "sampledMS": 61208.566,
+  "samples": 37045,
+  "durationMS": 61209.89999999106,
+  "frames": 590,
+  "runtimeErrors": 0,
+  "self": [
+    {
+      "function": "(program)",
+      "file": "",
+      "line": 0,
+      "ms": 37368.39
+    },
+    {
+      "function": "actor",
+      "file": "rift_renderer.js",
+      "line": 955,
+      "ms": 3899.606
+    },
+    {
+      "function": "drawImage",
+      "file": "",
+      "line": 0,
+      "ms": 2298.163
+    },
+    {
+      "function": "renderFrame",
+      "file": "rift_renderer.js",
+      "line": 1377,
+      "ms": 1117.13
+    },
+    {
+      "function": "profile",
+      "file": "rift_bestiary.js",
+      "line": 5,
+      "ms": 943.997
+    },
+    {
+      "function": "profile",
+      "file": "rift_bestiary.js",
+      "line": 5,
+      "ms": 882.718
+    },
+    {
+      "function": "save",
+      "file": "",
+      "line": 0,
+      "ms": 862.296
+    },
+    {
+      "function": "",
+      "file": "rift_renderer.js",
+      "line": 2178,
+      "ms": 856.728
+    },
+    {
+      "function": "frame",
+      "file": "rift_bestiary.js",
+      "line": 6,
+      "ms": 749.963
+    },
+    {
+      "function": "",
+      "file": "rift_renderer.js",
+      "line": 1733,
+      "ms": 642.949
+    },
+    {
+      "function": "actorProfile",
+      "file": "abyss_combat_art.js",
+      "line": 182,
+      "ms": 602.951
+    },
+    {
+      "function": "(garbage collector)",
+      "file": "",
+      "line": 0,
+      "ms": 600.736
+    },
+    {
+      "function": "drawImage",
+      "file": "",
+      "line": 0,
+      "ms": 581.065
+    },
+    {
+      "function": "catalogActor",
+      "file": "rift_renderer.js",
+      "line": 1311,
+      "ms": 564.044
+    },
+    {
+      "function": "drawInteractionPrompts",
+      "file": "rift_renderer.js",
+      "line": 943,
+      "ms": 550.558
+    },
+    {
+      "function": "fill",
+      "file": "",
+      "line": 0,
+      "ms": 445.653
+    },
+    {
+      "function": "fillRect",
+      "file": "",
+      "line": 0,
+      "ms": 428.017
+    },
+    {
+      "function": "ellipse",
+      "file": "",
+      "line": 0,
+      "ms": 389.208
+    },
+    {
+      "function": "actorProfile",
+      "file": "abyss_combat_art.js",
+      "line": 182,
+      "ms": 334.052
+    },
+    {
+      "function": "save",
+      "file": "",
+      "line": 0,
+      "ms": 311.423
+    }
+  ],
+  "inclusive": [
+    {
+      "function": "(root)",
+      "file": "",
+      "line": 0,
+      "ms": 61208.566
+    },
+    {
+      "function": "(program)",
+      "file": "",
+      "line": 0,
+      "ms": 37368.39
+    },
+    {
+      "function": "render",
+      "file": "rift_renderer.js",
+      "line": 1369,
+      "ms": 22836.035
+    },
+    {
+      "function": "renderFrame",
+      "file": "rift_renderer.js",
+      "line": 1377,
+      "ms": 22429.477
+    },
+    {
+      "function": "",
+      "file": "rift_renderer.js",
+      "line": 2178,
+      "ms": 17326.99
+    },
+    {
+      "function": "actor",
+      "file": "rift_renderer.js",
+      "line": 955,
+      "ms": 16388.965
+    },
+    {
+      "function": "catalogActor",
+      "file": "rift_renderer.js",
+      "line": 1311,
+      "ms": 8019.462
+    },
+    {
+      "function": "drawAtlas",
+      "file": "rift_renderer.js",
+      "line": 781,
+      "ms": 2451.738
+    },
+    {
+      "function": "drawImage",
+      "file": "",
+      "line": 0,
+      "ms": 2298.163
+    },
+    {
+      "function": "profile",
+      "file": "rift_bestiary.js",
+      "line": 5,
+      "ms": 1546.948
+    },
+    {
+      "function": "sprite",
+      "file": "rift_renderer.js",
+      "line": 814,
+      "ms": 1323.957
+    },
+    {
+      "function": "profile",
+      "file": "rift_bestiary.js",
+      "line": 5,
+      "ms": 1216.77
+    },
+    {
+      "function": "frame",
+      "file": "rift_bestiary.js",
+      "line": 6,
+      "ms": 1109.114
+    },
+    {
+      "function": "drawInteractionPrompts",
+      "file": "rift_renderer.js",
+      "line": 943,
+      "ms": 1040.639
+    },
+    {
+      "function": "",
+      "file": "rift_renderer.js",
+      "line": 1733,
+      "ms": 1031.949
+    },
+    {
+      "function": "",
+      "file": "rift_renderer.js",
+      "line": 1957,
+      "ms": 877.835
+    },
+    {
+      "function": "drawAtlas",
+      "file": "rift_renderer.js",
+      "line": 781,
+      "ms": 870.556
+    },
+    {
+      "function": "save",
+      "file": "",
+      "line": 0,
+      "ms": 862.296
+    },
+    {
+      "function": "actorProfile",
+      "file": "abyss_combat_art.js",
+      "line": 182,
+      "ms": 602.951
+    },
+    {
+      "function": "(garbage collector)",
+      "file": "",
+      "line": 0,
+      "ms": 600.736
+    }
+  ],
+  "scope": "Sampled CPU attribution of the complete paused crowd. Inclusive values overlap. Program time is not identified GPU time; profiling frame metrics are not gate evidence."
+}
