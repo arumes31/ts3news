@@ -247,3 +247,19 @@ with recovered errors, not error-free startup or a performance pass. Both timing
 and transfer budgets fail. The fixture was compiled from the frozen worktree;
 the measurement CLI does not assert a server-reported revision. Safe evidence:
 [legacy-area capture](../../tests/performance/baselines/cold-legacy-area-2026-09-28.json).
+
+## Shared effects-sheet URL (2026-09-28)
+
+Skill-icon CSS previously fetched /static/rift_effects.png separately from the
+renderer's versioned URL. Browser tests reproduced both requests when starting
+a fresh expedition and loading a saved visual fixture. The icon now inherits
+the same versioned URL through a CSS custom property initialized from data-effects.
+With browser cache disabled, both cases make exactly one request and retain the
+expected computed background image. This eliminates a duplicate 1,332,867-byte
+image body; no artwork pixels or sprite geometry changed.
+
+A fresh empty page has no skill icons before expedition start. This fix therefore
+does not claim a reduction in the preceding fresh-page readiness measurement.
+It removes first-combat/saved-run download duplication; a new total startup
+measurement would be needed for any broader timing claim. Eight browser checks
+passed, covering URL sharing, decode/retry behavior, and queued-input persistence.

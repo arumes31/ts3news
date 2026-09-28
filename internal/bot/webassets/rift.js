@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id), root = $('rift-app'), audio = window.RiftAudio, renderer = window.RiftRenderer;
+  root.style.setProperty('--rift-effects-image','url("'+root.dataset.effects+'")');
   const keys = new Set(), touch = new Set(), taps = new Set(), mouse = new Set();
   const touchPointers=new Map();let touchJoystick={x:0,y:0};
   const keyOrder=new Map();let keySequence=0;
