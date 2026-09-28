@@ -335,3 +335,54 @@ to isolate collector contributions, preserving gameplay and thresholds. Raw heap
 profiles and paths remain ignored under test-results/direct-memory-full-20260928.
 Capture and retention analysis completed successfully. No other browser workload
 ran during this paired capture. This is review evidence, not a release pass.
+
+## Completed heap snapshot frequency comparison (2026-09-28)
+
+Both sequential captures completed60 measured three-tier replays plus warmup,
+with zero runtime errors and Network inspection disabled. Source revision
+b04a41d3c585b9a14cd8fce725df2a7955e08f2b and tracked-diff hash
+1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b matched,
+as did browser, five driver files, graphics, viewport and display settings.
+The replay-start driver awaited the new unpaused fighting run before proceeding.
+The earlier54-replay capture with the acknowledgement race is excluded.
+Public aggregate: tests/performance/baselines/heap-frequency-2026-09-28.json.
+
+| Measurement | Every checkpoint snapshot | Endpoint snapshots only |
+| --- | ---: | ---: |
+| Measured duration (ms) | 2,299,372 | 2,365,223 |
+| Heap snapshots | 10 | 2 |
+| Overall JS heap growth (bytes) | 1,124,396 | 1,069,004 |
+| Post-cap JS growth, replay49 to60 (bytes) | 106,816 | 32,132 |
+| Overall renderer private growth (bytes) | 86,409,216 | 72,077,312 |
+| Post-cap renderer private growth (bytes) | 5,206,016 | 2,256,896 |
+
+All12 analyzed heaps retained only their current expedition IDs. Run shapes
+stayed2 and effect shapes0. Actor shapes were163 except171 at checkpoint49 in
+the all-snapshot capture, returning to163 at54/59/60. Attempt shapes were149 at49
+and150 at54/59/60; final ownership in both variants split exactly50 current-run,
+50 protocol snapshotBase and50 renderer previous records. All sampled run and
+attempt ownership paths reached roots. Endpoint-only heaps cannot establish an
+intermediate retaining-path plateau.
+
+All-snapshot audio node counts changed once after49 (GainNode11 to12,
+OscillatorNode4 to5), then remained unchanged at54/59/60. Buffer/source counts
+stayed2 each; listeners were599, transiently602 at49, then600. Endpoint audio
+counts and599 listeners matched baseline at60. Active voices were0 at every
+checkpoint. Snapshot detachedness==2 counts were187 to205 in the all-snapshot
+run, stable205 from27 onward except204 at36, and190 to200 at the endpoints.
+These counts include all nodes with that metadata, not only detached DOM objects;
+counts alone do not establish ownership or a general leak-free claim.
+
+Renderer growth was14,331,904 bytes lower with endpoint-only snapshots. The
+sequential pair has different durations and run order; it supports further review
+of collection overhead but does not prove causation or explain every native byte.
+Endpoint-only post-cap private bytes fluctuated304,091,136 /310,038,528 /
+308,928,512 /306,348,032 at49/54/59/60. Both variants satisfy the numeric10MiB JS
+limit. Native process memory, physical hardware and the broader release gates
+remain separate. Ledger0798 stays open pending the final memory assessment;
+this evidence is not a release pass. No competing browser workload ran during
+collection; heap analysis started after both capture processes completed.
+
+Raw reports, heaps and ownership paths remain local under
+ test-results/heap-frequency-ack-all-full-20260928 and
+ test-results/heap-frequency-ack-endpoints-full-20260928.
