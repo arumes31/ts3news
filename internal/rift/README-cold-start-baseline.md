@@ -387,3 +387,13 @@ still needed; the prior 133.945-second median does not measure this implementati
 The separate objective-rewards fixture completes nine objectives at five gold
 each:45 objective gold plus30 fight gold. Its banking, duplicate replay, extra-bank
 rejection, reload and copied receipt checks pass with those current fixture values.
+
+Three fresh-context captures of fdc3ebc9 plus the recorded gameplay worktree
+changes completed at 120.026/119.498/119.528 seconds, each transferring 23,708,634
+bytes. Median readiness fell 10.76% from the preceding hero-row capture, and
+transfer bytes fell by 2,855,674 (10.75%). Each sample still recovered one initial
+API GET timeout. These sequential synthetic measurements remain above both the
+20-second median and 3 MB transfer targets; no physical-device or error-free
+startup claim is made. The fixture was compiled from the frozen worktree, without
+a server-reported revision assertion. Safe evidence:
+[region-panel cold capture](../../tests/performance/baselines/cold-region-panels-2026-09-28.json).
