@@ -1533,6 +1533,9 @@ func (r *Run) hurtPlayer(damage, x, y float64) {
 }
 
 func (r *Run) hurtPlayerGuardable(damage, x, y float64, guardable bool) {
+	if r.inWaveRestAlcove() {
+		return
+	}
 	if r.SkillTimers["connection_grace"] > 0 || r.SkillTimers["dodge_invulnerability"] > 0 {
 		if r.SkillTimers["dodge_invulnerability"] > 0 {
 			r.recordDodge()

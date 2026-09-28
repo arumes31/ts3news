@@ -1490,3 +1490,5 @@
 #rift-minimap [data-kind=exit]{fill:#bfe9f4;stroke:#254353;stroke-width:1}
 
 #rift-boss-enrage{display:block;color:#ffd58d;font-weight:bold}
+
+#rift-minimap [data-kind=rest]{fill:#76e6c522;stroke:#96efd2;stroke-width:1;stroke-dasharray:2 1}

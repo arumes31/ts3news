@@ -1932,6 +1932,14 @@
       if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#caffeb';ctx.strokeStyle='#081914';ctx.lineWidth=3;interactionPrompt('DROP ↓',x+edge.w/2,edge.y-10);}
       ctx.restore();
     }
+    const rest=arena?.rest_alcove;
+    if(rest&&coverInView(rest)){
+      const state=window.RiftHUD.waveRestState(run),x=rest.x-camera;
+      ctx.save();ctx.fillStyle=state?'#76e6c51e':'#77998b12';ctx.fillRect(x,rest.y,rest.w,rest.h);
+      ctx.strokeStyle=state?'#96efd2':'#78988c';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(x,rest.y,rest.w,rest.h);ctx.setLineDash([]);
+      if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#d4ffee';ctx.strokeStyle='#081914';ctx.lineWidth=3;interactionPrompt(state==='resting'?'RESTING · LEAVE TO CONTINUE':'REST ALCOVE · BETWEEN WAVES',x+rest.w/2,rest.y-10);}
+      ctx.restore();
+    }
     const nearbyCover=window.RiftHUD.nearbyCover(run);
     const units=[...run.enemies,run.player];
     if(run.room_objective?.kind==='split_defense')units.push(...run.room_objective.lanes.map(l=>l.ward));

@@ -30,6 +30,10 @@ func cloneCampaignLevel(level Level) Level {
 		room.Platforms = slices.Clone(room.Platforms)
 		room.DropEdges = slices.Clone(room.DropEdges)
 		room.Cover = slices.Clone(room.Cover)
+		if room.RestAlcove != nil {
+			rest := *room.RestAlcove
+			room.RestAlcove = &rest
+		}
 		if room.WaveGate != nil {
 			gate := *room.WaveGate
 			room.WaveGate = &gate

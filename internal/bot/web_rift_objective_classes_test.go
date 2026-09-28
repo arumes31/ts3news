@@ -232,9 +232,11 @@ func TestRiftWaveRoomsSupportEverySubclass(t *testing.T) {
 				for group := range run.RoomObjective.Waves {
 					for i := range run.RoomObjective.Waves[group] {
 						enemy := &run.RoomObjective.Waves[group][i]
-						enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 205, 410, 1, 100
+						enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 345, 410, 1, 100
 					}
 				}
+				// Fight outside the rest alcove so idle attack input advances waves.
+				run.Player.X, run.Player.Y = 300, 410
 				run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
 				for n := 0; n < 1500 && run.Status == "fighting"; n++ {
 					step(rift.Input{Attack: true})

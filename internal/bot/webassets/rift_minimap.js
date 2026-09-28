@@ -22,6 +22,7 @@
     const currentCleared=cleared(run,run.room),drawing=document.createDocumentFragment();
     drawing.append(node('rect',{x:7,y:6,width:306,height:42,class:'map-floor','data-cleared':currentCleared},currentCleared?'Cleared arena':'Walkable arena bounds'));
     const rect=(o,kind,label,phase)=>drawing.append(node('rect',{x:mx(o.x),y:my(o.y),width:mx(o.w),height:Math.round(o.h*.24*10)/10,'data-kind':kind,...(phase?{'data-phase':phase}:{})},label));
+    if(arena.rest_alcove)rect(arena.rest_alcove,'rest','Rest alcove: safe between waves');
     for(const p of arena.platforms||[])rect(p,'platform','Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');

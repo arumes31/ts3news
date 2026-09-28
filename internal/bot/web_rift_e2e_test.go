@@ -672,11 +672,20 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			for group := range run.RoomObjective.Waves {
 				for i := range run.RoomObjective.Waves[group] {
 					enemy := &run.RoomObjective.Waves[group][i]
-					enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 205, 410, 1, 100
+					enemy.X, enemy.Y, enemy.HP, enemy.Knockdown = 345, 410, 1, 100
 				}
 			}
 			run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
-			run.Player.X, run.Player.Y = 160, 410
+			run.Player.X, run.Player.Y = 300, 410
+			if r.URL.Query().Get("condition") == "rest" {
+				run.Player.X = 160
+				for group := range run.RoomObjective.Waves {
+					for i := range run.RoomObjective.Waves[group] {
+						run.RoomObjective.Waves[group][i].X = 205
+					}
+				}
+				run.Enemies = append([]rift.Actor(nil), run.RoomObjective.Waves[0]...)
+			}
 			if r.URL.Query().Get("condition") == "gate" {
 				run.Player.X, run.Player.Y = 800, 395
 				for group := range run.RoomObjective.Waves {

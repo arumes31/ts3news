@@ -38,6 +38,7 @@ type ArenaEntrance struct {
 
 type Arena struct {
 	WaveGate *Obstacle `json:"wave_gate,omitempty"`
+	RestAlcove *Obstacle `json:"rest_alcove,omitempty"`
 	Exit *ArenaEntrance `json:"exit,omitempty"`
 	Entrance *ArenaEntrance `json:"entrance,omitempty"`
 	HazardSwitch *HazardSwitch `json:"hazard_switch,omitempty"`
@@ -183,6 +184,7 @@ func buildCampaign() []Level {
 				if layout == 4 && room == 1 {
 					arena.Objective = "survive_waves"
 					arena.WaveGate = &Obstacle{840 + float64(region*7), 370, 24, 50}
+					arena.RestAlcove = &Obstacle{70, 335, 210, 140}
 				}
 				if layout == 5 && room == 0 {
 					arena.Objective = "linked_guardians"
@@ -698,7 +700,7 @@ func (r *Run) hazardTick() {
 		r.SkillTimers = map[string]float64{}
 	}
 	r.trackLightningMarkers()
-	reservedArea := r.reservedBossArea(r.Player.X, r.Player.Y)
+	reservedArea := r.reservedBossArea(r.Player.X, r.Player.Y) || r.inWaveRestAlcove()
 	for i, h := range r.Arena().Hazards {
 		if h.Disabled {
 			continue

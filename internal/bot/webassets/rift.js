@@ -296,6 +296,8 @@
     if(run&&(run.id!==value.id||run.room!==value.room||run.level?.id!==value.level?.id))resetInput();
     if(value.status !== 'cleared' || replay) { clearedAt = 0; countdownAnnounced = -1; }
     else if(!clearedAt) { clearedAt = performance.now(); countdownAnnounced = -1; }
+    const wasResting=window.RiftHUD.waveRestState(run)==='resting',isResting=window.RiftHUD.waveRestState(value)==='resting';
+    if(playing&&!replay&&run?.id===value.id&&wasResting!==isResting)audio.play(isResting?'wave_rest_enter':'wave_rest_leave',0);
     run=value;window.RiftDiagnostics.update(run);classPrimer();window.RiftBossIntro.update(run);window.RiftBestiary.update(run);window.RiftIntents.sync(run,replay);renderer.snapshot(run,replay);window.RiftFeedback.update(run,replay,playing);window.RiftHaptics.update(run,replay,playing);
     const controlsEnabled=playing&&['fighting','cleared'].includes(run.status)&&!run.paused;
     const gamePaused=!playing&&['fighting','cleared'].includes(run.status)||run.paused;
@@ -370,9 +372,10 @@
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?(patrol?'Defeat the remaining patrol to secure this tier.':'All totems and defenders cleared. Bank the tier loot to continue.'):'Use attacks or damaging spells. Totems do not grant monster loot or kill credit.');
       put($('rift-room-objective-directions'),ended?'':remaining.map(e=>e.name+': '+(e.x<run.player.x?'left':'right')+(Math.abs(e.y-run.player.y)<24?'':e.y<run.player.y?', up':', down')).join(' · '));
     }else if(roomGoal?.kind==='survive_waves'){
-      const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0;
-      putRoomProgress('Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements approaching':'Defeat the attackers'));
-      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
+      const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0, rest=window.RiftHUD.waveRestState(run);
+      const restLabel=rest==='resting'?'Resting · leave alcove to continue':rest==='holding'?'Reinforcements held · return to alcove':'';
+      putRoomProgress('Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':restLabel?restLabel:waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':restLabel?restLabel:waiting?'Reinforcements approaching':'Defeat the attackers'));
+      put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting&&run.level.rooms[run.room].rest_alcove?'Rest safely in the entrance alcove. Hold Guard while returning to delay reinforcements; protection applies only inside. Leave the alcove and release Guard to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
       put($('rift-room-objective-directions'),roomGoal.complete||ended?'':run.enemies.filter(enemy=>enemy.hp>0).length+' enemies remaining in this wave'+(roomGoal.gate?' · '+(waiting?'Gate open':roomGoal.gate.closed?'Gate closed · use upper/lower bypass':roomGoal.gate.close_in>0?'Gate closing in '+roomGoal.gate.close_in.toFixed(1)+'s':'Gate waiting for clear threshold'):''));
     }else if(roomGoal?.kind==='hold_circle'){
       const zone=roomGoal.zone,inside=((run.player.x-zone.x)/zone.radius_x)**2+((run.player.y-zone.y)/zone.radius_y)**2<=1;

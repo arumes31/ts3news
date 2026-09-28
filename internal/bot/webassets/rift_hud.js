@@ -3,6 +3,12 @@
   const $=id=>document.getElementById(id),numbers=new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
   const slowName=run=>({ice:'Ice',poison:'Poison',thorns:'Thorns'}[run.slow_source]||'');
   const slowLabel=run=>'Slowed'+(slowName(run)?' by '+slowName(run):'');
+  function waveRestState(run){
+    const o=run?.room_objective,r=run?.level?.rooms?.[run.room]?.rest_alcove,p=run?.player;
+    if(!r||run.practice||run.status!=='fighting'||!p||p.hp<=0||o?.kind!=='survive_waves'||o.complete||!(o.next_wave_seconds>0)||o.wave>=o.target||run.enemies.some(e=>e.hp>0))return '';
+    if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)return 'resting';
+    return p.guard?'holding':'countdown';
+  }
   function hazardDefeatHint(source){
     if(!source||typeof source.kind!=='string')return '';
     if(source.kind==='collapse')return 'Defeated by the advancing collapse. Stay ahead of its moving edge and reach the exit seal. Jumping does not evade collapse damage.';
@@ -997,5 +1003,5 @@
     }
     return lines.join('\n');
   }
-  window.RiftHUD={contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter,buildResultSummary};
+  window.RiftHUD={waveRestState,contextHintsEnabled:()=>hintsEnabled,hazardDefeatHint,nearbyCover,update,duration,setRequestedRange,getRequestedRange,updateLatency,detectPlayerAreaEffects,getHealthThreshold,triggerTransientCounter,updateLastEncounter,buildResultSummary};
 })();

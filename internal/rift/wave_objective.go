@@ -43,6 +43,9 @@ func (r *Run) tickWaveObjective(dt float64) {
 		r.event("wave_incoming", r.Player.X, r.Player.Y, float64(o.Wave+1))
 		return
 	}
+	if r.Arena().RestAlcove != nil && (r.Player.Guard || r.inWaveRestAlcove()) {
+		return
+	}
 	o.NextWaveSeconds = math.Max(0, o.NextWaveSeconds-dt)
 	if o.NextWaveSeconds > 1e-9 {
 		return
