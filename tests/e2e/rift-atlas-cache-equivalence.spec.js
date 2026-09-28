@@ -36,11 +36,20 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
    for(let i=0;i<frames.length;i++)for(const size of [64,128,256])drawAtlas(img,...frames[i],30+(i%4)*190,20+Math.floor(i/4)*220+size/8,size,Math.min(size,140));
    const after=state();ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
   }
+  // Fractional crops must stay native: integer-pixel copies alter actor/prop sampling.
+  const fractionalCached=!!cachedAtlasFrame(images.heroesA,20.25,20.125,128.5,128.25,100,100);
+  for(const flipped of [false,true]){
+   ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
+   ctx.save();ctx.translate(480,240);ctx.rotate(.07);ctx.scale(flipped?-1:1,1);ctx.globalAlpha=.71;ctx.filter='brightness(1.3)';
+   const before={alpha:ctx.globalAlpha,filter:ctx.filter};
+   for(let i=0;i<6;i++)drawAtlas(images.heroesA,20.25+i*128,20.125,128.5,128.25,-430+i*145,-100,100,100);
+   const after={alpha:ctx.globalAlpha,filter:ctx.filter};ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
+  }
   // Exercise eviction with valid distinct rectangles, then draw again after reuse.
   const img=images.heroesA,retired=atlasFrames.values().next().value;
   for(let i=0;i<200;i++)drawAtlas(img,i,0,128,128,0,0,64,64);
   for(let i=0;i<40;i++)drawAtlas(img,i,0,512,512,0,0,64,64);
-  return {outputs,cache:renderer.atlasCacheStats(),retired:retired?[retired.canvas.width,retired.canvas.height]:null};
+  return {outputs,fractionalCached,cache:renderer.atlasCacheStats(),retired:retired?[retired.canvas.width,retired.canvas.height]:null};
  };`;
  const results=[];
  for(const source of [baseline,candidate]){
@@ -49,9 +58,10 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
   const data=await(await page.request.get('/api/abyss/rift')).json();
   const output=await page.evaluate(async run=>{await RiftRenderer.ready;return RiftRenderer.stateProbe(run.enemies);},data.run);
   output.outputs.forEach((item,index)=>fs.writeFileSync(info.outputPath('variant-'+results.length+'-'+index+'.png'),Buffer.from(item.png.split(',')[1],'base64')));
-  results.push({outputs:output.outputs.map(item=>({...item,png:crypto.createHash('sha256').update(item.png).digest('hex')})),cache:output.cache,retired:output.retired});
+  results.push({outputs:output.outputs.map(item=>({...item,png:crypto.createHash('sha256').update(item.png).digest('hex')})),cache:output.cache,retired:output.retired,fractionalCached:output.fractionalCached});
   await page.unroute('**/static/rift_renderer.js*');
  }
  expect(results[1].outputs).toEqual(results[0].outputs);
+ expect(results[1].fractionalCached).toBe(false);
  expect(results[1].cache.entries).toBeLessThanOrEqual(64);expect(results[1].cache.bytes).toBeLessThanOrEqual(8*1024*1024);expect(results[1].cache.hits).toBeGreaterThan(0);expect(results[1].cache.misses).toBeGreaterThan(64);expect(results[1].retired).toEqual([0,0]);
 });
