@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 	"ts3news/internal/rift"
@@ -124,5 +125,33 @@ func TestRiftPotionInventoryReadIsSeparateAndPracticeHasNoRealInventory(t *testi
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRiftPotionRequestValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, kind, id string
+		valid          bool
+	}{
+		{"owned potion", "potion", "small_health_potion", true},
+		{"missing potion", "potion", "", false},
+		{"oversized potion", "potion", strings.Repeat("a", 101), false},
+		{"unrelated action", "step", "small_health_potion", false},
+		{"ordinary step", "step", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := riftRequest{Kind: tc.kind, ConsumableID: tc.id, RequestID: "potion-validation-01"}
+			if got := validRiftRequest(req); got != tc.valid {
+				t.Fatalf("valid=%v, want %v", got, tc.valid)
+			}
+		})
+	}
+	if !validRiftModeAction("", "potion") {
+		t.Fatal("campaign potion rejected")
+	}
+	for _, mode := range []string{"boss", "skills", "combo", "banking", "unknown"} {
+		if validRiftModeAction(mode, "potion") {
+			t.Fatalf("real inventory potion allowed in %s", mode)
+		}
 	}
 }

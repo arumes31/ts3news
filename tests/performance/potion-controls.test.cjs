@@ -2,12 +2,12 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('internal/bot/webassets/rift_potions.js','utf8');
-function setup(){
+function setup(fetchOverride){
  const nodes=new Map();
  function element(){return {value:'',hidden:false,disabled:false,textContent:'',children:[],addEventListener(){},replaceChildren(){this.children=[];this.value='';},append(option){this.children.push(option);if(!this.value)this.value=option.value;}};}
  for(const id of ['rift-potions','rift-potion-select','rift-potion-use','rift-potion-refresh','rift-potion-status'])nodes.set(id,element());
  let reads=0;
- const context={window:{addEventListener(){}},document:{getElementById:id=>nodes.get(id),createElement:element},location:{href:'http://localhost/abyss/rift'},URL,AbortController,setTimeout,clearTimeout,fetch:async()=>{reads++;return {ok:true,json:async()=>({ok:true,potions:[{id:'small_health_potion',name:'Small potion',count:2,heal_hp:50}]})};}};
+ const context={window:{addEventListener(){}},document:{getElementById:id=>nodes.get(id),createElement:element},location:{href:'http://localhost/abyss/rift'},URL,AbortController,setTimeout,clearTimeout,fetch:async()=>{reads++;if(fetchOverride)return fetchOverride();return {ok:true,json:async()=>({ok:true,potions:[{id:'small_health_potion',name:'Small potion',count:2,heal_hp:50}]})};}};
  vm.runInNewContext(source,context);return {api:context.window.RiftPotions,nodes,reads:()=>reads};
 }
 const run=()=>({status:'fighting',paused:false,player:{hp:30,max_hp:100},skill_timers:{}});
@@ -32,4 +32,17 @@ test('potion inventory validation rejects ambiguous or malformed healing metadat
  assert.doesNotThrow(()=>f.api.validate({ok:true,potions:[valid]}));
  for(const p of [{...valid,count:0},{...valid,heal_fraction:.5},{...valid,heal_hp:NaN},{...valid,id:''}])assert.throws(()=>f.api.validate({ok:true,potions:[p]}));
  assert.throws(()=>f.api.validate({ok:true,potions:[valid,valid]}));
+});
+
+test('inventory failure stays visible across combat updates until a successful refresh',async()=>{
+ let failed=true;
+ const f=setup(async()=>({ok:!failed,json:async()=>({ok:true,potions:[{id:'small_health_potion',name:'Potion',count:1,heal_hp:50}]})}));
+ const controller=f.api.create({api:'/api/abyss/rift',practice:''});
+ f.nodes.get('rift-potion-refresh').onclick();await settle();
+ for(let i=0;i<3;i++){controller.update(run(),true);assert.match(f.nodes.get('rift-potion-status').textContent,/unavailable.*Refresh/);}
+ assert.equal(f.nodes.get('rift-potion-use').disabled,true);
+ assert.equal(f.nodes.get('rift-potion-refresh').disabled,false);
+ failed=false;f.nodes.get('rift-potion-refresh').onclick();await settle();controller.update(run(),true);
+ assert.equal(f.nodes.get('rift-potion-use').disabled,false);
+ assert.match(f.nodes.get('rift-potion-status').textContent,/Ready/);
 });
