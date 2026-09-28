@@ -903,7 +903,9 @@ func (r *Run) tick(in Input, dt float64) {
 		r.jumpDist = 0
 		r.event("jump", p.X, p.Y, 0)
 	}
-	if in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" && p.Pose != "guard_break" {
+	// Advance existing warnings after movement/jump, before attacks can arm a new cluster.
+	r.terrainReactionTick(dt)
+	if p.HP > 0 && in.Attack && (in.Skill == "" || !r.canCast(in.Skill)) && p.Cooldown == 0 && !p.Guard && p.Pose != "recovery" && p.Pose != "guard_break" {
 		r.Stats.Attacks++
 		hitTarget := false
 
@@ -1059,7 +1061,7 @@ func (r *Run) tick(in Input, dt float64) {
 			r.reactToMiss()
 		}
 	}
-	if in.Skill != "" && !p.Guard {
+	if p.HP > 0 && in.Skill != "" && !p.Guard {
 		r.cast(in.Skill)
 	}
 	if r.Status == "fighting" {

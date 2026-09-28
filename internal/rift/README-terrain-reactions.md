@@ -1,8 +1,8 @@
 # Volatile terrain reactions (engine groundwork)
 
 Status: engine implemented and unit tested; **not enabled in campaign rooms**.
-Ledger item 0476 remains open until combat-loop integration, authored rooms,
-protocol validation, presentation, audio and real-browser verification are done.
+Ledger item 0476 remains open until authored rooms,
+presentation, audio and real-browser verification are done.
 
 Breaking volatile wooden cover arms a connected cluster of up to eight props.
 Every selected prop becomes non-solid and receives the same 1.2-second fuse.
@@ -25,16 +25,17 @@ spent. A saved warning resumes with its remaining time; spent props cannot fire
 again. The helper does nothing while paused or outside fighting status. Invalid
 durations cannot advance it. Legacy cover has neither field and is unchanged.
 
-The helper is deliberately not called by the live combat loop yet. No authored
-cover is volatile. This keeps incomplete warning presentation out of gameplay.
+The combat loop advances existing warnings after movement and jump, before
+attacks can arm new clusters. A triggering melee attack or projectile retains
+the full warning. Lethal blasts prevent a subsequent attack or cast that tick.
+The browser protocol rejects non-finite/out-of-range fuses, volatile stone and
+active fuses on intact or nonvolatile cover. No authored cover is volatile yet,
+keeping incomplete warning presentation out of gameplay.
 
 ## Remaining integration
 
-- Call the helper once per authoritative combat tick with warning timing that
-  does not charge the triggering attack's elapsed interval against the new fuse.
 - Author compact clusters in selected rooms with escape space, entrances and
   exits clear; keep room geometry frozen in saved expeditions.
-- Validate fuse bounds and volatile wood state in the browser protocol.
 - Clearly mark intact volatile cover and show the exact blast ellipses while
   arming, including reduced-motion and pause behavior, HUD and minimap cues.
 - Provide original marked-cover art if existing terrain art cannot communicate
@@ -51,5 +52,7 @@ cover is volatile. This keeps incomplete warning presentation out of gameplay.
 Tests cover connected warnings, saved fuses, overlapping damage, walls, ordinary
 wood, the eight-prop hard cap, invalid input, jump/dodge/grace escape, protected
 enemies, pause/cleared states, single kill/drop, lethal attribution and the
-absolute regional damage cap. These tests prove the engine helper, not the
-unfinished player-facing feature.
+absolute regional damage cap. Combat-loop tests also cover melee/projectile warning timing, a last-tick jump
+and lethal-tick attack prevention. The public protocol tests run with
+`node --test tests/performance/terrain-protocol.test.cjs`. These checks do not
+prove the unfinished player-facing feature.

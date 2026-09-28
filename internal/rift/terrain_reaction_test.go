@@ -186,3 +186,53 @@ func TestTerrainReactionDamageHasAbsoluteRegionalCap(t *testing.T) {
 		t.Fatal("malformed region exceeded 21 raw damage")
 	}
 }
+
+func TestTerrainReactionCombatTickPreservesFullWarning(t *testing.T) {
+	r := terrainTestRun()
+	r.Level.Rooms[0].Cover[0].Volatile = true
+	r.Build.Damage = 60
+	r.Enemies[0].X, r.Enemies[0].Speed, r.Enemies[0].Cooldown = 1400, 0, 100
+	r.tick(Input{Attack: true}, .02)
+	if r.Level.Rooms[0].Cover[0].BlastFuse != 1.2 {
+		t.Fatal("trigger tick consumed warning time")
+	}
+	hp := r.Player.HP
+	for i := 0; i < 59; i++ {
+		r.tick(Input{}, .02)
+	}
+	if r.Player.HP != hp || r.Level.Rooms[0].Cover[0].BlastFuse <= 0 {
+		t.Fatal("blast fired before full warning")
+	}
+	r.tick(Input{Jump: true}, .02)
+	if r.Level.Rooms[0].Cover[0].BlastFuse != 0 {
+		t.Fatal("combat tick did not detonate")
+	}
+	if r.Player.HP != hp {
+		t.Fatal("jump on impact tick failed to evade")
+	}
+}
+
+func TestTerrainReactionLethalTickCannotAttackAfterDeath(t *testing.T) {
+	r := reactionTestRun()
+	r.Player.X, r.Player.Y, r.Player.HP = 570, 410, 1
+	r.Enemies[0].X, r.Enemies[0].Speed, r.Enemies[0].Cooldown = 1400, 0, 100
+	r.damageTerrainCover(0, 60)
+	for i := range r.Level.Rooms[0].Cover {
+		r.Level.Rooms[0].Cover[i].BlastFuse = .02
+	}
+	r.tick(Input{Attack: true}, .02)
+	if r.Player.HP != 0 || r.Status != "defeated" || r.Stats.Attacks != 0 {
+		t.Fatal("lethal blast permitted posthumous attack or failed defeat")
+	}
+}
+
+func TestTerrainReactionProjectileKeepsNewFuseWhole(t *testing.T) {
+	r := terrainTestRun()
+	r.Level.Rooms[0].Cover[0].Volatile = true
+	r.Enemies[0].X, r.Enemies[0].Speed, r.Enemies[0].Cooldown = 1400, 0, 100
+	r.Projectiles = []Projectile{{X: 180, Y: 410, VX: 1000, Life: 2, Power: 100}}
+	r.tick(Input{}, .02)
+	if r.Level.Rooms[0].Cover[0].BlastFuse != 1.2 || len(r.Projectiles) != 0 {
+		t.Fatal("projectile did not arm one full warning and stop")
+	}
+}
