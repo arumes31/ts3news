@@ -55,3 +55,57 @@ func (r *Run) restoreWaveFloor() {
 		panel.CollapseIn = 0
 	}
 }
+
+// ValidFragileFloor leaves clear ground above and below each bounded panel.
+func (a Arena) ValidFragileFloor() bool {
+	if len(a.FragileFloor) > 4 {
+		return false
+	}
+	if len(a.FragileFloor) > 0 && (a.Objective != "survive_waves" || a.Round != nil || len(a.Bridges) > 0) {
+		return false
+	}
+	for i, p := range a.FragileFloor {
+		for _, v := range []float64{p.X, p.Y, p.W, p.H} {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return false
+			}
+		}
+		if p.X < 100 || p.X+p.W > 1500 || p.W < 60 || p.W > 160 || p.Y < 365 || p.Y+p.H > 445 || p.H < 30 || p.H > 70 {
+			return false
+		}
+		for _, other := range a.FragileFloor[:i] {
+			if p.X < other.X+other.W+80 && other.X < p.X+p.W+80 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ValidWaveFloor matches live floor state to the expedition's frozen geometry.
+// Content updates never replace that saved definition with today's campaign.
+func (r *Run) ValidWaveFloor() bool {
+	var frozen []Obstacle
+	if r.Practice == nil && r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
+		frozen = r.Level.Rooms[r.Room].FragileFloor
+	}
+	o := r.RoomObjective
+	if o == nil || o.Kind != "survive_waves" {
+		return len(frozen) == 0 && (o == nil || len(o.FloorSegments) == 0)
+	}
+	if len(o.FloorSegments) != len(frozen) {
+		return false
+	}
+	for i, p := range o.FloorSegments {
+		if p.Obstacle != frozen[i] || math.IsNaN(p.CollapseIn) || math.IsInf(p.CollapseIn, 0) || p.CollapseIn < 0 || p.CollapseIn > 3+float64(i)*.6 {
+			return false
+		}
+		if p.Collapsed && p.CollapseIn != 0 {
+			return false
+		}
+		if (o.Complete || o.NextWaveSeconds > 0) && (p.Collapsed || p.CollapseIn != 0) {
+			return false
+		}
+	}
+	return true
+}

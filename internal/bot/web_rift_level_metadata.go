@@ -8,6 +8,7 @@ import (
 )
 
 func validateRiftLevelMetadata(run *rift.Run) error {
+	if !run.ValidWaveFloor() { return errors.New("invalid rift snapshot wave floor") }
 	level := run.Level
 	// Original expeditions predate authored campaign metadata.
 	if level == nil {
@@ -21,7 +22,7 @@ func validateRiftLevelMetadata(run *rift.Run) error {
 		return invalid
 	}
 	for _, room := range level.Rooms {
-		if strings.TrimSpace(room.Name) == "" || !room.ValidBridges() || !room.ValidRound() {
+		if strings.TrimSpace(room.Name) == "" || !room.ValidBridges() || !room.ValidRound() || !room.ValidFragileFloor() {
 			return invalid
 		}
 	}

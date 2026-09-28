@@ -24,7 +24,14 @@ paths, independent geometry, all three repair cycles and one-shot events.
 The full Rift suite passed after this foundation change
 (go test ./internal/rift -count=1).
 
-Still required: validated metadata, authored rooms with verified bypasses for
+Server and browser validation now bound panels to four separated rectangles,
+with upper/lower floor margins and finite geometry. Active state must match the
+frozen room panels exactly. Invalid countdowns, missing panels and collapsed
+intermission/final-clear panels are rejected. Legacy rooms remain valid; content
+updates do not substitute the current campaign definition into saved runs.
+Focused decode tests and nine terrain protocol tests pass.
+
+Still required: authored rooms with verified bypasses for
 all supported enemy sizes, rendering and sound cues, minimap and preview,
 accessible warning/occupancy guidance, and real browser combat/loot/completion
 journeys. No campaign room uses the new panels yet. Keep ledger 0479 open.
