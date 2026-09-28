@@ -27,7 +27,7 @@ for(let sample=1;sample<=3;sample++)test('cached startup sample '+sample,async({
   expect(report.settings.fps).toBe(30);
   await page.waitForLoadState('networkidle');
   report.warmedArt=await page.evaluate(()=>performance.getEntriesByType('resource').filter(e=>new URL(e.name).pathname.endsWith('.png')).map(e=>new URL(e.name).pathname));
-  expect(report.warmedArt.length).toBeGreaterThanOrEqual(20);
+  expect(report.warmedArt.length).toBeGreaterThanOrEqual(13);
   await page.goto('about:blank');
   await page.addInitScript(()=>{
    performance.setResourceTimingBufferSize(2000);
@@ -51,7 +51,7 @@ for(let sample=1;sample<=3;sample++)test('cached startup sample '+sample,async({
   }));
   const c=report.capture;expect(c.readyMS).not.toBeNull();expect(c.hidden).toBe(false);expect(c.atlas.ready).toBe(true);
   const art=c.resources.filter(e=>e.path.endsWith('.png'));
-  expect(art.length).toBeGreaterThanOrEqual(20);
+  expect(art.length).toBeGreaterThanOrEqual(13);
   report.uncachedArt=art.filter(e=>e.transferBytes!==0||e.encodedBodyBytes===0);
   expect(report.uncachedArt).toEqual([]);
   report.transferBytes=c.navigation.transferSize+c.resources.reduce((sum,r)=>sum+r.transferBytes,0);

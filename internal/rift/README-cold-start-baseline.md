@@ -204,3 +204,12 @@ remains unmet and throttled startup timing remains unverified. 15 browser checks
 across hero selection, saved-build readiness, deferred legacy boss art, atlas progress/
 decode, priority, version reuse, and skill animation previews.
 
+
+## Mission objective images on demand (2026-09-28)
+
+[Objective artwork readiness](README-objective-art-loading.md) now removes seven
+unused objective PNGs (8240354 bytes) from idle startup. Every objective required
+by a mission's frozen tiers is decoded before its first scene, with current saved
+actors included for legacy compatibility. Idle required PNG bytes are now
+30114995–30210352; saved expeditions add only the needed objective images.
+This remains far above the 3MB target. No new cold-start timing pass is claimed.

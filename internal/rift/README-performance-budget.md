@@ -98,8 +98,9 @@ The [paused crowd120 baseline](README-crowd-frame-baseline.md) also fails all th
 frame thresholds in each of its three full 60-second development captures.
 The [cached-startup baseline](README-warm-start-baseline.md) passed the development
 profile in all three samples (1.713/2.047/1.740 seconds), with 20 cached artwork
-images per sample and no browser/request errors. This does not change the failed
-cold-start result or establish physical-device support.
+images per sample and no browser/request errors. The subsequent objective-art
+loader candidate also passed (1.710/1.631/1.699 seconds, 13 cached images). Neither
+result changes the failed cold-start gate or establishes physical-device support.
 The physical-device, ordinary frame, input and30-minute session gates
 remain unmeasured against this budget. Do not mark them passed from overlays or
 seeded fixtures.

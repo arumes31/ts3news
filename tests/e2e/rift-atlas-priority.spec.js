@@ -10,7 +10,7 @@ test('critical atlas priority and async decoding are set before requests start',
  });
  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
  const samples=await page.evaluate(()=>window.atlasPrioritySamples);
- expect(samples).toHaveLength(20);
+ expect(samples).toHaveLength(13);
  for(const sample of samples){expect(sample.priority,sample.url).toBe('high');expect(sample.decoding,sample.url).toBe('async');}
  await expect(page.locator('#rift-props-asset')).toHaveAttribute('fetchpriority','high');
 });

@@ -23,7 +23,7 @@ test('circle protocol rejects impossible charge and mobile HUD fits',async({page
 test('ended expedition cannot display an active circle charge',async({page})=>{
  await page.route('**/api/abyss/rift',async route=>{
   const response=await route.fetch();const data=await response.json();
-  if(route.request().method()==='GET'&&data.run?.room_objective?.kind==='hold_circle'){data.run.status='defeated';data.run.player.hp=0;data.run.room_objective.charging=true;await route.fulfill({response,json:data});}else await route.fulfill({response});
+  if(route.request().method()==='GET'&&data.run?.room_objective?.kind==='hold_circle'){data.run.status='defeated';data.run.player.hp=0;data.hazard_hit_damage=0;data.run.room_objective.charging=true;await route.fulfill({response,json:data});}else await route.fulfill({response});
  });
  await page.goto('/abyss/rift?scenario=circle');await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-room-objective-progress')).toContainText('Expedition ended');await expect(page.locator('#rift-room-objective-help')).toContainText('not secured');
 });

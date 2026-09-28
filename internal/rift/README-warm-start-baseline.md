@@ -55,3 +55,11 @@ An initial configuration mismatch started the fixture on its default port 18082
 while the runner waited for 18098; it produced no measurements. The committed
 configuration explicitly passes the port to the fixture. That unused first
 fixture was terminated during the corrected capture; no measured run was discarded.
+
+## Objective-art loader follow-up
+
+After the [objective-art change](README-objective-art-loading.md), all three
+cached-startup samples also passed: 1709.7/1631.2/1698.5ms, with 13 cached PNGs and
+98629 transferred bytes each. No browser/request errors were recorded. The profile
+and thresholds are unchanged; the artwork count drops because unused objective
+images are now deferred. The original 20-image report above is retained for comparison.

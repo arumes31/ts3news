@@ -196,7 +196,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['area','regions','props','mobs','items','effects','sigil','totem','relic','generator','spirit','cage','lantern','terrainCover','platformSurface'];
+  const criticalAtlasKeys = ['area','regions','props','mobs','items','effects','terrainCover','platformSurface'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -479,10 +479,39 @@
     if(!heroLoads.has(key))heroLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{heroLoads.delete(key);throw new Error('Could not load character artwork. Recover to try again.');}));
     await heroLoads.get(key);
   };
+  const objectiveAtlasKeys={
+    sigils:['sigil'],rune_gate:['sigil'],moving_beacons:['sigil'],hold_circle:['sigil'],
+    destroy_totems:['totem'],disable_generators:['generator'],carry_relic:['relic'],
+    escort_spirit:['spirit'],rescue_companions:['cage','spirit'],
+    protect_lantern:['lantern'],split_defense:['lantern']
+  };
+  const objectiveActorKeys={totem:['totem'],generator:['generator'],cage:['cage','spirit'],spirit:['spirit'],lantern:['lantern']};
+  const objectiveLoads=new Map();
+  async function prepareObjectiveArt(run){
+    if(!run)return;
+    const keys=new Set(),include=list=>{for(const key of list||[])keys.add(key);};
+    // Prepare every frozen tier before play, so advancing never discovers a new
+    // objective image. Saved current actors also cover regionless legacy runs.
+    for(const room of run.level?.rooms||[])include(objectiveAtlasKeys[room.objective]);
+    const goal=run.room_objective;
+    include(objectiveAtlasKeys[goal?.kind]);
+    for(const actor of run.enemies||[])include(objectiveActorKeys[actor.kind]);
+    if(goal?.escort)keys.add('spirit');
+    if(goal?.lantern||goal?.lanes?.length)keys.add('lantern');
+    if(goal?.captives?.length)include(['cage','spirit']);
+    if(goal?.relic)keys.add('relic');
+    await Promise.all([...keys].map(key=>{
+      if(images[key])return;
+      if(!objectiveLoads.has(key))objectiveLoads.set(key,loadDecodedAtlas(root.dataset[key]).then(img=>{images[key]=img;}).catch(()=>{
+        objectiveLoads.delete(key);throw new Error('Could not load '+key+' artwork. Recover to try again.');
+      }));
+      return objectiveLoads.get(key);
+    }));
+  }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   let legacyBossArt=null;
   renderer.prepareRun=async run=>{
-    await renderer.prepareBuild(run?.build);
+    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run)]);
     if(!run||run.room!==2||run.level?.region!==undefined||images.boss)return;
     if(!legacyBossArt)legacyBossArt=loadDecodedAtlas(root.dataset.boss).then(img=>{images.boss=img;}).catch(()=>{legacyBossArt=null;throw new Error('Could not load saved boss scene artwork. Recover to try again.');});
     await legacyBossArt;
