@@ -23,6 +23,27 @@
     if(!Number.isInteger(region)||!regionalInlays[region])return;
     ctx.save();ctx.translate(x,y);ctx.scale(1,.48);ctx.globalAlpha*=.85;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.stroke(regionalInlays[region]);ctx.restore();
   }
+  const rearBannerColors=['#304a39','#633a29','#365561','#45435f','#464e2e','#285154','#57332f','#45374f','#343653','#514237'];
+  function rearRegionalBanners(region){
+    if(!Number.isInteger(region)||!regionalInlays[region])return;
+    // Pure rear scenery, clipped above the playable floor (which begins at Y315).
+    // No collider, pickup glow, interaction outline, or new bitmap is involved.
+    ctx.save();ctx.beginPath();ctx.rect(0,0,960,300);ctx.clip();
+    for(const worldX of [300,780,1260]){
+      const x=worldX-camera;if(x+32<0||x-32>960)continue;
+      const sway=renderer.reduced||motion===0?0:Math.sin(decorationTime/950+worldX/200)*2*motion;
+      ctx.save();ctx.globalAlpha=.78;
+      ctx.fillStyle='#252d29';ctx.fillRect(x-30,181,6,12);ctx.fillRect(x+24,181,6,12);
+      ctx.fillStyle='#797366';ctx.fillRect(x-28,184,56,6);
+      ctx.fillStyle=rearBannerColors[region];ctx.strokeStyle='#182721';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x-20,190);ctx.lineTo(x+20,190);ctx.lineTo(x+20+sway,280);ctx.lineTo(x+sway,293);ctx.lineTo(x-20+sway,280);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.strokeStyle='#c9b583';ctx.globalAlpha=.55;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x-16,193);ctx.lineTo(x-16+sway,277);ctx.lineTo(x+sway,287);ctx.lineTo(x+16+sway,277);ctx.lineTo(x+16,193);ctx.stroke();
+      ctx.fillStyle='#ffffff0a';ctx.fillRect(x-4,191,5,83);
+      ctx.translate(x+sway*.3,235);ctx.scale(.8,.8);ctx.globalAlpha=.85;ctx.strokeStyle='#dfcea6';ctx.lineWidth=1.5;ctx.stroke(regionalInlays[region]);ctx.restore();
+    }
+    ctx.restore();
+  }
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
@@ -1192,6 +1213,7 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    if(!run.practice)rearRegionalBanners(run.level?.region);
     if(arena?.exit){
       const x=arena.exit.x-camera,y=arena.exit.y,open=run.status==='cleared'||run.status==='complete';
       ctx.save();ctx.strokeStyle=open?'#bfe9f4':'#8e9da5';ctx.lineWidth=2;ctx.setLineDash(open?[]:[4,4]);ctx.beginPath();ctx.ellipse(x,y,22,10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);regionalInlay(run.practice?null:run.level?.region,x,y);
