@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path');
 for(const mode of ['fetch','body','persistent'])test('initial aborted read retries once after artwork: '+mode,async({page})=>{
  await page.route('**/static/rift.js*',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift.js'),'utf8')}));
  let release;const gate=new Promise(resolve=>release=resolve);
- await page.route('**/static/rift_regions.png*',async route=>{await gate;await route.continue();});
+ await page.route('**/static/rift_region_0.png*',async route=>{await gate;await route.continue();});
  await page.addInitScript(mode=>{
   const original=window.fetch;window.initialReads=0;
   window.fetch=function(input,options){

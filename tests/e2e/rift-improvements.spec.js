@@ -352,7 +352,7 @@ test('corrupt audio levels use finite defaults and closed audio can reopen',asyn
 
 test('failed artwork can be reloaded from the start panel',async({page})=>{
   let fail=true;
-  await page.route('**/static/rift_regions.png*',route=>fail?route.abort():route.continue());
+  await page.route('**/static/rift_region_0.png*',route=>fail?route.abort():route.continue());
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toHaveText('Reload artwork');
   fail=false;await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Enter the ruins →');
 });

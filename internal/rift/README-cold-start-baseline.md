@@ -350,3 +350,40 @@ relevant sampling contract.
 Readiness, rapid preview changes, retry behavior, saved-run region selection and
 seamless advancement still require implementation and integration tests before
 production can use the smaller files.
+
+## Region panels integrated (2026-09-28)
+
+Default startup now fetches the 361,462-byte first-region panel instead of the
+3,222,009-byte combined sheet. Other selected or saved regions prepare separately
+before play. Mission cards use their region panels when they become visible,
+with eager loading as a compatibility fallback without IntersectionObserver.
+Original full-sheet URLs remain available for pixel-reference tests.
+
+Rapid mission selection keeps the newest preview; Start stays disabled until its
+region decodes. Failed selections offer Retry region artwork without losing the
+selected mission. Per-region promises share requests, validate dimensions and
+bypass cached invalid responses on retry. All maps are bounded by ten regions.
+The last mission in each region prefetches the next region during fighting;
+a saved final checkpoint awaits that preparation before allowing continuation.
+Mission 100 never requests an eleventh region. Legacy ordinary/boss scenes retain
+their original preparation path. The 300-scene source-bounds oracle explicitly
+prepares all regions and still covers every panel, prop and effect cell.
+
+Testing exposed a separate control race: Escape during a pending resume was
+ignored while the start operation was active. Escape now cancels the start intent
+and shares the serialized pause operation, preserving the player's pause request.
+A held-response regression checks one pause save and no tier advancement.
+
+The legacy-monster bounds test previously applied full-sheet grid coordinates to
+an offscreen cached canvas. The unchanged committed renderer reproduced all
+three failures. Its corrected oracle checks source coordinates before cache
+substitution and separately checks actual cached draw bounds. A seamless reward
+expectation also omitted the existing 40-gold objective bonus; the unchanged
+application confirmed 70 total (30 drop gold plus 40 objective gold).
+
+These are loading and correctness changes. A new constrained-network capture is
+still needed; the prior 133.945-second median does not measure this implementation.
+
+The separate objective-rewards fixture completes nine objectives at five gold
+each:45 objective gold plus30 fight gold. Its banking, duplicate replay, extra-bank
+rejection, reload and copied receipt checks pass with those current fixture values.

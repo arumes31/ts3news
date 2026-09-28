@@ -12,6 +12,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  const result=await page.evaluate(async data=>{
   const r=window.RiftRenderer,ctx=document.getElementById('rift-canvas').getContext('2d'),draw=ctx.drawImage;
   await Promise.all(['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'].map(className=>r.prepareBuild({class:className})));
+  await Promise.all(Array.from({length:10},(_,region)=>r.prepareRegion(region)));
   const errors=[],cells={},victories=[];let label='',draws=0,scenes=0;
   const inspect=(img,...a)=>{
    if(a.length===8){
@@ -52,7 +53,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  },data);
  expect(pageErrors).toEqual([]);
  expect(result.errors).toEqual([]);expect(result.scenes).toBe(300);expect(new Set(result.victories).size).toBe(12);
- expect(result.cells['/static/rift_regions.png'].length).toBe(10);
+ for(let region=0;region<10;region++)expect(result.cells['/static/rift_region_'+region+'.png'].length).toBe(1);
  expect(result.cells['/static/rift_terrain_cover.png'].length).toBe(4);
  expect(result.cells['/static/rift_items.png'].length).toBe(12);
  expect(result.cells['/static/rift_props.png'].length).toBe(8);
