@@ -146,6 +146,19 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
+		if r.URL.Query().Get("scenario") == "enemy-rock" {
+			mu.Lock()
+			run := rift.NewRunAtLevel("enemy-rock", selectedBuild, time.Now(), riftMobCatalog(time.Now()), 91)
+			run.Paused, run.Clock = true, 1.19
+			run.RoomObjective = nil
+			run.Level.Rooms[0] = rift.Arena{Name: "Falling Rock Trial", Hazards: []rift.Hazard{{Kind: "falling_rock", Obstacle: rift.Obstacle{X: 450, Y: 350, W: 100, H: 100}, Period: 5, Duration: .18}}}
+			run.Enemies = run.Enemies[:2]
+			run.Enemies[0].X, run.Enemies[0].Y, run.Enemies[0].HP = 500, 410, 1
+			run.Enemies[0].Cooldown = 10
+			run.Enemies[1].X, run.Enemies[1].Y, run.Enemies[1].Cooldown = 1450, 480, 10
+			runs[cookie.Value] = run
+			mu.Unlock()
+		}
 		if r.URL.Query().Get("scenario") == "checkpoint" {
 			mu.Lock()
 			levelID := 1

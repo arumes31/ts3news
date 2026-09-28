@@ -723,6 +723,7 @@ func (r *Run) hazardTick() {
 				r.event("hazard_deactivation", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		}
+		r.hurtEnemiesFromHazard(i, h)
 		if reservedArea || phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.ContactBounds(r.Clock), r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
 			continue
 		}

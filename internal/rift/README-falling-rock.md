@@ -22,3 +22,39 @@ safety, jump/dodge/movement/guard behavior, save continuation, all campaign
 hazard escapes and maximum-difficulty warning timing. Browser tests check the
 shadow, countdown, impact and removal in both motion settings; shared audio
 checks verify sources, mute and retirement. These do not prove performance gates.
+
+## Enemy contact
+
+Falling rocks also damage monsters, including bosses, within the same rectangular
+contact bounds during the impact window. Damage starts at12+region, then uses the
+enemy's normal armor, guardian bond and boss shell. Airborne enemies remain
+exposed to this overhead strike; burrowed enemies and objective props are excluded.
+Other hazard kinds keep their existing player-only behavior.
+
+Saved per-hazard/per-enemy cooldowns allow one contact per cycle. A shared enemy
+cooldown of0.35s prevents overlapping rocks from stacking damage. These timers
+freeze with the run and clear at room start. Rock warnings and impact cues keep
+running even when no actor is hit. Player safe-area reservations do not shield
+monsters. Player and enemy contact cooldowns are independent.
+
+Damage reuses the enemy damage/defeat pipeline, preserving alerting, hurt sounds,
+interruptions, boss phase changes, shell breaks, defeat records and ordinary loot.
+Environmental hits do not borrow Berserker fury, rear-strike, summon-arrival or
+weak-point attack bonuses. They add no player damage, largest-hit, attack-chain,
+combo, practice-hit or boss-stagger credit, and cause no player-facing recoil.
+Boss shells still absorb a rock during a player weak-point opportunity. Normal
+practice reward suppression remains in force. Kill/loot credit rewards using the
+terrain, and the HP guard prevents duplicate death drops.
+
+The visible warning/impact label now says HITS ENEMIES while retaining movement
+and overhead-jump guidance. Existing rock and monster hurt/death effects and
+sounds are reused. Tests cover exact mitigation, saved contact, next cycle,
+warning/recovery/disabled/outside/burrow/prop/airborne rules, boss phase/shield,
+kill/drop deduplication, player-bonus isolation, overlap, pause, room cleanup and
+practice rewards. Implements0456.
+
+The isolated enemy-rock browser fixture starts a real paused run just before an
+impact with one low-health monster under the rock. Resuming verifies server-side
+defeat, exactly one normal drop, zero player damage/combo credit, and persistence
+after reload. This complements engine mitigation and lifecycle tests; it is not
+a performance measurement.

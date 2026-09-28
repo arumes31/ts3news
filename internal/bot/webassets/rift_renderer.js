@@ -1425,7 +1425,7 @@
         const seconds=(Math.ceil(Math.max(0,remaining-1e-9)*10)/10).toFixed(1)+'s';
         const label=active?(h.jumpable===true?'JUMP':'MOVE')+' · '+seconds:warning?(h.kind==='falling_rock'?'ROCK FALL':h.kind.toUpperCase())+' IN '+seconds:'SAFE · '+seconds;
         ctx.globalAlpha=1;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=warning||active?color:'#b5edce';ctx.strokeStyle='#10221d';ctx.lineWidth=3;
-        interactionPrompt(label,x+h.w/2,h.y-6,true);
+        interactionPrompt(label+(h.kind==='falling_rock'&&(warning||active)?' · HITS ENEMIES':''),x+h.w/2,h.y-6,true);
         // Current floor hazards remain harmful throughout their active interval.
         if(warning||active){
           const duration=(Math.ceil(Math.max(0,h.duration-1e-9)*10)/10).toFixed(1)+'s';

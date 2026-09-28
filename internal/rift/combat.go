@@ -1310,6 +1310,10 @@ func (r *Run) hurtEnemy(i int, damage float64, effect string) {
 }
 
 func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce float64) {
+	r.applyEnemyDamage(i, damage, effect, pierce, false)
+}
+
+func (r *Run) applyEnemyDamage(i int, damage float64, effect string, pierce float64, fromHazard bool) {
 	e := &r.Enemies[i]
 	if e.HP <= 0 {
 		return
@@ -1317,10 +1321,10 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if !e.Alerted && e.Patrol {
 		r.alertEnemy(i)
 	}
-	if r.BerserkerFury() {
+	if !fromHazard && r.BerserkerFury() {
 		damage *= 1.15
 	}
-	if e.Summoned && e.ArrivalVulnerability > 0 {
+	if !fromHazard && e.Summoned && e.ArrivalVulnerability > 0 {
 		damage *= 1.30
 		r.Stats.SummonPunishes++
 		r.eventAtHeight("summon_punish", e.X, e.Y-25, damage, e.Elevation)
@@ -1332,7 +1336,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if e.ArtKey == "" && e.Kind == "boss" {
 		armor = .15
 	}
-	if e.Kind == "boss" && e.WeakPoint > 0 {
+	if !fromHazard && e.Kind == "boss" && e.WeakPoint > 0 {
 		damage *= 1.25
 	}
 	hitDir := r.Player.Facing
@@ -1340,7 +1344,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		hitDir = math.Copysign(1, e.X-r.Player.X)
 	}
 	isRearHit := (hitDir == e.Facing)
-	if isRearHit && (e.Kind == "knight" || e.Shield) {
+	if !fromHazard && isRearHit && (e.Kind == "knight" || e.Shield) {
 		armor = 0.05
 		r.Stats.RearStrikes++
 		r.eventAtHeight("backstab", e.X, e.Y-25, damage, e.Elevation)
@@ -1356,7 +1360,7 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	if r.guardianBondActive(e.ID) {
 		damage *= .5
 	}
-	if e.Kind == "boss" && e.BossShieldHP > 0 && e.WeakPoint <= 0 {
+	if e.Kind == "boss" && e.BossShieldHP > 0 && (fromHazard || e.WeakPoint <= 0) {
 		damage = r.absorbBossShield(e, damage)
 		if damage <= 0 {
 			return
@@ -1369,9 +1373,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 	}
 	prevHP := e.HP
 	e.HP = math.Max(0, e.HP-damage)
-	r.Stats.DamageDealt += damage
-	r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
-	if damage > 0 {
+	if !fromHazard {
+		r.Stats.DamageDealt += damage
+		r.Stats.LargestHit = math.Max(r.Stats.LargestHit, damage)
+	}
+	if damage > 0 && !fromHazard {
 		r.AttackChain++
 		r.Stats.HighestAttackChain = max(r.Stats.HighestAttackChain, r.AttackChain)
 		comboBonus := 25
@@ -1403,6 +1409,9 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 		recoilDist *= (1.0 - e.StunResist*0.6)
 	}
 	e.RecoilX = hitDir * recoilDist
+	if fromHazard {
+		e.RecoilX = 0
+	}
 	r.eventAtHeight(effect, e.X, e.Y-30, damage, e.Elevation)
 	if damage > 0 {
 		r.interruptBossChannel(e)
@@ -1440,9 +1449,11 @@ func (r *Run) hurtEnemyPiercing(i int, damage float64, effect string, pierce flo
 			e.PoseTime = math.Max(e.PoseTime, .6)
 		}
 	}
-	r.addBossStagger(e, damage)
+	if !fromHazard {
+		r.addBossStagger(e, damage)
+	}
 	if r.Practice != nil {
-		if damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
+		if !fromHazard && damage > 0 && e.ID == "practice-target" && (effect == "hit" || strings.HasPrefix(effect, "hit_")) {
 			r.Practice.Hits++
 		}
 		if r.Practice.Mode != "boss" && e.ID != "practice-enemy" {
