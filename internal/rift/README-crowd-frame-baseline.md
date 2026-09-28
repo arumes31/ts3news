@@ -87,3 +87,21 @@ through source canvases, preserving their original behavior assertions. A disk-f
 Go linker failure interrupted the first prop-crop test before it could run;
 clearing the reproducible Go build cache allowed the actual comparison to finish.
 No source, player data or measurement artifacts were removed.
+
+## Current profile after shelter verification
+
+A new instrumented capture at1aa78c5b lasted61.471s with405 rendered frames.
+Of61.462s sampled CPU time,22.512s self time was attributed to native save under
+actor; actor's inclusive time was38.281s and catalogActor's8.167s. Earlier native
+restore cost appeared under the scenery callback. The dominant attribution thus
+moved after the retained cover-alpha change. Canvas may charge deferred drawing
+to a subsequent state operation; this is not evidence that removing actor saves
+would remove22.5s of rendering work. Next isolate the preceding image draws and
+state boundaries with explicitly diagnostic timing before changing more rendering.
+
+Only four cache entries /267288 calculated bytes were retained (12571hits,
+4misses). There was no cache churn. Instrumented interval p95/p99 were216.7/266.7ms,
+render p95 was167.9ms. These are diagnostic observations, not a new gate result.
+The local raw profile is in test-results/crowd-profile-after-shelters-20260928;
+its compact aggregate is tests/performance/baselines/crowd-after-shelters-profile-2026-09-28.json.
+No performance improvement or physical-device result is claimed by this capture.

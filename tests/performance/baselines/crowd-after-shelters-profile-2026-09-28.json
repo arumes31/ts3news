@@ -1,0 +1,110 @@
+{
+  "scope": "Instrumented CPU diagnostic only; no performance-gate verdict or physical-device claim.",
+  "source": {
+    "revision": "1aa78c5b243d0acd7e88aab62b2b92926bbbf750",
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b"
+  },
+  "durationMS": 61470.5,
+  "sampledMS": 61462.36,
+  "frames": 405,
+  "intervalP95": 216.6999999999971,
+  "intervalP99": 266.6999999999971,
+  "renderP95": 167.8999999910593,
+  "cache": {
+    "entries": 4,
+    "bytes": 267288,
+    "limitBytes": 8388608,
+    "hits": 12571,
+    "misses": 4
+  },
+  "topSelf": [
+    {
+      "function": "save",
+      "line": 0,
+      "ms": 22511.615
+    },
+    {
+      "function": "(program)",
+      "line": 0,
+      "ms": 16030.192
+    },
+    {
+      "function": "actor",
+      "line": 812,
+      "ms": 3891.416
+    },
+    {
+      "function": "drawImage",
+      "line": 0,
+      "ms": 2080.772
+    },
+    {
+      "function": "renderFrame",
+      "line": 1234,
+      "ms": 1126.091
+    },
+    {
+      "function": "drawImage",
+      "line": 0,
+      "ms": 984.899
+    },
+    {
+      "function": "catalogActor",
+      "line": 1168,
+      "ms": 978.471
+    },
+    {
+      "function": "",
+      "line": 2036,
+      "ms": 959.31
+    }
+  ],
+  "topInclusive": [
+    {
+      "function": "(root)",
+      "line": 0,
+      "ms": 61462.36
+    },
+    {
+      "function": "render",
+      "line": 1226,
+      "ms": 44570.891
+    },
+    {
+      "function": "renderFrame",
+      "line": 1234,
+      "ms": 44218.357
+    },
+    {
+      "function": "",
+      "line": 2036,
+      "ms": 39323.125
+    },
+    {
+      "function": "actor",
+      "line": 812,
+      "ms": 38281.301
+    },
+    {
+      "function": "save",
+      "line": 0,
+      "ms": 22511.615
+    },
+    {
+      "function": "(program)",
+      "line": 0,
+      "ms": 16030.192
+    },
+    {
+      "function": "catalogActor",
+      "line": 1168,
+      "ms": 8167.394
+    },
+    {
+      "function": "drawAtlas",
+      "line": 639,
+      "ms": 2360.312
+    }
+  ],
+  "interpretation": "Dominant native cost moved from scenery restore in earlier profiles to actor save. Native samples may include deferred canvas drawing; this does not establish state-save overhead as the cause."
+}
