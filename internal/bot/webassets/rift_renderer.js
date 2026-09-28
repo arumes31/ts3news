@@ -249,7 +249,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['regions','props','items','effects'];
+  const criticalAtlasKeys = ['regions','props','effects'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -677,10 +677,22 @@
       return sceneLoads.get(key);
     }));
   }
+  let lootLoad=null,lootRetry=0;
+  function prepareLootArt(run){
+    if(!run||images.items)return Promise.resolve();
+    if(!lootLoad){
+      const url=root.dataset.items,src=url+(lootRetry?(url.includes('?')?'&':'?')+'retry='+lootRetry:'');
+      lootLoad=loadDecodedAtlas(src).then(img=>{
+        if(img.width!==1254||img.height!==1254)throw new Error('Loot artwork dimensions differ.');
+        images.items=img;
+      }).catch(()=>{lootLoad=null;lootRetry++;throw new Error('Could not load loot artwork. Recover to try again.');});
+    }
+    return lootLoad;
+  }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
-    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),prepareSceneArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
+    await Promise.all([prepareLootArt(run),renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),prepareSceneArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
     if(Number.isInteger(run?.level?.region)&&run.level.id%10===0&&run.level.id<100){
       const next=run.level.region+1;
       if(run.status==='cleared'&&run.room===2)await prepareRegion(next);

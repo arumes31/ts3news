@@ -6,7 +6,7 @@ test('campaign and bestiary art reuse renderer atlas versions',async({page})=>{
   const root=document.getElementById('rift-app');
   return [...window.RiftRenderer.getCriticalAtlasKeys().map(key=>key==='props'?RiftPropSections.panels[0].url:key==='regions'?RiftRegionSections.regions[0].url:root.dataset[key]),...window.RiftBestiary.assets.map(path=>window.RiftBestiary.assetURL(path)),...RiftRegionSections.regions.map(region=>region.url)].map(url=>new URL(url,location.href).href);
  });
- expect(new Set(required).size).toBe(17);
+ expect(new Set(required).size).toBe(16);
  await page.locator('details').filter({has:page.locator('#rift-monsters')}).locator(':scope > summary').click();
  await expect(page.locator('#rift-monsters > article')).not.toHaveCount(0);
  await page.locator('#rift-monsters > article').first().getByRole('button',{name:/Inspect/}).click();
@@ -24,6 +24,6 @@ test('campaign and bestiary art reuse renderer atlas versions',async({page})=>{
   expect(new URL(url).searchParams.get('v')).toBeTruthy();
   const matches=requested.filter(value=>new URL(value).pathname===new URL(url).pathname);
   // Offscreen mission thumbnails remain lazy; every requested atlas uses one version.
-  if(required.indexOf(url)<8||matches.length)expect(matches,url).toEqual([url]);
+  if(required.indexOf(url)<7||matches.length)expect(matches,url).toEqual([url]);
  }
 });

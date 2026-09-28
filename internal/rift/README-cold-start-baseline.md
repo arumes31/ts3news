@@ -699,3 +699,25 @@ Mission1 now requests172,720 prop image bytes instead of1,553,373, avoiding
 1,380,653 bytes of prop artwork. This is request-selection evidence, not a new
 throttled timing result. The latest measured capture remains65fd72f7 and does
 not include this integration; performance and release gates remain unpassed.
+
+
+## Loot artwork prepares with encounters (2026-09-28)
+
+The floor-loot atlas has no idle preview consumers. It now loads for every real
+run before the first snapshot is displayed, including saved, completed, legacy
+and practice runs. Initial preview readiness requires regions, props and effects;
+full item artwork remains available before any combat or floor drop rendering.
+A shared promise deduplicates preparation. Invalid1254x1254 dimensions or failed
+decode reject readiness, and recovery retries with a fresh URL.
+
+Session77324 failed both new idle/retry checks against the eager loader, as
+expected. Session81266 then passed15 browser checks (1.3m), including held decode
+for new and saved runs, concurrent retry, all300 scenes/26,254 draws/12 item source
+cells, and both seamless tier/mission journeys. Existing asset priority, progress,
+version reuse and decode compatibility checks also pass. User Go diff unchanged.
+
+This moves1,392,338 image body bytes from idle preview to encounter preparation;
+it does not remove those bytes from first-fight loading or establish a speedup.
+The latest measured first-fight capture65fd72f7 predates both regional props and
+this change. A new matched measurement must report both milestones and retain
+all existing budgets. Performance and release gates remain unpassed.
