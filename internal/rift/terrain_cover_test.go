@@ -113,7 +113,7 @@ func TestTerrainCoverCampaignPlacement(t *testing.T) {
 	wood, stone := 0, 0
 	for _, level := range Campaign() {
 		for room, arena := range level.Rooms {
-			want := room == 0 && (level.ID%10 == 2 || level.ID%10 == 4)
+			want := room == 0 && (level.ID%10 == 2 || level.ID%10 == 4) || room == 1 && level.ID%10 == 7
 			if (len(arena.Cover) == 1) != want {
 				t.Fatalf("wrong cover placement %d/%d", level.ID, room)
 			}
@@ -132,7 +132,7 @@ func TestTerrainCoverCampaignPlacement(t *testing.T) {
 			}
 		}
 	}
-	if wood != 10 || stone != 10 {
+	if wood != 20 || stone != 10 {
 		t.Fatalf("wood=%d stone=%d", wood, stone)
 	}
 }

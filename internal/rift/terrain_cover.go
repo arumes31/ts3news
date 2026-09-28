@@ -4,6 +4,7 @@ import "math"
 
 // TerrainCover is saved with the arena; broken wood stays broken on reload.
 type TerrainCover struct {
+	Shortcut bool `json:"shortcut,omitempty"`
 	Obstacle
 	ID       string  `json:"id"`
 	Material string  `json:"material"`

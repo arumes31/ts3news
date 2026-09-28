@@ -151,7 +151,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 1: separate linked guardians to remove their damage protection. Tier 2: destroy three ritual totems and defeat the patrol"
 			}
 			if layout == 6 {
-				level.Tactic += ". Tier 1: break both cages to rescue captive companions. Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying"
+				level.Tactic += ". Tier 1: break both cages to rescue captive companions. Tier 2: carry the relic to the exit seal; movement is 30% slower while carrying. Break the wooden barrier for a direct shortcut or use the upper and lower bypasses"
 			}
 			if layout == 7 {
 				level.Tactic += ". Tier 1: protect the ward lantern from nearby enemies. Tier 2: destroy the generators to shut down linked floor hazards"
@@ -315,6 +315,9 @@ func buildCampaign() []Level {
 				}
 				if region == 7 && room == 0 {
 					arena.HazardSwitch = &HazardSwitch{X: 370, Y: 475}
+				}
+				if layout == 6 && room == 1 {
+					arena.Cover = append(arena.Cover, TerrainCover{Obstacle: Obstacle{800 + float64(region*7+room*19), 360, 60 + float64(region%4)*3, 100}, ID: fmt.Sprintf("mission-%d-shortcut", id), Material: "wood", HP: 60, MaxHP: 60, Shortcut: true})
 				}
 				level.Rooms = append(level.Rooms, arena)
 			}

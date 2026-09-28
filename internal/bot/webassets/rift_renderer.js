@@ -1830,6 +1830,7 @@
         const opacity=broken?1:foregroundCoverOpacity(c.x-6,c.y+c.h-height,width,height,c.y+c.h);
         ctx.save();ctx.globalAlpha=opacity;
         ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
+        if(c.shortcut&&!display.cleanScreenshot){ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=broken?'#c4edbd':'#f5e4c3';ctx.strokeStyle='#13261c';ctx.lineWidth=3;interactionPrompt(broken?'SHORTCUT OPEN':'BREAK FOR SHORTCUT',c.x+c.w/2-camera,c.y+c.h+17,true);ctx.restore();}
         if(!display.cleanScreenshot&&!broken){const dx=c.x+c.w/2-run.player.x,dy=c.y+c.h/2-run.player.y,targeted=Math.abs(dx)<150&&Math.abs(dy)<65&&dx*run.player.facing>=-8;if(targeted){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#f5e4c3';ctx.strokeStyle='#201a14';ctx.lineWidth=3;const label=c.material==='stone'?'STONE · PERMANENT':'WOOD '+Math.ceil(c.hp)+' / '+c.max_hp;interactionPrompt(label,c.x+c.w/2-camera,c.y+c.h-height-13);if(c.material==='wood'){ctx.fillStyle='#30241b';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w,4);ctx.fillStyle='#dca766';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w*c.hp/c.max_hp,4);}}}
         return;
       }
