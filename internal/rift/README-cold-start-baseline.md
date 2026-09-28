@@ -397,3 +397,37 @@ API GET timeout. These sequential synthetic measurements remain above both the
 startup claim is made. The fixture was compiled from the frozen worktree, without
 a server-reported revision assertion. Safe evidence:
 [region-panel cold capture](../../tests/performance/baselines/cold-region-panels-2026-09-28.json).
+
+## Creature transport preparation (2026-09-28)
+
+Generated 32 lossless creature rows and a hashed manifest from the four unchanged
+shared Abyss atlases. Each row includes one neighboring pixel where available.
+Files range from 189,018 to 404,867 bytes; all rows total 9,741,417 bytes and the
+manifest is 6,525 bytes. The original sheets total 9,817,946 bytes. The intended
+benefit is preparing only required creatures, not a claim that splitting all
+sheets alone solves startup. Production loading is unchanged at this stage.
+
+    python scripts/build-brawl-creature-sections.py --write
+    python scripts/build-brawl-creature-sections.py --check
+
+The builder reads the authoritative shared rig order, asset list and uneven row
+boundaries, validates dimensions/counts, checks decoded RGBA bytes and hashes each
+output. Two Python tests verify borders, source pixels, unique row coverage,
+manifest hashes and invalid layout rejection.
+
+Directly drawing the cropped rows changed pixels in 39 of 1,536 browser cases,
+despite identical decoded PNG pixels. That approach is rejected. Reconstructing
+a row at its original atlas position instead passed all 1,536 cases: 256 actual
+shared-provider frames rendered 12,288 times over scale, flip, opacity, brightness
+and rotation combinations, with zero differing pixels. Reconstructing all four
+complete sheets in reverse row order also produced zero differing pixels.
+Overlapping borders must be cleared before copying so translucent pixels are not
+blended twice. These checks are in rift-creature-sections-pixels.spec.js.
+
+Runtime integration must preserve original source coordinates using shared
+canvases, limit permanent atlas surfaces, release temporary decoded rows, and
+verify memory costs. Encounter plans, saved wave groups, summons, practice and
+boss previews need readiness coverage; bestiary CSS must avoid downloading the
+full sheets again. First-fight waits must remain visible and measured rather
+than being excluded from startup merely by enabling Start earlier. None of that
+integration or its network benefit is claimed complete by this preparation.
