@@ -227,3 +227,25 @@ attributing total process growth to the application or declaring it stable.
 Original paths, IDs and heap strings remain only in the ignored local
 retention-review.json. No raw retaining paths belong in public release evidence.
 Ledger 0798 remains open for post-cap and process-memory verification.
+
+
+## Post-history-cap diagnostic
+
+Set `BRAWL_SESSION_POST_CAP=1` (leave `BRAWL_SESSION_SMOKE` unset) and run the
+same session-memory Playwright config with a new output directory. This performs
+one warmed sample, at least30 measured minutes and at least60 complete three-tier
+replays. It has a60-minute timeout; a timeout is incomplete evidence, not a pass.
+Normal mode remains three30-minute samples. Smoke and post-cap are mutually
+exclusive, and the mode is recorded explicitly in the report.
+
+The ordinary five-minute checkpoints remain, with mandatory additional snapshots
+after replay49,54,59 and60. Including the completed warmup, replay49 reaches the
+50-entry attempt-history limit. Every checkpoint records the actual history count;
+the four mandatory checkpoints must each contain50 entries. This establishes that
+the capture exercised pruning rather than assuming elapsed time reached the cap.
+Retained object paths and separate process memory must still be reviewed after
+the capture; numeric JS heap growth alone never closes0798. The existing public
+exporter deliberately does not classify this distinct mode as a standard three-
+sample gate result. Preserve raw heaps locally and export only reviewed aggregates.
+
+    node --test tests/performance/session-options.test.cjs

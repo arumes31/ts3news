@@ -3,14 +3,14 @@ const fs=require('node:fs');
 const os=require('node:os');
 const crypto=require('node:crypto');
 const {execFileSync}=require('node:child_process');
-const smoke=process.env.BRAWL_SESSION_SMOKE==='1';
-const durationMS=smoke?60000:30*60*1000;
+const options=require('../../scripts/brawl-session-options.cjs').sessionOptions(process.env);
+const {smoke,postCap,durationMS}=options;
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 
 const {summarizeHeap}=require('../../scripts/brawl-heap-summary.cjs');
 const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs');
 
-for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory sample ${sample}`,async({page,context,browser},info)=>{
+for(let sample=1;sample<=options.samples;sample++)test(`campaign session memory sample ${sample}`,async({page,context,browser},info)=>{
  const path=require('node:path'),output=info.outputPath('memory-report.json');
  fs.mkdirSync(path.dirname(output),{recursive:true});
  const sourceFile=path.join(path.dirname(path.dirname(output)),'fixture-source.json');
@@ -19,7 +19,7 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   fs.writeFileSync(sourceFile,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),dirtyFiles:git('status','--short'),patch,capturedAt:new Date().toISOString(),scope:'Checkout captured by first sample immediately after fresh shared fixture startup; no rebuild between samples.'},null,2)+'\n',{flag:'wx'});
  }
  const source=JSON.parse(fs.readFileSync(sourceFile,'utf8'));
- const report={startedAt:new Date().toISOString(),mode:smoke?'smoke (not a gate run)':'30 minutes of repeated complete three-tier missions',sample,durationMS,
+ const report={startedAt:new Date().toISOString(),mode:options.mode,sample,durationMS,
   server:{command:'go test -tags=e2e ./internal/bot -run TestAbyssE2EServer -count=1 -v -timeout=130m',managedFresh:true,revision:source.revision,trackedDiffSHA256:source.trackedDiffSHA256,dirtyFiles:source.dirtyFiles,sourceCapturedAt:source.capturedAt},
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},
   browser:browser.version(),profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,display:'lowPower',physicalMinimumDevice:false},
@@ -85,7 +85,9 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
  async function checkpoint(index,snapshot){
   await page.waitForTimeout(2000);await session.send('HeapProfiler.collectGarbage');
   await page.waitForTimeout(1000);await session.send('HeapProfiler.collectGarbage');
-  const point={mission:index,elapsedMS:sampleStarted?Date.now()-sampleStarted:0,at:new Date().toISOString(),heap:await session.send('Runtime.getHeapUsage'),dom:await session.send('Memory.getDOMCounters')};
+  const current=await read();
+  const attemptHistoryCount=(current.attempt_history||[]).length;expect(attemptHistoryCount).toBeLessThanOrEqual(50);
+  const point={attemptHistoryCount,mission:index,elapsedMS:sampleStarted?Date.now()-sampleStarted:0,at:new Date().toISOString(),heap:await session.send('Runtime.getHeapUsage'),dom:await session.send('Memory.getDOMCounters')};
   const processes=(await browserSession.send('SystemInfo.getProcessInfo')).processInfo;
   const ids=processes.map(p=>p.id);expect(ids.every(id=>Number.isSafeInteger(id)&&id>0)).toBe(true);
   const memory=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',
@@ -128,9 +130,9 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   // Warm all three tiers and their boss before the completed-mission baseline.
   await expedition('warmup');await page.waitForTimeout(5000);await checkpoint(0,true);
   sampleStarted=Date.now();let index=0,nextCheckpoint=smoke?durationMS:5*60*1000;
-  while(Date.now()-sampleStarted<durationMS){
+  while(Date.now()-sampleStarted<durationMS||index<options.minimumReplays){
    await expedition(++index);
-   if(Date.now()-sampleStarted>=nextCheckpoint){await checkpoint(index,true);nextCheckpoint=Date.now()-sampleStarted+5*60*1000;}
+   if(Date.now()-sampleStarted>=nextCheckpoint||options.replayCheckpoints.includes(index)){await checkpoint(index,true);nextCheckpoint=Date.now()-sampleStarted+5*60*1000;}
   }
   if(report.checkpoints.at(-1).mission!==index)await checkpoint(index,true);
   report.measuredDurationMS=Date.now()-sampleStarted;
@@ -138,6 +140,13 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   expect(new Set(report.expeditions.map(e=>e.id)).size).toBe(index+1);
   const first=report.checkpoints[0],last=report.checkpoints.at(-1);
   report.growthBytes=last.heap.usedSize-first.heap.usedSize;
+  if(postCap){
+   const capped=report.checkpoints.filter(p=>options.replayCheckpoints.includes(p.mission));
+   expect(index).toBeGreaterThanOrEqual(options.minimumReplays);
+   expect(capped.map(p=>p.mission)).toEqual(options.replayCheckpoints);
+   expect(capped.every(p=>p.attemptHistoryCount===50)).toBe(true);
+   report.postCap={minimumReplays:options.minimumReplays,checkpoints:capped.map(p=>({mission:p.mission,attemptHistoryCount:p.attemptHistoryCount,heapBytes:p.heap.usedSize})),growthBytes:capped.at(-1).heap.usedSize-capped[0].heap.usedSize,review:'retaining paths and process memory still require review'};
+  }
   report.heapSizeGate=report.growthBytes<=10*1048576?'pass':'fail';
   const final=report.checkpoints.slice(-5);
   report.finalFive=final.map(p=>({mission:p.mission,usedSize:p.heap.usedSize,...p.dom}));
