@@ -96,6 +96,10 @@ filling; the overall restart memory gate is not passed. The [authored boss frame
 complete encounters on the development profile; all three fail the frame budget.
 The [paused crowd120 baseline](README-crowd-frame-baseline.md) also fails all three
 frame thresholds in each of its three full 60-second development captures.
+The [cached-startup baseline](README-warm-start-baseline.md) passed the development
+profile in all three samples (1.713/2.047/1.740 seconds), with 20 cached artwork
+images per sample and no browser/request errors. This does not change the failed
+cold-start result or establish physical-device support.
 The physical-device, ordinary frame, input and30-minute session gates
 remain unmeasured against this budget. Do not mark them passed from overlays or
 seeded fixtures.

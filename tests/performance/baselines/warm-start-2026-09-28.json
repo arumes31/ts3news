@@ -1,0 +1,1857 @@
+{
+  "samples": [
+    {
+      "sample": 1,
+      "startedAt": "2026-09-28T03:06:24.231Z",
+      "revision": "09cd719c6f4ff1efaf4abb7d5c498892a638b477",
+      "trackedDiffSHA256": "36b56a8bfa9ad6e465761e00e00210f7340caab0b2cec80e61a7df353ab0362f",
+      "dirtyFiles": "M internal/rift/combat.go\n M internal/rift/monsters.go\n M internal/rift/stats.go\n?? playwright.warm-performance.config.js\n?? tests/performance/rift-warm-start.spec.js",
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "freeRAM": 49529614336
+      },
+      "browser": "153.0.8010.12",
+      "profile": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "network": {
+          "latency": 150,
+          "downloadThroughput": 200000,
+          "uploadThroughput": 93750
+        },
+        "headless": true,
+        "physicalMinimumDevice": false
+      },
+      "server": "fresh managed e2e fixture compiled from this checkout; synthetic player only",
+      "scenario": "/abyss/rift",
+      "thresholdMS": 3000,
+      "errors": [],
+      "gate": "development profile pass only",
+      "command": "node node_modules/@playwright/test/cli.js test --config=playwright.warm-performance.config.js",
+      "build": {
+        "class_scaling": "DEF",
+        "equipment": {},
+        "base_class": "warrior",
+        "class_name": "Vanguard",
+        "resource": "Resolve",
+        "sequence": "Brace behind a barrier, then spend Resolve on a shield-breaking retaliation.",
+        "signatures": [
+          {
+            "role": "builder",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_build",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 0,
+            "cost": 15,
+            "cooldown": 3,
+            "icon": "⚔",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "role": "finisher",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_finish",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 1.7,
+            "cost": 30,
+            "cooldown": 4.5,
+            "icon": "⚔",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "ultimate": {
+          "id": "fixture_ultimate",
+          "name": "Rift Nova",
+          "kind": "ultimate",
+          "power": 5,
+          "cost": 70,
+          "cooldown": 18,
+          "icon": "★",
+          "reference": {
+            "target": "area",
+            "horizontal": 450,
+            "depth": 180,
+            "healing": 0,
+            "barrier": false
+          }
+        },
+        "owned_ultimates": [
+          "Rift Nova"
+        ],
+        "pets": 2,
+        "relic": false,
+        "name": "Rowan",
+        "class": "vanguard",
+        "level": 24,
+        "hp": 340,
+        "damage": 32,
+        "armor": 12,
+        "weapon": "Mossbound Longsword",
+        "skills": [
+          {
+            "id": "guard",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 1.5,
+            "cost": 18,
+            "cooldown": 5,
+            "icon": "✦",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "id": "bash",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 2.4,
+            "cost": 22,
+            "cooldown": 3,
+            "icon": "✦",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          },
+          {
+            "id": "spark",
+            "name": "Cinder Bolt",
+            "kind": "fire",
+            "power": 2,
+            "cost": 20,
+            "cooldown": 2,
+            "icon": "✦",
+            "reference": {
+              "travel": 1325,
+              "spawn_offset": 35,
+              "target": "projectile",
+              "horizontal": 35,
+              "depth": 30,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "gear": [
+          "Mossbound Longsword",
+          "Warden's Aegis",
+          "Lanternkeeper's Cloak"
+        ]
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "warmedArt": [
+        "/static/rift_props.png",
+        "/static/rift_area.png",
+        "/static/rift_regions.png",
+        "/static/rift_mobs.png",
+        "/static/rift_items.png",
+        "/static/rift_effects.png",
+        "/static/rift_sigil.png",
+        "/static/rift_totem.png",
+        "/static/rift_relic.png",
+        "/static/rift_generator.png",
+        "/static/rift_spirit.png",
+        "/static/rift_cage.png",
+        "/static/rift_lantern.png",
+        "/static/rift_terrain_cover.png",
+        "/static/rift_platform_surface.png",
+        "/static/abyss_combat_roles_v2.png",
+        "/static/abyss_combat_creatures_v2.png",
+        "/static/abyss_combat_bestiary_v2.png",
+        "/static/abyss_combat_bosses_v2.png",
+        "/static/rift_heroes_a.png"
+      ],
+      "capture": {
+        "readyMS": 1712.9000000059605,
+        "hidden": false,
+        "atlas": {
+          "loaded": 15,
+          "total": 15,
+          "ready": true
+        },
+        "button": "Enter the ruins →",
+        "navigation": {
+          "name": "http://127.0.0.1:18098/abyss/rift",
+          "entryType": "navigation",
+          "startTime": 0,
+          "duration": 1131.7000000029802,
+          "navigationId": 9388,
+          "initiatorType": "navigation",
+          "deliveryType": "",
+          "nextHopProtocol": "http/1.1",
+          "renderBlockingStatus": "non-blocking",
+          "contentType": "text/html",
+          "contentEncoding": "",
+          "workerStart": 0,
+          "workerRouterEvaluationStart": 0,
+          "workerCacheLookupStart": 0,
+          "workerMatchedSourceType": "",
+          "workerFinalSourceType": "",
+          "redirectStart": 0,
+          "redirectEnd": 0,
+          "fetchStart": 0.20000000298023224,
+          "domainLookupStart": 0.20000000298023224,
+          "domainLookupEnd": 0.20000000298023224,
+          "connectStart": 0.20000000298023224,
+          "secureConnectionStart": 0,
+          "connectEnd": 0.20000000298023224,
+          "requestStart": 6.700000002980232,
+          "responseStart": 7.9000000059604645,
+          "firstInterimResponseStart": 0,
+          "finalResponseHeadersStart": 7.9000000059604645,
+          "responseEnd": 638,
+          "transferSize": 93210,
+          "encodedBodySize": 92910,
+          "decodedBodySize": 92910,
+          "responseStatus": 200,
+          "serverTiming": [],
+          "unloadEventStart": 0,
+          "unloadEventEnd": 0,
+          "domInteractive": 720.6000000014901,
+          "domContentLoadedEventStart": 1070,
+          "domContentLoadedEventEnd": 1070.9000000059605,
+          "domComplete": 1131.4000000059605,
+          "loadEventStart": 1131.7000000029802,
+          "loadEventEnd": 1131.7000000029802,
+          "type": "navigate",
+          "redirectCount": 0,
+          "activationStart": 0,
+          "criticalCHRestart": 0,
+          "notRestoredReasons": null,
+          "confidence": {
+            "randomizedTriggerRate": 0.4994798,
+            "value": "high"
+          }
+        },
+        "resources": [
+          {
+            "path": "/static/style.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 81356,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_catalog_icons.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 436627,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/favicon.svg",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1682,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 89265,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_props.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1553373,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_art.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 37884,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_bestiary.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 17129,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 58348,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio_settings.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6312,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_display.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15301,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loot.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 16175,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_renderer.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 173197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_campaign.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 21234,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mission.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10845,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loadout.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15269,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_records.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 13964,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_minimap.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6387,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_hud.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 74414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_abilities.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10928,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_protocol.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 35050,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_controls.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 12973,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_walkthrough.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 5414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_gamepad.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8035,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_jump.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1675,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_intents.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7618,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_feedback.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7797,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_haptics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_boss_intro.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1865,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_objectives.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 4768,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_compare.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8119,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_challenges.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2778,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_diagnostics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6037,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 128467,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_area.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3149894,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_regions.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3222009,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mobs.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2782428,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_items.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1392338,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_effects.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1332867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_sigil.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 897704,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_totem.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1056080,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_relic.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1472918,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_generator.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1175989,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_spirit.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 564197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_cage.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2228684,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_lantern.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 844782,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_terrain_cover.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1484178,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_platform_surface.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2771164,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_roles_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2217154,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_creatures_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2474580,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bestiary_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2445858,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bosses_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2680354,
+            "durationMS": 0
+          },
+          {
+            "path": "/api/abyss/rift",
+            "transferBytes": 5119,
+            "encodedBodyBytes": 4819,
+            "durationMS": 183.09999999403954
+          },
+          {
+            "path": "/api/abyss/rift/metadata",
+            "transferBytes": 300,
+            "encodedBodyBytes": 313975,
+            "durationMS": 172.29999999701977
+          },
+          {
+            "path": "/static/rift_heroes_a.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2704155,
+            "durationMS": 0
+          }
+        ]
+      },
+      "uncachedArt": [],
+      "transferBytes": 98629,
+      "scope": "Three independent cache-warmed contexts, one navigation each; cache retained across about:blank, no request interception. Measures enabled Start, not first fight, physical hardware or cold startup."
+    },
+    {
+      "sample": 2,
+      "startedAt": "2026-09-28T03:06:32.897Z",
+      "revision": "09cd719c6f4ff1efaf4abb7d5c498892a638b477",
+      "trackedDiffSHA256": "36b56a8bfa9ad6e465761e00e00210f7340caab0b2cec80e61a7df353ab0362f",
+      "dirtyFiles": "M internal/rift/combat.go\n M internal/rift/monsters.go\n M internal/rift/stats.go\n?? playwright.warm-performance.config.js\n?? tests/performance/rift-warm-start.spec.js",
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "freeRAM": 49308016640
+      },
+      "browser": "153.0.8010.12",
+      "profile": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "network": {
+          "latency": 150,
+          "downloadThroughput": 200000,
+          "uploadThroughput": 93750
+        },
+        "headless": true,
+        "physicalMinimumDevice": false
+      },
+      "server": "fresh managed e2e fixture compiled from this checkout; synthetic player only",
+      "scenario": "/abyss/rift",
+      "thresholdMS": 3000,
+      "errors": [],
+      "gate": "development profile pass only",
+      "command": "node node_modules/@playwright/test/cli.js test --config=playwright.warm-performance.config.js",
+      "build": {
+        "class_scaling": "DEF",
+        "equipment": {},
+        "base_class": "warrior",
+        "class_name": "Vanguard",
+        "resource": "Resolve",
+        "sequence": "Brace behind a barrier, then spend Resolve on a shield-breaking retaliation.",
+        "signatures": [
+          {
+            "role": "builder",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_build",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 0,
+            "cost": 15,
+            "cooldown": 3,
+            "icon": "⚔",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "role": "finisher",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_finish",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 1.7,
+            "cost": 30,
+            "cooldown": 4.5,
+            "icon": "⚔",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "ultimate": {
+          "id": "fixture_ultimate",
+          "name": "Rift Nova",
+          "kind": "ultimate",
+          "power": 5,
+          "cost": 70,
+          "cooldown": 18,
+          "icon": "★",
+          "reference": {
+            "target": "area",
+            "horizontal": 450,
+            "depth": 180,
+            "healing": 0,
+            "barrier": false
+          }
+        },
+        "owned_ultimates": [
+          "Rift Nova"
+        ],
+        "pets": 2,
+        "relic": false,
+        "name": "Rowan",
+        "class": "vanguard",
+        "level": 24,
+        "hp": 340,
+        "damage": 32,
+        "armor": 12,
+        "weapon": "Mossbound Longsword",
+        "skills": [
+          {
+            "id": "guard",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 1.5,
+            "cost": 18,
+            "cooldown": 5,
+            "icon": "✦",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "id": "bash",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 2.4,
+            "cost": 22,
+            "cooldown": 3,
+            "icon": "✦",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          },
+          {
+            "id": "spark",
+            "name": "Cinder Bolt",
+            "kind": "fire",
+            "power": 2,
+            "cost": 20,
+            "cooldown": 2,
+            "icon": "✦",
+            "reference": {
+              "travel": 1325,
+              "spawn_offset": 35,
+              "target": "projectile",
+              "horizontal": 35,
+              "depth": 30,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "gear": [
+          "Mossbound Longsword",
+          "Warden's Aegis",
+          "Lanternkeeper's Cloak"
+        ]
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "warmedArt": [
+        "/static/rift_props.png",
+        "/static/rift_area.png",
+        "/static/rift_regions.png",
+        "/static/rift_mobs.png",
+        "/static/rift_items.png",
+        "/static/rift_effects.png",
+        "/static/rift_sigil.png",
+        "/static/rift_totem.png",
+        "/static/rift_relic.png",
+        "/static/rift_generator.png",
+        "/static/rift_spirit.png",
+        "/static/rift_cage.png",
+        "/static/rift_lantern.png",
+        "/static/rift_terrain_cover.png",
+        "/static/rift_platform_surface.png",
+        "/static/abyss_combat_roles_v2.png",
+        "/static/abyss_combat_creatures_v2.png",
+        "/static/abyss_combat_bestiary_v2.png",
+        "/static/abyss_combat_bosses_v2.png",
+        "/static/rift_heroes_a.png"
+      ],
+      "capture": {
+        "readyMS": 2046.5,
+        "hidden": false,
+        "atlas": {
+          "loaded": 15,
+          "total": 15,
+          "ready": true
+        },
+        "button": "Enter the ruins →",
+        "navigation": {
+          "name": "http://127.0.0.1:18098/abyss/rift",
+          "entryType": "navigation",
+          "startTime": 0,
+          "duration": 1358.6999999955297,
+          "navigationId": 9777,
+          "initiatorType": "navigation",
+          "deliveryType": "",
+          "nextHopProtocol": "http/1.1",
+          "renderBlockingStatus": "non-blocking",
+          "contentType": "text/html",
+          "contentEncoding": "",
+          "workerStart": 0,
+          "workerRouterEvaluationStart": 0,
+          "workerCacheLookupStart": 0,
+          "workerMatchedSourceType": "",
+          "workerFinalSourceType": "",
+          "redirectStart": 0,
+          "redirectEnd": 0,
+          "fetchStart": 0.09999999403953552,
+          "domainLookupStart": 0.09999999403953552,
+          "domainLookupEnd": 0.09999999403953552,
+          "connectStart": 0.09999999403953552,
+          "secureConnectionStart": 0,
+          "connectEnd": 0.09999999403953552,
+          "requestStart": 0.8999999985098839,
+          "responseStart": 2,
+          "firstInterimResponseStart": 0,
+          "finalResponseHeadersStart": 2,
+          "responseEnd": 638.6999999955297,
+          "transferSize": 93210,
+          "encodedBodySize": 92910,
+          "decodedBodySize": 92910,
+          "responseStatus": 200,
+          "serverTiming": [],
+          "unloadEventStart": 0,
+          "unloadEventEnd": 0,
+          "domInteractive": 771.6999999955297,
+          "domContentLoadedEventStart": 1245.7999999970198,
+          "domContentLoadedEventEnd": 1247.2999999970198,
+          "domComplete": 1358.3999999985099,
+          "loadEventStart": 1358.6999999955297,
+          "loadEventEnd": 1358.6999999955297,
+          "type": "navigate",
+          "redirectCount": 0,
+          "activationStart": 0,
+          "criticalCHRestart": 0,
+          "notRestoredReasons": null,
+          "confidence": {
+            "randomizedTriggerRate": 0.4994798,
+            "value": "high"
+          }
+        },
+        "resources": [
+          {
+            "path": "/static/style.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 81356,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_catalog_icons.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 436627,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/favicon.svg",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1682,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 89265,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_props.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1553373,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_art.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 37884,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_bestiary.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 17129,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 58348,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio_settings.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6312,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_display.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15301,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loot.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 16175,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_renderer.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 173197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_campaign.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 21234,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mission.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10845,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loadout.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15269,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_records.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 13964,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_minimap.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6387,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_hud.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 74414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_abilities.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10928,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_protocol.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 35050,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_controls.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 12973,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_walkthrough.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 5414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_gamepad.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8035,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_jump.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1675,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_intents.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7618,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_feedback.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7797,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_haptics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_boss_intro.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1865,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_objectives.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 4768,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_compare.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8119,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_challenges.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2778,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_diagnostics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6037,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 128467,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_area.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3149894,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_regions.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3222009,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mobs.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2782428,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_items.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1392338,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_effects.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1332867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_sigil.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 897704,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_totem.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1056080,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_relic.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1472918,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_generator.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1175989,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_spirit.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 564197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_cage.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2228684,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_lantern.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 844782,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_terrain_cover.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1484178,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_platform_surface.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2771164,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_roles_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2217154,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_creatures_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2474580,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bestiary_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2445858,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bosses_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2680354,
+            "durationMS": 0
+          },
+          {
+            "path": "/api/abyss/rift",
+            "transferBytes": 5119,
+            "encodedBodyBytes": 4819,
+            "durationMS": 191.20000000298023
+          },
+          {
+            "path": "/api/abyss/rift/metadata",
+            "transferBytes": 300,
+            "encodedBodyBytes": 313975,
+            "durationMS": 178.60000000149012
+          },
+          {
+            "path": "/static/rift_heroes_a.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2704155,
+            "durationMS": 18.80000000447035
+          }
+        ]
+      },
+      "uncachedArt": [],
+      "transferBytes": 98629,
+      "scope": "Three independent cache-warmed contexts, one navigation each; cache retained across about:blank, no request interception. Measures enabled Start, not first fight, physical hardware or cold startup."
+    },
+    {
+      "sample": 3,
+      "startedAt": "2026-09-28T03:06:40.977Z",
+      "revision": "09cd719c6f4ff1efaf4abb7d5c498892a638b477",
+      "trackedDiffSHA256": "36b56a8bfa9ad6e465761e00e00210f7340caab0b2cec80e61a7df353ab0362f",
+      "dirtyFiles": "M internal/rift/combat.go\n M internal/rift/monsters.go\n M internal/rift/stats.go\n?? playwright.warm-performance.config.js\n?? tests/performance/rift-warm-start.spec.js",
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "freeRAM": 49348444160
+      },
+      "browser": "153.0.8010.12",
+      "profile": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "network": {
+          "latency": 150,
+          "downloadThroughput": 200000,
+          "uploadThroughput": 93750
+        },
+        "headless": true,
+        "physicalMinimumDevice": false
+      },
+      "server": "fresh managed e2e fixture compiled from this checkout; synthetic player only",
+      "scenario": "/abyss/rift",
+      "thresholdMS": 3000,
+      "errors": [],
+      "gate": "development profile pass only",
+      "command": "node node_modules/@playwright/test/cli.js test --config=playwright.warm-performance.config.js",
+      "build": {
+        "class_scaling": "DEF",
+        "equipment": {},
+        "base_class": "warrior",
+        "class_name": "Vanguard",
+        "resource": "Resolve",
+        "sequence": "Brace behind a barrier, then spend Resolve on a shield-breaking retaliation.",
+        "signatures": [
+          {
+            "role": "builder",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_build",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 0,
+            "cost": 15,
+            "cooldown": 3,
+            "icon": "⚔",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "role": "finisher",
+            "damage": 29.79221201268866,
+            "id": "CLASS_vanguard_finish",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 1.7,
+            "cost": 30,
+            "cooldown": 4.5,
+            "icon": "⚔",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "ultimate": {
+          "id": "fixture_ultimate",
+          "name": "Rift Nova",
+          "kind": "ultimate",
+          "power": 5,
+          "cost": 70,
+          "cooldown": 18,
+          "icon": "★",
+          "reference": {
+            "target": "area",
+            "horizontal": 450,
+            "depth": 180,
+            "healing": 0,
+            "barrier": false
+          }
+        },
+        "owned_ultimates": [
+          "Rift Nova"
+        ],
+        "pets": 2,
+        "relic": false,
+        "name": "Rowan",
+        "class": "vanguard",
+        "level": 24,
+        "hp": 340,
+        "damage": 32,
+        "armor": 12,
+        "weapon": "Mossbound Longsword",
+        "skills": [
+          {
+            "id": "guard",
+            "name": "Iron Guard",
+            "kind": "shield",
+            "power": 1.5,
+            "cost": 18,
+            "cooldown": 5,
+            "icon": "✦",
+            "reference": {
+              "target": "self",
+              "horizontal": 0,
+              "depth": 0,
+              "healing": 0,
+              "barrier": true
+            }
+          },
+          {
+            "id": "bash",
+            "name": "Resolute Bash",
+            "kind": "slash",
+            "power": 2.4,
+            "cost": 22,
+            "cooldown": 3,
+            "icon": "✦",
+            "reference": {
+              "target": "area",
+              "horizontal": 155,
+              "depth": 60,
+              "healing": 0,
+              "barrier": false
+            }
+          },
+          {
+            "id": "spark",
+            "name": "Cinder Bolt",
+            "kind": "fire",
+            "power": 2,
+            "cost": 20,
+            "cooldown": 2,
+            "icon": "✦",
+            "reference": {
+              "travel": 1325,
+              "spawn_offset": 35,
+              "target": "projectile",
+              "horizontal": 35,
+              "depth": 30,
+              "healing": 0,
+              "barrier": false
+            }
+          }
+        ],
+        "gear": [
+          "Mossbound Longsword",
+          "Warden's Aegis",
+          "Lanternkeeper's Cloak"
+        ]
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "warmedArt": [
+        "/static/rift_props.png",
+        "/static/rift_area.png",
+        "/static/rift_regions.png",
+        "/static/rift_mobs.png",
+        "/static/rift_items.png",
+        "/static/rift_effects.png",
+        "/static/rift_sigil.png",
+        "/static/rift_totem.png",
+        "/static/rift_relic.png",
+        "/static/rift_generator.png",
+        "/static/rift_spirit.png",
+        "/static/rift_cage.png",
+        "/static/rift_lantern.png",
+        "/static/rift_terrain_cover.png",
+        "/static/rift_platform_surface.png",
+        "/static/abyss_combat_roles_v2.png",
+        "/static/abyss_combat_creatures_v2.png",
+        "/static/abyss_combat_bestiary_v2.png",
+        "/static/abyss_combat_bosses_v2.png",
+        "/static/rift_heroes_a.png"
+      ],
+      "capture": {
+        "readyMS": 1740.2999999970198,
+        "hidden": false,
+        "atlas": {
+          "loaded": 15,
+          "total": 15,
+          "ready": true
+        },
+        "button": "Enter the ruins →",
+        "navigation": {
+          "name": "http://127.0.0.1:18098/abyss/rift",
+          "entryType": "navigation",
+          "startTime": 0,
+          "duration": 1139.3999999985099,
+          "navigationId": 329,
+          "initiatorType": "navigation",
+          "deliveryType": "",
+          "nextHopProtocol": "http/1.1",
+          "renderBlockingStatus": "non-blocking",
+          "contentType": "text/html",
+          "contentEncoding": "",
+          "workerStart": 0,
+          "workerRouterEvaluationStart": 0,
+          "workerCacheLookupStart": 0,
+          "workerMatchedSourceType": "",
+          "workerFinalSourceType": "",
+          "redirectStart": 0,
+          "redirectEnd": 0,
+          "fetchStart": 0.19999999552965164,
+          "domainLookupStart": 0.19999999552965164,
+          "domainLookupEnd": 0.19999999552965164,
+          "connectStart": 0.19999999552965164,
+          "secureConnectionStart": 0,
+          "connectEnd": 0.19999999552965164,
+          "requestStart": 1,
+          "responseStart": 2.6999999955296516,
+          "firstInterimResponseStart": 0,
+          "finalResponseHeadersStart": 2.6999999955296516,
+          "responseEnd": 634.5,
+          "transferSize": 93210,
+          "encodedBodySize": 92910,
+          "decodedBodySize": 92910,
+          "responseStatus": 200,
+          "serverTiming": [],
+          "unloadEventStart": 0,
+          "unloadEventEnd": 0,
+          "domInteractive": 713.1999999955297,
+          "domContentLoadedEventStart": 1078.8999999985099,
+          "domContentLoadedEventEnd": 1079.6999999955297,
+          "domComplete": 1139.1999999955297,
+          "loadEventStart": 1139.3999999985099,
+          "loadEventEnd": 1139.3999999985099,
+          "type": "navigate",
+          "redirectCount": 0,
+          "activationStart": 0,
+          "criticalCHRestart": 0,
+          "notRestoredReasons": null,
+          "confidence": {
+            "randomizedTriggerRate": 0.4994798,
+            "value": "high"
+          }
+        },
+        "resources": [
+          {
+            "path": "/static/style.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 81356,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_catalog_icons.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 436627,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/favicon.svg",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1682,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.css",
+            "transferBytes": 0,
+            "encodedBodyBytes": 89265,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_props.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1553373,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_art.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 37884,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_bestiary.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 17129,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 58348,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_audio_settings.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6312,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_display.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15301,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loot.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 16175,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_renderer.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 173197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_campaign.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 21234,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mission.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10845,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_loadout.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 15269,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_records.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 13964,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_minimap.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6387,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_hud.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 74414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_abilities.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 10928,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_protocol.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 35050,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_controls.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 12973,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_walkthrough.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 5414,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_gamepad.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8035,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_jump.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1675,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_intents.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7618,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_feedback.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 7797,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_haptics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_boss_intro.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1865,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_objectives.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 4768,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_compare.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 8119,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_class_challenges.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2778,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_diagnostics.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 6037,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift.js",
+            "transferBytes": 0,
+            "encodedBodyBytes": 128467,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_area.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3149894,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_regions.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 3222009,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_mobs.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2782428,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_items.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1392338,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_effects.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1332867,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_sigil.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 897704,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_totem.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1056080,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_relic.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1472918,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_generator.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1175989,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_spirit.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 564197,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_cage.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2228684,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_lantern.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 844782,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_terrain_cover.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 1484178,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/rift_platform_surface.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2771164,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_roles_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2217154,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_creatures_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2474580,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bestiary_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2445858,
+            "durationMS": 0
+          },
+          {
+            "path": "/static/abyss_combat_bosses_v2.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2680354,
+            "durationMS": 0
+          },
+          {
+            "path": "/api/abyss/rift",
+            "transferBytes": 5119,
+            "encodedBodyBytes": 4819,
+            "durationMS": 188.19999999552965
+          },
+          {
+            "path": "/api/abyss/rift/metadata",
+            "transferBytes": 300,
+            "encodedBodyBytes": 313975,
+            "durationMS": 175.5
+          },
+          {
+            "path": "/static/rift_heroes_a.png",
+            "transferBytes": 0,
+            "encodedBodyBytes": 2704155,
+            "durationMS": 0
+          }
+        ]
+      },
+      "uncachedArt": [],
+      "transferBytes": 98629,
+      "scope": "Three independent cache-warmed contexts, one navigation each; cache retained across about:blank, no request interception. Measures enabled Start, not first fight, physical hardware or cold startup."
+    }
+  ],
+  "notes": [
+    "The first attempt used the inherited fixture default port18082 while the runner waited on18098; it collected no samples.",
+    "The corrected config passes ABYSS_E2E_PORT explicitly. The unused first fixture was terminated during the corrected run. All measured samples are retained.",
+    "Actual server sources include the three pre-existing uncommitted engine changes; their tracked diff hash is recorded. Exact diff patches remain alongside local capture artifacts."
+  ]
+}
