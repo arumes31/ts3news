@@ -618,10 +618,11 @@
   renderer.atlasCacheStats=()=>({entries:atlasFrames.size,bytes:atlasFrameBytes,limitBytes:atlasFrameLimit,hits:atlasHits,misses:atlasMisses});
   function cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh){
     if(!(dw>0&&dh>0&&dw<=256&&dh<=256&&sw>0&&sh>0&&sx>=0&&sy>=0&&sx+sw<=img.width&&sy+sh<=img.height))return null;
-    // Fractional shared-atlas crops retain native sampling to avoid edge rounding changes.
-    if(![sx,sy,sw,sh].every(Number.isInteger))return null;
+    // Keep fractional prop coordinates at the atlas origin to preserve sampling.
+    // Other fractional crops retain the native path; oversized prefixes do too.
+    if(img!==images.props&&![sx,sy,sw,sh].every(Number.isInteger))return null;
     // Copy whole source pixels, including a border, without resampling the atlas.
-    const left=Math.max(0,Math.floor(sx)-1),top=Math.max(0,Math.floor(sy)-1),width=Math.min(img.width,Math.ceil(sx+sw)+1)-left,height=Math.min(img.height,Math.ceil(sy+sh)+1)-top,bytes=width*height*4;
+    const left=img===images.props?0:Math.max(0,Math.floor(sx)-1),top=img===images.props?0:Math.max(0,Math.floor(sy)-1),width=Math.min(img.width,Math.ceil(sx+sw)+1)-left,height=Math.min(img.height,Math.ceil(sy+sh)+1)-top,bytes=width*height*4;
     if(bytes>atlasFrameLimit/4)return null;
     if(!atlasIDs.has(img))atlasIDs.set(img,++atlasNextID);
     const key=[atlasIDs.get(img),left,top,width,height].join(':');

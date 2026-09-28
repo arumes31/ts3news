@@ -1,0 +1,72 @@
+{
+  "schema": "brawl-frame-evidence-v1",
+  "workload": "crowd",
+  "status": "failed",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "thresholds": {
+    "intervalP95": 50,
+    "intervalP99": 100,
+    "renderP95": 16
+  },
+  "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+  "samples": [
+    {
+      "sample": 1,
+      "source": {
+        "revision": "9d7fd9b913c0d69a3dce907129d7a3a6f80844fd",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+        "rendererSHA256": "c57773118a2624e2034cf6e8a64b80cc96d29cadf39c88f601441e91f1fd52ce"
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 60111.70000000298,
+      "runtimeErrors": 0,
+      "frames": 617,
+      "intervalP95": 133.3000000000029,
+      "intervalP99": 150,
+      "renderP95": 50.599999994039536,
+      "outcome": null,
+      "enemyPeak": null,
+      "projectilePeak": null
+    },
+    {
+      "sample": 2,
+      "source": {
+        "revision": "9d7fd9b913c0d69a3dce907129d7a3a6f80844fd",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+        "rendererSHA256": "c57773118a2624e2034cf6e8a64b80cc96d29cadf39c88f601441e91f1fd52ce"
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 60115.09999999404,
+      "runtimeErrors": 0,
+      "frames": 647,
+      "intervalP95": 116.70000000000437,
+      "intervalP99": 133.40000000000146,
+      "renderP95": 47.099999994039536,
+      "outcome": null,
+      "enemyPeak": null,
+      "projectilePeak": null
+    },
+    {
+      "sample": 3,
+      "source": {
+        "revision": "9d7fd9b913c0d69a3dce907129d7a3a6f80844fd",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+        "rendererSHA256": "c57773118a2624e2034cf6e8a64b80cc96d29cadf39c88f601441e91f1fd52ce"
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 60067,
+      "runtimeErrors": 0,
+      "frames": 626,
+      "intervalP95": 133.3000000000029,
+      "intervalP99": 150,
+      "renderP95": 48.6000000089407,
+      "outcome": null,
+      "enemyPeak": null,
+      "projectilePeak": null
+    }
+  ]
+}

@@ -2,10 +2,11 @@
 
 Small drawAtlas calls reuse original-resolution integer crop rectangles, with a
 one-pixel source border. Destination coordinates, alpha, transforms and filters
-remain unchanged. Fractional shared-atlas rectangles retain their native drawing
-path: caching them caused one/two edge pixels to change under transformed drawing.
-No quality tolerance was weakened to accept those changes. Large/background draws
-also remain native. The cache adds no network assets.
+remain unchanged. Prop crops instead copy a bounded prefix from the atlas origin,
+keeping fractional source coordinates unchanged. Other fractional rectangles stay
+native because rebasing them changed edge pixels under transformed drawing. No
+quality tolerance was weakened. Oversized prefixes and large/background draws
+remain native. The cache adds no network assets.
 
 An LRU map holds at most64 source canvases and8MiB of calculated RGBA pixel backing.
 Each entry is at most2MiB. Eviction zeros both canvas dimensions and releases the
@@ -25,3 +26,10 @@ The overall frame gate still FAILS, and this software-rendered development profi
 does not establish physical-device performance. See the boss baseline report for
 raw captures and scope. Preserve the failed interval evidence when reporting the
 submission-cost improvement.
+
+The prop-origin change passed exact pixels, state, eviction and oversized fallback
+checks plus nine foreground-fade/culling regressions (normal/reduced motion).
+Three full crowd samples reduced median render p95 from94.0 to48.6ms against
+three fresh controls, at an additional792100 calculated cache bytes in that scene.
+Median frame intervals did not materially improve; all six crowd samples still
+fail the frame budget. See README-crowd-frame-baseline.md for exact evidence.

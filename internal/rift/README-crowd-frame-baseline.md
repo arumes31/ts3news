@@ -105,3 +105,45 @@ render p95 was167.9ms. These are diagnostic observations, not a new gate result.
 The local raw profile is in test-results/crowd-profile-after-shelters-20260928;
 its compact aggregate is tests/performance/baselines/crowd-after-shelters-profile-2026-09-28.json.
 No performance improvement or physical-device result is claimed by this capture.
+
+
+## Origin-preserving prop cache (2026-09-28)
+
+The retained candidate copies a bounded prefix of the prop atlas from (0,0), so
+fractional source coordinates remain unchanged. Other fractional crops stay native.
+Prefixes over2MiB fall back to native drawing; the existing8MiB/64-entry LRU and
+zero-sized evicted canvases remain. All eight prop cells passed exact pixel checks
+under transforms, clips, opacity, brightness and flips, alongside existing hero
+and effect panels. A new fallback/origin regression failed before the change and
+passed on the production path; the same check verifies eviction and memory bounds.
+
+Three60-second candidate samples followed by three fresh controls used commit
+9d7fd9b9 and the same user simulation diff, Chrome153,1280x900/DPR1,CPU4x,Lower power.
+The candidate source hash is recorded in each public report. Production applies
+the same two guard/origin changes; only comments differ from the injected source.
+
+| p95/p99 measurement (ms) | Candidate samples | Control samples |
+| --- | --- | --- |
+| Synchronous render p95 | 50.6 / 47.1 / 48.6 | 98.6 / 94.0 / 91.5 |
+| Completed-frame interval p95 | 133.3 / 116.7 / 133.3 | 133.4 / 133.3 / 133.2 |
+| Completed-frame interval p99 | 150.0 / 133.4 / 150.0 | 150.1 / 150.0 / 150.1 |
+
+Median render p95 fell from94.0 to48.6ms (48.3%); all candidate render samples
+beat all controls. Median frame intervals did not materially improve. Keep this
+as a synchronous drawing-cost improvement, not a frame-stability or release pass.
+All six samples still fail the unchanged50/100/16ms budgets. Grouped sequential
+order is a limitation; physical-device and GPU presentation evidence remain absent.
+
+Cache occupancy increased from4 entries/267288 bytes to5/1059388, without churn.
+A separate instrumented smoke saw save calls following the445x445 prop prefix at
+0.3ms maximum with zero calls>=8ms, but its frame metrics are not gate evidence.
+The temporary injection switch was removed when applying the production change.
+
+Public aggregates: tests/performance/baselines/prop-origin-crowd-2026-09-28.json
+and prop-origin-control-2026-09-28.json. Raw outputs remain in corresponding
+ test-results/prop-origin-*-full-20260928 directories. Pixel/state/bounds artifacts
+are in prop-origin-production-20260928; the expected pre-change failure is in
+prop-origin-regression-red-20260928. No real player data is included.
+
+Nine production cover fading/culling checks passed in31.0s; artifacts are in
+test-results/prop-origin-cover-regressions-20260928.

@@ -22,20 +22,12 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
  try{
   const browserCDP=await browser.newBrowserCDPSession();const system=await browserCDP.send('SystemInfo.getInfo');report.graphics={devices:system.gpu.devices,featureStatus:system.gpu.featureStatus};await browserCDP.detach();
   const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
-  if(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'&&process.env.BRAWL_PROP_ORIGIN_EXPERIMENT==='1')throw Error('Choose one prop experiment');
   if(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'){
    const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
    const marker='  // Saved expeditions and current build previews can require different sheets.';
    expect(source.includes(marker)).toBe(true);
    const candidate=source.replace(marker,'  renderer.ready=renderer.ready.then(async()=>{images.props=await createImageBitmap(images.props);});\n'+marker);
    report.experiment={kind:'full-size prop ImageBitmap',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
-   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
-   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
-  }
-  if(process.env.BRAWL_PROP_ORIGIN_EXPERIMENT==='1'){
-   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
-   const candidate=require('../../scripts/brawl-prop-origin-experiment.cjs').propOriginCandidate(source);
-   report.experiment={kind:'prop cache preserving atlas origin',rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }

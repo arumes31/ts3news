@@ -3,8 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 test('cached atlas frames preserve pixels state and memory bounds',async({page},info)=>{
  test.setTimeout(120000);
  await page.addInitScript(()=>{const request=requestAnimationFrame;window.requestAnimationFrame=cb=>cb.name==='render'?1:request(cb);});
- let candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
- if(process.env.BRAWL_PROP_ORIGIN_EXPERIMENT==='1')candidate=require('../../scripts/brawl-prop-origin-experiment.cjs').propOriginCandidate(candidate);
+ const candidate=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8').replace(/\r\n/g,'\n');
  const cached='    const frame=cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh);\n    if(frame)ctx.drawImage(frame.canvas,sx-frame.left,sy-frame.top,sw,sh,dx,dy,dw,dh);\n    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);';
  expect(candidate.includes(cached)).toBe(true);
  const baseline=candidate.replace(cached,'    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);');
@@ -37,7 +36,11 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
    for(let i=0;i<frames.length;i++)for(const size of [64,128,256])drawAtlas(img,...frames[i],30+(i%4)*190,20+Math.floor(i/4)*220+size/8,size,Math.min(size,140));
    const after=state();ctx.restore();outputs.push({before,after,png:canvas.toDataURL()});
   }
-  // Fractional crops must stay native: integer-pixel copies alter actor/prop sampling.
+  // Prop prefixes preserve fractional coordinates; other fractional crops stay native.
+  const propFrames=Array.from({length:8},(_,i)=>{
+   const img=images.props,frame=cachedAtlasFrame(img,i%4*img.width/4,Math.floor(i/4)*img.height/2,img.width/4,img.height/2,128,128);
+   return frame?{left:frame.left,top:frame.top,bytes:frame.bytes}:null;
+  });
   const fractionalCached=!!cachedAtlasFrame(images.heroesA,20.25,20.125,128.5,128.25,100,100);
   for(const flipped of [false,true]){
    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.clearRect(0,0,960,540);ctx.fillStyle='#253d43';ctx.fillRect(0,0,960,540);
@@ -50,7 +53,7 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
   const img=images.heroesA,retired=atlasFrames.values().next().value;
   for(let i=0;i<200;i++)drawAtlas(img,i,0,128,128,0,0,64,64);
   for(let i=0;i<40;i++)drawAtlas(img,i,0,512,512,0,0,64,64);
-  return {outputs,fractionalCached,cache:renderer.atlasCacheStats(),retired:retired?[retired.canvas.width,retired.canvas.height]:null};
+  return {outputs,propFrames,fractionalCached,cache:renderer.atlasCacheStats(),retired:retired?[retired.canvas.width,retired.canvas.height]:null};
  };`;
  const results=[];
  for(const source of [baseline,candidate]){
@@ -59,10 +62,15 @@ test('cached atlas frames preserve pixels state and memory bounds',async({page},
   const data=await(await page.request.get('/api/abyss/rift')).json();
   const output=await page.evaluate(async run=>{await RiftRenderer.ready;return RiftRenderer.stateProbe(run.enemies);},data.run);
   output.outputs.forEach((item,index)=>fs.writeFileSync(info.outputPath('variant-'+results.length+'-'+index+'.png'),Buffer.from(item.png.split(',')[1],'base64')));
-  results.push({outputs:output.outputs.map(item=>({...item,png:crypto.createHash('sha256').update(item.png).digest('hex')})),cache:output.cache,retired:output.retired,fractionalCached:output.fractionalCached});
+  results.push({outputs:output.outputs.map(item=>({...item,png:crypto.createHash('sha256').update(item.png).digest('hex')})),cache:output.cache,retired:output.retired,propFrames:output.propFrames,fractionalCached:output.fractionalCached});
   await page.unroute('**/static/rift_renderer.js*');
  }
  expect(results[1].outputs).toEqual(results[0].outputs);
  expect(results[1].fractionalCached).toBe(false);
+ expect(results[1].propFrames[0]).toEqual({left:0,top:0,bytes:445*445*4});
+ expect(results[1].propFrames.some(frame=>frame===null)).toBe(true);
+ for(const frame of results[1].propFrames.filter(Boolean)){
+  expect(frame.left).toBe(0);expect(frame.top).toBe(0);expect(frame.bytes).toBeLessThanOrEqual(2*1024*1024);
+ }
  expect(results[1].cache.entries).toBeLessThanOrEqual(64);expect(results[1].cache.bytes).toBeLessThanOrEqual(8*1024*1024);expect(results[1].cache.hits).toBeGreaterThan(0);expect(results[1].cache.misses).toBeGreaterThan(64);expect(results[1].retired).toEqual([0,0]);
 });
