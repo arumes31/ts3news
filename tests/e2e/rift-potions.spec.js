@@ -16,6 +16,8 @@ test('owned potion heals once and preserves inventory, cooldown and objective on
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
  const before=await saved();expect(before.player.hp).toBe(150);expect(before.skill_timers.healing_potion).toBeGreaterThan(0);
  expect(before.objectives.entries.find(goal=>goal.id==='no_potions').status).toBe('failed');
+ await expect(page.locator('#rift-objectives-list [data-objective-id="no_potions"]')).toHaveAttribute('data-state','failed');
+ await expect(page.locator('#rift-objectives-list [data-objective-id="no_potions"]')).toContainText('1 potion used');
  expect((await inventory())[0].count).toBe(1);await expect(use).toBeDisabled();
  await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();
  await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
