@@ -254,3 +254,38 @@ tracked harness/user diff; the then-untracked helper is included in each complet
 injected-source hash and committed with this evidence. Raw variants and reports
 remain local under`test-results/actor-layers-smoke-20260928`. Application source
 and user Go edits are unchanged. No performance improvement is shipped.
+
+
+## Outside-actor diagnostic isolation (2026-09-28)
+
+The same helper now accepts`BRAWL_ACTOR_LAYER_SCOPE=outside`, preserving actor
+calls while omitting selected main-canvas methods outside that boundary. It also
+counts actor calls, selected methods and actual suppressed calls. Eleven Node
+checks cover both scopes, counts, exception cleanup and invalid inputs.
+
+Session7650 completed five approximately10-second probes in2.4m. All preserved
+the paused120-living-enemy/14-boss/no-projectile scene with no runtime errors,
+hidden time, context loss or camera movement. Counts below are ordinary method calls, not time estimates. Counters are read immediately after capture
+end, so boundary frames may be included; do not derive exact per-frame rates.
+
+| Omitted outside layer | Interval p95 | Interval p99 | Render p95 | Suppressed calls |
+| --- | --- | --- | --- | --- |
+| None (control) | 116.8ms | 133.3ms | 47.2ms | 0 |
+| Paths | 116.7ms | 116.7ms | 55.3ms | 20,241 |
+| Rectangles | 116.7ms | 166.6ms | 44.7ms | 4,144 |
+| Text | 116.7ms | 133.4ms | 50.5ms | 4,360 |
+| Images | 133.3ms | 150.0ms | 52.5ms | 212 |
+
+Counters confirm that every selected non-control scope actually ran. No group
+produced a clear improvement in these single sequential probes. In particular,
+the high path count is not proof that caching those paths would fix the frame
+budget. Together with actor probes, this leaves combined drawing/flush costs and
+JavaScript work unresolved; inspect a current CPU/timeline profile before another
+production optimization. All omissions remain diagnostic-only and fail to
+represent complete gameplay visuals.
+
+[Safe evidence](../../tests/performance/baselines/outside-actor-layer-diagnostics-2026-09-28.json)
+records basee3b895b2, the harness/user diff hash, injected renderer hashes and
+validated numeric counters. Raw reports and injected sources remain local under
+`test-results/outside-actor-layers-smoke-20260928`. The original game renderer was
+not modified. Performance gates and0997 remain open.

@@ -10,6 +10,8 @@ const sharedOrigin=process.env.BRAWL_SHARED_ORIGIN_EXPERIMENT==='1';
 if(sharedOrigin&&(opaque||process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 if(opaque&&(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 const ablation=process.env.BRAWL_RENDER_ABLATION||'';
+const actorLayerScope=process.env.BRAWL_ACTOR_LAYER_SCOPE||'actor';
+if(!['actor','outside'].includes(actorLayerScope))throw Error('Unknown actor layer scope');
 const actorLayerSelection=process.env.BRAWL_ACTOR_LAYER_OMISSION||'';
 if(actorLayerSelection&&!['all','control','paths','rectangles','text','images'].includes(actorLayerSelection))throw Error('Unknown actor layer omission');
 if(actorLayerSelection&&(ablation||opaque||sharedOrigin||process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'))throw Error('Choose one rendering experiment');
@@ -19,7 +21,7 @@ const canvasCosts=process.env.BRAWL_CANVAS_COST==='1';
 const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline||!!ablation||!!actorLayerSelection;
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
 for(const actorLayer of actorLayerSelection==='all'?['control','paths','rectangles','text','images']:[actorLayerSelection])
-for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample+(actorLayer?' actor layer '+actorLayer:''),async({page,context,browser},info)=>{
+for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample+(actorLayer?' '+actorLayerScope+' layer '+actorLayer:''),async({page,context,browser},info)=>{
  const report={sample,startedAt:new Date().toISOString(),smoke,profiling,timelineEnabled:timeline,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
@@ -76,8 +78,8 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
   }
   if(actorLayer){
    const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
-   const candidate=require('../../scripts/brawl-actor-layer-experiment.cjs').actorLayerCandidate(source,actorLayer);
-   report.experiment={kind:'diagnostic actor layer: '+actorLayer,rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   const candidate=require('../../scripts/brawl-actor-layer-experiment.cjs').actorLayerCandidate(source,actorLayer,actorLayerScope);
+   report.experiment={kind:'diagnostic '+actorLayerScope+' layer: '+actorLayer,rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }
@@ -90,6 +92,7 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
   await page.locator('#rift-canvas').scrollIntoViewIfNeeded();await page.waitForTimeout(5000);
   report.settings=await page.evaluate(()=>({display:JSON.parse(localStorage.getItem('riftDisplay')),visibility:document.visibilityState,camera:RiftRenderer.cameraFraming,cache:RiftRenderer.atlasCacheStats()}));expect(report.settings.display.fps).toBe(30);
   await page.evaluate(()=>{
+   if(RiftRenderer.actorLayerProbe)Object.assign(RiftRenderer.actorLayerProbe,{actorCalls:0,selectedCalls:0,omittedCalls:0});
    const d=RiftRenderer.frameDiagnostics,originalPush=d.samples.push;
    const capture=window.crowdFrameCapture={started:performance.now(),active:true,samples:[],hidden:false,contextLost:false};d.last=null;
    document.addEventListener('visibilitychange',()=>{if(capture.active&&document.visibilityState!=='visible')capture.hidden=true;});document.querySelector('#rift-canvas').addEventListener('contextlost',()=>capture.contextLost=true);
@@ -100,6 +103,7 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
   if(cpuProfiling){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   for(let chunk=0;chunk<(smoke?1:6);chunk++){await page.waitForTimeout(10000);if(chunk%2===1)console.log('Crowd sample '+sample+': '+(chunk+1)*10+'s collected');}
   report.capture=await page.evaluate(()=>{const c=crowdFrameCapture;c.active=false;c.ended=performance.now();c.camera=RiftRenderer.cameraFraming;c.cache=RiftRenderer.atlasCacheStats();return c;});
+  if(actorLayer){report.actorLayerProbe=await page.evaluate(()=>RiftRenderer.actorLayerProbe);expect(report.actorLayerProbe.actorCalls).toBeGreaterThan(0);expect(report.actorLayerProbe.omittedCalls).toBeLessThanOrEqual(report.actorLayerProbe.selectedCalls);}
   if(canvasCosts)report.canvasCosts=await page.evaluate(()=>brawlCanvasCost.stop());
   if(timelineCapture){report.timeline=await timelineCapture.stop();expect(report.timeline.dataLossOccurred).toBe(false);}
   if(cpuProfiling){const {profile}=await cdp.send('Profiler.stop');fs.writeFileSync(info.outputPath('crowd.cpuprofile'),JSON.stringify(profile));report.cpuProfile='crowd.cpuprofile';}
