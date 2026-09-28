@@ -1,0 +1,135 @@
+{
+  "schema": "brawl-session-evidence-v1",
+  "status": "retention_review_required",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Development session JS-heap measurements only. Retention paths, separate process memory, other performance gates and physical-device evidence require independent review.",
+  "samples": [
+    {
+      "sample": 1,
+      "source": {
+        "revision": "45f5359ddc1d67af94c6b89922e249cee3bdd318",
+        "trackedDiffSHA256": "6aab0502cd21b63391b02389260b4bc983fde1f96ab9f4ffd6da94966d0833ae"
+      },
+      "status": "heap_size_pass_review_pending",
+      "measuredDurationMS": 1841571,
+      "runtimeErrors": 0,
+      "growthBytes": 1334812,
+      "completedReplays": 38,
+      "checkpoints": [
+        {
+          "elapsedMS": 0,
+          "heapBytes": 7497040
+        },
+        {
+          "elapsedMS": 312024,
+          "heapBytes": 8386820
+        },
+        {
+          "elapsedMS": 657891,
+          "heapBytes": 8412928
+        },
+        {
+          "elapsedMS": 987379,
+          "heapBytes": 8479468
+        },
+        {
+          "elapsedMS": 1310477,
+          "heapBytes": 8720732
+        },
+        {
+          "elapsedMS": 1632384,
+          "heapBytes": 8834896
+        },
+        {
+          "elapsedMS": 1834032,
+          "heapBytes": 8831852
+        }
+      ]
+    },
+    {
+      "sample": 2,
+      "source": {
+        "revision": "45f5359ddc1d67af94c6b89922e249cee3bdd318",
+        "trackedDiffSHA256": "6aab0502cd21b63391b02389260b4bc983fde1f96ab9f4ffd6da94966d0833ae"
+      },
+      "status": "heap_size_pass_review_pending",
+      "measuredDurationMS": 1826141,
+      "runtimeErrors": 0,
+      "growthBytes": 1856752,
+      "completedReplays": 40,
+      "checkpoints": [
+        {
+          "elapsedMS": 0,
+          "heapBytes": 7226924
+        },
+        {
+          "elapsedMS": 321504,
+          "heapBytes": 8431508
+        },
+        {
+          "elapsedMS": 668715,
+          "heapBytes": 8467440
+        },
+        {
+          "elapsedMS": 1021580,
+          "heapBytes": 8763704
+        },
+        {
+          "elapsedMS": 1336121,
+          "heapBytes": 8653064
+        },
+        {
+          "elapsedMS": 1681747,
+          "heapBytes": 8806032
+        },
+        {
+          "elapsedMS": 1817514,
+          "heapBytes": 9083676
+        }
+      ]
+    },
+    {
+      "sample": 3,
+      "source": {
+        "revision": "45f5359ddc1d67af94c6b89922e249cee3bdd318",
+        "trackedDiffSHA256": "6aab0502cd21b63391b02389260b4bc983fde1f96ab9f4ffd6da94966d0833ae"
+      },
+      "status": "heap_size_pass_review_pending",
+      "measuredDurationMS": 1820460,
+      "runtimeErrors": 0,
+      "growthBytes": 1487536,
+      "completedReplays": 40,
+      "checkpoints": [
+        {
+          "elapsedMS": 0,
+          "heapBytes": 7432076
+        },
+        {
+          "elapsedMS": 304203,
+          "heapBytes": 8248328
+        },
+        {
+          "elapsedMS": 641547,
+          "heapBytes": 8461840
+        },
+        {
+          "elapsedMS": 954454,
+          "heapBytes": 8615968
+        },
+        {
+          "elapsedMS": 1277291,
+          "heapBytes": 8733416
+        },
+        {
+          "elapsedMS": 1617241,
+          "heapBytes": 9155816
+        },
+        {
+          "elapsedMS": 1812903,
+          "heapBytes": 8919612
+        }
+      ]
+    }
+  ]
+}

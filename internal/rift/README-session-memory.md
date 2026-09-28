@@ -162,3 +162,28 @@ never claims release readiness or a verified physical device. It is only a
 partial release-evidence artifact. Process-memory inspection, raw retention
 analysis, other gates and final release verification remain separate work.
 The raw reports and heap snapshots stay local.
+
+
+## Completed ledge-routing capture (2026-09-28)
+
+`test-results/session-memory-ledgeroute-full` completed all three full samples
+with no recorded runtime errors. Each replay cleared all three tiers of mission
+1 using keyboard input; the corrected ledge navigator avoided the earlier stall.
+
+| Sample | Measured minutes | Completed replays | JS heap growth |
+| --- | ---: | ---: | ---: |
+| 1 | 30.69 | 38 | 1,334,812 bytes |
+| 2 | 30.44 | 40 | 1,856,752 bytes |
+| 3 | 30.34 | 40 | 1,487,536 bytes |
+
+The numeric heap limit passed in all three samples. The privacy-safe aggregate
+reports `retention_review_required`, not release readiness. Original heap
+retaining paths and separate process-memory measurements still require review.
+The earlier failed capture remains preserved; these results do not replace its
+failure evidence.
+
+This fixture used revision `45f5359ddc1d67af94c6b89922e249cee3bdd318` plus tracked
+diff SHA-256 `6aab0502cd21b63391b02389260b4bc983fde1f96ab9f4ffd6da94966d0833ae`.
+It predates the new potion, boss ward, bridge and circular-court changes. Do not
+attribute this memory evidence to those newer changes or to physical target
+hardware. The source snapshot remains beside the local capture.
