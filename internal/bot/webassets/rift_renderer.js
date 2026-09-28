@@ -748,6 +748,15 @@
     ctx.strokeStyle='#20132c';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#e1bcff';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
     ctx.restore();
   }
+  function channelShelter(x,y,impact=false){
+    ctx.save();ctx.fillStyle=impact?'#6bdcb52b':'#6bdcb51c';
+    ctx.beginPath();ctx.ellipse(x,y,200,90,0,0,Math.PI*2);ctx.moveTo(x+125,y);ctx.ellipse(x,y,125,62,0,0,Math.PI*2);ctx.fill('evenodd');
+    ctx.beginPath();ctx.ellipse(x,y,200,90,0,0,Math.PI*2);ctx.strokeStyle='#a9e8cf';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.stroke();ctx.setLineDash([]);
+    const labelScale=Math.min(1,(canvas.clientWidth||960)/960),lineHeight=14*display.textScale/labelScale;
+    ctx.font='bold '+(9*display.textScale/labelScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#b7efd9';ctx.strokeStyle='#071b16';ctx.lineWidth=3;
+    const labels=['OUTER BAND · HAZARD SHELTER','ENEMIES ACTIVE · AVOID OTHER WARNINGS'],margin=Math.max(...labels.map(text=>ctx.measureText(text).width))/2+10,labelX=Math.max(margin,Math.min(960-margin,x)),labelY=Math.min(528-lineHeight,y+105);
+    labels.forEach((text,i)=>interactionPrompt(text,labelX,labelY+i*lineHeight,true));ctx.restore();
+  }
   function ringGapArrow(x,y,gap){
     const sign=gap===1?1:-1;ctx.save();ctx.globalAlpha=1;ctx.beginPath();ctx.moveTo(x,y+sign*40);ctx.lineTo(x,y+sign*76);ctx.moveTo(x-8,y+sign*65);ctx.lineTo(x,y+sign*76);ctx.lineTo(x+8,y+sign*65);ctx.strokeStyle='#071b16';ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle='#b1f3df';ctx.lineWidth=3;ctx.stroke();ctx.restore();
   }
@@ -1585,6 +1594,9 @@
         ctx.fillStyle='#ffe4bd';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(13*display.textScale)+'px monospace';ctx.textAlign='center';
         interactionPrompt('ARENA-WIDE SURGE · '+e.windup.toFixed(1)+'s',480,450,true);interactionPrompt('JUMP NEAR IMPACT · GUARD WON’T STOP IT',480,472,true);ctx.restore();
       }
+      if(!display.cleanScreenshot&&e.kind==='boss'&&e.lane_slams&&((e.hp>0&&e.attack_name==='Time Pulse'&&e.windup>0)||(run.skill_timers?.['hazard-channel-'+e.id]||0)>0)){
+        channelShelter(e.target_x-camera,e.target_y-surfaceHeight(e.target_x,e.target_y),!(e.windup>0&&e.attack_name==='Time Pulse'));
+      }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.attack_name==='Time Pulse'&&e.windup>0){
         ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL '+e.windup.toFixed(1)+'s · HIT BOSS TO INTERRUPT',e.x-camera,e.y-72,true);ctx.restore();
       }
@@ -1632,7 +1644,7 @@
           ctx.fillStyle=color;ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
           const ringConflict=snapshot.enemies.some(other=>other.kind==='boss'&&other.ring_attack&&((other.hp>0&&other.attack_name==='Void Ring'&&other.windup>0)||(snapshot.skill_timers?.['hazard-ring-'+other.id]||0)>0));
           const contested=ringConflict||snapshot.enemies.some(other=>other.hp>0&&other.kind==='boss'&&other.lane_slams&&other.attack_name==='Lane Slam'&&other.windup>0&&other.slam_lane===lane)||(snapshot.skill_timers?.['hazard-slam-lane-'+lane]||0)>0;
-          interactionPrompt(danger?'LANE SLAM · '+e.windup.toFixed(1)+'s · MOVE OR JUMP':contested?'CLEAR OF THIS SLAM':'HAZARDS PAUSED · ENEMIES ACTIVE',480,y+h/2,true);ctx.restore();
+          interactionPrompt(danger?'LANE SLAM · '+e.windup.toFixed(1)+'s · MOVE OR JUMP':contested?'CLEAR OF THIS SLAM':'HAZARD SHELTER · ENEMIES ACTIVE',480,y+h/2,true);ctx.restore();
         }
       }
       if(!display.cleanScreenshot&&e.hp>0&&e.kind==='boss'&&e.boss_shield_max>0){

@@ -45,8 +45,18 @@ and room changes clear it. Damage and reservation share the blast predicate.
 Tests cover boundaries, contact effects, save/reload, pause, expiry, room reset,
 cancellation, overlapping patterns and unrelated enemy damage.
 
-This is simulation groundwork for0326. The visible band, its hazard-specific
-label and browser verification are still pending.
+This is groundwork for0326. A mint outer-band overlay and hazard-specific label
+are implemented, including the saved impact interval and clean-screenshot hiding.
+The label says HAZARD SHELTER because hazard clocks continue; it explicitly
+retains enemy and overlapping-warning danger. Lane-slam labels use the same term.
+Four browser tests passed for normal/reduced motion, interruption, saved impact
+after boss death, expiry, clean screenshots and mobile label bounds. Normal
+warning and reduced-motion mobile impact screenshots were visually reviewed.
+The two shelter labels scale to the displayed canvas width, retain at least
+9 CSS pixels at default text size, and reserve separate line spacing at the bottom.
+Mobile text bounds and spacing assertions passed in the browser run.
+Local artifacts: test-results/boss-shelter-final-20260928. These injected display
+states verify presentation; the Go tests above verify authoritative lifecycle.
 
 The finite terrain audit covers370 states: all300 campaign rooms, substituting
 all eight floor/gate combinations for each of the ten wave rooms. It samples
