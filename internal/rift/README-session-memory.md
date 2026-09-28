@@ -37,3 +37,19 @@ The earlier failed driver attempt is retained in `test-results/session-memory`:
 it stopped in tier 2 before baseline. Synchronizing the tier UI and periodically
 releasing/repressing held inputs let the normal-control driver complete the run.
 These short captures validate the harness only, not the session-memory gate.
+
+After the capture process has finished, run:
+
+```powershell
+python scripts/analyze-brawl-restart-memory.py test-results/session-memory-full
+node --test tests/performance/heap-retention.test.cjs tests/performance/heap-summary.test.cjs
+```
+
+The reviewer accepts both restart-cycle and completed-mission checkpoints. It
+reports actor, effect, run and attempt-record shapes, audio/timer counts, detached
+nodes and direct strong retainers of run-shaped objects. Weak edges are excluded
+from the direct-retainer list because they do not keep their target alive. Each
+snapshot must contain only the corresponding current expedition ID; a stale ID
+raises an error and requires inspection. This is a diagnostic check, not a full
+GC-root path search or dominator retained-size calculation. Follow suspicious
+owners in the original snapshot before drawing a leak conclusion.
