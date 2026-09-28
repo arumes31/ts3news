@@ -6,8 +6,10 @@ test('live monster roster and class poses stay inside actor atlases',async({page
  await expect(page.locator('#rift-start')).toBeEnabled();
  const data=await(await page.request.get('/api/abyss/rift')).json();
  expect(data.bestiary.length).toBeGreaterThan(0);
- const result=await page.evaluate(({roster,player})=>{
+ const result=await page.evaluate(async({roster,player})=>{
   const art=window.AbyssCombatArt,renderer=window.RiftRenderer;
+  // Direct actor probes must prepare both lazily loaded hero sheets first.
+  await Promise.all(['vanguard','bloodblade'].map(className=>renderer.prepareBuild({class:className})));
   const errors=[],assets=new Set(),rigs=new Set();let frames=0,draws=0;
   const names={scribe:'Scribe Without Eyes',remembers:'Abyss That Remembers'};
   const probes=art.rigs.map(rig=>({name:names[rig]||rig,art_key:'bounds-probe:'+rig,kind:'goblin',element:'physical'}));
@@ -24,7 +26,7 @@ test('live monster roster and class poses stay inside actor atlases',async({page
   let current='';
   ctx.drawImage=function(img,...args){
    if(args.length!==8)return;
-   draws++;assets.add(img.src);
+   draws++;assets.add(img.src||'cached-frame');
    const [x,y,w,h]=args;
    if(![x,y,w,h].every(Number.isFinite)||x<0||y<0||w<=0||h<=0||x+w>img.width+.001||y+h>img.height+.001)errors.push({current,source:args.slice(0,4),size:[img.width,img.height]});
   };

@@ -6,10 +6,11 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
  const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels).toHaveLength(100);
  const result=await page.evaluate(async data=>{
   const r=window.RiftRenderer,ctx=document.getElementById('rift-canvas').getContext('2d'),draw=ctx.drawImage;
+  await Promise.all(['vanguard','bloodblade'].map(className=>r.prepareBuild({class:className})));
   const errors=[],cells={},victories=[];let label='',draws=0,scenes=0;
   ctx.drawImage=function(img,...a){
    if(a.length===8){
-    draws++;const [x,y,w,h]=a,key=new URL(img.src,location.href).pathname;
+    draws++;const [x,y,w,h]=a,key=img.src?new URL(img.src,location.href).pathname:'cached-frame';
     if(![x,y,w,h].every(Number.isFinite)||x<0||y<0||w<=0||h<=0||x+w>img.width+.001||y+h>img.height+.001)errors.push({label,key,source:a.slice(0,4),size:[img.width,img.height]});
     (cells[key]??=new Set()).add([x,y,w,h].join(','));
    }

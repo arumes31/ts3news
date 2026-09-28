@@ -87,3 +87,30 @@ body to avoid requiring a historical Git object. Local captures remain under
 canvas-state-equivalence(rejected matrix),canvas-alpha-equivalence(passing narrow
 variant),and boss-frames-alpha(three measurements). Next investigate bounded
 sprite/effect raster reuse rather than assuming save/restore itself is the cause.
+
+## Retained integer atlas-frame cache
+
+The next candidate caches original-resolution integer atlas rectangles in bounded
+source canvases. Fractional source rectangles bypass it because the visual audit
+found one/two changed edge pixels when reoriginating those crops. Exact state and
+pixels then passed for transformed sprites and every hero/effect atlas cell.
+
+| Run | Duration | Frames | Interval p95 | Interval p99 | Render p95 |
+| --- | --- | --- | --- | --- | --- | --- |
+|1|21.532s|341|133.3ms|233.3ms|14.2ms|
+|2|21.834s|344|133.4ms|183.3ms|12.4ms|
+|3|21.510s|346|149.9ms|216.7ms|13.0ms|
+
+Every run cleared with three enemies, zero projectile peak and no reported errors.
+The three synchronous-render thresholds pass; the overall frame gate still FAILS.
+Median render p95 fell from100.7ms to13.0ms(about87%) on the same software-rendered
+development profile. Do not equate this to an87% FPS improvement or physical-device
+support. The cache adds up to8MiB of calculated source-pixel backing,64entries,
+with dimension reset on eviction. Total process/GPU memory has not been measured.
+
+[Implementation and verification scope](README-atlas-frame-cache.md).
+[Raw three-run captures](../../tests/performance/baselines/boss-atlas-cache-2026-09-28.json).
+Collection passed in1.9minutes. Local pixel/eviction and atlas integration evidence
+is under atlas-cache-final,atlas-cache-regressions and atlas-cache-bounds-final.
+The exhaustive actor/scene probes now prepare both lazy hero sheets before direct
+render calls; unchanged coverage assertions pass for124monsters/32rigs and300scenes.

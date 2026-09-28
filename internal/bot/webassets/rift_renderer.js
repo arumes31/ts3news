@@ -510,10 +510,35 @@
     }
     window.RiftAudio.area((run.level?.region||0)*3+run.room);
   };
+  const atlasFrames=new Map(),atlasIDs=new WeakMap(),atlasFrameLimit=8*1024*1024;
+  let atlasFrameBytes=0,atlasNextID=0,atlasHits=0,atlasMisses=0;
+  renderer.atlasCacheStats=()=>({entries:atlasFrames.size,bytes:atlasFrameBytes,limitBytes:atlasFrameLimit,hits:atlasHits,misses:atlasMisses});
+  function cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh){
+    if(!(dw>0&&dh>0&&dw<=256&&dh<=256&&sw>0&&sh>0&&sx>=0&&sy>=0&&sx+sw<=img.width&&sy+sh<=img.height))return null;
+    // Fractional shared-atlas crops retain native sampling to avoid edge rounding changes.
+    if(![sx,sy,sw,sh].every(Number.isInteger))return null;
+    // Copy whole source pixels, including a border, without resampling the atlas.
+    const left=Math.max(0,Math.floor(sx)-1),top=Math.max(0,Math.floor(sy)-1),width=Math.min(img.width,Math.ceil(sx+sw)+1)-left,height=Math.min(img.height,Math.ceil(sy+sh)+1)-top,bytes=width*height*4;
+    if(bytes>atlasFrameLimit/4)return null;
+    if(!atlasIDs.has(img))atlasIDs.set(img,++atlasNextID);
+    const key=[atlasIDs.get(img),left,top,width,height].join(':');
+    let frame=atlasFrames.get(key);
+    if(frame){atlasHits++;atlasFrames.delete(key);atlasFrames.set(key,frame);return frame;}
+    atlasMisses++;
+    while(atlasFrames.size&&(atlasFrames.size>=64||atlasFrameBytes+bytes>atlasFrameLimit)){
+      const oldest=atlasFrames.keys().next().value,retired=atlasFrames.get(oldest);atlasFrameBytes-=retired.bytes;atlasFrames.delete(oldest);retired.canvas.width=0;retired.canvas.height=0;
+    }
+    const source=document.createElement('canvas');source.width=width;source.height=height;
+    const sourceContext=source.getContext('2d');if(!sourceContext)return null;
+    sourceContext.imageSmoothingEnabled=false;sourceContext.drawImage(img,left,top,width,height,0,0,width,height);
+    frame={canvas:source,left,top,bytes};atlasFrames.set(key,frame);atlasFrameBytes+=bytes;return frame;
+  }
   function drawAtlas(img,sx,sy,sw,sh,dx,dy,dw,dh){
     const diagnostics=renderer.atlasDiagnostics;
     const valid=!diagnostics||renderer.checkAtlasBounds(img,sx,sy,sw,sh);
-    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+    const frame=cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh);
+    if(frame)ctx.drawImage(frame.canvas,sx-frame.left,sy-frame.top,sw,sh,dx,dy,dw,dh);
+    else ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
     if(diagnostics){
       diagnostics.frames++;
       ctx.save();ctx.globalAlpha=1;ctx.strokeStyle=valid?'#55e7e2':'#ff4fc3';ctx.lineWidth=1;ctx.setLineDash([]);ctx.strokeRect(dx,dy,dw,dh);ctx.restore();
