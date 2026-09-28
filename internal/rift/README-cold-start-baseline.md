@@ -779,3 +779,24 @@ This defers the complete effects sheet until an encounter or requested reference
 animation. It does not remove those bytes from first-fight loading. The latest
 measurement remains2fdb7052, before this change; no new timing or performance-gate
 claim is made. Post-Start waiting must remain visible in the next capture.
+
+
+## Companion artwork prepares with the run (2026-09-28)
+
+Hero-only idle previews no longer prepare wolf artwork from equipped pets or
+pack abilities. The same dependency condition now belongs to encounter artwork
+preparation and uses the frozen run build. Pets, optional pack skills, signatures
+and ultimates still prepare row4 before play, alongside enemy pack shots and
+saved pack projectiles. Legacy future-room fallbacks remain unchanged.
+
+The local-mob suite now uses the actual fixture build instead of stripping its
+pack dependencies. Session44302 RED1 confirmed the eager wolf request. Session
+84920 GREEN20 (1.7m) covered that idle build, all six wolf dependency paths, saved
+waves, legacy rooms, fresh retry URLs, a held wolf decode during real Start,
+cache equivalence and seamless tiers/missions. Generator --check still passes
+seven outputs. User Go diff unchanged; original actor rendering is untouched.
+
+This defers516,716 image body bytes for the fixture's companion build until
+encounter preparation, not a reduction in first-fight bytes. Together with the
+prior effects change, it needs a new matched idle/first-fight measurement. The
+latest completed capture is still2fdb7052; no timing or release pass is claimed.

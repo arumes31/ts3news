@@ -606,7 +606,8 @@
     // differ from that plan and must also be prepared before polling starts.
     for(const group of run?.encounter_plan||[])units.push(...group);
     for(const group of run?.room_objective?.waves||[])units.push(...group);
-    const extra=[];
+    const extra=[],build=run?.build;
+    if(build&&(build.pets>0||[...(build.skills||[]),...(build.signatures||[]),build.ultimate].some(skill=>skill?.kind==='pack')))extra.push(4);
     if(run?.projectiles?.some(shot=>shot.kind==='pack'))extra.push(4);
     // Older campaigns can generate later rooms without a frozen encounter plan.
     if(run&&!run.practice&&['fighting','cleared'].includes(run.status)&&(!Array.isArray(run.encounter_plan)||run.encounter_plan.length<3))extra.push(0,1,2,3,4,5);
@@ -617,7 +618,6 @@
   const heroLoads=new Map(),heroRetries=new Map(),heroImages={heroesA:[],heroesB:[]};
   renderer.prepareBuild=async build=>{
     if(!build)return;
-    if(build.pets>0||[...(build.skills||[]),...(build.signatures||[]),build.ultimate].some(skill=>skill?.kind==='pack'))await prepareMobRows([4]);
     const index=Math.max(0,styles.indexOf(foundations[build.class]||build.class)),key=index<6?'heroesA':'heroesB',row=index%6,loadKey=key+':'+row;
     if(heroImages[key][row])return;
     const section=window.RiftHeroSections?.atlases?.[key]?.rows?.[row];

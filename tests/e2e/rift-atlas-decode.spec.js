@@ -13,7 +13,7 @@ for(const asset of ['rift_region_0.png','rift_heroes_a_row0.png'])test('Start wa
  await page.evaluate(()=>window.releaseAtlasDecode());
  await expect(page.locator('#rift-start')).toBeEnabled();
  const decoded=await page.evaluate(()=>window.atlasDecodeCalls);
- expect(new Set(decoded).size).toBeGreaterThanOrEqual(4);
+ expect(new Set(decoded).size).toBeGreaterThanOrEqual(3);
  await expect(page.locator('#rift-atlas-progress')).toHaveText('Critical atlases loaded (2/2)');
 });
 for(const asset of ['rift_region_0.png','rift_heroes_a_row0.png'])test('failed decode offers artwork reload: '+asset,async({page})=>{

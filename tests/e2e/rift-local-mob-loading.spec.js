@@ -1,15 +1,8 @@
 const {test,expect}=require('@playwright/test');
-test.beforeEach(async({page})=>{
- await page.route('**/api/abyss/rift',async route=>{
-  if(route.request().method()!=='GET')return route.continue();
-  const response=await route.fetch(),data=await response.json();data.build.pets=0;
-  for(const skill of [...(data.build.skills||[]),...(data.build.signatures||[]),data.build.ultimate])if(skill?.kind==='pack')skill.kind='slash';
-  await route.fulfill({response,json:data});
- });
-});
-test('idle fighter preview does not load the complete local mob atlas',async({page})=>{
+test('idle fighter preview defers companion artwork even when the equipped build needs it',async({page})=>{
  const paths=[];page.on('request',r=>{if(/rift_mobs(?:_row\d)?\.png/.test(r.url()))paths.push(new URL(r.url()).pathname);});
- await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();expect(paths).toEqual([]);
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
+ const build=(await(await page.request.get('/api/abyss/rift')).json()).build;expect(build.pets>0||[...(build.skills||[]),...(build.signatures||[]),build.ultimate].some(skill=>skill?.kind==='pack')).toBe(true);expect(paths).toEqual([]);
 });
 test('local and shared species plus saved waves prepare only their required rows',async({page})=>{
  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();const paths=[];
@@ -39,4 +32,14 @@ test('invalid row dimensions recover with a fresh URL and concurrent retries sha
  const error=await page.evaluate(async()=>{try{await RiftRenderer.prepareCreatures([{kind:'boss'}]);return '';}catch(error){return error.message;}});expect(error).toContain('local creature artwork');
  invalid=false;await page.evaluate(()=>Promise.all([RiftRenderer.prepareCreatures([{kind:'boss'}]),RiftRenderer.prepareCreatures([{kind:'boss'}])]));
  expect(urls).toHaveLength(2);expect(urls[1]).toMatch(/[?&]retry=1$/);
+});
+
+test('starting a companion build waits for wolf decode before play',async({page})=>{
+ await page.addInitScript(()=>{
+  const decode=HTMLImageElement.prototype.decode;window.wolfDecodes=0;const gate=new Promise(resolve=>window.releaseWolf=resolve);
+  HTMLImageElement.prototype.decode=function(){if(!this.src.includes('rift_mobs_row4.png'))return decode.call(this);window.wolfDecodes++;return gate.then(()=>decode.call(this));};
+ });
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+ await expect.poll(()=>page.evaluate(()=>window.wolfDecodes)).toBe(1);await expect(page.locator('#rift-overlay')).toBeVisible();
+ await page.evaluate(()=>window.releaseWolf());await expect(page.locator('#rift-overlay')).toBeHidden();
 });
