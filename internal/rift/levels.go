@@ -37,6 +37,7 @@ type ArenaEntrance struct {
 }
 
 type Arena struct {
+	Round *RoundArena `json:"round,omitempty"`
 	Bridges []NarrowBridge `json:"bridges,omitempty"`
 	WaveGate *Obstacle `json:"wave_gate,omitempty"`
 	RestAlcove *Obstacle `json:"rest_alcove,omitempty"`
