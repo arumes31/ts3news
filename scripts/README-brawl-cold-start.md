@@ -8,7 +8,7 @@ node scripts/measure-brawl-cold-start.cjs http://127.0.0.1:18096/abyss/rift > .t
 
 Requires the project's Playwright package and Chromium installation. The example
 port must be replaced with your running fixture's port. The command does not
-start a server, authenticate or send combat actions.
+start a server or authenticate. Its default mode sends no combat actions.
 
 Three sequential samples each use a fresh browser context, disabled HTTP cache,
 blocked service workers, 1280x900 viewport, en-US locale and UTC time zone. Chromium
@@ -44,3 +44,27 @@ is Brawl's bounded cold-load recovery, not an error-free startup; compare its
 frequency as well as readiness time when optimizing. Other errors or multiple
 aborts still fail the measurement. A successful measurement is not a declaration
 that the measured loading time is acceptable.
+
+
+Use the optional first-fight mode against a local synthetic fixture:
+
+```powershell
+node scripts/measure-brawl-cold-start.cjs http://127.0.0.1:18102/abyss/rift --first-fight > .tmp/brawl-first-fight.json
+```
+
+This mode clicks Start and allows normal combat polling. It rejects non-local
+hosts and must not target a real player account. Each sample retains the original
+idle `readyMS` and totals, then adds `firstFight`: navigation-to-ready time,
+the timestamp immediately before clicking Start, time since that timestamp,
+and cumulative completed-resource bytes/counts through first combat readiness.
+Readiness here requires a successful authoritative fighting-step response and a
+hidden loading overlay, followed by two animation-frame callbacks. It includes
+post-Start creature decoding and transfers; it is not a GPU presentation trace.
+A failed start or missing first successful step fails the sample. Context closure
+ends the synthetic encounter. URL query strings and response bodies are excluded
+from resource summaries.
+
+First-fight results supplement the existing cold-start gate. An earlier enabled
+Start alone must not be presented as faster playable combat. Compare both
+milestones, their transfer totals, and any initial-read timeout recovery. The
+first-fight mode does not change the documented 20s/25s/3MB startup thresholds.
