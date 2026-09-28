@@ -2,6 +2,7 @@
 'use strict';
 const integer=value=>Number.isSafeInteger(value)&&value>=0;
 const hash=(value,length)=>typeof value==='string'&&new RegExp('^[a-f0-9]{'+length+'}$').test(value)?value:null;
+const completeMission=e=>e?.status==='complete'&&Array.isArray(e.tiers)&&e.tiers.length===3&&e.tiers.every((tier,j)=>tier?.room===j);
 function sessionEvidence(reports){
  if(!Array.isArray(reports)||reports.length>3)throw Error('Expected up to three session reports');
  const seen=new Set();
@@ -15,12 +16,14 @@ function sessionEvidence(reports){
   const runtimeErrors=Array.isArray(r.errors)?r.errors.length:null;
   const measuredDurationMS=integer(r.measuredDurationMS)?r.measuredDurationMS:null;
   const complete=typeof r.finishedAt==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(r.finishedAt)&&Number.isFinite(Date.parse(r.finishedAt))&&!r.error;
+  const expeditions=Array.isArray(r.expeditions)?r.expeditions:[];
+  const replayProof=expeditions.length>=2&&expeditions[0]?.index==='warmup'&&expeditions.every((e,i)=>completeMission(e)&&(i===0||e.index===i));
   let status='incomplete';
   if(runtimeErrors>0)status='runtime_failure';
-  else if(complete&&r.mode==='30 minutes of repeated complete three-tier missions'&&source.revision&&source.trackedDiffSHA256&&runtimeErrors===0&&measuredDurationMS>=1800000&&points.length>=2&&points.every((p,i)=>p.heapBytes!==null&&p.elapsedMS!==null&&(i===0||p.elapsedMS>=points[i-1].elapsedMS))&&first.elapsedMS===0&&last.elapsedMS>=1800000&&last.elapsedMS<=measuredDurationMS){
+  else if(complete&&replayProof&&r.mode==='30 minutes of repeated complete three-tier missions'&&source.revision&&source.trackedDiffSHA256&&runtimeErrors===0&&measuredDurationMS>=1800000&&points.length>=2&&points.every((p,i)=>p.heapBytes!==null&&p.elapsedMS!==null&&(i===0||p.elapsedMS>=points[i-1].elapsedMS))&&first.elapsedMS===0&&last.elapsedMS>=1800000&&last.elapsedMS<=measuredDurationMS){
    status=growthBytes>10*1048576?'heap_limit_exceeded':'heap_size_pass_review_pending';
   }
-  return {sample:r.sample,source,status,measuredDurationMS,runtimeErrors,growthBytes,completedReplays:Array.isArray(r.expeditions)?r.expeditions.filter(e=>Number.isSafeInteger(e.index)&&e.index>0&&e.status==='complete').length:0,checkpoints:points};
+  return {sample:r.sample,source,status,measuredDurationMS,runtimeErrors,growthBytes,completedReplays:expeditions.filter(e=>integer(e?.index)&&e.index>0&&completeMission(e)).length,checkpoints:points};
  }).sort((a,b)=>a.sample-b.sample);
  let status='incomplete';
  if(samples.some(s=>['runtime_failure','heap_limit_exceeded'].includes(s.status)))status='failed';
@@ -41,7 +44,6 @@ function postCapEvidence(input){
  });
  const expeditions=Array.isArray(r.expeditions)?r.expeditions:[];
  const replays=expeditions.filter(e=>integer(e?.index)&&e.index>0);
- const completeMission=e=>e?.status==='complete'&&Array.isArray(e.tiers)&&e.tiers.length===3&&e.tiers.every((tier,j)=>tier?.room===j);
  const completedReplays=replays.filter(e=>e.status==='complete').length;
  const replayProof=expeditions.length===replays.length+1&&expeditions[0]?.index==='warmup'&&completeMission(expeditions[0])&&replays.length>=60&&replays.every((e,i)=>e.index===i+1&&completeMission(e));
  const first=checkpoints[0],last=checkpoints.at(-1),capMissions=[49,54,59,60];

@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {sessionEvidence,postCapEvidence}=require('../../scripts/brawl-session-evidence.cjs');
-const report=()=>({sample:1,mode:'30 minutes of repeated complete three-tier missions',server:{revision:'a'.repeat(40),trackedDiffSHA256:'b'.repeat(64)},measuredDurationMS:1805000,finishedAt:'2026-09-28T00:30:05.000Z',errors:[],expeditions:[{index:'warmup',status:'complete'},{index:1,status:'complete'}],checkpoints:[{elapsedMS:0,heap:{usedSize:7000000}},{elapsedMS:1800000,heap:{usedSize:8000000}}]});
+const report=()=>({sample:1,mode:'30 minutes of repeated complete three-tier missions',server:{revision:'a'.repeat(40),trackedDiffSHA256:'b'.repeat(64)},measuredDurationMS:1805000,finishedAt:'2026-09-28T00:30:05.000Z',errors:[],expeditions:[{index:'warmup',status:'complete',tiers:[{room:0},{room:1},{room:2}]},{index:1,status:'complete',tiers:[{room:0},{room:1},{room:2}]}],checkpoints:[{elapsedMS:0,heap:{usedSize:7000000}},{elapsedMS:1800000,heap:{usedSize:8000000}}]});
 test('exports only aggregate evidence and never copies private free text',()=>{
  const r=report(),secret='PRIVATE_SENTINEL_PLAYER_UID';
  r.server.patch=secret;r.server.dirtyFiles=secret;r.host={username:secret};r.lastCombat={name:secret};r.errors=[];
@@ -53,4 +53,9 @@ test('post-cap export independently computes heap failure and strips error strin
  const r=postCapReport();r.checkpoints.at(-1).heap.usedSize=30000000;r.growthBytes=0;
  assert.equal(postCapEvidence(r).status,'heap_limit_exceeded');
  r.errors=[{message:'PRIVATE_FAILURE'}];const e=postCapEvidence(r);assert.equal(e.status,'runtime_failure');assert.equal(JSON.stringify(e).includes('PRIVATE_FAILURE'),false);
+});
+
+test('standard evidence requires contiguous completed three-tier missions after warmup',()=>{
+ const mutations=[r=>r.expeditions=[],r=>r.expeditions.shift(),r=>r.expeditions[1].tiers.pop(),r=>r.expeditions[1].index=2,r=>r.expeditions[1].status='active',r=>r.expeditions.push({...r.expeditions[1]}),r=>r.expeditions.push(null)];
+ for(const mutate of mutations){const r=report();mutate(r);assert.equal(sessionEvidence([r]).samples[0].status,'incomplete');}
 });

@@ -253,3 +253,10 @@ private bytes when available. Its best status is post_cap_review_required; it
 never claims release readiness. Preserve raw heaps and identifiers locally.
 
     node --test tests/performance/session-options.test.cjs
+
+Standard evidence exports also validate mission completion: a completed warmup
+must precede contiguous numbered replays, and each record must contain completed
+status and tiers 0, 1, and 2 in order. Missing, partial, duplicate, or malformed
+mission records remain incomplete even when the numeric heap threshold passes.
+The existing three captures retain their review-required status with 38, 40,
+and 40 verified replays. The focused exporter/options suite contains 13 checks.
