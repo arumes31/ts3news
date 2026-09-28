@@ -373,7 +373,7 @@
       const ended=!['fighting','cleared'].includes(run.status), waiting=roomGoal.next_wave_seconds>0;
       putRoomProgress('Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements in '+Math.ceil(roomGoal.next_wave_seconds)+'s':'Defeat the attackers'),'Wave '+roomGoal.wave+'/3 · '+(ended?'Expedition ended':roomGoal.complete?'Survived':gamePaused?'Paused':waiting?'Reinforcements approaching':'Defeat the attackers'));
       put($('rift-room-objective-help'),ended?'This tier was not secured.':roomGoal.complete?'All three waves defeated. Bank the tier loot to continue.':waiting?'A new group is approaching. Reposition before they arrive.':roomGoal.wave===3?'Defeat the final group to secure this tier and bank its loot.':'Defeat this group to trigger the next wave. Loot stays available throughout the fight.');
-      put($('rift-room-objective-directions'),roomGoal.complete||ended?'':run.enemies.filter(enemy=>enemy.hp>0).length+' enemies remaining in this wave');
+      put($('rift-room-objective-directions'),roomGoal.complete||ended?'':run.enemies.filter(enemy=>enemy.hp>0).length+' enemies remaining in this wave'+(roomGoal.gate?' · '+(waiting?'Gate open':roomGoal.gate.closed?'Gate closed · use upper/lower bypass':roomGoal.gate.close_in>0?'Gate closing in '+roomGoal.gate.close_in.toFixed(1)+'s':'Gate waiting for clear threshold'):''));
     }else if(roomGoal?.kind==='hold_circle'){
       const zone=roomGoal.zone,inside=((run.player.x-zone.x)/zone.radius_x)**2+((run.player.y-zone.y)/zone.radius_y)**2<=1;
       const ended=!['fighting','cleared'].includes(run.status);

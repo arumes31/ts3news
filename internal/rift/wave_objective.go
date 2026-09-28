@@ -12,8 +12,13 @@ func (r *Run) beginWaveObjective() {
 		start, end := group*len(r.Enemies)/o.Target, (group+1)*len(r.Enemies)/o.Target
 		o.Waves = append(o.Waves, append([]Actor(nil), r.Enemies[start:end]...))
 	}
+	if gate := r.Arena().WaveGate; gate != nil {
+		o.Gate = &WaveGate{Obstacle: *gate}
+		o.Description += " The central gate warns before closing; use the upper or lower bypass. It opens between waves."
+	}
 	r.RoomObjective = o
 	r.Enemies = append([]Actor(nil), o.Waves[0]...)
+	r.warnWaveGate()
 }
 
 func (r *Run) tickWaveObjective(dt float64) {
@@ -23,9 +28,11 @@ func (r *Run) tickWaveObjective(dt float64) {
 	}
 	for _, enemy := range r.Enemies {
 		if enemy.HP > 0 {
+			r.tickWaveGate(dt)
 			return
 		}
 	}
+	r.openWaveGate()
 	if o.Wave == o.Target {
 		o.Complete = true
 		r.event("waves_complete", r.Player.X, r.Player.Y, float64(o.Wave))
@@ -50,6 +57,7 @@ func (r *Run) tickWaveObjective(dt float64) {
 		r.Enemies = append(r.Enemies, enemy)
 	}
 	o.Wave++
+	r.warnWaveGate()
 	r.observeRoomMonsters()
 	r.event("wave_start", r.Player.X, r.Player.Y, float64(o.Wave))
 }

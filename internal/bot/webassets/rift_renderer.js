@@ -70,6 +70,25 @@
     ctx.beginPath();ctx.ellipse(x,y-50,28,44,0,-Math.PI*.85,Math.PI*.1);ctx.stroke();
     ctx.restore();
   }
+  function drawWaveGate(g){
+    const x=g.x-camera,y=g.y,color=g.closed?'#c6cdd0':g.close_in>0?'#f2cb80':'#a8d8c0';
+    const opacity=foregroundCoverOpacity(g.x-4,y-58,g.w+8,g.h+58,g.y+g.h);
+    ctx.save();ctx.globalAlpha=opacity;ctx.fillStyle='#14232b';ctx.strokeStyle='#64727a';ctx.lineWidth=2;
+    ctx.fillRect(x-3,y-56,5,g.h+56);ctx.fillRect(x+g.w-2,y-56,5,g.h+56);
+    ctx.fillRect(x-3,y-58,g.w+6,7);
+    if(g.closed){
+      ctx.fillStyle='#344751aa';ctx.fillRect(x+2,y-50,g.w-4,g.h+48);
+      ctx.strokeStyle=color;ctx.lineWidth=2;
+      for(let offset=5;offset<g.w;offset+=6){ctx.beginPath();ctx.moveTo(x+offset,y-51);ctx.lineTo(x+offset,y+g.h-2);ctx.stroke();}
+      ctx.beginPath();ctx.moveTo(x,y-20);ctx.lineTo(x+g.w,y-20);ctx.moveTo(x,y+g.h-12);ctx.lineTo(x+g.w,y+g.h-12);ctx.stroke();
+    }else{ctx.fillStyle=color;ctx.fillRect(x+2,y-50,(g.w-4)*(g.close_in>0?1-g.close_in/.8:1),4);}
+    ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash(g.closed?[]:[4,4]);ctx.strokeRect(x,y,g.w,g.h);ctx.setLineDash([]);
+    if(!display.cleanScreenshot){ctx.globalAlpha=1;ctx.fillStyle=color;ctx.strokeStyle='#10212a';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';
+      const goal=snapshot.room_objective,label=g.closed?'GATE CLOSED · GO AROUND':goal.complete||goal.next_wave_seconds>0?'GATE OPEN':g.close_in>0?'GATE CLOSING':'CLEAR THE GATE';
+      interactionPrompt(label,x+g.w/2,y-68,true);
+    }
+    ctx.restore();fadedCoverFootprint(g,opacity,true);
+  }
   const deaths = new Map();
   const decalColors={fire:'#b86a40',ice:'#91cbd8',poison:'#92ad54',void:'#9170b7',radiant:'#d8ca85',rune:'#aa92c8'};
   let decals=[];
@@ -1930,7 +1949,9 @@
     (arena?.high_cover||[]).forEach(o=>{if(coverInView(o))units.push({y:o.y+o.h,cover:o,tall:true});});
     for(const pickup of (run.room_objective?.kind==='sigils'?run.room_objective.pickups:[]))if(!pickup.collected)units.push({y:pickup.y,sigil:pickup});
     if(run.room_objective?.kind==='carry_relic'&&!run.room_objective.relic.collected)units.push({y:run.room_objective.relic.y,relic:run.room_objective.relic});
+    const gate=run.room_objective?.gate;if(gate&&coverInView(gate))units.push({y:gate.y+gate.h,waveGate:gate});
     depthSortedUnits(units).forEach(unit=>{
+      if(unit.waveGate){drawWaveGate(unit.waveGate);return;}
       if(unit.terrain){
         const c=unit.terrain,broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
         // Tight source bounds align the generated sprites to the actual footprint.

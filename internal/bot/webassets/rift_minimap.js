@@ -25,6 +25,7 @@
     for(const p of arena.platforms||[])rect(p,'platform','Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
+    if(run.room_objective?.gate?.closed)rect(run.room_objective.gate,'stone','Wave gate closed; use either bypass');
     for(const o of arena.cover||[])if(o.material==='stone'||o.hp>0)rect(o,o.material,o.material==='wood'?'Breakable wood':'Permanent stone');
     for(const edge of arena.drop_edges||[])rect({...edge,h:edge.landing_y-edge.y},'ledge','One-way descent; return around an end');
     if(arena.exit)rect({x:arena.exit.x-10,y:arena.exit.y-10,w:20,h:20},'exit','Region exit');

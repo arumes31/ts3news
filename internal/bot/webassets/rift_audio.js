@@ -558,6 +558,9 @@
       case 'totem_hurt': h(.12,.07,2200,pan); t(160,95,.15,.05,'triangle'); break;
       case 'totem_break': h(.5,.12,3200,pan); t(320,60,.5,.08,'triangle'); break;
       case 'wave_incoming': [0,.25].forEach(delay=>t(220,330,.2,.065,'triangle',delay)); break;
+      case 'wave_gate_warning': t(440,550,.16,.05,'triangle'); break;
+      case 'wave_gate_close': t(130,55,.2,.07,'triangle'); t(880,440,.08,.035,'square'); break;
+      case 'wave_gate_open': t(180,360,.24,.06,'triangle'); break;
       case 'wave_start': t(110,55,.35,.08,'triangle'); t(440,660,.22,.055,'sine',.1); break;
       case 'waves_complete': [392,523,659,784].forEach((f,i)=>t(f,f,.3,.055,'triangle',i*.08)); break;
       case 'circle_charge': t(392,587,.35,.05,'sine'); break;

@@ -524,6 +524,7 @@
   function nearbyCover(run){
     const arena=run.level?.rooms?.[run.room];if(!arena)return null;
     const candidates=[...(arena.drop_edges||[]).map(edge=>({kind:'ledge',obstacle:{x:edge.x,y:edge.y,w:edge.w,h:edge.landing_y-edge.y}})),...(arena.obstacles||[]).map(obstacle=>({kind:'low',obstacle})),...(arena.high_cover||[]).map(obstacle=>({kind:'tall',obstacle})),...(arena.cover||[]).filter(c=>c.material==='stone'||c.hp>0).map(obstacle=>({kind:obstacle.material,obstacle}))];
+    if(run.room_objective?.gate?.closed)candidates.push({kind:'tall',obstacle:run.room_objective.gate});
     let nearest=null,distance=96;
     for(const candidate of candidates){const o=candidate.obstacle,x=Math.max(o.x,Math.min(run.player.x,o.x+o.w)),y=Math.max(o.y,Math.min(run.player.y,o.y+o.h)),d=Math.hypot(x-run.player.x,y-run.player.y);if(d<distance){distance=d;nearest=candidate;}}
     return nearest;

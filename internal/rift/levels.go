@@ -37,6 +37,7 @@ type ArenaEntrance struct {
 }
 
 type Arena struct {
+	WaveGate *Obstacle `json:"wave_gate,omitempty"`
 	Exit *ArenaEntrance `json:"exit,omitempty"`
 	Entrance *ArenaEntrance `json:"entrance,omitempty"`
 	HazardSwitch *HazardSwitch `json:"hazard_switch,omitempty"`
@@ -181,6 +182,7 @@ func buildCampaign() []Level {
 				}
 				if layout == 4 && room == 1 {
 					arena.Objective = "survive_waves"
+					arena.WaveGate = &Obstacle{840 + float64(region*7), 370, 24, 50}
 				}
 				if layout == 5 && room == 0 {
 					arena.Objective = "linked_guardians"
@@ -381,7 +383,11 @@ func (r *Run) Arena() Arena {
 		return r.Practice.Arena
 	}
 	if r.Level != nil && r.Room >= 0 && r.Room < len(r.Level.Rooms) {
-		return r.Level.Rooms[r.Room]
+		arena := r.Level.Rooms[r.Room]
+		if o := r.RoomObjective; o != nil && o.Kind == "survive_waves" && o.Gate != nil && o.Gate.Closed {
+			arena.HighCover = append(append([]Obstacle(nil), arena.HighCover...), o.Gate.Obstacle)
+		}
+		return arena
 	}
 	return Arena{}
 }
@@ -652,6 +658,9 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 		dx, dy = r.navigateDropEdge(a, dx, dy)
 	}
 	nextX := clamp(a.X+dx, 35, Width-35)
+	if r.waveGateBlocksPath(a.X, a.Y, nextX, a.Y, radius) {
+		nextX = a.X
+	}
 	for _, o := range obstacles {
 		if contains(o, nextX, a.Y, radius) {
 			nextX = a.X
@@ -663,6 +672,9 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 	}
 	a.X = nextX
 	nextY := clamp(a.Y+dy, 315, 490)
+	if r.waveGateBlocksPath(a.X, a.Y, a.X, nextY, radius) {
+		nextY = a.Y
+	}
 	for _, o := range obstacles {
 		if contains(o, a.X, nextY, radius) {
 			nextY = a.Y
