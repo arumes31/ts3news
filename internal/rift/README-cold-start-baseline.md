@@ -572,3 +572,32 @@ Together with conditional platform loading, mission 1 avoids 4,255,342 image
 body bytes. This is request/body-size evidence, not a new timing capture. The
 latest first-fight capture still predates both changes; loading and other
 performance gates remain open.
+
+
+## Local mob transport rows (2026-09-28)
+
+Six PNG transport rows and `rift_mob_sections.js` preserve the unchanged
+2048-by-768 local atlas. The builder verifies the renderer's authoritative row
+mapping (goblin, archer, knight, boss, wolf, spore), requires the existing atlas
+dimensions, round-trips RGBA bytes and hashes each generated URL.
+
+```powershell
+python scripts/build-brawl-mob-sections.py --write
+python scripts/build-brawl-mob-sections.py --check
+python tests/performance/test_mob_sections.py
+```
+
+Rows are 336,870 / 407,466 / 505,645 / 484,465 / 516,716 / 415,345 bytes,
+2,666,507 combined versus 2,782,428 for the original. Selectively preparing rows
+is the intended benefit; downloading all rows is not a startup solution.
+Two Python checks cover hashes/pixels and changed layout/dimension rejection.
+The browser compares direct rows and reconstruction to the original: 64 cases,
+6,144 frame renders, zero differing pixels, including rotation, flips, opacity,
+brightness and sizes 63/80/101/168. All 96 source cells are covered.
+
+Production still loads the complete local atlas. Integration must prepare local
+species and legacy fallbacks alongside shared creatures, all frozen encounter
+rooms and saved waves. It must also cover equipped pets, pack projectiles,
+relevant equipped skill/ultimate kinds, enemy projectile kinds and saved
+projectiles. Legacy runs without a complete encounter plan need their future
+room art prepared before seamless continuation. No new timing claim is made.
