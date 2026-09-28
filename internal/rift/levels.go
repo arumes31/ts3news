@@ -146,7 +146,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 3: cross checkerboard tiles as the safe group alternates"
 			}
 			if layout == 3 {
-				level.Tactic += ". Tier 2: hold the circle for 15 uncontested seconds. Tier 3: linked hazards pulse one at a time from left to right"
+				level.Tactic += ". Tier 1: cross the narrow bridge between its rails. Tier 2: hold the circle for 15 uncontested seconds. Tier 3: linked hazards pulse one at a time from left to right"
 			}
 			if layout == 4 {
 				level.Tactic += ". Tier 1: escape the advancing collapse through the exit seal. Tier 2: survive three waves of Abyss reinforcements"
@@ -337,6 +337,10 @@ func buildCampaign() []Level {
 						arena.Cover = append(arena.Cover, TerrainCover{Obstacle: Obstacle{x + float64(region*7), 390, 32, 30}, ID: fmt.Sprintf("mission-%d-volatile-%d", id, index+1), Material: "wood", HP: 60, MaxHP: 60, Volatile: true})
 					}
 				}
+				if layout == 3 && room == 0 {
+					arena.Bridges = []NarrowBridge{{ID: fmt.Sprintf("mission-%d-bridge", id), Obstacle: Obstacle{230, 365 + float64(region%3)*10, 180, 90}}}
+					if arena.HazardSwitch != nil { arena.HazardSwitch.X = 180 }
+				}
 				level.Rooms = append(level.Rooms, arena)
 			}
 			levels = append(levels, level)
@@ -402,6 +406,9 @@ func (r *Run) Arena() Arena {
 }
 
 func (r *Run) FloorMaterial() string {
+	for _, bridge := range r.Arena().Bridges {
+		if contains(bridge.Obstacle, r.Player.X, r.Player.Y, 0) { return "wood" }
+	}
 	if _, floor := r.Arena().surfaceAt(r.Player.X, r.Player.Y); floor != "" {
 		return floor
 	}

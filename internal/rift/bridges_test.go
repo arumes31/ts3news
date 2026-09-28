@@ -3,6 +3,8 @@ package rift
 import (
 	"encoding/json"
 	"testing"
+	"time"
+	"ts3news/internal/content"
 )
 
 func TestBridgeSweptGroundBounds(t *testing.T) {
@@ -121,5 +123,52 @@ func TestBridgePursuersReachOppositeBank(t *testing.T) {
 		if actor.X != target.X || actor.Y != target.Y {
 			t.Fatalf("pursuer stalled: %+v", actor)
 		}
+	}
+}
+
+func TestCampaignBridgesHaveClearApproachesAndIsolatedSaves(t *testing.T) {
+	count := 0
+	for _, level := range Campaign() {
+		arena := level.Rooms[0]
+		if len(arena.Bridges) == 0 {
+			continue
+		}
+		count++
+		if !arena.ValidBridges() {
+			t.Fatalf("invalid mission %d bridge", level.ID)
+		}
+		bridge := arena.Bridges[0]
+		if sw := arena.HazardSwitch; sw != nil && !arena.groundPath(sw.X, sw.Y, sw.X, sw.Y, 10) { t.Fatal("switch placed in bridge gap") }
+		run := NewRunAtLevel("bridge-campaign", testRun().Build, time.Unix(100, 0), content.AbyssMobCatalog(), level.ID)
+		if !arena.groundPath(run.Player.X, run.Player.Y, run.Player.X, run.Player.Y, 10) {
+			t.Fatal("entrance in gap")
+		}
+		for _, enemy := range run.Enemies {
+			if !arena.groundPath(enemy.X, enemy.Y, enemy.X, enemy.Y, actorClearance(&enemy)) {
+				t.Fatal("enemy spawned in gap")
+			}
+		}
+		for _, wall := range arena.solidObstacles() {
+			if wall.X < bridge.X+bridge.W+40 && wall.X+wall.W > bridge.X-40 {
+				t.Fatal("bridge approach obstructed")
+			}
+		}
+		for _, h := range arena.Hazards {
+			if h.X < bridge.X+bridge.W+40 && h.X+h.W > bridge.X-40 {
+				t.Fatal("bridge approach has hazard")
+			}
+		}
+		run.Player.X, run.Player.Y = bridge.X+bridge.W/2, bridge.Y+bridge.H/2
+		if run.FloorMaterial() != "wood" {
+			t.Fatal("bridge footsteps use wrong surface")
+		}
+		copyLevel := cloneCampaignLevel(level)
+		copyLevel.Rooms[0].Bridges[0].Y++
+		if level.Rooms[0].Bridges[0].Y != bridge.Y {
+			t.Fatal("saved bridge aliases catalog")
+		}
+	}
+	if count != 10 {
+		t.Fatalf("authored %d bridge rooms, want 10", count)
 	}
 }
