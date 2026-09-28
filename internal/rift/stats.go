@@ -5,6 +5,7 @@ import "math"
 // CombatStats records confirmed action-mode outcomes, never client estimates.
 // It travels with the expedition snapshot and survives seamless room changes.
 type CombatStats struct {
+	PotionsUsed int `json:"potions_used,omitempty"`
 	HazardDamageTaken float64            `json:"hazard_damage_taken"`
 	EnemyDamageTaken  float64            `json:"enemy_damage_taken"`
 	Dodges            int                `json:"dodges"`

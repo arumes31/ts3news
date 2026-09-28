@@ -27,6 +27,7 @@ var errRiftEconomyReset = errors.New("the Abyss economy has reset; reload the ex
 var errRiftCharacterMissing = errors.New("the Abyss character is no longer available")
 
 type riftRequest struct {
+	ConsumableID string `json:"consumable_id,omitempty"`
 	EnemyName string `json:"enemy_name,omitempty"`
 	HazardIntensity string `json:"hazard_intensity,omitempty"`
 	EnrageChallenge *bool `json:"enrage_challenge,omitempty"`
@@ -296,6 +297,7 @@ func (s *WebServer) handleRiftAPI(w http.ResponseWriter, r *http.Request, uid st
 }
 
 func validRiftRequest(r riftRequest) bool {
+	if len(r.ConsumableID)>100 || (r.Kind=="potion" && r.ConsumableID=="") || (r.Kind!="potion" && r.ConsumableID!="") { return false }
 	if r.EnrageChallenge != nil && r.Kind != "start" && r.Kind != "practice_reset" { return false }
 	if len(r.EnemyName) > 512 || (r.Kind == "practice_spawn" && strings.TrimSpace(r.EnemyName) == "") { return false }
 	if len(r.BossName) > 512 || r.BossPhase < 0 || r.BossPhase > 3 {
@@ -315,7 +317,7 @@ func validRiftRequest(r riftRequest) bool {
 		seen[id] = true
 	}
 	switch r.Kind {
-	case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_spawn", "practice_clear", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
+	case "potion", "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss", "practice_spawn", "practice_clear", "practice_reset", "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
 		return true
 	}
 	return false
@@ -380,7 +382,7 @@ func validRiftModeAction(mode, kind string) bool {
 	if kind == "practice_spawn" || kind == "practice_clear" { return mode == "skills" }
 	if mode == "" {
 		switch kind {
-		case "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss":
+		case "potion", "start", "step", "pause", "resume", "bank", "next", "advance", "exit", "retry_boss":
 			return true
 		}
 		return false
@@ -547,6 +549,8 @@ func (b *Bot) updateRiftMode(ctx context.Context, uid string, req riftRequest, b
 			return nil, errRiftConflict
 		}
 		switch req.Kind {
+		case "potion":
+			if err := useRiftPotion(ctx, tx, uid, run, req.ConsumableID); err != nil { return nil, err }
 		case "practice_spawn", "practice_clear":
 			if err := applyRiftPracticeEnemy(run, req, now); err != nil { return nil, errRiftConflict }
 		case "practice_health", "practice_mana", "practice_cooldowns", "practice_freeze", "practice_bank":
