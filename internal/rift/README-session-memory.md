@@ -83,7 +83,7 @@ and copy that original patch into every sample, plus the server's asset-build ID
 Do not change source between fixture launch and its first sample source capture.
 Later source edits require a new run before claiming evidence for those edits.
 
-## Replacement capture: first two samples completed
+## Replacement capture: two complete samples, third failed
 
 The replacement capture in `test-results/session-memory-fixed-full` uses
 `4755892b` plus its recorded original engine diff. Sample one completed 40 full
@@ -92,9 +92,26 @@ runtime errors. Retained JS grew by 1.331 MiB (about 7.07 to 8.40 MiB). Sample
 two completed 45 replays over 30.74 minutes, with zero reported runtime errors
 and 1.363 MiB JS growth (about 7.11 to 8.47 MiB). Both pass only the numeric
 heap-size threshold and retain `retaining-path review required`. Sample three
-and the final heap review remain unfinished; this is not a three-sample gate
-pass. Later terrain reaction commits are not served by this running fixture
-and are not covered by its evidence.
+failed on character death after 30 completed replays; its last heap checkpoint
+was at 21.46 minutes. The batch exited with two passes and one failure. It is
+not a three-sample gate pass. Later terrain reaction commits were not served
+by this fixture and are not covered by its evidence.
+
+The failed driver was below the mission-one ledge at (297.337,425.019), with its
+target at (342.411,394.536). Upward movement crosses the blocked landing edge;
+the target's depth difference also exceeds the driver's attack threshold.
+The driver now follows keyboard waypoints around an end before ascending,
+using the target's side when it lies outside the ledge. Three focused Node
+checks and a real-keyboard browser test (`test-results/session-driver-ledge`)
+pass. Character stats, damage, collisions and the memory thresholds are unchanged.
+This repairs a demonstrated driver trap, not proof that future full captures pass.
+
+The completed heap analysis found 163 actor shapes, two current-expedition run
+shapes and zero effect shapes at every captured checkpoint. No stale run ID was
+found. History shapes grew while records accumulated (sample two ended at 137).
+Counts alone do not establish retention ownership or a plateau; root-path review
+and process-memory investigation remain required. The aggregate export preserves
+the third sample as incomplete and release readiness as false.
 
 Renderer process memory needs separate investigation. Sample one's private
 bytes rose from 136.42 to 340.51 MiB, increasing at every recorded checkpoint;

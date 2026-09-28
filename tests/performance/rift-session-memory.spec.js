@@ -8,6 +8,7 @@ const durationMS=smoke?60000:30*60*1000;
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 
 const {summarizeHeap}=require('../../scripts/brawl-heap-summary.cjs');
+const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs');
 
 for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory sample ${sample}`,async({page,context,browser},info)=>{
  const path=require('node:path'),output=info.outputPath('memory-report.json');
@@ -41,7 +42,7 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
   const started=Date.now();const existing=await read();
   await page.locator(existing?.status==='complete'?'#rift-replay':'#rift-start').click();
   await expect(page.locator('#rift-overlay')).toBeHidden();
-  let run;const tiers=[];let lastInputReset=0;
+  let run;const tiers=[];let lastInputReset=0;const waypoint=createLedgeNavigator();
   try{
    while(Date.now()-started<360000){
     if(report.errors.length)throw Error('Runtime failure during campaign: '+report.errors[0].message);
@@ -61,8 +62,9 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`campaign session memory samp
     const wanted=new Set(['Space']);
     if(target){
      const dx=target.x-p.x,dy=target.y-p.y;
-     if(Math.abs(dy)>10)wanted.add(dy>0?'s':'w');
-     if(Math.abs(dx)>60||Math.sign(dx)!==p.facing)wanted.add(dx>0?'d':'a');
+     const destination=waypoint(run,target),mx=destination.x-p.x,my=destination.y-p.y,detouring=destination!==target;
+     if(Math.abs(my)>(detouring?5:10))wanted.add(my>0?'s':'w');
+     if(Math.abs(mx)>(detouring?6:60)||!detouring&&Math.sign(dx)!==p.facing)wanted.add(mx>0?'d':'a');
      if(Math.abs(dx)<120&&Math.abs(dy)<30){
       const [builder,finisher]=run.build.signatures;
       if(run.resource>0&&!(run.skill_timers[finisher.id]>0)&&p.mana>=finisher.cost)wanted.add('e');

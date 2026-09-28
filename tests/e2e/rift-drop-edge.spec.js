@@ -34,3 +34,23 @@ test('an enemy below the ledge walks around an end to reach the upper floor',asy
  await expect.poll(async()=>(await saved()).enemies[0].y,{timeout:10000,intervals:[40]}).toBeLessThan(355);
  expect((await saved()).enemies[0].hp).toBe(100);expect((await saved()).stats.kills||0).toBe(0);
 });
+
+test('session driver returns around a ledge using real keyboard input',async({page})=>{
+ const {createLedgeNavigator}=require('../../scripts/brawl-session-navigation.cjs');
+ const waypoint=createLedgeNavigator(),held=new Set();
+ const controls=async keys=>{for(const key of [...held])if(!keys.has(key)){await page.keyboard.up(key);held.delete(key);}for(const key of keys)if(!held.has(key)){await page.keyboard.down(key);held.add(key);}};
+ await page.goto('/abyss/rift?scenario=drop-edge');await expect(page.locator('#rift-start')).toHaveText('Resume expedition');await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').click();
+ const saved=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const before=await saved();await controls(new Set(['s']));
+ try{await expect.poll(async()=>(await saved()).player.y).toBeGreaterThanOrEqual(425);}finally{await controls(new Set());}
+ const target={x:342.411,y:340};let reset=0;
+ try{await expect.poll(async()=>{
+  const run=await saved();if(run.player.y<353)return true;
+  const destination=waypoint(run,target),keys=new Set();
+  if(Math.abs(destination.x-run.player.x)>6)keys.add(destination.x>run.player.x?'d':'a');
+  if(Math.abs(destination.y-run.player.y)>5)keys.add(destination.y>run.player.y?'s':'w');
+  if(Date.now()-reset>1000){await controls(new Set());reset=Date.now();}
+  await controls(keys);return false;
+ },{timeout:10000,intervals:[60]}).toBe(true);}finally{await controls(new Set());}
+ const after=await saved();expect(after.player.hp).toBe(before.player.hp);expect(after.stats.kills).toBe(0);expect(after.player.x).toBeGreaterThan(340);
+});
