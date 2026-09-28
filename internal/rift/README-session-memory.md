@@ -83,17 +83,28 @@ and copy that original patch into every sample, plus the server's asset-build ID
 Do not change source between fixture launch and its first sample source capture.
 Later source edits require a new run before claiming evidence for those edits.
 
-## Replacement capture: first sample completed
+## Replacement capture: first two samples completed
 
 The replacement capture in `test-results/session-memory-fixed-full` uses
 `4755892b` plus its recorded original engine diff. Sample one completed 40 full
 mission replays after warmup over 30.49 measured minutes with zero reported
-runtime errors. Retained JS grew by 1.331 MiB (about 7.07 to 8.40 MiB), passing
-only the numeric heap-size threshold. The report explicitly retains
-`retaining-path review required`. Samples two and three and the final heap
-review remain unfinished; this is not a three-sample gate pass. Later terrain
-reaction commits are not served by this running fixture and are not covered by
-its evidence.
+runtime errors. Retained JS grew by 1.331 MiB (about 7.07 to 8.40 MiB). Sample
+two completed 45 replays over 30.74 minutes, with zero reported runtime errors
+and 1.363 MiB JS growth (about 7.11 to 8.47 MiB). Both pass only the numeric
+heap-size threshold and retain `retaining-path review required`. Sample three
+and the final heap review remain unfinished; this is not a three-sample gate
+pass. Later terrain reaction commits are not served by this running fixture
+and are not covered by its evidence.
+
+Renderer process memory needs separate investigation. Sample one's private
+bytes rose from 136.42 to 340.51 MiB, increasing at every recorded checkpoint;
+working set rose from 372.71 to 489.92 MiB. Sample two's private bytes rose from
+141.09 to 380.64 MiB, also increasing at every checkpoint; working set rose from
+385.96 to 544.20 MiB. These are the OS measurements in `browserProcesses` for
+the renderer, not JS heap sizes or proven application leak sizes. The capture
+uses repeated heap snapshots and browser automation, so allocation ownership
+and measurement overhead must be investigated before attributing the growth.
+The low JS growth does not establish stable process memory.
 
 ## Shareable aggregate export
 
