@@ -94,7 +94,9 @@ completed three20-restart samples: JS heap grew0.839–0.911MiB, below10MiB.
 The no-growth criterion is not met because bounded attempt history is still
 filling; the overall restart memory gate is not passed. The [authored boss frame baseline](README-boss-frame-baseline.md) measured three
 complete encounters on the development profile; all three fail the frame budget.
-The physical-device, ordinary/crowded120 frame, input and30-minute session gates
+The [paused crowd120 baseline](README-crowd-frame-baseline.md) also fails all three
+frame thresholds in each of its three full 60-second development captures.
+The physical-device, ordinary frame, input and30-minute session gates
 remain unmeasured against this budget. Do not mark them passed from overlays or
 seeded fixtures.
 

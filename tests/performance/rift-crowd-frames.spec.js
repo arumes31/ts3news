@@ -1,0 +1,45 @@
+const {test,expect}=require('@playwright/test');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
+const {execFileSync}=require('node:child_process');
+const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
+const smoke=process.env.BRAWL_FRAME_SMOKE==='1';
+const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
+for(let sample=1;sample<=(smoke?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
+ const report={sample,startedAt:new Date().toISOString(),smoke,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
+  host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
+  profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
+  server:'fresh managed e2e fixture; no real player data',scenario:'/abyss/rift?scenario=visual&seed=crowded-v1&crowd=120&riftFrameDebug=1',
+  thresholds:{intervalP95:50,intervalP99:100,renderP95:16},errors:[],gate:'unmeasured'};
+ const output=info.outputPath('crowd-report.json');fs.mkdirSync(path.dirname(output),{recursive:true});
+ const save=()=>fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
+ fs.writeFileSync(info.outputPath('server-tracked-diff.patch'),git('diff','HEAD','--binary'));
+ report.command='node node_modules/@playwright/test/cli.js test --config=playwright.crowd-performance.config.js';
+ page.on('pageerror',e=>report.errors.push({kind:'page',message:e.message}));
+ page.on('console',m=>{if(m.type()==='error')report.errors.push({kind:'console',message:m.text()});});
+ page.on('response',r=>{if(r.status()>=400)report.errors.push({kind:'http',path:new URL(r.url()).pathname,status:r.status()});});
+ try{
+  const browserCDP=await browser.newBrowserCDPSession();const system=await browserCDP.send('SystemInfo.getInfo');report.graphics={devices:system.gpu.devices,featureStatus:system.gpu.featureStatus};await browserCDP.detach();
+  const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
+  await page.goto(report.scenario);await expect(page.locator('#rift-start')).toBeEnabled({timeout:120000});
+  await page.locator('.rift-settings > summary').click();await page.locator('#rift-display-preset').selectOption('lowPower');await page.locator('#rift-apply-preset').click();await page.locator('.rift-settings > summary').click();
+  const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.enemies).toHaveLength(120);expect(run.paused).toBe(true);
+  report.scene={count:run.enemies.length,alive:run.enemies.filter(e=>e.hp>0).length,bosses:run.enemies.filter(e=>e.kind==='boss').length,projectiles:run.projectiles.length,class:run.build.class,replaySeed:run.replay_seed,clock:run.clock};expect(report.scene.bosses).toBeGreaterThan(0);
+  await page.evaluate(async run=>{await RiftRenderer.ready;RiftRenderer.snapshot(run,true);document.querySelector('#rift-overlay').hidden=true;},run);
+  await page.locator('#rift-canvas').scrollIntoViewIfNeeded();await page.waitForTimeout(5000);
+  report.settings=await page.evaluate(()=>({display:JSON.parse(localStorage.getItem('riftDisplay')),visibility:document.visibilityState,camera:RiftRenderer.cameraFraming,cache:RiftRenderer.atlasCacheStats()}));expect(report.settings.display.fps).toBe(30);
+  await page.evaluate(()=>{
+   const d=RiftRenderer.frameDiagnostics,originalPush=d.samples.push;
+   const capture=window.crowdFrameCapture={started:performance.now(),active:true,samples:[],hidden:false,contextLost:false};d.last=null;
+   document.addEventListener('visibilitychange',()=>{if(capture.active&&document.visibilityState!=='visible')capture.hidden=true;});document.querySelector('#rift-canvas').addEventListener('contextlost',()=>capture.contextLost=true);
+   d.samples.push=function(sample){if(capture.active)capture.samples.push({...sample,at:performance.now()});return originalPush.call(this,sample);};
+  });
+  for(let chunk=0;chunk<(smoke?1:6);chunk++){await page.waitForTimeout(10000);if(chunk%2===1)console.log('Crowd sample '+sample+': '+(chunk+1)*10+'s collected');}
+  report.capture=await page.evaluate(()=>{const c=crowdFrameCapture;c.active=false;c.ended=performance.now();c.camera=RiftRenderer.cameraFraming;c.cache=RiftRenderer.atlasCacheStats();return c;});
+  const c=report.capture;report.durationMS=c.ended-c.started;report.summary={frames:c.samples.length,intervalP95:percentile(c.samples.map(s=>s.interval),.95),intervalP99:percentile(c.samples.map(s=>s.interval),.99),renderP95:percentile(c.samples.map(s=>s.render),.95)};
+  expect(c.samples.length).toBeGreaterThan(0);expect(c.hidden).toBe(false);expect(c.contextLost).toBe(false);expect(c.camera.x).toBe(report.settings.camera.x);expect(c.cache.bytes).toBeLessThanOrEqual(c.cache.limitBytes);
+  const after=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(after.paused).toBe(true);expect(after.clock).toBe(run.clock);expect(after.enemies).toHaveLength(120);
+  const s=report.summary;report.gate=smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
+  report.scope='Paused seeded drawing load with normal camera/culling. No combat inputs, enemy AI, projectile load or GPU presentation trace. Not physical target hardware.';
+  console.log(JSON.stringify({sample,durationMS:report.durationMS,...s,cache:c.cache,gate:report.gate}));
+ }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{save();}
+});
