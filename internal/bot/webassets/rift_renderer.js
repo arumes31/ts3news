@@ -1341,6 +1341,10 @@
       if(h.generator_id){const source=run.enemies.find(e=>e.id===h.generator_id&&e.hp>0);if(source){ctx.save();ctx.strokeStyle='#73dddf99';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(source.x-camera,source.y);ctx.lineTo(h.x+h.w/2-camera,h.y+h.h/2);ctx.stroke();ctx.restore();}}
 
       const phase=(run.clock+h.offset)%h.period, warning=phase<1.2, active=phase>=1.2&&phase<1.2+h.duration&&run.status==='fighting';
+      if(!display.cleanScreenshot&&display.hazardLabels&&(warning||active)&&run.player.hp>0&&Number.isFinite(run.hazard_hit_damage)&&run.hazard_hit_damage>=run.player.hp){
+        ctx.save();ctx.fillStyle='#ffe2de';ctx.strokeStyle='#671d2b';ctx.lineWidth=4;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
+        interactionPrompt('! LETHAL IF HIT',h.x+h.w/2-camera,h.y-40*display.textScale,true);ctx.restore();
+      }
       if(h.kind==='tracking_lightning'){
         const x=h.x-camera,cx=x+h.w/2,cy=h.y+h.h/2;
         ctx.save();ctx.strokeStyle='#e8d78f';ctx.lineWidth=2;ctx.setLineDash(warning?[6,4]:[]);

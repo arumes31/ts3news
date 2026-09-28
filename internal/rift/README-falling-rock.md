@@ -15,7 +15,8 @@ Existing armor, grace, defeat attribution and saved hazard timing remain intact.
 Warning and impact use separate sounds, including impacts that miss the player.
 Saved active timers prevent impact sound from replaying every simulation tick.
 Old frozen arenas retain their fire patches. This is a brief ordinary-damage
-impact, not a lethal one-shot mechanic (ledger0465 remains separate).
+impact, not an inherently fatal mechanic. The conditional lethal-contact warning
+is described in README-lethal-hazards.md.
 
 Verification includes warning boundaries, one contact per impact, post-impact
 safety, jump/dodge/movement/guard behavior, save continuation, all campaign

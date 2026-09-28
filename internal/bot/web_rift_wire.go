@@ -64,10 +64,18 @@ func riftWireSnapshot(run *rift.Run, action, base string) (map[string]any, error
 }
 
 func riftHTTPResponse(r *http.Request, run *rift.Run, action string) (map[string]any, error) {
-	if r.Header.Get("X-Rift-Snapshot") != "lean-v1" {
-		return map[string]any{"ok": true, "run": run}, nil
+	response := map[string]any{"ok": true, "run": run}
+	if r.Header.Get("X-Rift-Snapshot") == "lean-v1" {
+		var err error
+		response, err = riftWireSnapshot(run, action, r.Header.Get("X-Rift-Snapshot-Base"))
+		if err != nil {
+			return nil, err
+		}
 	}
-	return riftWireSnapshot(run, action, r.Header.Get("X-Rift-Snapshot-Base"))
+	if run != nil {
+		response["hazard_hit_damage"] = run.HazardContactHealthLoss()
+	}
+	return response, nil
 }
 func writeRiftSnapshot(w http.ResponseWriter, r *http.Request, action string, run *rift.Run) {
 	response, err := riftHTTPResponse(r, run, action)

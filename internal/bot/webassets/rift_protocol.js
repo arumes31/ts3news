@@ -126,11 +126,12 @@
       (!value.stats||object(value.stats)&&Object.entries(value.stats).every(([key,count])=>['skill_uses','skill_hits'].includes(key)?object(count)&&Object.values(count).every(n=>Number.isSafeInteger(n)&&n>=0):['skill_mana','skill_healing','skill_barrier','skill_damage'].includes(key)?object(count)&&Object.values(count).every(nonnegative):nonnegative(count)));
   }
   function validate(data,method,request){
-    let valid=object(data)&&data.ok===true;
+    let valid=object(data)&&data.ok===true&&(data.hazard_hit_damage===undefined||nonnegative(data.hazard_hit_damage));
     if(valid&&method==='GET')valid=optionalList(data.class_options,c=>object(c)&&text(c.id)&&text(c.name)&&list(c.subclasses,s=>object(s)&&['id','name','resource','builder','finisher'].every(k=>text(s[k]))))&&(data.class_names===undefined||object(data.class_names)&&Object.values(data.class_names).every(text))&&optionalList(data.objective_options,objective)&&build(data.build)&&list(data.rooms,text)&&list(data.levels,level)&&data.levels.length>0&&data.levels.every((l,i)=>l.id===i+1)&&list(data.bestiary,unit=>actor(unit)&&text(unit.tier)&&text(unit.art_key)&&(unit.training===undefined||object(unit.training)&&nonnegative(unit.training.windup_seconds)&&typeof unit.training.resists_knockdown==="boolean"&&typeof unit.training.interruptible==="boolean"))&&(data.run===null||run(data.run));
     else if(valid)valid=run(data.run)&&(request.kind==='start'||data.run.id===request.run_id);
+    if(valid&&data.run&&data.hazard_hit_damage!==undefined)valid=data.hazard_hit_damage<=data.run.player.hp;
     if(!valid)throw new Error('Received an incomplete expedition update. Recover the saved expedition before continuing.');
-    return data;
+    return data.run?{...data,run:{...data.run,hazard_hit_damage:data.hazard_hit_damage}}:data;
   }
   const retainedKeys=['build','encounter_plan','level','mission_history','region_versions','region_records','objective_history','completed_levels','attempt_history','banked_items','banked_loot','past_expeditions','room_baseline','last_encounter','last_objectives'];
   function hydrate(data,method,request,base){

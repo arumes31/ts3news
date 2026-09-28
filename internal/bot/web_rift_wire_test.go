@@ -159,3 +159,42 @@ func TestRiftHTTPProjectionOptInAndBaselineInvalidation(t *testing.T) {
 		request.Header.Set("X-Rift-Snapshot-Base", token)
 	}
 }
+
+func TestRiftHazardPreviewIsFreshOnLegacyFullAndLeanResponses(t *testing.T) {
+	run := largeRiftReceipt(t)
+	run.Status = "fighting"
+	request := httptest.NewRequest("POST", "/api/abyss/rift", nil)
+	for _, mode := range []string{"legacy", "full", "lean"} {
+		if mode != "legacy" {
+			request.Header.Set("X-Rift-Snapshot", "lean-v1")
+		}
+		initial, err := riftHTTPResponse(request, run, "load")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode == "lean" {
+			request.Header.Set("X-Rift-Snapshot-Base", initial["snapshot_base"].(string))
+		}
+		for _, hp := range []float64{1, 100} {
+			run.Player.HP = hp
+			before, err := encodeRift(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := riftHTTPResponse(request, run, "step")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data["hazard_hit_damage"] != run.HazardContactHealthLoss() {
+				t.Fatal("missing/stale hazard preview")
+			}
+			if mode == "lean" && data["snapshot_kind"] != "lean-v1" {
+				t.Fatal("test did not exercise lean response")
+			}
+			after, err := encodeRift(run)
+			if err != nil || before != after {
+				t.Fatal("wire preview mutated persistence")
+			}
+		}
+	}
+}
