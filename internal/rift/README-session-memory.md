@@ -260,3 +260,35 @@ status and tiers 0, 1, and 2 in order. Missing, partial, duplicate, or malformed
 mission records remain incomplete even when the numeric heap threshold passes.
 The existing three captures retain their review-required status with 38, 40,
 and 40 verified replays. The focused exporter/options suite contains 13 checks.
+
+## Completed post-cap diagnostic (2026-09-28)
+
+The single post-cap capture completed 60 full three-tier replays in 2,580,290ms
+of measured play (43.00 minutes; 44.2 minutes including fixture/warmup). It recorded
+zero runtime errors. Source revision was b4531bca95614db6d20b8558a74accf8287cf787,
+with tracked-diff hash 1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b.
+Later rendering and simulation changes are outside this capture's source scope.
+
+History counts at replays 49, 54, 59 and 60 were all 50. Retained attempt objects
+were 149, 150, 150 and 150. Final root paths split exactly into 50 current-run,
+50 protocol snapshotBase and 50 previous-renderer records. All eleven heaps
+retained only their current expedition IDs. Actor counts were 163 except for a
+transient 171 at replay 32; effect-shaped counts stayed zero, with two run shapes.
+Detached objects plateaued at 78 from replay 8 onward. Audio and listener counts
+fluctuated within bounded observed ranges rather than increasing per replay.
+
+JS heap grew 1,411,320 bytes overall, below the 10MiB limit. From replay 49 to 60
+it decreased by 21,976 bytes. This establishes a bounded history plateau in this
+capture, not a complete process-memory pass: renderer private bytes rose from
+171,667,456 to 487,350,272, including growth after the history cap. Native network
+resource counts rose from 168 to 7,589; three final example paths led through
+DevToolsSession, InspectorNetworkAgent and NetworkResourcesData. A controlled
+instrumentation comparison is still required to attribute total growth.
+
+A disk-full build failure during the run was resolved by clearing the verified
+Go build cache. The fixture was not restarted. The local environment-events.json
+records this event and concurrent bounded build work; consider this host activity
+when interpreting process memory. Raw heaps and retaining paths remain ignored
+under test-results/session-memory-post-cap-20260928. The allowlisted public
+aggregate is tests/performance/baselines/session-post-cap-2026-09-28.json.
+Ledger 0798 remains open for process-memory/instrumentation verification.

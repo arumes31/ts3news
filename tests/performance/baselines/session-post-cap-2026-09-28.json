@@ -1,0 +1,95 @@
+{
+  "schema": "brawl-post-cap-evidence-v1",
+  "status": "post_cap_review_required",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Single development capture beyond the 50-entry history cap. Retaining paths, process-memory growth, instrumentation overhead and physical target hardware remain independently unverified.",
+  "source": {
+    "revision": "b4531bca95614db6d20b8558a74accf8287cf787",
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b"
+  },
+  "measuredDurationMS": 2580290,
+  "runtimeErrors": 0,
+  "completedReplays": 60,
+  "growthBytes": 1411320,
+  "postCapGrowthBytes": -21976,
+  "checkpoints": [
+    {
+      "mission": 0,
+      "elapsedMS": 0,
+      "attemptHistoryCount": 1,
+      "heapBytes": 7576752,
+      "rendererPrivateBytes": 171667456
+    },
+    {
+      "mission": 8,
+      "elapsedMS": 306408,
+      "attemptHistoryCount": 9,
+      "heapBytes": 8408580,
+      "rendererPrivateBytes": 203587584
+    },
+    {
+      "mission": 16,
+      "elapsedMS": 632494,
+      "attemptHistoryCount": 17,
+      "heapBytes": 8681012,
+      "rendererPrivateBytes": 244301824
+    },
+    {
+      "mission": 24,
+      "elapsedMS": 983141,
+      "attemptHistoryCount": 25,
+      "heapBytes": 8824136,
+      "rendererPrivateBytes": 291774464
+    },
+    {
+      "mission": 32,
+      "elapsedMS": 1320508,
+      "attemptHistoryCount": 33,
+      "heapBytes": 8822516,
+      "rendererPrivateBytes": 332505088
+    },
+    {
+      "mission": 40,
+      "elapsedMS": 1654945,
+      "attemptHistoryCount": 41,
+      "heapBytes": 8819932,
+      "rendererPrivateBytes": 381218816
+    },
+    {
+      "mission": 48,
+      "elapsedMS": 1995676,
+      "attemptHistoryCount": 49,
+      "heapBytes": 8909900,
+      "rendererPrivateBytes": 423211008
+    },
+    {
+      "mission": 49,
+      "elapsedMS": 2045950,
+      "attemptHistoryCount": 50,
+      "heapBytes": 9010048,
+      "rendererPrivateBytes": 425943040
+    },
+    {
+      "mission": 54,
+      "elapsedMS": 2246905,
+      "attemptHistoryCount": 50,
+      "heapBytes": 9049760,
+      "rendererPrivateBytes": 454582272
+    },
+    {
+      "mission": 59,
+      "elapsedMS": 2497125,
+      "attemptHistoryCount": 50,
+      "heapBytes": 9184080,
+      "rendererPrivateBytes": 481132544
+    },
+    {
+      "mission": 60,
+      "elapsedMS": 2569136,
+      "attemptHistoryCount": 50,
+      "heapBytes": 8988072,
+      "rendererPrivateBytes": 487350272
+    }
+  ]
+}
