@@ -1,0 +1,231 @@
+{
+  "schema": "brawl-input-interior-baseline-v1",
+  "status": "threshold_failure",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Three independent 60-input isolated keyboard samples. Normal controls position the player inside the arena before measurement. All 180 movements, jumps and dodges accepted. Not full-combat or rapid-input evidence.",
+  "samples": [
+    {
+      "sample": 1,
+      "revision": "466bcd987607df69c706e1f6a7f3300f8002cc19",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "browser": "153.0.8010.12",
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 836.0950000000007,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 581.2000000029802,
+        "max": 596.5999999940395,
+        "queueP95": 342.5,
+        "requestP95": 244.5
+      },
+      "errors": 0
+    },
+    {
+      "sample": 2,
+      "revision": "466bcd987607df69c706e1f6a7f3300f8002cc19",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "browser": "153.0.8010.12",
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 865.0000000000013,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 555.8999999910593,
+        "max": 604.1999999880791,
+        "queueP95": 325.70000000298023,
+        "requestP95": 231.80000001192093
+      },
+      "errors": 0
+    },
+    {
+      "sample": 3,
+      "revision": "466bcd987607df69c706e1f6a7f3300f8002cc19",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "browser": "153.0.8010.12",
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 841.030000000001,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 552.7999999970198,
+        "max": 568.2999999970198,
+        "queueP95": 326.29999999701977,
+        "requestP95": 225.20000000298023
+      },
+      "errors": 0
+    }
+  ]
+}

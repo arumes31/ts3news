@@ -64,3 +64,9 @@ boundary. This was a correctly blocked movement, not demonstrated input loss.
 The harness now walks to the interior with normal controls before measurement;
 no game state is injected. Fresh baseline and candidate comparisons must use
 that same positioning procedure. Original failed reports remain unchanged.
+
+The corrected interior baseline at466bcd98 completed three60-input samples with
+all180 actions accepted, no unconfirmed/rejected actions and no browser errors.
+p95 confirmation was581.2/555.9/552.8ms (max596.6/604.2/568.3ms). Queue p95
+was342.5/325.7/326.3ms. All three fail the unchanged300ms p95 target.
+Numeric evidence: tests/performance/baselines/input-interior-2026-09-28.json.
