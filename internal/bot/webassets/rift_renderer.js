@@ -154,7 +154,7 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   let previewVersion=0;
-  renderer.preview = async level => { const version=++previewVersion;await Promise.all([prepareRegion(level?.region),preparePlatformArt(level?.rooms||[])]);if(version===previewVersion)previewLevel=level; };
+  renderer.preview = async level => { const version=++previewVersion;await Promise.all([prepareRegion(level?.region),prepareSceneArt(level?.rooms||[])]);if(version===previewVersion)previewLevel=level; };
   const effectLimit=40, effectPool=[];
   function releaseEffect(effect){
     // Erase event payloads and derived flags before retaining the reusable shell.
@@ -249,7 +249,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['regions','props','mobs','items','effects','terrainCover'];
+  const criticalAtlasKeys = ['regions','props','mobs','items','effects'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -609,21 +609,28 @@
       return objectiveLoads.get(key);
     }));
   }
-  let platformLoad=null,platformRetries=0;
-  function preparePlatformArt(arenas,moving=false){
-    if(moving||images.platformSurface||!arenas.some(arena=>arena?.platforms?.length))return Promise.resolve();
-    if(!platformLoad){
-      const url=root.dataset.platformSurface,src=url+(platformRetries?(url.includes('?')?'&':'?')+'retry='+platformRetries:'');
-      platformLoad=loadDecodedAtlas(src).then(img=>{images.platformSurface=img;}).catch(()=>{
-        platformLoad=null;platformRetries++;throw new Error('Could not load raised platform artwork. Retry to continue.');
-      });
-    }
-    return platformLoad;
+  const sceneLoads=new Map(),sceneRetries=new Map();
+  function prepareSceneArt(arenas,moving=false){
+    const keys=[];
+    if(!moving&&arenas.some(arena=>arena?.platforms?.length))keys.push('platformSurface');
+    // Volatile cover also retains the ordinary cover fallback for older saves.
+    if(arenas.some(arena=>arena?.cover?.length))keys.push('terrainCover');
+    return Promise.all(keys.map(key=>{
+      if(images[key])return;
+      if(!sceneLoads.has(key)){
+        const retry=sceneRetries.get(key)||0,url=root.dataset[key],src=url+(retry?(url.includes('?')?'&':'?')+'retry='+retry:'');
+        sceneLoads.set(key,loadDecodedAtlas(src).then(img=>{images[key]=img;}).catch(()=>{
+          sceneLoads.delete(key);sceneRetries.set(key,retry+1);
+          throw new Error('Could not load '+(key==='platformSurface'?'raised platform':'terrain cover')+' artwork. Retry to continue.');
+        }));
+      }
+      return sceneLoads.get(key);
+    }));
   }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
-    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),preparePlatformArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
+    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),prepareSceneArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
     if(Number.isInteger(run?.level?.region)&&run.level.id%10===0&&run.level.id<100){
       const next=run.level.region+1;
       if(run.status==='cleared'&&run.room===2)await prepareRegion(next);

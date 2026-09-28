@@ -551,3 +551,24 @@ including all 300 campaign scenes. Scene probes explicitly prepare their runs.
 This is a verified avoided image request for scenes without stationary platforms,
 not a measured new cold-start time. The latest completed three-sample capture
 still predates this change; the full loading budgets remain unpassed.
+
+
+## Conditional terrain-cover loading (2026-09-28)
+
+The 1,484,178-byte terrain-cover atlas now shares the retryable scene preparation
+path with raised-platform textures. Both mission previews and saved-run readiness
+inspect all frozen level rooms plus practice terrain. Any cover, including
+volatile cover's legacy fallback, prepares the terrain atlas before rendering.
+The five remaining universal atlases are regions, props, mobs, items and effects.
+
+Mission 1's browser journey makes no terrain-cover request. Future-room and
+practice-arena preparation share one held decode; failed preview loading retries
+without changing mission selection. Nineteen browser checks pass, including the
+platform readiness regressions, all 300 campaign scenes, destructible wood,
+reload persistence, reachable loot, permanent stone and projectile obstruction.
+No artwork pixels or source rectangles changed.
+
+Together with conditional platform loading, mission 1 avoids 4,255,342 image
+body bytes. This is request/body-size evidence, not a new timing capture. The
+latest first-fight capture still predates both changes; loading and other
+performance gates remain open.
