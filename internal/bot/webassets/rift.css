@@ -1495,3 +1495,5 @@
 
 .rift-clear-heading{display:flex;align-items:center;justify-content:center;gap:10px}
 #rift-chest-preview{width:40px;height:50px;image-rendering:pixelated;flex:none}
+
+#rift-boss-ward:not([hidden]){display:block;margin:4px 0;color:#fff0cf;font:12px/1.4 ui-monospace,monospace;overflow-wrap:anywhere}

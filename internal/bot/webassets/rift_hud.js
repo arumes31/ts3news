@@ -754,6 +754,8 @@
       meter('#rift-boss .hp',boss.name+' health',boss.hp,boss.max_hp,bossThreshold);
       const phase=Math.max(1,Math.min(3,boss.phase||1));
       put($('rift-boss-phase'),'Phase '+phase+(phase===1?' · Next: phase 2 at 50% HP':phase===2?' · Next: phase 3 at 25% HP':' · Final phase'));
+      const wardNode=$('rift-boss-ward'),ward=boss.elemental_phases?.[phase-1];
+      if(wardNode){wardNode.hidden=!ward;if(ward)put(wardNode,ward.element+' ward · '+ward.weakness+' direct hits ×2 before defenses');else put(wardNode,'');}
       const enrageNode=$('rift-boss-enrage'),enrageSeconds=run.practice?.mode==='boss'?run.practice.enrage_seconds:0;
       if(enrageNode){enrageNode.hidden=!(enrageSeconds>0);if(!enrageNode.hidden)put(enrageNode,run.clock>=enrageSeconds?'ENRAGED · Boss damage +50%':'Enrage in '+Math.ceil(Math.max(0,enrageSeconds-run.clock))+'s');}
       const bossAttackNode=$('rift-boss-attack');
@@ -781,6 +783,7 @@
         }
       }
     }else{
+      if($('rift-boss-ward')){$('rift-boss-ward').hidden=true;put($('rift-boss-ward'),'');}
       if($('rift-boss-attack'))$('rift-boss-attack').hidden=true;
       lastAnnouncedBossAttack='';
     }

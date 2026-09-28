@@ -20,3 +20,17 @@ test('element metadata rejects objects, arrays, numbers, booleans and null',()=>
   assert.throws(()=>validate(d),/incomplete expedition/);
  }
 });
+
+const wards=()=>[{element:'Fire',weakness:'Water'},{element:'Air',weakness:'Fire'},{element:'Earth',weakness:'Air'}];
+function bossData(){const d=data();d.bestiary=[{id:'boss',name:'Boss',kind:'boss',x:300,y:410,hp:100,max_hp:100,facing:-1,tier:'Boss',art_key:'monster:Boss',phase:1,elemental_phases:wards()}];return d;}
+test('boss phase wards accept all three current phases and legacy omission',()=>{
+ for(const phase of [1,2,3]){const d=bossData();d.bestiary[0].phase=phase;assert.doesNotThrow(()=>validate(d));}
+ const d=bossData();delete d.bestiary[0].elemental_phases;assert.doesNotThrow(()=>validate(d));
+});
+test('boss phase wards reject malformed arrays, values, nonboss actors and invalid phases',()=>{
+ for(const bad of [null,{},[],wards().slice(0,2),[...wards(),wards()[0]],[{element:'Physical',weakness:'Water'},...wards().slice(1)],[{element:'Fire',weakness:{}},...wards().slice(1)]]){
+  const d=bossData();d.bestiary[0].elemental_phases=bad;assert.throws(()=>validate(d),/incomplete expedition/);
+ }
+ for(const phase of [0,4,1.5,'2',null]){const d=bossData();d.bestiary[0].phase=phase;assert.throws(()=>validate(d),/incomplete expedition/);}
+ const d=bossData();d.bestiary[0].kind='goblin';assert.throws(()=>validate(d),/incomplete expedition/);
+});
