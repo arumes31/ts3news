@@ -16,6 +16,12 @@ func ringDanger(e Actor, x, y float64) bool {
 	return true
 }
 func (r *Run) releaseBossRing(e *Actor) {
+	// Target coordinates stay committed during the 2.3-second recovery, longer
+	// than the impact reservation. The actor remains saved even after defeat.
+	if r.SkillTimers == nil {
+		r.SkillTimers = map[string]float64{}
+	}
+	r.SkillTimers["hazard-ring-"+e.ID] = .45
 	r.event("boss_ring", e.TargetX, e.TargetY, float64(e.RingGap))
 	if !ringDanger(*e, r.Player.X, r.Player.Y) {
 		e.WeakPoint = .8

@@ -24,6 +24,8 @@ for(const reduced of [false,true]) test('lane slam reserves clear bands, reduced
  await page.locator('#rift-canvas').screenshot({path:testInfo.outputPath('lane-slam.png')});
  await page.evaluate(()=>{laneRun.enemies[0].slam_lane=1;laneRun.skill_timers={'hazard-slam-lane-0':.4};laneLabels=[];RiftRenderer.snapshot(laneRun,true);});
  await expect.poll(()=>page.evaluate(()=>laneLabels.slice(-3).map(v=>v.text))).toEqual(['CLEAR OF THIS SLAM','LANE SLAM · 1.4s · MOVE OR JUMP','HAZARDS PAUSED · ENEMIES ACTIVE']);
+ await page.evaluate(()=>{laneRun.enemies.push({...laneRun.enemies[0],id:'ring-conflict',lane_slams:false,ring_attack:true,attack_name:'Void Ring',target_x:650,target_y:410,ring_gap:0});laneLabels=[];RiftRenderer.snapshot(laneRun,true);});
+ await expect.poll(()=>page.evaluate(()=>laneLabels.slice(-3).map(v=>v.text))).toEqual(['CLEAR OF THIS SLAM','LANE SLAM · 1.4s · MOVE OR JUMP','CLEAR OF THIS SLAM']);
  await page.evaluate(()=>{RiftDisplay.cleanScreenshot=true;laneLabels=[];laneRects=[];RiftRenderer.snapshot(laneRun,true);});await page.waitForTimeout(150);
  expect(await page.evaluate(()=>laneLabels)).toEqual([]);expect(await page.evaluate(()=>laneRects)).toEqual([]);
 });

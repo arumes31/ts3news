@@ -1488,7 +1488,8 @@
           ctx.save();ctx.fillStyle=color;ctx.globalAlpha=danger?.16:.05;ctx.fillRect(35-camera,y,1530,h);ctx.globalAlpha=1;
           hazardOverlays.push({x:35-camera,y,w:1530,h,warning:danger,color});
           ctx.fillStyle=color;ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(11*display.textScale)+'px monospace';ctx.textAlign='center';
-          const contested=snapshot.enemies.some(other=>other.hp>0&&other.kind==='boss'&&other.lane_slams&&other.attack_name==='Lane Slam'&&other.windup>0&&other.slam_lane===lane)||(snapshot.skill_timers?.['hazard-slam-lane-'+lane]||0)>0;
+          const ringConflict=snapshot.enemies.some(other=>other.kind==='boss'&&other.ring_attack&&((other.hp>0&&other.attack_name==='Void Ring'&&other.windup>0)||(snapshot.skill_timers?.['hazard-ring-'+other.id]||0)>0));
+          const contested=ringConflict||snapshot.enemies.some(other=>other.hp>0&&other.kind==='boss'&&other.lane_slams&&other.attack_name==='Lane Slam'&&other.windup>0&&other.slam_lane===lane)||(snapshot.skill_timers?.['hazard-slam-lane-'+lane]||0)>0;
           interactionPrompt(danger?'LANE SLAM · '+e.windup.toFixed(1)+'s · MOVE OR JUMP':contested?'CLEAR OF THIS SLAM':'HAZARDS PAUSED · ENEMIES ACTIVE',480,y+h/2,true);ctx.restore();
         }
       }

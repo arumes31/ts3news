@@ -114,7 +114,7 @@ func TestLaneReservationImpactCannotOverrideAnotherWarning(t *testing.T) {
 	r.Enemies[0].SlamLane = 0
 	for lane := 0; lane < 3; lane++ {
 		want := lane == 2
-		if r.reservedBossLane(315+(float64(lane)+.5)*bossLaneHeight) != want {
+		if r.reservedBossArea(r.Player.X, 315+(float64(lane)+.5)*bossLaneHeight) != want {
 			t.Fatalf("wrong reservation for simultaneous impact and warning in lane %d", lane)
 		}
 	}
