@@ -21,7 +21,7 @@ func validateRiftLevelMetadata(run *rift.Run) error {
 		return invalid
 	}
 	for _, room := range level.Rooms {
-		if strings.TrimSpace(room.Name) == "" {
+		if strings.TrimSpace(room.Name) == "" || !room.ValidBridges() {
 			return invalid
 		}
 	}

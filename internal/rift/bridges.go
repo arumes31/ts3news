@@ -56,3 +56,31 @@ func (a Arena) bridgeApproach(actor *Actor, dx, dy float64) (float64, float64) {
 	}
 	return dx, dy
 }
+
+// ValidBridges bounds saved geometry and leaves an approach between separate decks.
+func (a Arena) ValidBridges() bool {
+	if len(a.Bridges) > 4 {
+		return false
+	}
+	ids := map[string]bool{}
+	for i, b := range a.Bridges {
+		if b.ID == "" || len(b.ID) > 80 || ids[b.ID] {
+			return false
+		}
+		ids[b.ID] = true
+		for _, v := range []float64{b.X, b.Y, b.W, b.H} {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return false
+			}
+		}
+		if b.X < 100 || b.W < 80 || b.X+b.W > Width-100 || b.Y < 315 || b.H < 80 || b.Y+b.H > 490 {
+			return false
+		}
+		for _, other := range a.Bridges[:i] {
+			if b.X < other.X+other.W+80 && other.X < b.X+b.W+80 {
+				return false
+			}
+		}
+	}
+	return true
+}
