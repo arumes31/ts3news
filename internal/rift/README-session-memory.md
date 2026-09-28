@@ -94,3 +94,20 @@ only the numeric heap-size threshold. The report explicitly retains
 review remain unfinished; this is not a three-sample gate pass. Later terrain
 reaction commits are not served by this running fixture and are not covered by
 its evidence.
+
+## Shareable aggregate export
+
+Run `node scripts/brawl-session-evidence.cjs <capture-directory>` to write
+`public-session-evidence.json` beside the private reports. It exports only
+sample numbers, strictly validated source hashes, durations, counts and heap
+measurements, plus fixed status labels. No player/run IDs, local paths, patch
+contents, heap strings, error text or arbitrary report metadata are copied.
+A baseline alone has unknown growth, not zero measured growth.
+
+The exporter recomputes growth from checkpoints and requires complete 30-minute
+samples before marking their numeric threshold as passed. Three samples must
+share source provenance; even then the result requires retention review and
+never claims release readiness or a verified physical device. It is only a
+partial release-evidence artifact. Process-memory inspection, raw retention
+analysis, other gates and final release verification remain separate work.
+The raw reports and heap snapshots stay local.
