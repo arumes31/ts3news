@@ -36,7 +36,17 @@ refreshes after confirmed use and recovery. Control-state tests pass for duplica
 clicks, pause cancellation, unavailable use and uncertainty. These tests use a
 small DOM fixture; actual browser/server integration is still pending.
 
-Still required: the no-potion optional objective, cooldown save/pause coverage,
-request/mode validation coverage, and real-browser integration. The objective is
-not offered yet, so it cannot award an automatic success without a potion action.
-Ledger 0363 remains open. No potion UI has been verified.
+The optional Potions in reserve objective is now offered for new missions. It
+uses a mission-start baseline of confirmed potion uses; any use fails it, while
+healing skills and rejected uses do not. Saved progress, final completion/banking
+and fresh-mission baselines pass focused tests. Existing objective tests also
+pass. The normal five-gold optional-objective reward applies through existing
+banking. Older saved objective lists are not retroactively expanded.
+
+A saved eight-second potion cooldown remains frozen through pause and resumes
+with combat time; the focused save/pause test passes.
+
+Still required: request/mode validation coverage, fixture inventory and real-
+browser controls/recovery/objective tests, broader integration checks, and the
+live-database economy verification. Ledger 0363 remains open. No potion UI has
+been verified in a real browser yet.

@@ -12,6 +12,7 @@ type ObjectiveProgress struct {
 }
 
 type MissionObjectives struct {
+	StartPotions int `json:"start_potions"`
 	RewardPerObjective int64               `json:"reward_per_objective,omitempty"`
 	RewardGold         int64               `json:"reward_gold,omitempty"`
 	StartDodges        int                 `json:"start_dodges"`
@@ -47,6 +48,7 @@ func ObjectiveOptions(build Build) []ObjectiveProgress {
 		{ID: "elite_priority", Name: "Elites first", Description: "Clear all three tiers, defeating active elite minions, elites and minibosses before other active enemies. Bosses are excluded. Offered when the mission contains elites.", Status: "active"},
 		{ID: "limited_dodge", Name: "Measured evasion", Description: "Clear all three tiers with at most three airborne dodges of enemy attacks. Empty jumps and floor hazards do not count.", Target: 3, Status: "active"},
 	}
+	entries = append(entries, ObjectiveProgress{ID: "no_potions", Name: "Potions in reserve", Description: "Clear all three tiers without consuming a healing potion in Brawl. Healing abilities are allowed.", Status: "active"})
 	builder, finisher := false, false
 	for _, skill := range build.Signatures {
 		builder = builder || skill.Role == "builder"
@@ -83,7 +85,7 @@ func (r *Run) beginObjectives() {
 		}
 		entries = filtered
 	}
-	r.Objectives = &MissionObjectives{RewardPerObjective: 5, Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, StartDodges: r.Stats.Dodges, Entries: entries}
+	r.Objectives = &MissionObjectives{StartPotions: r.Stats.PotionsUsed, RewardPerObjective: 5, Mission: r.Level.ID, Difficulty: r.Level.Difficulty, StartSeconds: r.Stats.Seconds, StartDamage: r.Stats.DamageTaken, StartSkills: r.Stats.SkillsCast, StartGuards: r.Stats.Guards, StartFinishers: r.Stats.ChargedFinishers, StartUltimates: r.Stats.UltimateCasts, StartHazards: r.Stats.HazardContacts, StartTreasure: r.Stats.TreasureGoblins, StartAerial: r.Stats.AerialFinishes, StartNonMelee: r.Stats.NonMeleeCasts, StartDodges: r.Stats.Dodges, Entries: entries}
 }
 
 // UpdateObjectives refreshes progress from confirmed combat and finalizes ended runs.
@@ -101,6 +103,9 @@ func (r *Run) UpdateObjectives() {
 		}
 		reason := ""
 		switch e.ID {
+		case "no_potions":
+			e.Current = float64(max(0, r.Stats.PotionsUsed-o.StartPotions))
+			if e.Current > 0 { reason = "Used a healing potion." }
 		case "timed":
 			e.Current = max(0, r.Stats.Seconds-o.StartSeconds)
 			if e.Current > e.Target {

@@ -1,8 +1,10 @@
 package rift
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
+	"time"
 )
 
 func TestHealingPotionClampsTracksAndCoolsDown(t *testing.T) {
@@ -55,5 +57,32 @@ func TestHealingPotionRejectsUnavailableAndInvalidUse(t *testing.T) {
 		if r.Player != before || r.Stats.PotionsUsed != 0 || r.Stats.Healing != 0 || r.SkillTimers["healing_potion"] != 0 {
 			t.Fatalf("mutated %s", mode)
 		}
+	}
+}
+
+func TestHealingPotionCooldownSurvivesSaveAndFreezesOnPause(t *testing.T) {
+	r := testRun()
+	r.Player.HP -= 20
+	if err := r.UseHealingPotion(10); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Run
+	if err = json.Unmarshal(raw, &saved); err != nil {
+		t.Fatal(err)
+	}
+	now := time.UnixMilli(saved.LastMS)
+	saved.SetPaused(true, now)
+	saved.Step(Input{}, now.Add(10*time.Second))
+	if saved.SkillTimers["healing_potion"] != 8 || saved.Stats.PotionsUsed != 1 {
+		t.Fatal("saved cooldown advanced while paused")
+	}
+	saved.SetPaused(false, now.Add(10*time.Second))
+	saved.Step(Input{}, now.Add(10100*time.Millisecond))
+	if saved.SkillTimers["healing_potion"] >= 8 || saved.SkillTimers["healing_potion"] < 7.8 {
+		t.Fatal("cooldown did not follow resumed combat time")
 	}
 }
