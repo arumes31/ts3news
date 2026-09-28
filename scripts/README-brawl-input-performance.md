@@ -83,3 +83,14 @@ was not established. All samples still fail300ms. Preserve this result rather
 than retrying the same timer adjustment without new evidence.
 Numeric evidence and exact candidate patch:
 tests/performance/baselines/input-cadence-rejected-2026-09-28.json.
+
+## Timing phase diagnosis
+
+Debug records now split header wait, body transfer/JSON decode, protocol
+validation and application work. The12-input smoke atd9d84f89 accepted all
+inputs: header wait182.9-205.7ms, decode4.7-30.1ms, validation0.2-1.0ms,
+application10.5-19.4ms and queue16.3-305.9ms. Header wait combines server and
+network time; this is not a server CPU profile. The evidence directs the next
+investigation toward input queueing behind idle requests, not validation.
+It is a diagnostic smoke, not a gate result or proof of full-combat behavior.
+Evidence: tests/performance/baselines/input-phases-smoke-2026-09-28.json.
