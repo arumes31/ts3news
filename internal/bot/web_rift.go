@@ -106,7 +106,7 @@ func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {
 	// Compress the RPG's very large stat range for readable action combat while
 	// retaining permanent progression and equipment differences in this mode.
 	scale := func(n int) float64 { return math.Log2(1 + float64(max(0, n))) }
-	build := rift.Build{Name: name, BaseClass: u.AbyssClass, Class: u.AbyssSubclass, Level: level, HP: 160 + scale(u.Stats.HP)*15, Damage: 12 + scale(max(u.Stats.STR, u.Stats.INT))*3, Armor: scale(u.Stats.DEF), Weapon: "Unarmed", Skills: []rift.Skill{}, Signatures: []rift.Skill{}, Gear: []string{}, Equipment: map[content.GearSlot]rift.EquipmentSnapshot{}}
+	build := rift.Build{WeaponElement: abyssEquippedAttackElement(u.Equipped), Name: name, BaseClass: u.AbyssClass, Class: u.AbyssSubclass, Level: level, HP: 160 + scale(u.Stats.HP)*15, Damage: 12 + scale(max(u.Stats.STR, u.Stats.INT))*3, Armor: scale(u.Stats.DEF), Weapon: "Unarmed", Skills: []rift.Skill{}, Signatures: []rift.Skill{}, Gear: []string{}, Equipment: map[content.GearSlot]rift.EquipmentSnapshot{}}
 	if build.Class == "" {
 		build.Class = u.AbyssClass
 	}
@@ -160,7 +160,7 @@ func riftBuildFromUser(u UserInCombat, name string, level int) rift.Build {
 		if role != "" {
 			kind = riftSignatureKind(build.Class, role, kind)
 		}
-		skill := rift.Skill{ID: s.ID, Name: s.Name, Kind: kind, Role: role, Power: math.Max(0, math.Min(4, s.Power)), Damage: 12 + scale(abyssSkillBase(&u, s))*3, Heal: s.HealPercent, Pierce: s.IgnoreDef, Cost: math.Max(12, math.Min(45, float64(s.ManaCost))), Cooldown: math.Max(2, math.Min(12, float64(s.CooldownRounds)*1.5))}
+		skill := rift.Skill{Element: s.Element, ID: s.ID, Name: s.Name, Kind: kind, Role: role, Power: math.Max(0, math.Min(4, s.Power)), Damage: 12 + scale(abyssSkillBase(&u, s))*3, Heal: s.HealPercent, Pierce: s.IgnoreDef, Cost: math.Max(12, math.Min(45, float64(s.ManaCost))), Cooldown: math.Max(2, math.Min(12, float64(s.CooldownRounds)*1.5))}
 		if role != "" {
 			build.Signatures = append(build.Signatures, skill)
 		} else {

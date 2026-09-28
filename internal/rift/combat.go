@@ -18,6 +18,7 @@ const pickupRadius = 65.0
 var Rooms = []string{"Mossbound Approach", "The Lantern Court", "Heart of the Ruins"}
 
 type Skill struct {
+	Element content.Element `json:"element,omitempty"`
 	Role     string  `json:"role,omitempty"`
 	Damage   float64 `json:"damage,omitempty"`
 	Heal     float64 `json:"heal,omitempty"`
@@ -36,6 +37,7 @@ type EquipmentSnapshot struct {
 }
 
 type Build struct {
+	WeaponElement content.Element `json:"weapon_element,omitempty"`
 	ClassScaling string `json:"class_scaling,omitempty"`
 	Equipment map[content.GearSlot]EquipmentSnapshot `json:"equipment"`
 	BaseClass      string    `json:"base_class"`

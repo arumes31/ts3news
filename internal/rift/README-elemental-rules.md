@@ -19,3 +19,14 @@ projectiles and weapon attacks, define the phase rule, and test its exact damage
 and UI parity. Keep the shared elemental table authoritative, preserve saved
 encounter behavior explicitly, and do not display a bonus that combat does not
 apply.
+
+## Canonical metadata retained
+
+New Brawl builds now snapshot `weapon_element` through the same equipped-weapon
+resolver as Abyss. Converted skills and class signatures retain their canonical
+`element`; projectiles already embed the complete skill and therefore preserve
+that value through flight and save/reload. Tests deliberately use a Fire skill
+with ice artwork to ensure presentation does not overwrite combat metadata.
+Old saves with no element remain empty; no animation-based migration is applied.
+Ultimates have no canonical element field in their source definition and remain
+unspecified here. No new multiplier or phase hint is active yet.
