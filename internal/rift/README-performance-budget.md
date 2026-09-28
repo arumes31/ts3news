@@ -83,12 +83,14 @@ Do not include credentials, real saves or private player records. Follow the
 
 ## Current evidence
 
-The [constrained-network baseline](README-cold-start-baseline.md) measured median
-cold readiness 230.403s and 45949975 transferred bytes at its recorded commit. It
-fails both the 20s target and 3MB byte budget. Subsequent on-demand hero and
-objective loading reduces idle required PNG bytes to 30,114,995–30,210,352, still
-above the byte budget before other resources. Those byte totals are an asset
-inventory, not a new throttled timing measurement; the cold gate remains failed.
+The [constrained-network report](README-cold-start-baseline.md) retains the initial
+230.403s/45,949,975-byte failure and subsequent candidates. The latest completed
+capture at9eec31b6 plus its recorded user diff meets the defined idle-startup gate:
+15.354/14.716/14.707s and2,766,305 transferred bytes in each fresh context, with
+zero browser/request errors. Thresholds are unchanged. This is a development
+fixture result, not physical-device verification or a release pass. First-fight
+readiness is measured separately at41.042/41.381/41.825s from navigation, including
+25.601-27.040s after Start; deferred encounter artwork still needs to load.
 
 Frame-scheduling, bounded-canvas and cache-retirement regressions prove their
 specific invariants. The [restart memory capture](README-restart-memory-baseline.md)

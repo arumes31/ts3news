@@ -800,3 +800,32 @@ This defers516,716 image body bytes for the fixture's companion build until
 encounter preparation, not a reduction in first-fight bytes. Together with the
 prior effects change, it needs a new matched idle/first-fight measurement. The
 latest completed capture is still2fdb7052; no timing or release pass is claimed.
+
+
+## Measured encounter-only effects and companions (2026-09-28)
+
+[Sanitized capture](../../tests/performance/baselines/cold-encounter-art-2026-09-28.json)
+uses frozen9eec31b6 plus the unchanged user Go diff, three fresh contexts and the
+same150ms/200000 B/s down/93750 B/s up profile. Session40703 completed in2.4m.
+All samples had zero browser/request errors. Source remained frozen through
+export and is now unfrozen. Other Go processes were present on the development
+host; no claim of an otherwise idle or physical target machine is made.
+
+| Sample | Start ready | First fight | Wait after Start | Bytes at Start | Bytes at first fight |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 15.354s | 41.042s | 25.601s | 2,766,305 | 7,710,239 |
+| 2 | 14.716s | 41.381s | 26.562s | 2,766,305 | 7,912,959 |
+| 3 | 14.707s | 41.825s | 27.040s | 2,766,305 | 7,998,248 |
+
+The defined idle-startup gate passes on this development capture: median14.716s
+is below20s, every sample below25s, and transfer below3MB. This is not a first-fight
+or release pass. The first-fight milestone still takes41-42s from navigation,
+and the post-Start wait grows to25.601-27.040s because effects and companions
+now load with the encounter. These costs must remain visible when describing
+the result; an enabled Start button is not combat readiness.
+
+Against2fdb7052, observed idle median falls39.33% and first-fight median4.23%.
+Startup transfer falls1,849,139 bytes. Encounter composition and bytes vary, so
+the first-fight comparison is descriptive, not a controlled per-change effect.
+No cold-start threshold was changed. Physical-device, frame, input, session and
+overall release conclusions remain separate and unpassed or unverified.
