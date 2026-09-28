@@ -154,7 +154,7 @@
   renderer.getRangeSkill = function(){ return renderer.rangeSkill; };
   renderer.build = build => { previewStyle = build.class; };
   let previewVersion=0;
-  renderer.preview = async level => { const version=++previewVersion;await prepareRegion(level?.region);if(version===previewVersion)previewLevel=level; };
+  renderer.preview = async level => { const version=++previewVersion;await Promise.all([prepareRegion(level?.region),preparePlatformArt(level?.rooms||[])]);if(version===previewVersion)previewLevel=level; };
   const effectLimit=40, effectPool=[];
   function releaseEffect(effect){
     // Erase event payloads and derived flags before retaining the reusable shell.
@@ -249,7 +249,7 @@
     targetCtx.restore();
   }
   renderer.drawStaticPickup = drawStaticPickup;
-  const criticalAtlasKeys = ['regions','props','mobs','items','effects','terrainCover','platformSurface'];
+  const criticalAtlasKeys = ['regions','props','mobs','items','effects','terrainCover'];
   const atlasProgress = { loaded: 0, total: criticalAtlasKeys.length, ready: false };
   function updateAtlasProgress(loaded, total, status) {
     const el = document.getElementById('rift-atlas-progress');
@@ -609,10 +609,21 @@
       return objectiveLoads.get(key);
     }));
   }
+  let platformLoad=null,platformRetries=0;
+  function preparePlatformArt(arenas,moving=false){
+    if(moving||images.platformSurface||!arenas.some(arena=>arena?.platforms?.length))return Promise.resolve();
+    if(!platformLoad){
+      const url=root.dataset.platformSurface,src=url+(platformRetries?(url.includes('?')?'&':'?')+'retry='+platformRetries:'');
+      platformLoad=loadDecodedAtlas(src).then(img=>{images.platformSurface=img;}).catch(()=>{
+        platformLoad=null;platformRetries++;throw new Error('Could not load raised platform artwork. Retry to continue.');
+      });
+    }
+    return platformLoad;
+  }
   // Campaign scenes use regional art; regionless legacy saves retain their background.
   const legacyBackgroundLoads=new Map();
   renderer.prepareRun=async run=>{
-    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region)]);
+    await Promise.all([renderer.prepareBuild(run?.build),prepareObjectiveArt(run),prepareEncounterArt(run),prepareRegion(run?.level?.region),preparePlatformArt([...(run?.level?.rooms||[]),run?.practice?.arena],run?.practice?.mode==='moving_platform')]);
     if(Number.isInteger(run?.level?.region)&&run.level.id%10===0&&run.level.id<100){
       const next=run.level.region+1;
       if(run.status==='cleared'&&run.room===2)await prepareRegion(next);

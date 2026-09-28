@@ -529,3 +529,25 @@ future comparisons. Core mob and platform atlases remain the largest idle
 resources at approximately 2.78 MB each, followed by props, cover, items and
 effects. Physical-device performance, native memory and release approval remain
 unverified. The capture terminated successfully; its source freeze is lifted.
+
+
+## Conditional raised-platform surface loading (2026-09-28)
+
+The 2,771,164-byte `rift_platform_surface.png` is no longer a universal critical
+atlas. Mission preview preparation checks all rooms; run preparation checks all
+saved level rooms and the practice arena. A stationary raised platform requires
+one shared decode promise before display. Failures clear that promise and use a
+fresh retry URL. Moving-platform practice draws its ferry procedurally and does
+not require this stone texture. The universal atlas progress count is now six.
+
+Browser requests confirm mission 1 through initial combat and both normal/reduced
+moving-platform journeys do not request the surface. Raised-platform traversal,
+saved height, shadows, projectiles, loot, effects, preview and reload remain
+covered. A held future-room load proves readiness waits and concurrent requests
+share one decode; failed preview preparation retries without changing selection.
+Fourteen focused checks and ten campaign/moving-platform/region checks pass,
+including all 300 campaign scenes. Scene probes explicitly prepare their runs.
+
+This is a verified avoided image request for scenes without stationary platforms,
+not a measured new cold-start time. The latest completed three-sample capture
+still predates this change; the full loading budgets remain unpassed.

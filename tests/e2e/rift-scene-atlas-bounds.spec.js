@@ -31,7 +31,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
    for(const level of data.levels)for(let room=0;room<level.rooms.length;room++){
     const run=structuredClone(base);run.level=structuredClone(level);run.room=room;
     const arena=run.level.rooms[room];arena.cover=[{material:'wood',hp:100,max_hp:100},{material:'wood',hp:40,max_hp:100},{material:'wood',hp:0,max_hp:100},{material:'stone',hp:100,max_hp:100}].map((c,i)=>({...c,x:220+i*140,y:340,w:60,h:40}));
-    label='mission '+level.id+' room '+room;r.snapshot(run,true);await waitFrame();scenes++;
+    label='mission '+level.id+' room '+room;await r.prepareRun(run);r.snapshot(run,true);await waitFrame();scenes++;
    }
    for(const kind of ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist']){
     const run=structuredClone(base);run.build.class=kind;run.status='complete';run.player.kind=kind;run.player.pose='victory';run.player.pose_time=4;

@@ -1,6 +1,7 @@
 const {test,expect}=require('@playwright/test');
 for(const reduced of [false,true])test(`moving platform keyboard journey reduced=${reduced}`,async({page},info)=>{
  test.setTimeout(90000);
+ const platformRequests=[];page.on('request',r=>{if(r.url().includes('rift_platform_surface.png'))platformRequests.push(r.url());});
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
  await page.goto('/abyss/rift?practice=moving_platform');
@@ -30,5 +31,5 @@ for(const reduced of [false,true])test(`moving platform keyboard journey reduced
  try{await expect.poll(async()=>(await read()).status,{timeout:15000,intervals:[100]}).toBe('complete');}finally{await page.keyboard.up('d');}
  const complete=await read();expect(complete.gold).toBe(0);expect(complete.banked_gold).toBe(0);expect(complete.completed_levels||[]).toEqual([]);
  await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await read()).practice.platform_ride||0).toBe(0);
- expect(errors).toEqual([]);
+ expect(errors).toEqual([]);expect(platformRequests).toEqual([]);
 });
