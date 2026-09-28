@@ -209,3 +209,48 @@ was rebuilt from all raw timing samples and verified against frozen source/diff
 and scene counts. Raw reports remain local in
 `test-results/crowd-after-transport-20260928`. Source is now unfrozen. No physical
 hardware or release pass is established, and0997 remains open.
+
+
+## Actor-layer diagnostic isolation (2026-09-28)
+
+A diagnostic-only renderer wrapper scopes omitted main-canvas methods to actor
+calls. Separate paths, rectangles, text and image probes keep actor calculations
+and canvas state operations. The control keeps all draws. The helper is used only
+by the measurement harness and never imported by application code. Six Node
+checks verify selected method scope, normal outside drawing, exception cleanup,
+and rejection of ambiguous source boundaries/unknown groups.
+
+```powershell
+$env:BRAWL_FRAME_SMOKE='1'
+$env:BRAWL_ACTOR_LAYER_OMISSION='all'
+npx playwright test --config=playwright.crowd-performance.config.js --output=test-results/actor-layers-smoke-20260928
+```
+
+Session61572 completed all five probes in2.4m using one managed fixture and a fresh
+page/context per probe. Each sample covers approximately10s of the same paused
+120-enemy/14-boss/no-projectile scene. No browser errors, hidden time, context
+loss or simulation/camera movement occurred. All probes retained five cache
+entries/1,056,292 calculated bytes with five misses.
+
+| Omitted layer | Frames | Interval p95 | Interval p99 | Render p95 |
+| --- | --- | --- | --- | --- |
+| None (control) | 109 | 116.7ms | 133.3ms | 51.2ms |
+| Paths | 122 | 116.7ms | 133.3ms | 49.1ms |
+| Rectangles | 111 | 116.7ms | 133.3ms | 51.8ms |
+| Text | 107 | 133.3ms | 150.0ms | 53.2ms |
+| Images | 142 | 100.0ms | 116.7ms | 50.8ms |
+
+These incomplete visual workloads are not valid gameplay or frame-gate tests.
+Single sequential samples, wrapper overhead and host variability prevent a
+controlled speedup claim. Images show a possible frame-interval contribution;
+none of the groups removes the synchronous-render cost. Do not replace actor
+shadows, bars or text based on this evidence. Next investigate work outside the
+actor scope and deferred browser painting, rather than assuming any sampled
+native state operation is the cause.
+
+[Safe diagnostic aggregates](../../tests/performance/baselines/actor-layer-diagnostics-2026-09-28.json)
+include each injected renderer hash. Capture base isd1ecdb0f plus the recorded
+tracked harness/user diff; the then-untracked helper is included in each complete
+injected-source hash and committed with this evidence. Raw variants and reports
+remain local under`test-results/actor-layers-smoke-20260928`. Application source
+and user Go edits are unchanged. No performance improvement is shipped.

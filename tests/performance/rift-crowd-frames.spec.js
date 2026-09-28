@@ -10,12 +10,16 @@ const sharedOrigin=process.env.BRAWL_SHARED_ORIGIN_EXPERIMENT==='1';
 if(sharedOrigin&&(opaque||process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 if(opaque&&(process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'||process.env.BRAWL_RENDER_ABLATION))throw Error('Choose one rendering experiment');
 const ablation=process.env.BRAWL_RENDER_ABLATION||'';
+const actorLayerSelection=process.env.BRAWL_ACTOR_LAYER_OMISSION||'';
+if(actorLayerSelection&&!['all','control','paths','rectangles','text','images'].includes(actorLayerSelection))throw Error('Unknown actor layer omission');
+if(actorLayerSelection&&(ablation||opaque||sharedOrigin||process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1'))throw Error('Choose one rendering experiment');
 if(ablation&&!['actors','background'].includes(ablation))throw Error('Unknown rendering ablation');
 if(ablation&&process.env.BRAWL_PROP_BITMAP_EXPERIMENT==='1')throw Error('Choose one rendering experiment');
 const canvasCosts=process.env.BRAWL_CANVAS_COST==='1';
-const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline||!!ablation;
+const smoke=process.env.BRAWL_FRAME_SMOKE==='1',cpuProfiling=process.env.BRAWL_FRAME_PROFILE==='1'||canvasCosts,profiling=cpuProfiling||timeline||!!ablation||!!actorLayerSelection;
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
-for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample,async({page,context,browser},info)=>{
+for(const actorLayer of actorLayerSelection==='all'?['control','paths','rectangles','text','images']:[actorLayerSelection])
+for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120 frame sample '+sample+(actorLayer?' actor layer '+actorLayer:''),async({page,context,browser},info)=>{
  const report={sample,startedAt:new Date().toISOString(),smoke,profiling,timelineEnabled:timeline,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
@@ -67,6 +71,13 @@ for(let sample=1;sample<=((smoke||profiling)?1:3);sample++)test('paused crowd120
     candidate=source.replaceAll('drawAtlas(background,','void(background,');
    }
    report.experiment={kind:'diagnostic omission: '+ablation,rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
+   fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
+   await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
+  }
+  if(actorLayer){
+   const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+   const candidate=require('../../scripts/brawl-actor-layer-experiment.cjs').actorLayerCandidate(source,actorLayer);
+   report.experiment={kind:'diagnostic actor layer: '+actorLayer,rendererSHA256:crypto.createHash('sha256').update(candidate).digest('hex')};
    fs.writeFileSync(info.outputPath('experimental-renderer.js'),candidate);
    await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:candidate}));
   }
