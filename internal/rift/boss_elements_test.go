@@ -117,3 +117,31 @@ func TestBossElementPhasesUsePreImpactPhaseThenChange(t *testing.T) {
 		t.Fatal("next hit retained old phase matchup")
 	}
 }
+
+func TestBossElementPhasesProjectileUsesImpactWard(t *testing.T) {
+	r := elementalAttackRun(content.ElementFire)
+	r.Projectiles = []Projectile{{X: r.Enemies[0].X, Y: r.Enemies[0].Y, Power: 100, Life: 1, Kind: "ice", Skill: Skill{ID: "flight", Element: content.ElementWater}}}
+	// The ward changes while this Water projectile is in flight: Fire is weak
+	// to Water, but the second phase's Air ward takes neutral Water damage.
+	r.Enemies[0].Phase = 2
+	r.tick(Input{}, .02)
+	if r.Enemies[0].HP != 9900 || len(r.Projectiles) != 0 {
+		t.Fatal("projectile used its launch phase or visual element")
+	}
+}
+
+func TestBossElementPhasesNeutralJSONOmitsWard(t *testing.T) {
+	for _, boss := range []Actor{{Kind: "boss"}, AdaptMonster(content.Mob{Name: "Physical boss", Type: content.MobBoss, Element: content.ElementPhysical})} {
+		raw, err := json.Marshal(boss)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]json.RawMessage
+		if err = json.Unmarshal(raw, &fields); err != nil {
+			t.Fatal(err)
+		}
+		if _, exists := fields["elemental_phases"]; exists {
+			t.Fatal("neutral actor emitted empty phase metadata")
+		}
+	}
+}
