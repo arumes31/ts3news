@@ -110,7 +110,7 @@ func TestStaticCoverShieldsWoodFromProjectiles(t *testing.T) {
 }
 
 func TestTerrainCoverCampaignPlacement(t *testing.T) {
-	wood, stone := 0, 0
+	wood, stone, volatile := 0, 0, 0
 	for _, level := range Campaign() {
 		for room, arena := range level.Rooms {
 			want := room == 0 && (level.ID%10 == 2 || level.ID%10 == 4) || room == 1 && level.ID%10 == 7
@@ -120,7 +120,7 @@ func TestTerrainCoverCampaignPlacement(t *testing.T) {
 			for _, c := range arena.Cover {
 				switch c.Material {
 				case "wood":
-					wood++
+					if c.Volatile { volatile++ } else { wood++ }
 					if c.HP != 60 || c.MaxHP != 60 {
 						t.Fatal("invalid wooden durability")
 					}
@@ -132,7 +132,7 @@ func TestTerrainCoverCampaignPlacement(t *testing.T) {
 			}
 		}
 	}
-	if wood != 20 || stone != 10 {
-		t.Fatalf("wood=%d stone=%d", wood, stone)
+	if wood != 20 || stone != 10 || volatile != 27 {
+		t.Fatalf("wood=%d stone=%d volatile=%d", wood, stone, volatile)
 	}
 }

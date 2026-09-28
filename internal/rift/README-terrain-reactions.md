@@ -1,8 +1,7 @@
 # Volatile terrain reactions (engine groundwork)
 
-Status: engine implemented and unit tested; **not enabled in campaign rooms**.
-Ledger item 0476 remains open until room authoring and
-real-browser verification are done. Renderer, map, preview and sound integration
+Status: implemented in nine campaign rooms; **browser verification pending**.
+Ledger item 0476 remains open until real-browser verification is done. Renderer, map, preview and sound integration
 are implemented but remain unverified in the browser.
 
 Breaking volatile wooden cover arms a connected cluster of up to eight props.
@@ -30,13 +29,15 @@ The combat loop advances existing warnings after movement and jump, before
 attacks can arm new clusters. A triggering melee attack or projectile retains
 the full warning. Lethal blasts prevent a subsequent attack or cast that tick.
 The browser protocol rejects non-finite/out-of-range fuses, volatile stone and
-active fuses on intact or nonvolatile cover. No authored cover is volatile yet,
-keeping incomplete warning presentation out of gameplay.
+active fuses on intact or nonvolatile cover. Missions 11, 21, 31, 41, 51, 61, 71, 81 and 91 now have a three-crate
+cluster in tier 1. Existing saved room geometry is unchanged.
 
 ## Remaining integration
 
-- Author compact clusters in selected rooms with escape space, entrances and
-  exits clear; keep room geometry frozen in saved expeditions.
+- Verify the authored clusters visually in the real campaign. Geometry tests
+  confirm clear entrances/exits, connected ignition from every crate, and
+  upper/lower walking escape from crate centers at slowed speed after 300ms
+  reaction time. This is not a proof of escape from every simultaneous hazard.
 - Verify intact markings and exact blast ellipses, reduced-motion and pause
   behavior, countdown labels and minimap cues in the real browser.
 - Verify the marked-cover sheet loads only for expeditions using it and that

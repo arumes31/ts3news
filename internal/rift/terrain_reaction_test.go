@@ -236,3 +236,60 @@ func TestTerrainReactionProjectileKeepsNewFuseWhole(t *testing.T) {
 		t.Fatal("projectile did not arm one full warning and stop")
 	}
 }
+
+func TestCampaignVolatileClustersHaveClearApproachesAndEscapeLanes(t *testing.T) {
+	rooms := 0
+	for _, level := range Campaign() {
+		for roomIndex, arena := range level.Rooms {
+			var indices []int
+			for i, c := range arena.Cover {
+				if c.Volatile {
+					indices = append(indices, i)
+				}
+			}
+			if len(indices) == 0 {
+				continue
+			}
+			rooms++
+			if len(indices) != 3 || roomIndex != 0 || level.ID == 1 {
+				t.Fatalf("unexpected cluster in mission %d", level.ID)
+			}
+			for _, index := range indices {
+				c := arena.Cover[index]
+				from := Actor{X: c.X + c.W/2, Y: c.Y + c.H/2}
+				for _, entry := range []*ArenaEntrance{arena.Entrance, arena.Exit} {
+					if entry == nil || blastContains(&from, &Actor{X: entry.X, Y: entry.Y}) {
+						t.Fatalf("mission %d blast covers entry/exit", level.ID)
+					}
+				}
+				r := reactionTestRun()
+				copyLevel := cloneCampaignLevel(level)
+				r.Level, r.Room = &copyLevel, roomIndex
+				r.damageTerrainCover(index, c.HP)
+				for _, linked := range indices {
+					if r.Level.Rooms[roomIndex].Cover[linked].BlastFuse != 1.2 {
+						t.Fatalf("mission %d cluster disconnected", level.ID)
+					}
+				}
+				// After ignition, even the slowed walking speed can leave the central
+				// lane within the warning, allowing 300ms to react before moving.
+				for _, direction := range []float64{-1, 1} {
+					actor := Actor{X: from.X, Y: from.Y, HP: 100, ID: "player"}
+					for step := 0; step < 45; step++ {
+						r.moveActor(&actor, 0, direction*141*.6*.02, false)
+					}
+					for _, linked := range indices {
+						other := arena.Cover[linked]
+						origin := Actor{X: other.X + other.W/2, Y: other.Y + other.H/2}
+						if blastContains(&origin, &actor) {
+							t.Fatalf("mission %d blocked escape lane", level.ID)
+						}
+					}
+				}
+			}
+		}
+	}
+	if rooms != 9 {
+		t.Fatalf("got %d volatile rooms; want nine", rooms)
+	}
+}

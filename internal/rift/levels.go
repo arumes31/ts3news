@@ -135,6 +135,7 @@ func buildCampaign() []Level {
 			id := region*10 + layout + 1
 			level := Level{ID: id, Region: region, RegionName: regionName, Name: regionName + " · " + name, Tactic: tactics[layout], Color: colors[region], Difficulty: []string{"Wayfarer", "Veteran", "Champion", "Mythic"}[min(3, id/26)]}
 			if layout == 0 && id > 1 {
+				level.Tactic += ". Tier 1: volatile crates ignite together when broken; jump or move clear during the warning"
 				level.Tactic += ". Tier 2: interrupt ritual channelers before their eight-second pulses"
 			}
 			if layout == 2 {
@@ -329,6 +330,11 @@ func buildCampaign() []Level {
 				}
 				if layout == 6 && room == 1 {
 					arena.Cover = append(arena.Cover, TerrainCover{Obstacle: Obstacle{800 + float64(region*7+room*19), 360, 60 + float64(region%4)*3, 100}, ID: fmt.Sprintf("mission-%d-shortcut", id), Material: "wood", HP: 60, MaxHP: 60, Shortcut: true})
+				}
+				if layout == 0 && id > 1 && room == 0 {
+					for index, x := range []float64{480, 570, 660} {
+						arena.Cover = append(arena.Cover, TerrainCover{Obstacle: Obstacle{x + float64(region*7), 390, 32, 30}, ID: fmt.Sprintf("mission-%d-volatile-%d", id, index+1), Material: "wood", HP: 60, MaxHP: 60, Volatile: true})
+					}
 				}
 				level.Rooms = append(level.Rooms, arena)
 			}

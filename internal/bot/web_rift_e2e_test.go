@@ -303,7 +303,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 			runs[cookie.Value] = run
 			mu.Unlock()
 		}
-		if scenario := r.URL.Query().Get("scenario"); scenario == "terrain-cover" || scenario == "terrain-projectile" || scenario == "terrain-stone-projectile" || scenario == "vault-cover" || scenario == "drop-edge" || scenario == "drop-edge-pursuit" {
+		if scenario := r.URL.Query().Get("scenario"); scenario == "terrain-cover" || scenario == "volatile-cover" || scenario == "terrain-projectile" || scenario == "terrain-stone-projectile" || scenario == "vault-cover" || scenario == "drop-edge" || scenario == "drop-edge-pursuit" {
 			mu.Lock()
 			now := time.Now()
 			run := rift.NewRunAtLevel("terrain-cover", selectedBuild, now, riftMobCatalog(now), 1)
@@ -327,6 +327,17 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 				run.Level.Rooms[0].Obstacles = []rift.Obstacle{{X: 300, Y: 380, W: 80, H: 40}}
 				run.Level.Rooms[0].HighCover = []rift.Obstacle{{X: 650, Y: 380, W: 80, H: 40}}
 				run.Drops = []rift.Drop{}
+			}
+			if scenario == "volatile-cover" {
+				run.Level.Rooms[0].Cover = nil
+				for i, x := range []float64{300, 390, 480} {
+					run.Level.Rooms[0].Cover = append(run.Level.Rooms[0].Cover, rift.TerrainCover{Obstacle: rift.Obstacle{X: x, Y: 395, W: 32, H: 30}, ID: "volatile-" + strconv.Itoa(i), Material: "wood", HP: 60, MaxHP: 60, Volatile: true})
+				}
+				run.Player.X, run.Player.Y = 260, 410
+				run.Drops = nil
+				run.Enemies = append(run.Enemies,
+					rift.Actor{ID: "blast-target", Name: "Blast target", Kind: "goblin", X: 410, Y: 450, HP: 100, MaxHP: 100, Knockdown: 1000},
+					rift.Actor{ID: "blast-loot", Name: "Blast loot", Kind: "goblin", X: 500, Y: 450, HP: 1, MaxHP: 100, Knockdown: 1000})
 			}
 			if scenario == "terrain-projectile" {
 				run.Projectiles = []rift.Projectile{{X: 160, Y: 410, VX: 350, Life: 4, Power: 80, Kind: "fire"}}
