@@ -360,6 +360,8 @@
     const t = (f, end, d, v, wave, delay) => tone(f * detune, end * detune, d, v * gainMult, wave, delay, pan, target);
     const h = (duration, volume, cutoff, position, delay) => hiss(duration, volume * gainMult, cutoff ? cutoff * Math.max(0.6, gainMult) : cutoff, position, delay, target);
     switch (kind) {
+      case 'platform_board': t(180,70,.2,.055,'triangle');h(.16,.035,600,pan);break;
+      case 'platform_ready': [440,660,880].forEach((f,i)=>t(f,f,.2,.04,'sine',i*.08));break;
       case 'step': case 'step_stone': h(.065, .07, 650, pan); t(120, 60, .05, .04, 'triangle'); break;
       case 'step_metal': h(.07, .06, 2800, pan); t(620, 480, .06, .05, 'triangle'); break;
       case 'step_wood': h(.06, .07, 450, pan); t(160, 90, .07, .07, 'triangle'); break;

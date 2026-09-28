@@ -25,7 +25,7 @@
     const rect=(o,kind,label,phase)=>drawing.append(node('rect',{x:mx(o.x),y:my(o.y),width:mx(o.w),height:Math.round(o.h*.24*10)/10,'data-kind':kind,...(phase?{'data-phase':phase}:{})},label));
     if(arena.rest_alcove)rect(arena.rest_alcove,'rest','Rest alcove: safe between waves');
     for(const b of arena.bridges||[])rect(b,'bridge','Narrow bridge: stay between the rails');
-    for(const p of arena.platforms||[])rect(p,'platform','Raised platform with sloped edges');
+    for(const p of arena.platforms||[])rect(p,'platform',run.practice?.mode==='moving_platform'?'Moving wooden ferry: stand aboard to ride':'Raised platform with sloped edges');
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
     if(run.room_objective?.gate?.closed)rect(run.room_objective.gate,'stone','Wave gate closed; use either bypass');

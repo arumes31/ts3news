@@ -155,3 +155,23 @@ func TestMovingPlatformRealStepsEarnRideThenExit(t *testing.T) {
 		t.Fatal("ferry manufactured rewards or input")
 	}
 }
+
+func TestMovingPlatformCuesFireOncePerDrill(t *testing.T) {
+	r := movingPlatformRun(t)
+	p := r.Arena().Platforms[0]
+	r.Player.X, r.Player.Y = p.X+p.W/2, p.Y+p.H/2
+	counts := map[string]int{}
+	seen := 0
+	for i := 0; i < 100; i++ {
+		r.Step(Input{}, time.UnixMilli(r.LastMS+50))
+		for _, event := range r.Events {
+			if event.ID > seen {
+				counts[event.Kind]++
+				seen = event.ID
+			}
+		}
+	}
+	if counts["platform_board"] != 1 || counts["platform_ready"] != 1 {
+		t.Fatalf("unexpected ferry cues: %v", counts)
+	}
+}

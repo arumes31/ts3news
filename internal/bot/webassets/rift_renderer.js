@@ -215,6 +215,8 @@
     let color='#fff0bb',label=String(Math.round(e.value||0));
     if(e.kind==='hurt'){color='#ffb2a0';}
     else if(e.kind==='block'||e.kind==='perfect_guard'){color=e.kind==='perfect_guard'?'#ffd700':'#7fd7ff';label=(e.kind==='perfect_guard'?'⭐ Perfect Guard':'🛡️ Guarded')+(Math.round(e.value||0)>0?' -'+Math.round(e.value):'');}
+    else if(e.kind==='platform_board'){color='#ecd49c';label='Aboard';}
+    else if(e.kind==='platform_ready'){color='#c6f5c6';label='Exit ready';}
     else if(e.kind==='beacon_captured'){color='#b9eaff';label='Beacon '+Math.round(e.value)+' / 3';}
     else if(e.kind==='sigil_pickup'){color='#9df6d3';label='Sigil '+Math.round(e.value)+' / 3';}
     else if(e.kind==='pickup'){color='#ffe082';label=['pickup','banking'].includes(snapshot?.practice?.mode)?'Practice token collected':'+'+Math.round(e.value)+' gold';}
@@ -1387,13 +1389,13 @@
     }
 
     renderer.lastPickupRadius=null;
-    if(!display.cleanScreenshot&&run.practice&&run.practice.mode!=='toxic_tide'&&run.status==='fighting'&&(run.clock<5||['pickup','banking'].includes(run.practice.mode))){
+    if(!display.cleanScreenshot&&run.practice&&!['toxic_tide','moving_platform'].includes(run.practice.mode)&&run.status==='fighting'&&(run.clock<5||['pickup','banking'].includes(run.practice.mode))){
       const radius=run.practice.pickup_radius??65,x=run.player.x-camera,y=run.player.y-(run.player.elevation||0);
       ctx.save();ctx.strokeStyle='#f2d48c';ctx.fillStyle='#f2d48c12';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
       ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillStyle='#f2d48c';ctx.strokeStyle='#10201b';ctx.lineWidth=3;const label='PICKUP · '+radius+' UNITS';ctx.strokeText(label,x,y-radius-8);ctx.fillText(label,x,y-radius-8);ctx.restore();
       renderer.lastPickupRadius={radius,x:run.player.x,y:run.player.y};
     }
-    if(!display.cleanScreenshot&&run.practice&&['toxic_tide','movement','jump','banking'].includes(run.practice.mode)){
+    if(!display.cleanScreenshot&&run.practice&&['moving_platform','toxic_tide','movement','jump','banking'].includes(run.practice.mode)){
       ctx.save();ctx.strokeStyle='#e3f9ac';ctx.lineWidth=4;ctx.setLineDash([10,7]);ctx.beginPath();ctx.moveTo(run.practice.goal_x-camera,250);ctx.lineTo(run.practice.goal_x-camera,535);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#e3f9ac';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText(run.practice.mode==='banking'?'CHECKPOINT':'FINISH',run.practice.goal_x-camera,240);ctx.restore();
     }
     decals=decals.filter(d=>now-d.started<1800);
@@ -1435,15 +1437,21 @@
       ctx.strokeStyle='#e8d3a0';ctx.lineWidth=2;ctx.beginPath();for(const edge of [x,x+w]){ctx.moveTo(edge,y+10);ctx.lineTo(edge,y+h-10);}ctx.stroke();
       ctx.restore();
     }
+    if(run.practice?.mode==='moving_platform'){
+      ctx.save();ctx.strokeStyle='#d9bb81';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(390-camera,410);ctx.lineTo(990-camera,410);ctx.stroke();ctx.setLineDash([]);
+      for(const x of [390,990]){ctx.beginPath();ctx.ellipse(x-camera,410,18,9,0,0,Math.PI*2);ctx.stroke();}
+      ctx.restore();
+    }
     for(const p of arena?.platforms||[]){
+      const moving=run.practice?.mode==='moving_platform';
       const x=p.x-camera,y=p.y,w=p.w,h=p.h,r=p.ramp,z=p.rise;
       const outer=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],top=[[x+r,y+r-z],[x+w-r,y+r-z],[x+w-r,y+h-r-z],[x+r,y+h-r-z]];
       ctx.save();ctx.strokeStyle='#24392e';ctx.lineWidth=2;
-      const face=(points,shade)=>{ctx.beginPath();points.forEach(([px,py],i)=>i?ctx.lineTo(px,py):ctx.moveTo(px,py));ctx.closePath();ctx.save();ctx.clip();ctx.drawImage(images.platformSurface,x,y,w,h);ctx.fillStyle='rgba(10,24,17,'+shade+')';ctx.fillRect(x,y,w,h);ctx.restore();ctx.stroke();};
+      const face=(points,shade)=>{ctx.beginPath();points.forEach(([px,py],i)=>i?ctx.lineTo(px,py):ctx.moveTo(px,py));ctx.closePath();ctx.save();ctx.clip();if(moving){ctx.fillStyle='#93683f';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#49351f';ctx.beginPath();for(let plank=x;plank<x+w;plank+=18){ctx.moveTo(plank,y);ctx.lineTo(plank,y+h);}ctx.stroke();}else ctx.drawImage(images.platformSurface,x,y,w,h);ctx.fillStyle='rgba(10,24,17,'+shade+')';ctx.fillRect(x,y,w,h);ctx.restore();ctx.beginPath();points.forEach(([px,py],i)=>i?ctx.lineTo(px,py):ctx.moveTo(px,py));ctx.closePath();ctx.stroke();};
       for(let i=0;i<4;i++)face([outer[i],outer[(i+1)%4],top[(i+1)%4],top[i]],[.08,.22,.28,.14][i]);
       face(top,.02);ctx.lineWidth=1;
       ctx.strokeStyle='#bfccb0';ctx.beginPath();ctx.moveTo(...top[0]);ctx.lineTo(...top[1]);ctx.stroke();
-      if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#dfebcf';ctx.strokeStyle='#1b3024';ctx.lineWidth=3;ctx.strokeText('RAISED · SLOPED EDGES',x+w/2,y-9);ctx.fillText('RAISED · SLOPED EDGES',x+w/2,y-9);}ctx.restore();
+      if(!display.cleanScreenshot){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#dfebcf';ctx.strokeStyle='#1b3024';ctx.lineWidth=3;ctx.strokeText(moving?'FERRY · STAND TO RIDE':'RAISED · SLOPED EDGES',x+w/2,moving?y-60:y-9);ctx.fillText(moving?'FERRY · STAND TO RIDE':'RAISED · SLOPED EDGES',x+w/2,moving?y-60:y-9);}ctx.restore();
     }
     (arena?.hazards||[]).forEach(h=>{
       if(h.disabled||run.status!=='fighting'){

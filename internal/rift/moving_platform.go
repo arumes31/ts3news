@@ -36,7 +36,14 @@ func (r *Run) tickMovingPlatformPractice() {
 		actor.Elevation = r.Arena().Elevation(actor.X, actor.Y)
 		return math.Abs(actor.X - before)
 	}
-	r.Practice.PlatformRide = math.Min(250, r.Practice.PlatformRide+carry(&r.Player))
+	beforeRide := r.Practice.PlatformRide
+	r.Practice.PlatformRide = math.Min(250, beforeRide+carry(&r.Player))
+	if beforeRide == 0 && r.Practice.PlatformRide > 0 {
+		r.event("platform_board", r.Player.X, r.Player.Y, 0)
+	}
+	if beforeRide < 250 && r.Practice.PlatformRide == 250 {
+		r.event("platform_ready", r.Player.X, r.Player.Y, 250)
+	}
 	for i := range r.Enemies {
 		carry(&r.Enemies[i])
 	}
