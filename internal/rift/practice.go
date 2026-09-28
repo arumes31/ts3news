@@ -9,6 +9,7 @@ import (
 
 // PracticeState describes an isolated drill; it cannot bank or advance a campaign.
 type PracticeState struct {
+	PlatformRide float64 `json:"platform_ride,omitempty"`
 	EnrageSeconds float64 `json:"enrage_seconds,omitempty"`
 	EnrageTriggered bool `json:"enrage_triggered,omitempty"`
 	CheckpointReady bool `json:"checkpoint_ready,omitempty"`
@@ -38,7 +39,7 @@ type PracticeState struct {
 
 // ValidPracticeMode reports whether mode names a supported isolated drill.
 func ValidPracticeMode(mode string) bool {
-	return mode == "toxic_tide" || mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard" || mode == "touch"
+	return mode == "moving_platform" || mode == "toxic_tide" || mode == "banking" || mode == "pickup" || mode == "resource" || mode == "ultimate" || mode == "ranged" || mode == "perfect_guard" || mode == "skills" || mode == "class" || mode == "boss" || mode == "movement" || mode == "jump" || mode == "combo" || mode == "guard" || mode == "hazard" || mode == "touch"
 }
 
 func NewPracticeRun(id string, build Build, mode string, now time.Time) (*Run, error) {
@@ -120,6 +121,7 @@ func newPracticeRun(id string, build Build, mode string, now time.Time) (*Run, e
 	if mode == "guard" || mode == "perfect_guard" {
 		r.Enemies = []Actor{{ID: "practice-guard", Name: "Guard trainer", Kind: "knight", X: 220, Y: r.Player.Y, HP: 1000000, MaxHP: 1000000, Facing: -1, Damage: 8, Cooldown: 1}}
 	}
+	if mode == "moving_platform" { r.configureMovingPlatformPractice() }
 	if mode == "toxic_tide" {
 		r.Practice.Arena.Name = "Toxic Tide challenge"
 		r.Practice.Arena.Floor = "mud"
@@ -179,7 +181,7 @@ func (r *Run) practiceInput(in Input) Input {
 		return Input{X: in.X, Y: in.Y}
 	case "toxic_tide":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump, Dodge: in.Dodge, Guard: in.Guard}
-	case "jump", "hazard":
+	case "jump", "hazard", "moving_platform":
 		return Input{X: in.X, Y: in.Y, Jump: in.Jump}
 	case "guard", "perfect_guard":
 		return Input{X: in.X, Y: in.Y, Guard: in.Guard}
@@ -196,7 +198,9 @@ func (r *Run) practiceTick() {
 	if r.Practice.Mode == "skills" || r.Practice.Mode == "touch" {
 		return // Free practice ends only when the player leaves or resets.
 	}
+	if r.Practice.Mode == "moving_platform" { r.tickMovingPlatformPractice() }
 	complete := r.Player.X >= r.Practice.GoalX
+	if r.Practice.Mode == "moving_platform" { complete = complete && r.Practice.PlatformRide >= 250 }
 	if r.Practice.Mode == "pickup" {
 		complete = len(r.Drops) == 3
 		for _, drop := range r.Drops { complete = complete && drop.Collected }
