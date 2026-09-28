@@ -500,3 +500,32 @@ Creature rows remain active for combat. Do not repeat direct cropped CSS or
 card-sized canvas replacement as a proven visual optimization. An alternative
 must preserve browser sampling and demonstrate its memory cost. First-playable
 combat measurements can proceed without depending on this rejected change.
+
+
+## Creature loading: idle and first-fight capture (2026-09-28)
+
+The isolated fixture built from `17c407ca` plus the recorded unchanged user diff
+completed three cold captures with the established network profile. Full safe
+aggregates are in
+`tests/performance/baselines/cold-creature-first-fight-2026-09-28.json`.
+
+| Sample | Enabled Start | First playable combat | Time after Start request | Bytes at idle | Bytes through first combat |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 71.125 s | 81.740 s | 10.543 s | 13,902,617 | 15,837,626 |
+| 2 | 70.516 s | 76.644 s | 6.056 s | 13,902,617 | 14,956,701 |
+| 3 | 70.570 s | 82.376 s | 11.740 s | 13,902,617 | 16,093,618 |
+
+Idle median is 70.570 s, versus the prior region-panel capture's 119.528 s
+(40.96% lower). Idle transfer bytes fell by 9,806,017. This comparison concerns
+the enabled-Start milestone only. The earlier report did not measure first
+playable combat, so it does not establish a like-for-like first-fight speedup.
+The new first-fight median is 81.740 s and its transfers include the authoritative
+start/step responses and encounter-dependent row downloads. Each sample had one
+aborted initial GET followed by successful recovery; none is error-free startup.
+
+The 20 s median, 25 s per-run and 3 MB cold-start limits still fail. The first
+fight adds 6.06-11.74 s after initiating Start, which must remain visible in
+future comparisons. Core mob and platform atlases remain the largest idle
+resources at approximately 2.78 MB each, followed by props, cover, items and
+effects. Physical-device performance, native memory and release approval remain
+unverified. The capture terminated successfully; its source freeze is lifted.
