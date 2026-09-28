@@ -19,8 +19,8 @@ bonuses. That scope must be visible in the eventual player-facing presentation.
 
 Focused engine tests pass for capped healing, use accounting, cooldown and all
 rejection states. SQL transaction tests pass for success, missing inventory,
-save-failure rollback and replay without a second charge. These are sqlmock
-checks; no live database economy test has run yet.
+save-failure rollback and replay without a second charge. These focused checks
+use sqlmock; real PostgreSQL recovery verification is recorded below.
 
 Owned-item availability is exposed through the separate no-cache GET
 `/api/abyss/rift?inventory=potions`. It returns canonical fixed/fractional healing
@@ -62,5 +62,12 @@ helper. It checks inventory/run atomicity and repeated request recovery. Set
 `RIFT_TEST_DATABASE_URL` to a disposable PostgreSQL server with CREATE DATABASE
 permission to execute it; compilation or a skipped test is not live verification.
 
-Still required: real-browser execution and inspection, broader integration checks,
-and live-database economy verification. Ledger 0363 remains open.
+On 2026-09-28 the test passed against an isolated PostgreSQL 16 Alpine container
+with real migrations and a disposable database (11.37 seconds). Both committed
+and rolled-back lost confirmations passed, including two identical retries and
+a shared transaction-ID check for inventory and the saved expedition. The
+container was stopped after verification. This proves this potion transaction
+path; it is not evidence for unrelated economy flows or browser presentation.
+
+Still required: real-browser execution and inspection and broader integration
+checks. Ledger 0363 remains open.
