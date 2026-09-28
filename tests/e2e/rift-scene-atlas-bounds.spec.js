@@ -1,21 +1,27 @@
 const {test,expect}=require('@playwright/test');
+const fs=require('node:fs'),path=require('node:path');
 
 test('campaign scenery loot effects and victory atlas rectangles stay in bounds',async({page})=>{
  const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));
+ const source=fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8');
+ const marker='  function drawAtlas(img,sx,sy,sw,sh,dx,dy,dw,dh){';expect(source.includes(marker)).toBe(true);
+ // Inspect original source rectangles before the offscreen cache substitutes them.
+ await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:source.replace(marker,marker+'\n    window.riftAtlasSourceProbe?.(img,sx,sy,sw,sh,dx,dy,dw,dh);')}));
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
  const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels).toHaveLength(100);
  const result=await page.evaluate(async data=>{
   const r=window.RiftRenderer,ctx=document.getElementById('rift-canvas').getContext('2d'),draw=ctx.drawImage;
   await Promise.all(['vanguard','bloodblade'].map(className=>r.prepareBuild({class:className})));
   const errors=[],cells={},victories=[];let label='',draws=0,scenes=0;
-  ctx.drawImage=function(img,...a){
+  const inspect=(img,...a)=>{
    if(a.length===8){
     draws++;const [x,y,w,h]=a,key=img.src?new URL(img.src,location.href).pathname:'cached-frame';
     if(![x,y,w,h].every(Number.isFinite)||x<0||y<0||w<=0||h<=0||x+w>img.width+.001||y+h>img.height+.001)errors.push({label,key,source:a.slice(0,4),size:[img.width,img.height]});
     (cells[key]??=new Set()).add([x,y,w,h].join(','));
    }
-   return draw.call(this,img,...a);
   };
+  window.riftAtlasSourceProbe=inspect;
+  ctx.drawImage=function(img,...a){inspect(img,...a);return draw.call(this,img,...a);};
   const waitFrame=async()=>{const before=r.frameCount;while(r.frameCount===before)await new Promise(requestAnimationFrame);};
   const base=structuredClone(data.run);base.paused=true;base.status='fighting';base.enemies=[];base.events=[];base.room_objective=null;
   base.drops=['weapon','offhand','ranged','head','chest','feet','hands','ring','neck','relic','future'].map((Slot,i)=>({id:'atlas-'+i,x:200+i*45,y:430,gear:{Slot,Name:Slot,Rarity:1}}));
@@ -41,7 +47,7 @@ test('campaign scenery loot effects and victory atlas rectangles stay in bounds'
    }
    const run=structuredClone(base);run.id='atlas-effects';run.paused=false;run.events=['slash','fire','ice','shield','void','rare_item'].map((kind,i)=>({id:i+1,kind,x:300+i*60,y:400,value:1}));run.counter=6;
    label='effect frames';r.snapshot(run,false);const until=performance.now()+1050;while(performance.now()<until)await waitFrame();
-  }finally{ctx.drawImage=draw;}
+  }finally{ctx.drawImage=draw;delete window.riftAtlasSourceProbe;}
   return {errors:errors.slice(0,20),scenes,draws,victories,cells:Object.fromEntries(Object.entries(cells).map(([key,value])=>[key,[...value]]))};
  },data);
  expect(pageErrors).toEqual([]);
