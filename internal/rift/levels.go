@@ -37,6 +37,7 @@ type ArenaEntrance struct {
 }
 
 type Arena struct {
+	Bridges []NarrowBridge `json:"bridges,omitempty"`
 	WaveGate *Obstacle `json:"wave_gate,omitempty"`
 	RestAlcove *Obstacle `json:"rest_alcove,omitempty"`
 	Exit *ArenaEntrance `json:"exit,omitempty"`
@@ -675,7 +676,7 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 			break
 		}
 	}
-	if r.dropFaceBlocksX(a, nextX) {
+	if r.dropFaceBlocksX(a, nextX) || !arena.groundPath(a.X, a.Y, nextX, a.Y, radius) {
 		nextX = a.X
 	}
 	a.X = nextX
@@ -689,7 +690,8 @@ func (r *Run) moveActor(a *Actor, dx, dy float64, navigate bool) {
 			break
 		}
 	}
-	a.Y = r.crossDropEdge(a, nextY)
+	nextY = r.crossDropEdge(a, nextY)
+	if arena.groundPath(a.X, a.Y, a.X, nextY, radius) { a.Y = nextY }
 	a.Elevation = arena.Elevation(a.X, a.Y)
 	if a == &r.Player {
 		r.Floor = r.FloorMaterial()
