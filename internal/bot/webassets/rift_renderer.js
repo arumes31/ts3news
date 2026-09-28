@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const root = document.getElementById('rift-app'), canvas = document.getElementById('rift-canvas'), ctx = canvas.getContext('2d');
-  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, enemy_blast:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
+  const images = {}, effectRows = { slash:0, third_strike:0, finisher_cast:4, ultimate_anticipation:4, hit:0, hit_blade:0, hit_blunt:0, hit_pierce:0, hit_arcane:0, hit_fist:0, hit_ranged:0, fire:1, enemy_blast:1, terrain_blast:1, slam:1, quake:1, ice:2, shield:3, heal:3, block:3, perfect_guard:3, radiant:3, rune:3, void:4, poison:4, ultimate:4, pack:2, sigil_pickup:3, beacon_captured:3, beacons_complete:5, spirit_arrived:3, ritual_interrupt:4, ritual_pulse:4, ritual_complete:3, projectile_impact:0, cover_hit:0, cover_break:0, lane_hurt:1, lane_lost:4, lanes_protected:3, rune_correct:3, rune_wrong:4, rune_gate_open:5, lantern_hurt:1, lantern_extinguished:4, lantern_protected:3, companion_freed:3, rescue_complete:5, cage_break:0, guardians_defeated:3, guardian_unlinked:4, collapse_hit:1, collapse_escaped:3, totem_break:4, generator_break:2, generator_shutdown:3, relic_pickup:3, relic_delivered:5, pickup:5, clear:5, treasure_escape:5, rare_item:5, rare_discovery:5 };
   const bestiary=window.RiftBestiary,catalogImages={},display=window.RiftDisplay;
   const styles = ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'];
   const foundations = {warrior:'vanguard',ranger:'marksman',arcanist:'elementalist',warden:'oracle',reaver:'bloodblade',artificer:'runesmith'};
@@ -539,7 +539,7 @@
     const keys=new Set(),include=list=>{for(const key of list||[])keys.add(key);};
     // Prepare every frozen tier before play, so advancing never discovers a new
     // objective image. Saved current actors also cover regionless legacy runs.
-    for(const room of run.level?.rooms||[])include(objectiveAtlasKeys[room.objective]);
+    for(const room of run.level?.rooms||[]){include(objectiveAtlasKeys[room.objective]);if(room.cover?.some(c=>c.volatile))keys.add('volatileCover');}
     const goal=run.room_objective;
     include(objectiveAtlasKeys[goal?.kind]);
     for(const actor of run.enemies||[])include(objectiveActorKeys[actor.kind]);
@@ -1944,6 +1944,18 @@
       ctx.restore();
     }
     const nearbyCover=window.RiftHUD.nearbyCover(run);
+    // Authoritative fuse snapshots drive a static, exact-size ground warning.
+    // It remains legible with reduced motion and has no independent clock.
+    if(run.status==='fighting')for(const c of arena?.cover||[]){
+      if(!c.volatile||!(c.blast_fuse>0))continue;
+      const x=c.x+c.w/2-camera,y=c.y+c.h/2;
+      if(x+115<0||x-115>960)continue;
+      ctx.save();ctx.fillStyle='#c350222b';ctx.strokeStyle='#ffb260';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(x,y,115,55,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.strokeStyle='#fff0cf';ctx.lineWidth=1;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
+      if(!display.cleanScreenshot){ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#fff0cf';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt('BLAST '+c.blast_fuse.toFixed(1)+'s · JUMP / MOVE',x,y-61,true);}
+      ctx.restore();
+    }
     const units=[...run.enemies,run.player];
     if(run.room_objective?.kind==='split_defense')units.push(...run.room_objective.lanes.map(l=>l.ward));
     if(run.room_objective?.kind==='protect_lantern')units.push(run.room_objective.lantern);
@@ -1979,7 +1991,16 @@
       }
       if(unit.waveGate){drawWaveGate(unit.waveGate);return;}
       if(unit.terrain){
-        const c=unit.terrain,broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
+        const c=unit.terrain;
+        if(c.volatile&&images.volatileCover){
+          const armed=c.blast_fuse>0,spent=c.hp<=0&&!armed,index=spent?2:armed||c.hp<=c.max_hp/2?1:0;
+          const width=c.w+32,height=width*440/600,x=c.x+c.w/2-camera-width/2,y=c.y+c.h-height;
+          const opacity=spent?1:foregroundCoverOpacity(c.x+c.w/2-width/2,y,width,height,c.y+c.h);
+          ctx.save();ctx.globalAlpha=opacity;drawAtlas(images.volatileCover,index*724+64,200,600,440,x,y,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
+          if(!display.cleanScreenshot&&!spent){ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffd29a';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt(armed?'IGNITED':'VOLATILE · '+Math.ceil(c.hp)+' / '+c.max_hp,c.x+c.w/2-camera,y-8,true);ctx.restore();}
+          return;
+        }
+        const broken=c.material==='wood'&&c.hp<=0,index=c.material==='stone'?3:broken?2:c.hp<=c.max_hp/2?1:0;
         // Tight source bounds align the generated sprites to the actual footprint.
         const frames=[[48,107,542,434],[676,107,541,434],[16,906,600,242],[657,733,574,399]],frame=frames[index],width=c.w+12,height=broken?30:c.h+74;
         ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(c.x+c.w/2-camera,c.y+c.h-2,c.w*.56,7,0,0,Math.PI*2);ctx.fill();
@@ -2034,7 +2055,7 @@
         fx(flourish.row,renderer.reduced?2:Math.min(5,Math.floor(age*6)),x,y-30,72,(1-age)*.65*(flourish.row===5?display.effectIntensity:1));
         renderer.lastClassEntry={subclass:e.subclass,row:flourish.row,points:flourish.points,color,radius,turn,reduced:!!renderer.reduced};
       }
-      if(e.kind==='enemy_blast'&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(['enemy_blast','terrain_blast'].includes(e.kind)&&age<.4){ctx.save();ctx.strokeStyle='#ffd18a';ctx.lineWidth=3;ctx.globalAlpha=(1-age/.4)*display.effectIntensity;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,115,55,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(e.kind==='summon_dismiss'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#d9c7ef';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SUMMON DISMISSED',e.x-camera,e.y-30,true);ctx.restore();}
       if(e.kind==='boss_shield_break'&&age<.8&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#c7f6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('SHELL SHATTERED · WEAK POINT',e.x-camera,e.y-35,true);ctx.restore();}
       if(e.kind==='boss_channel_interrupt'&&age<.7&&!display.cleanScreenshot){ctx.save();ctx.fillStyle='#bbf6ff';ctx.strokeStyle='#071b16';ctx.lineWidth=3;ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('CHANNEL INTERRUPTED · WEAK POINT',e.x-camera,e.y-72,true);ctx.restore();}
@@ -2518,7 +2539,7 @@
       if(e.kind==='geomancer_terrain'){
         const radius=renderer.reduced?28:12+age*48*motion;ctx.save();ctx.strokeStyle='#e7c18b';ctx.globalAlpha=Math.max(0,1-age);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x-camera,e.y,radius,radius*.4,0,0,Math.PI*2);ctx.moveTo(e.x-camera-8,e.y);ctx.lineTo(e.x-camera,e.y-9);ctx.lineTo(e.x-camera+8,e.y);ctx.lineTo(e.x-camera,e.y+9);ctx.closePath();ctx.stroke();ctx.restore();
       }
-      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate','enemy_blast'].includes(e.kind)?240:95,1-age*.5);
+      if(effectRows[e.kind]!==undefined && e.kind!=='third_strike' && e.kind!=='finisher_cast' && e.kind!=='ultimate_anticipation' && e.kind!=='heavy_recovery' && e.kind!=='shield_absorb' && e.kind!=='mark_target' && e.kind!=='thaw' && e.kind!=='boss_stagger' && e.kind!=='boss_phase' && e.kind!=='victory' && (!renderer.reduced && (e.kind!=='pickup'||display.lootSparkle)))fx(effectRows[e.kind],Math.min(5,Math.floor(age*6)),e.x-camera,e.y,['slam','quake','ultimate','enemy_blast','terrain_blast'].includes(e.kind)?240:95,1-age*.5);
       if(e.kind==='pickup' && (renderer.reduced || !display.lootSparkle))drawStaticPickup(ctx,e.x-camera,e.y);
       if(!display.cleanScreenshot && (e.textCategory==='optional'?display.optionalCombatText:e.showDamageNumber&&display.damageNumbers)){
         ctx.font='bold '+(13*display.textScale)+'px monospace';

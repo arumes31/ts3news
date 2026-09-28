@@ -1,8 +1,9 @@
 # Volatile terrain reactions (engine groundwork)
 
 Status: engine implemented and unit tested; **not enabled in campaign rooms**.
-Ledger item 0476 remains open until authored rooms,
-presentation, audio and real-browser verification are done.
+Ledger item 0476 remains open until room authoring and
+real-browser verification are done. Renderer, map, preview and sound integration
+are implemented but remain unverified in the browser.
 
 Breaking volatile wooden cover arms a connected cluster of up to eight props.
 Every selected prop becomes non-solid and receives the same 1.2-second fuse.
@@ -36,11 +37,11 @@ keeping incomplete warning presentation out of gameplay.
 
 - Author compact clusters in selected rooms with escape space, entrances and
   exits clear; keep room geometry frozen in saved expeditions.
-- Clearly mark intact volatile cover and show the exact blast ellipses while
-  arming, including reduced-motion and pause behavior, HUD and minimap cues.
-- Integrate the generated marked-cover sheet described below, with lazy loading
-  for only the rooms that use it.
-- Add warning and detonation sounds, replay deduplication and silent recovery.
+- Verify intact markings and exact blast ellipses, reduced-motion and pause
+  behavior, countdown labels and minimap cues in the real browser.
+- Verify the marked-cover sheet loads only for expeditions using it and that
+  failed loading offers normal recovery before combat.
+- Verify warning/detonation sounds, event replay deduplication and silent recovery.
 - Verify melee/projectile triggering, save/reload mid-warning, terrain collision,
   enemy loot and simultaneous player/enemy death through the real game loop.
 - Browser-check at desktop and mobile sizes once the active memory capture ends.
@@ -70,3 +71,13 @@ Alpha >= 16 bounds relative to each cell: intact (126,214)-(590,627), cracked
 (125,214)-(604,626), spent (74,344)-(657,629). Use a common crop and scale with a
 shared baseline; do not stretch each body independently. Rendering and small-
 size readability in the actual scene still require browser verification.
+
+Presentation wiring uses a shared (64,200,600,440) crop per 724-pixel cell and a
+uniform scale, anchoring all three states to the same baseline. It preloads the
+sheet through the existing per-expedition art preparation only when a frozen
+room has volatile cover. Intact/cracked/spent states derive from HP and fuse.
+Ground warnings use the authoritative fuse and the same 115 × 55 radii as the
+engine; no new animation timer is created. Existing fire atlas frames and a
+brief ellipse provide the explosion. Audio uses short synthesized warning and
+blast envelopes within the existing voice lifecycle and event deduplication.
+All of this still requires browser testing; syntax checks alone are insufficient.

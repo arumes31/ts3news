@@ -27,7 +27,10 @@
     for(const o of arena.obstacles||[])rect(o,'cover','Low cover');
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
     if(run.room_objective?.gate?.closed)rect(run.room_objective.gate,'stone','Wave gate closed; use either bypass');
-    for(const o of arena.cover||[])if(o.material==='stone'||o.hp>0)rect(o,o.material,o.material==='wood'?'Breakable wood':'Permanent stone');
+    for(const o of arena.cover||[]){
+      if(o.material==='stone'||o.hp>0)rect(o,o.material,o.volatile?'Volatile cover: breaking it ignites nearby crates':o.material==='wood'?'Breakable wood':'Permanent stone');
+      if(run.status==='fighting'&&o.volatile&&o.blast_fuse>0)drawing.append(node('ellipse',{cx:mx(o.x+o.w/2),cy:my(o.y+o.h/2),rx:23,ry:13.2,'data-kind':'hazard','data-phase':'warning'},'Volatile blast in '+o.blast_fuse.toFixed(1)+' seconds: jump or move clear'));
+    }
     for(const edge of arena.drop_edges||[])rect({...edge,h:edge.landing_y-edge.y},'ledge','One-way descent; return around an end');
     if(arena.exit)rect({x:arena.exit.x-10,y:arena.exit.y-10,w:20,h:20},'exit','Region exit');
     if(arena.entrance)rect({x:arena.entrance.x-10,y:arena.entrance.y-10,w:20,h:20},'entry','Region entrance');
