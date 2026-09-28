@@ -33,3 +33,9 @@ test('legacy metadata gaps do not conceal measured threshold failures',()=>{
  const r=report();delete r.profiling;r.capture.samples.forEach(s=>s.render=25);
  const e=frameEvidence('crowd',[r]);assert.equal(e.samples[0].status,'incomplete');assert.equal(e.samples[0].numericStatus,'threshold_failure');
 });
+
+test('renderer injection identity separates experimental and baseline captures',()=>{
+ const reports=[1,2,3].map(sample=>({...report(),sample}));reports[2].experiment={kind:'PRIVATE_LABEL',rendererSHA256:'c'.repeat(64)};
+ const result=frameEvidence('crowd',reports);assert.equal(result.status,'source_mismatch');assert.equal(result.samples[2].source.rendererSHA256,'c'.repeat(64));assert.equal(JSON.stringify(result).includes('PRIVATE_LABEL'),false);
+ reports[2].experiment.rendererSHA256='PRIVATE_HASH';const invalid=frameEvidence('crowd',reports);assert.equal(invalid.samples[2].status,'incomplete');assert.equal(JSON.stringify(invalid).includes('PRIVATE_HASH'),false);
+});

@@ -25,9 +25,16 @@ review the accompanying source capture and scenario tests for that evidence.
 It cannot independently establish that a collector omitted no frames.
 
 Validation: `node --test tests/performance/frame-evidence.test.cjs`.
-Seven tests cover private-field exclusion, recomputation, failures, malformed or
+Eight tests cover private-field exclusion, recomputation, failures, malformed or
 truncated samples, profile limits, short boss outcomes and source mismatches.
 Re-exporting the retained crowd baseline preserves its numeric failures and
 marks missing legacy profiling metadata incomplete. The atlas-cache boss
 baseline reproduces all three failed frame gates despite passing render p95.
 Ledger 1000 still requires the broader candidate release evidence and review.
+
+Source identity includes rendererSHA256 when a test-only renderer injection was
+used. It is null for the production source. Invalid declared injection hashes
+make the sample incomplete; mixing injected and production sources cannot yield
+an aggregate development pass. Experiment labels are not copied into public
+output. This preserves the distinction between checkout identity and the renderer
+actually served by the measurement harness.

@@ -9,7 +9,8 @@ function frameEvidence(kind,reports){
  const samples=reports.map(r=>{
   if(!r||!Number.isInteger(r.sample)||r.sample<1||r.sample>3||seen.has(r.sample))throw Error('Invalid or duplicate sample');
   seen.add(r.sample);
-  const source={revision:hash(r.revision,40),trackedDiffSHA256:hash(r.trackedDiffSHA256,64)};
+  const source={revision:hash(r.revision,40),trackedDiffSHA256:hash(r.trackedDiffSHA256,64),rendererSHA256:r.experiment==null?null:hash(r.experiment.rendererSHA256,64)};
+  const experimentProof=r.experiment==null||source.rendererSHA256!==null;
   const c=r.capture||{},timings=Array.isArray(c.samples)?c.samples:[],profile=r.profile||{};
   const durationMS=nonnegative(c.started)&&nonnegative(c.ended)&&c.ended>=c.started?c.ended-c.started:null;
   const validTimings=timings.length>0&&timings.every((s,i)=>s&&nonnegative(s.interval)&&nonnegative(s.render)&&nonnegative(s.at)&&s.at>=c.started&&s.at<=c.ended&&(i===0||s.at>=timings[i-1].at));
@@ -26,7 +27,7 @@ function frameEvidence(kind,reports){
   let status='incomplete';
   if(runtimeErrors>0)status='runtime_failure';
   else if(r.smoke===true||r.profiling===true)status='diagnostic_only';
-  else if(!r.failure&&r.smoke===false&&r.profiling===false&&source.revision&&source.trackedDiffSHA256&&runtimeErrors===0&&validProfile&&validTimings&&covered&&fullDuration&&c.hidden===false&&c.contextLost===false){
+  else if(!r.failure&&r.smoke===false&&r.profiling===false&&source.revision&&source.trackedDiffSHA256&&experimentProof&&runtimeErrors===0&&validProfile&&validTimings&&covered&&fullDuration&&c.hidden===false&&c.contextLost===false){
    status=numericStatus==='threshold_failure'?'threshold_failure':'development_numeric_pass';
   }
   const count=v=>Number.isSafeInteger(v)&&v>=0?v:null;
