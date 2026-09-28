@@ -15,8 +15,12 @@ open the usual weak-point opportunity. Recovery remains 2.3 seconds. Guard break
 and phase transitions can cancel the pending warning through existing logic.
 
 The display marks the dangerous band with dashed amber borders, a countdown and
-MOVE OR JUMP guidance. The other two bands say CLEAR OF SLAM: hazards and other
-enemies can still be dangerous there. Borders and text render above sprites;
+MOVE OR JUMP guidance. The other two bands say HAZARDS PAUSED / ENEMIES ACTIVE. Arena hazard
+contact is suppressed there during the warning and for 0.4 seconds after impact;
+other enemies and their projectiles remain dangerous. Hazard clocks and cues
+continue normally. Simultaneous danger bands take precedence over reservations.
+Interrupted or dead bosses lose pending reservations, while completed impacts
+retain their brief saved reservation. Room transitions clear impact reservations. Borders and text render above sprites;
 static reduced-motion cues remain, and clean screenshots hide warnings. A short
 full-band impact outline/fill uses the existing slam sound. No full-screen flash
 or new external artwork is required.
@@ -31,3 +35,6 @@ state. Existing all-catalog opening and all-campaign boss audits also pass.
 Browser tests check all three band positions, two clear labels, removed circular
 slam guidance, reduced motion, clean suppression and audio lifecycle.
 Implements 0328; global safe-lane guarantees and whole-arena attacks remain separate.
+
+Safe-lane hazard reservations are an incremental part of 0326. Other large
+patterns and their terrain escape guarantees still need separate verification.

@@ -686,6 +686,7 @@ func (r *Run) hazardTick() {
 		r.SkillTimers = map[string]float64{}
 	}
 	r.trackLightningMarkers()
+	reservedLane := r.reservedBossLane(r.Player.Y)
 	for i, h := range r.Arena().Hazards {
 		if h.Disabled {
 			continue
@@ -722,7 +723,7 @@ func (r *Run) hazardTick() {
 				r.event("hazard_deactivation", h.X+h.W/2, h.Y+h.H/2, 0)
 			}
 		}
-		if phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.ContactBounds(r.Clock), r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
+		if reservedLane || phase < 1.2 || phase >= 1.2+h.Duration || !contains(h.ContactBounds(r.Clock), r.Player.X, r.Player.Y, 0) || (h.Jumpable && r.Player.Jump > .1) {
 			continue
 		}
 		key := fmt.Sprintf("hazard-%d", i)
