@@ -92,9 +92,11 @@ Frame-scheduling, bounded-canvas and cache-retirement regressions prove their
 specific invariants. The [restart memory capture](README-restart-memory-baseline.md)
 completed three20-restart samples: JS heap grew0.839–0.911MiB, below10MiB.
 The no-growth criterion is not met because bounded attempt history is still
-filling; the overall restart memory gate is not passed. The physical-device,
-full-window frame, input and30-minute session gates remain unmeasured against
-this budget. Do not mark them passed from overlays or seeded fixtures.
+filling; the overall restart memory gate is not passed. The [authored boss frame baseline](README-boss-frame-baseline.md) measured three
+complete encounters on the development profile; all three fail the frame budget.
+The physical-device, ordinary/crowded120 frame, input and30-minute session gates
+remain unmeasured against this budget. Do not mark them passed from overlays or
+seeded fixtures.
 
 ## Adaptive decoration setting
 
