@@ -4,6 +4,8 @@ import "math"
 
 // TerrainCover is saved with the arena; broken wood stays broken on reload.
 type TerrainCover struct {
+	Volatile bool `json:"volatile,omitempty"`
+	BlastFuse float64 `json:"blast_fuse,omitempty"`
 	Shortcut bool `json:"shortcut,omitempty"`
 	Obstacle
 	ID       string  `json:"id"`
@@ -28,7 +30,7 @@ func (a Arena) tallObstacles() []Obstacle {
 }
 
 func (r *Run) damageTerrainCover(index int, damage float64) float64 {
-	if r.Level == nil || index < 0 || index >= len(r.Level.Rooms[r.Room].Cover) || damage <= 0 || math.IsNaN(damage) || math.IsInf(damage, 0) {
+	if r.Level == nil || r.Room < 0 || r.Room >= len(r.Level.Rooms) || index < 0 || index >= len(r.Level.Rooms[r.Room].Cover) || damage <= 0 || math.IsNaN(damage) || math.IsInf(damage, 0) {
 		return 0
 	}
 	c := &r.Level.Rooms[r.Room].Cover[index]
@@ -40,6 +42,9 @@ func (r *Run) damageTerrainCover(index int, damage float64) float64 {
 	kind := "cover_hit"
 	if c.HP == 0 {
 		kind = "cover_break"
+		if c.Volatile {
+			r.armTerrainReaction(index)
+		}
 	}
 	r.event(kind, c.X+c.W/2, c.Y+c.H/2, dealt)
 	return dealt
