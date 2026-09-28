@@ -54,14 +54,30 @@ Run the wider geometry audit with:
     go test -tags=brawl_audit ./internal/rift -run TestCampaignLaneEscapeGridAudit -count=1 -v
 
 It samples all300 campaign rooms at X35..1565 in30-unit steps and ten Y values
-including both arena edges. It skips7132 starts inside intact obstacles and
-checks148868 legal positions per speed:235 horizontal/141 vertical normally,
+including both arena edges. The September28 rerun excludes starts inside intact
+obstacles and outside bridge or circular ground using the same groundPath check
+as movement. It skips8206 invalid starts and checks147794 legal positions per
+speed:235 horizontal/141 vertical normally,
 and141 horizontal/84.6 vertical while slowed. Routes use real moveActor collision,
 20ms steps, eight held directions, then every single-turn combination if needed.
 The walking budget is the canonical warning minus300ms, rather than a separate
 hard-coded test allowance. At1.4s,107 slowed positions needed a turn and2 had no
 tested route. At1.6s,8 need a turn and all sampled positions have a route. All
-normal-speed sampled positions pass in both versions.
+normal-speed sampled positions pass. The earlier rectangular-ground audit checked
+148868 positions; its counts are not interchangeable with the current terrain
+audit.
+
+A separate dynamic-floor geometry audit runs with:
+
+    go test -tags=brawl_audit ./internal/rift -run TestCampaignWaveFloorLaneEscapeGridAudit -count=1 -v
+
+It enumerates all four panel-collapse combinations and both gate states in each
+of the ten authored wave rooms (80 states). Using the same grid, reaction delay,
+speeds and real movement, it checks37660 legal starts per speed and excludes3940
+starts inside cover or missing ground. All sampled starts escape;28 slowed starts
+need a turn, while every normal-speed start has a straight route. This probes
+hypothetical lane slams against those terrain states, without spawning a boss or
+advancing floor warnings, gate transitions, hazard clocks or other actors.
 
 This is finite geometric coverage, not proof for arbitrary coordinates, compound
 status effects, carried relics, guard-walking, traction, concurrent attacks or
