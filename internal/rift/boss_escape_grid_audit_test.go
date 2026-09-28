@@ -9,9 +9,8 @@ import (
 
 var laneAuditDirections = [][2]float64{{0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {-1, 0}, {1, 0}}
 
-func auditLaneRoute(r *Run, start Actor, speed float64, steps, turn int, first, second [2]float64) bool {
+func auditEscapeRoute(r *Run, start Actor, speed float64, steps, turn int, first, second [2]float64, safe func(Actor) bool) bool {
 	r.Player = start
-	lane := bossLane(start.Y)
 	for step := 0; step < steps; step++ {
 		direction := first
 		if step >= turn {
@@ -19,7 +18,7 @@ func auditLaneRoute(r *Run, start Actor, speed float64, steps, turn int, first, 
 		}
 		scale := speed * .02 / math.Hypot(direction[0], direction[1])
 		r.moveActor(&r.Player, direction[0]*scale, direction[1]*scale*.6, false)
-		if bossLane(r.Player.Y) != lane {
+		if safe(r.Player) {
 			return true
 		}
 	}
@@ -27,15 +26,20 @@ func auditLaneRoute(r *Run, start Actor, speed float64, steps, turn int, first, 
 }
 
 func auditLaneEscape(r *Run, start Actor, speed float64, steps int) (straight, escaped bool) {
+	lane := bossLane(start.Y)
+	return auditEscape(r, start, speed, steps, func(a Actor) bool { return bossLane(a.Y) != lane })
+}
+
+func auditEscape(r *Run, start Actor, speed float64, steps int, safe func(Actor) bool) (straight, escaped bool) {
 	for _, direction := range laneAuditDirections {
-		if auditLaneRoute(r, start, speed, steps, steps, direction, direction) {
+		if auditEscapeRoute(r, start, speed, steps, steps, direction, direction, safe) {
 			return true, true
 		}
 	}
 	for turn := 1; turn < steps; turn++ {
 		for _, first := range laneAuditDirections {
 			for _, second := range laneAuditDirections {
-				if auditLaneRoute(r, start, speed, steps, turn, first, second) {
+				if auditEscapeRoute(r, start, speed, steps, turn, first, second, safe) {
 					return false, true
 				}
 			}
@@ -151,5 +155,68 @@ func TestCampaignWaveFloorLaneEscapeGridAudit(t *testing.T) {
 			t.Errorf("%d floor-state starts have no tested escape at speed %.0f", unresolved, speed)
 		}
 		t.Logf("FLOOR_GRID_RESULT speed=%.0f states=%d checked=%d blocked=%d no_straight_escape=%d no_tested_escape=%d", speed, states, checked, blocked, needTurn, unresolved)
+	}
+}
+
+// Require the protected center/gap, not merely the unprotected exterior.
+func TestCampaignRingShelterGridAudit(t *testing.T) {
+	warning := (&Run{}).NextBossAttack(Actor{Kind: "boss", RingAttack: true, Attacks: 2}).Windup
+	steps := int(math.Round((warning - .3) / .02))
+	for _, speed := range []float64{235, 141} {
+		checked, centers, needTurn, unresolved := 0, 0, 0, 0
+		for _, level := range Campaign() {
+			r := Run{Level: &level, Room: 2}
+			arena := r.Arena()
+			legal := func(x, y, radius float64) bool {
+				if x < 35 || x > 1565 || y < 315 || y > 490 || !arena.groundPath(x, y, x, y, radius) {
+					return false
+				}
+				for _, wall := range arena.solidObstacles() {
+					if contains(wall, x, y, radius) {
+						return false
+					}
+				}
+				return true
+			}
+			for _, x := range []float64{200, 500, 800, 1100, 1400} {
+				for _, y := range []float64{350, 402.5, 455} {
+					boss := Actor{Kind: "boss", HP: 100, RingAttack: true, Windup: warning, AttackName: "Void Ring", TargetX: x, TargetY: y}
+					if y < 402.5 {
+						boss.RingGap = 1
+					}
+					if !legal(x, y, actorClearance(&boss)) {
+						continue
+					}
+					centers++
+					r.Enemies = []Actor{boss}
+					for _, dx := range []float64{-190, -150, -110, -70, 0, 70, 110, 150, 190} {
+						for _, dy := range []float64{-80, -40, 0, 40, 80} {
+							start := Actor{ID: "player", X: x + dx, Y: y + dy}
+							if !legal(start.X, start.Y, 10) || !ringDanger(boss, start.X, start.Y) {
+								continue
+							}
+							checked++
+							straight, escaped := auditEscape(&r, start, speed, steps, func(a Actor) bool { return r.reservedBossArea(a.X, a.Y) })
+							if !straight {
+								needTurn++
+							}
+							if !escaped {
+								unresolved++
+								if unresolved <= 20 {
+									t.Logf("NO_TESTED_SHELTER speed=%.0f mission=%d center=%.1f,%.1f start=%.1f,%.1f", speed, level.ID, x, y, start.X, start.Y)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if checked == 0 {
+			t.Fatal("no ring danger samples")
+		}
+		if unresolved > 0 {
+			t.Errorf("%d ring starts have no tested protected escape at speed %.0f", unresolved, speed)
+		}
+		t.Logf("RING_GRID_RESULT speed=%.0f centers=%d checked=%d no_straight_escape=%d no_tested_shelter=%d", speed, centers, checked, needTurn, unresolved)
 	}
 }

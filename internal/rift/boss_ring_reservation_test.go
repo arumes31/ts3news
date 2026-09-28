@@ -43,7 +43,7 @@ func TestRingReservationOnlyProtectsCenterAndGap(t *testing.T) {
 func TestRingReservationImpactSavePauseExpiry(t *testing.T) {
 	r := hazardRingRun()
 	r.Player.X, r.Player.Y = 650, 340
-	r.enemyTick(0, 1.6)
+	r.enemyTick(0, 2.0)
 	raw, err := json.Marshal(r)
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +107,7 @@ func TestRingReservationCancelledWarningAndLaneConflict(t *testing.T) {
 func TestRingReservationImpactSurvivesDefeatAndClearsAtRoomStart(t *testing.T) {
 	r := hazardRingRun()
 	r.Player.X, r.Player.Y = 650, 340
-	r.enemyTick(0, 1.6)
+	r.enemyTick(0, 2.0)
 	r.Enemies[0].HP = 0
 	hp := r.Player.HP
 	r.hazardTick()

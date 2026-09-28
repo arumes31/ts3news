@@ -2,7 +2,7 @@
 
 Canonical Void Lord actors replace every second slam with Void Ring, starting
 with their third attack. Opening slam and alternating projectile attacks remain.
-The ring locks its center when the 1.6-second warning starts, across all phases;
+The ring locks its center when the 2-second warning starts, across all phases;
 slow practice doubles this warning. Recovery lasts 2.3 seconds.
 
 The pulse occupies an elliptical annulus with outer radii 200/90 and inner radii
@@ -46,3 +46,30 @@ Tests cover geometric boundaries, hazard damage/slow/contact, saved impact,
 pause/expiry, cancelled/dead warnings, overlapping rings/lanes, completed-impact
 defeat, room cleanup and unrelated enemy damage. This is further progress on
 0326, not a guarantee of reachable escape space from every possible coordinate.
+
+
+## Slowed pillar escapes
+
+New ring warnings last two seconds (four in slow practice). The former1.6s
+warning left seven sampled slowed starts without a tested route to the protected
+center or gap around bastion pillars. Saved warnings retain their remaining time.
+The grid audit uses235 horizontal/141 depth speed normally and141/84.6 while
+slowed, with300ms reaction delay and20ms real movement steps. It covers1408 legal
+boss centers across all100 final arenas and16307 threatened player starts per
+speed. Every sampled start reaches protected ground with the new warning;15
+normal and25 slowed starts require a turn. Routes try eight held directions and
+single-turn combinations. This is finite terrain coverage, not proof for arbitrary
+coordinates, guard walking, compound movement penalties or concurrent attacks.
+
+    go test -tags=brawl_audit ./internal/rift -run TestCampaignRingShelterGridAudit -count=1 -v
+
+Seven normal-suite regressions additionally execute full combat ticks with active
+slow and authored hazards. Missions3/13/23/33/43 start at610,402.5; missions33/43
+also start at650,442.5, against a ring centered at800,402.5. After300ms reaction,
+they walk upward for860ms (1340ms for the lower start), then right until sheltered.
+They remain slowed and take no damage on the release tick. Earlier hazard contact
+is not made immune by this test or by the reservation system.
+
+The September28 verification passed the full Rift suite (35.037s), all three
+terrain grid audits (lane, wave floor, ring), and both normal/reduced-motion
+browser ring tests. The rendered two-second countdown and gap cue were inspected.
