@@ -27,6 +27,7 @@
     for(const o of arena.high_cover||[])rect(o,'stone','Tall cover');
     for(const o of arena.cover||[])if(o.material==='stone'||o.hp>0)rect(o,o.material,o.material==='wood'?'Breakable wood':'Permanent stone');
     for(const edge of arena.drop_edges||[])rect({...edge,h:edge.landing_y-edge.y},'ledge','One-way descent; return around an end');
+    if(arena.entrance)rect({x:arena.entrance.x-10,y:arena.entrance.y-10,w:20,h:20},'entry','Region entrance');
     if(arena.hazard_switch){const s=arena.hazard_switch;rect({x:s.x-10,y:s.y-10,w:20,h:20},'switch',s.used?'Hazards off':'Hazard switch: hold guard nearby');}
     let active=0;
     for(const h of arena.hazards||[]){

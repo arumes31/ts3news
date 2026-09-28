@@ -1484,3 +1484,5 @@
 #rift-boss-jump-canvas { width: 100%; max-width: 480px; height: auto; margin-top: 8px; }
 
 #rift-minimap [data-kind=switch]{fill:#e4bd76;stroke:#fff0bc;stroke-width:.8}
+
+#rift-minimap [data-kind=entry]{fill:none;stroke:#b4d7c0;stroke-width:1}

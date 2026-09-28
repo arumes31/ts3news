@@ -1149,6 +1149,11 @@
     const ringGapOverlays=[];
     const run=snapshot;
     const arena=run.practice?.arena||run.level?.rooms[run.room];
+    if(arena?.entrance){
+      const x=arena.entrance.x-camera,y=arena.entrance.y;
+      ctx.save();ctx.strokeStyle='#accab7';ctx.globalAlpha=.65;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,18,8,0,0,Math.PI*2);ctx.moveTo(x-38,y);ctx.lineTo(x-23,y);ctx.lineTo(x-29,y-4);ctx.moveTo(x-23,y);ctx.lineTo(x-29,y+4);ctx.stroke();
+      if(!display.cleanScreenshot){ctx.globalAlpha=1;ctx.fillStyle='#c4dfca';ctx.strokeStyle='#10221d';ctx.lineWidth=3;ctx.font='bold '+(9*display.textScale)+'px monospace';ctx.textAlign='center';interactionPrompt('ENTRY',x,y+23,true);}ctx.restore();
+    }
     if(arena?.hazard_switch){
       const sw=arena.hazard_switch,x=sw.x-camera,y=sw.y;
       ctx.save();ctx.fillStyle=sw.used?'#477967':'#cbaf78';ctx.strokeStyle='#1e3532';ctx.lineWidth=2;ctx.fillRect(x-10,y-9,20,13);ctx.strokeRect(x-10,y-9,20,13);ctx.strokeStyle=sw.used?'#a4efd0':'#ffe1aa';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+(sw.used?7:-7),y-22);ctx.stroke();

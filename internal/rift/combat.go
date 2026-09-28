@@ -475,6 +475,9 @@ func (r *Run) spawnRoom() {
 	r.Projectiles = []Projectile{}
 	r.Player.X = 160
 	r.Player.Y = 410
+	if entry := r.Arena().Entrance; entry != nil {
+		r.Player.X, r.Player.Y = entry.X, entry.Y
+	}
 	r.Player.Elevation = r.Arena().Elevation(r.Player.X, r.Player.Y)
 	r.heavyRecovery = 0
 	r.Floor = r.FloorMaterial()

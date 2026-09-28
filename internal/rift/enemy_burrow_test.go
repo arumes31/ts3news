@@ -200,6 +200,8 @@ func TestBurrowRetainsRecoveryAndAllowsWalkingEscape(t *testing.T) {
 
 func TestBurrowCancelledAtAuthoredTerrainResumesWithWorldClock(t *testing.T) {
 	r := NewRunAtLevel("pursuit-audit", Build{HP: 10000}, time.Unix(0, 0), content.AbyssMobCatalog(), 71)
+	// Preserve the terrain-cancellation reproduction independently of regional entry placement.
+	r.Player.X, r.Player.Y = 160, 410
 	spawn := r.EncounterPlan[0][0]
 	spawn.Patrol = false
 	spawn.Alerted = true

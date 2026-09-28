@@ -31,7 +31,13 @@ type Hazard struct {
 	Duration float64 `json:"duration"`
 }
 
+type ArenaEntrance struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 type Arena struct {
+	Entrance *ArenaEntrance `json:"entrance,omitempty"`
 	HazardSwitch *HazardSwitch `json:"hazard_switch,omitempty"`
 	WaterCurrents []WaterCurrent `json:"water_currents,omitempty"`
 	WindGusts  []WindGust `json:"wind_gusts,omitempty"`
@@ -119,6 +125,7 @@ func buildCampaign() []Level {
 		{{490, 364, 38, 28}, {750, 426, 38, 28}, {1000, 364, 38, 28}, {1250, 426, 38, 28}},
 		{{650, 375, 40, 45}, {980, 375, 40, 45}, {800, 348, 65, 26}, {800, 444, 65, 26}},
 	}
+	entrances := []ArenaEntrance{{160, 410}, {135, 445}, {150, 345}, {115, 370}, {145, 460}, {125, 435}, {170, 395}, {120, 350}, {105, 425}, {155, 435}}
 	levels := make([]Level, 0, LevelCount)
 	for region, regionName := range regions {
 		for layout, name := range names {
@@ -158,7 +165,7 @@ func buildCampaign() []Level {
 				level.Tactic += ". Tier 1: defend both lane wards and defeat the patrol. Tier 2: stay near the spirit and clear threats along its escort route"
 			}
 			for room, suffix := range landmarks[region] {
-				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region]}
+				arena := Arena{Name: name + " / " + suffix, Obstacles: []Obstacle{}, Hazards: []Hazard{}, Floor: floors[region], Entrance: &ArenaEntrance{X: entrances[region].X, Y: entrances[region].Y}}
 				if layout == 0 && id > 1 && room == 1 {
 					arena.Objective = "interrupt_ritual"
 				}

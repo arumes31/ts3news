@@ -15,6 +15,9 @@ func validateRiftHazardTiming(run *rift.Run) error {
 		return invalid
 	}
 	validArena := func(arena rift.Arena) bool {
+		if e := arena.Entrance; e != nil && !(e.X >= 35 && e.X <= 1565 && e.Y >= 315 && e.Y <= 490) {
+			return false
+		}
 		if s := arena.HazardSwitch; s != nil {
 			if !(s.X >= 35 && s.X <= 1565 && s.Y >= 315 && s.Y <= 490 && s.Charge >= 0 && s.Charge <= .6) || len(arena.Hazards) == 0 {
 				return false
