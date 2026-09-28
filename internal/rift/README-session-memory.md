@@ -195,3 +195,35 @@ counts ended at 78 in every sample (starting at 69, 52 and 70 respectively).
 These measurements do not identify the retaining owner. They prevent treating
 the JS heap threshold as evidence that total renderer memory stays stable;
 original retaining paths and instrumentation overhead still need investigation.
+
+## Retaining-path review of the completed capture
+
+The extended local analyzer inspected all 21 saved heaps. Retained run IDs
+matched each checkpoint's current expedition. Actor-shaped objects settled at
+163 (sample 3 began at 171); effect-shaped objects were zero at the settled
+checkpoints. Listener count remained 606, with unchanged audio-node counts.
+
+Detached nodes reached 78 at the first measured checkpoint and stayed there in
+all three samples. Every final detached-node path was inspected: 64 canvases
+belong to the bounded renderer atlas cache, nine images to renderer assets, four
+images to the catalog cache and one image to the chest renderer. Detached here
+means off-document image/canvas objects, not discarded UI trees accumulating.
+
+Final attempt-record counts were 116, 122 and 122. Their paths divide into
+current run / protocol snapshotBase / renderer previous snapshot respectively:
+39/39/38, 41/41/40 and 41/41/40. The server caps each attempt history at 50, but
+these captures never reached that cap. They cannot demonstrate a post-cap
+plateau; a longer or suitably warmed capture remains necessary.
+
+Native NetworkResourcesData::ResourceData counts rose from 168 to 4,753,
+167 to 5,070 and 176 to 5,063. Final shallow sizes were 1,368,864, 1,460,160
+and 1,458,144 bytes. At every checkpoint, three positional example paths led
+through DevToolsSession, InspectorNetworkAgent and NetworkResourcesData.
+This establishes inspector retention for the sampled resources, not for every
+native allocation. Shallow sizes do not explain all renderer private bytes.
+A controlled comparison of instrumentation overhead remains necessary before
+attributing total process growth to the application or declaring it stable.
+
+Original paths, IDs and heap strings remain only in the ignored local
+retention-review.json. No raw retaining paths belong in public release evidence.
+Ledger 0798 remains open for post-cap and process-memory verification.

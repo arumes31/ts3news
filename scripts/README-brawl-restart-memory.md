@@ -46,3 +46,9 @@ This writes reachable payload counts and direct run retainers, checks retained r
 IDs against the current expedition, and leaves the leak verdict to review.
 See [the initial measurement](../internal/rift/README-restart-memory-baseline.md)
 for results and the still-unmet object plateau criterion.
+
+The analyzer also records shortest non-weak root paths for every attempt record
+and detached node, plus three positional network-resource examples per heap.
+Native shallow bytes are not retained sizes. Sampled paths do not establish the
+owner of every native allocation. The output contains raw heap strings and run
+IDs: keep it local beside synthetic benchmark captures, never in public evidence.

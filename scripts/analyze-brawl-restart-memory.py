@@ -57,14 +57,20 @@ for report_path in sorted(root.glob('*/memory-report.json')):
   h=json.loads(Path(point['snapshot']).read_text(encoding='utf-8'));m=h['snapshot']['meta'];nf=m['node_fields'];ef=m['edge_fields'];nodes=h['nodes'];edges=h['edges'];strings=h['strings'];ns=len(nf);es=len(ef)
   nt=m['node_types'][nf.index('type')];et=m['edge_types'][ef.index('type')]
   ti=nf.index('type');ni=nf.index('name');ei=nf.index('edge_count');eti=ef.index('type');eni=ef.index('name_or_index');eto=ef.index('to_node')
+  network_nodes=[];detached_nodes=[];attempt_nodes=[];network_bytes=0
   counts={'actorShapes':0,'effectShapes':0,'runShapes':0,'attemptRecordShapes':0};names={};run_nodes=set();run_ids=[];off=0
   for i in range(0,len(nodes),ns):
    typ=nt[nodes[i+ti]];name=strings[nodes[i+ni]];count=nodes[i+ei]
+   if typ=='native' and name=='blink::NetworkResourcesData::ResourceData':
+    network_nodes.append(i)
+    if 'self_size' in nf:network_bytes+=nodes[i+nf.index('self_size')]
+   if 'detachedness' in nf and nodes[i+nf.index('detachedness')]==2:detached_nodes.append(i)
    if typ=='object':
     props={strings[edges[j+eni]] for j in range(off,off+count*es,es) if et[edges[j+eti]]=='property'}
     if {'hp','max_hp','kind'}.issubset(props):counts['actorShapes']+=1
     if {'x','y','started','kind'}.issubset(props):counts['effectShapes']+=1
-    if {'mission','outcome','at_ms','splits','hp','class'}.issubset(props):counts['attemptRecordShapes']+=1
+    if {'mission','outcome','at_ms','splits','hp','class'}.issubset(props):
+     counts['attemptRecordShapes']+=1;attempt_nodes.append(i)
     if {'player','enemies','status'}.issubset(props):
      counts['runShapes']+=1;run_nodes.add(i)
      for j in range(off,off+count*es,es):
@@ -79,7 +85,12 @@ for report_path in sorted(root.glob('*/memory-report.json')):
      kind=et[edges[j+eti]];edge=edges[j+eni] if kind in ('element','hidden') else strings[edges[j+eni]]
      retainers.append({'targetIndex':edges[j+eto]//ns,'ownerType':nt[nodes[i+ti]],'ownerName':strings[nodes[i+ni]],'edgeType':kind,'edge':edge})
    off+=count*es
-  sample['checkpoints'].append({checkpoint_key:point[checkpoint_key],'elapsedMS':point.get('elapsedMS'),'shapes':counts,'audioAndTimers':names,'runRetainers':retainers,'runRootPaths':root_paths(h,run_nodes),'retainedRunIDs':run_ids,'detached':point['reachable']['detached'],'dom':point['dom'],'usedSize':point['heap']['usedSize']})
+  # Native samples are positional examples, not proof of every resource owner.
+  network_examples={network_nodes[k] for k in (0,len(network_nodes)//2,len(network_nodes)-1)} if network_nodes else set()
+  paths={p['targetIndex']*ns:p for p in root_paths(h,set(run_nodes)|network_examples|set(detached_nodes)|set(attempt_nodes))}
+  selected_paths=lambda targets:[paths[i] for i in sorted(targets)]
+  diagnostics={'attemptRootPaths':selected_paths(attempt_nodes),'networkResources':{'count':len(network_nodes),'selfBytes':network_bytes,'examplePaths':selected_paths(network_examples)},'detachedNodes':{'count':len(detached_nodes),'examplePaths':selected_paths(detached_nodes)}}
+  sample['checkpoints'].append({**diagnostics,checkpoint_key:point[checkpoint_key],'elapsedMS':point.get('elapsedMS'),'shapes':counts,'audioAndTimers':names,'runRetainers':retainers,'runRootPaths':selected_paths(run_nodes),'retainedRunIDs':run_ids,'detached':point['reachable']['detached'],'dom':point['dom'],'usedSize':point['heap']['usedSize']})
  runs={entry['index']:entry['id'] for entry in report['expeditions']}
  for point in sample['checkpoints']:
   checkpoint=point.get('mission',point.get('cycle'))
