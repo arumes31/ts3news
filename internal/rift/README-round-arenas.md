@@ -1,4 +1,4 @@
-# Circular arenas (0416 in progress)
+# Circular arenas (0416 verified)
 
 RoundArena saves a circular floor as an ellipse in the side-on depth projection.
 Ground movement uses actor clearance and rejects endpoints outside the floor;
@@ -27,7 +27,15 @@ Minimap and mission-preview ellipses use the same geometry. The preview explains
 that the two routes avoid floor hazards, not enemy attacks. Browser tests are
 prepared in tests/e2e/rift-circular-court.spec.js for keyboard traversal of both
 routes, hazard contact, recovery, desktop/mobile screenshots and route guidance.
-Syntax checks and E2E fixture compilation pass; browser tests have not run yet.
+Both browser tests passed; desktop/mobile screenshots were inspected. Keyboard
+traversal of both routes preserved health and hazard-contact counts, and saved
+geometry survived recovery. Results remain local under
+test-results/brawl-potions-arenas-verification.
 
-Still required: real browser combat/recovery and screenshot inspection. Do not
-mark 0416 complete until these paths are verified.
+The keyboard-driven tests/e2e/rift-terrain-campaign-completion.spec.js also
+completed all three tiers of mission 2, including moving beacons and the boss,
+with normal combat and no runtime errors. It changes no actor stats or game
+state outside normal UI controls. A second run asserted three cleared rooms,
+a defeated boss and positive banked gold; it passed. Results are in
+test-results/brawl-terrain-completion-rewards. Banking uses the E2E fixture,
+not a production database. This completes the terrain journey evidence for 0416.

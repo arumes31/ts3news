@@ -187,3 +187,11 @@ diff SHA-256 `6aab0502cd21b63391b02389260b4bc983fde1f96ab9f4ffd6da94966d0833ae`.
 It predates the new potion, boss ward, bridge and circular-court changes. Do not
 attribute this memory evidence to those newer changes or to physical target
 hardware. The source snapshot remains beside the local capture.
+
+A separate review of process counters from this capture found renderer private
+bytes increasing from 153,321,472 to 352,280,576 in sample 1, 141,766,656 to
+378,273,792 in sample 2, and 130,072,576 to 374,468,608 in sample 3. Detached-node
+counts ended at 78 in every sample (starting at 69, 52 and 70 respectively).
+These measurements do not identify the retaining owner. They prevent treating
+the JS heap threshold as evidence that total renderer memory stays stable;
+original retaining paths and instrumentation overhead still need investigation.
