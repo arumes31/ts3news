@@ -25,11 +25,11 @@ func TestChronosCyclesFullWidthLanesAcrossSave(t *testing.T) {
 		e.Cooldown, e.PoseTime = 0, 0
 		e.Pose = "idle"
 		plan := r.NextBossAttack(*e)
-		if plan.Kind != "lane_slam" || plan.Windup != 1.4 {
+		if plan.Kind != "lane_slam" || plan.Windup != 1.6 {
 			t.Fatalf("missing lane plan: %+v", plan)
 		}
 		r.enemyTick(0, .02)
-		if e.SlamLane != want || e.Windup != 1.4 {
+		if e.SlamLane != want || e.Windup != 1.6 {
 			t.Fatalf("wrong lane/warning: %+v", e)
 		}
 		raw, err := json.Marshal(r)
@@ -43,7 +43,7 @@ func TestChronosCyclesFullWidthLanesAcrossSave(t *testing.T) {
 		saved.Player.X = 80
 		saved.Player.Y = 315 + (float64(want)+.5)*175/3
 		before := saved.Player.HP
-		saved.enemyTick(0, 1.4)
+		saved.enemyTick(0, 1.6)
 		if saved.Player.HP >= before || saved.Enemies[0].Cooldown != 2.3 || findEvent(saved.Events, "lane_slam") == nil {
 			t.Fatal("saved full-width slam did not resolve")
 		}
@@ -67,7 +67,7 @@ func TestLaneSlamClearsOtherLanesAndAllowsJump(t *testing.T) {
 			r.hurtEnemy(0, 1, "hit")
 		}
 		before := r.Player.HP
-		r.enemyTick(0, 1.4)
+		r.enemyTick(0, 1.6)
 		if r.Player.HP != before {
 			t.Fatalf("failed %s counterplay", mode)
 		}
@@ -83,7 +83,7 @@ func TestLaneSlamClearsOtherLanesAndAllowsJump(t *testing.T) {
 	r = laneSlamRun()
 	r.Practice = &PracticeState{SlowTelegraphs: true}
 	r.enemyTick(0, .02)
-	if r.Enemies[0].Windup != 2.8 {
+	if r.Enemies[0].Windup != 3.2 {
 		t.Fatal("lane slam ignored slow practice")
 	}
 }
@@ -111,14 +111,14 @@ func TestCampaignLaneSlamsAllowWalkingEscapeAtEntry(t *testing.T) {
 					r.Room = room
 					r.Player.X, r.Player.Y = x, y
 					r.enemyTick(0, .02)
-					if r.Enemies[0].SlamLane != lane || r.Enemies[0].Windup != 1.4 {
+					if r.Enemies[0].SlamLane != lane || r.Enemies[0].Windup != 1.6 {
 						t.Fatal("entry warning not committed")
 					}
 					hp := r.Player.HP
 					for step := 0; step < 15; step++ {
 						r.tick(Input{}, .02)
 					}
-					for step := 0; step < 56; step++ {
+					for step := 0; step < 66; step++ {
 						r.tick(Input{Y: direction}, .02)
 					}
 					if r.Player.HP == hp && r.Enemies[0].Attacks == 1 && bossLane(r.Player.Y) != lane {
@@ -151,5 +151,40 @@ func TestBossLaneBoundariesMatchDisplayedBands(t *testing.T) {
 	}
 	if bossLane(490) != 2 {
 		t.Fatal("bottom arena edge has no lane")
+	}
+}
+
+// These pillar-edge positions need a left turn around cover before moving down.
+// Both failed the former 1.4-second warning after a 300ms reaction delay.
+func TestLaneSlamSlowedPillarEscape(t *testing.T) {
+	for _, c := range []struct {
+		mission int
+		x       float64
+	}{{13, 695}, {53, 725}} {
+		r := laneSlamRun()
+		level := Campaign()[c.mission-1]
+		r.Level = &level
+		r.Room = 2
+		r.RoomObjective = nil
+		r.Player.X, r.Player.Y = c.x, 315
+		r.SkillTimers = map[string]float64{"slowed": 5}
+		r.enemyTick(0, .02)
+		if r.Enemies[0].Windup != 1.6 || r.Enemies[0].SlamLane != 0 {
+			t.Fatal("missing full lane warning")
+		}
+		hp := r.Player.HP
+		for step := 0; step < 15; step++ {
+			r.tick(Input{}, .02)
+		}
+		for step := 0; step < 66; step++ {
+			input := Input{Y: 1}
+			if step < 22 {
+				input = Input{X: -1}
+			}
+			r.tick(input, .02)
+		}
+		if r.Player.HP != hp || r.Enemies[0].Attacks != 1 || bossLane(r.Player.Y) == 0 {
+			t.Fatalf("mission %d pillar blocked slowed walking escape: hp %.1f/%.1f position %.2f,%.2f", c.mission, r.Player.HP, hp, r.Player.X, r.Player.Y)
+		}
 	}
 }

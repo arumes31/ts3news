@@ -23,7 +23,7 @@ func (r *Run) NextBossAttack(boss Actor) BossAttackPlan {
 		}
 	}
 	if boss.LaneSlams && plan.Kind == "slam" {
-		plan = BossAttackPlan{Name: "Lane Slam", Kind: "lane_slam", Windup: 1.4, Recovery: 2.3}
+		plan = BossAttackPlan{Name: "Lane Slam", Kind: "lane_slam", Windup: 1.6, Recovery: 2.3}
 	}
 	if boss.RingAttack && plan.Kind == "slam" && boss.Attacks%4 == 2 {
 		plan = BossAttackPlan{Name: "Void Ring", Kind: "ring", Windup: 1.6, Recovery: 2.3}

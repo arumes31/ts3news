@@ -34,7 +34,7 @@ func TestLaneReservationSuppressesHazardContact(t *testing.T) {
 func TestLaneReservationSaveImpactAndExpiry(t *testing.T) {
 	r := hazardLaneRun()
 	r.Player.Y = 330
-	r.enemyTick(0, 1.4)
+	r.enemyTick(0, 1.6)
 	raw, err := json.Marshal(r)
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +91,7 @@ func TestLaneReservationCancellationAndOverlaps(t *testing.T) {
 func TestLaneReservationPauseAndRoomReset(t *testing.T) {
 	r := hazardLaneRun()
 	r.Player.Y = 330
-	r.enemyTick(0, 1.4)
+	r.enemyTick(0, 1.6)
 	r.Paused = true
 	r.Step(Input{}, time.UnixMilli(r.LastMS+1000))
 	if r.SkillTimers[bossLaneReservationKeys[1]] != .4 {
@@ -108,8 +108,8 @@ func TestLaneReservationPauseAndRoomReset(t *testing.T) {
 func TestLaneReservationImpactCannotOverrideAnotherWarning(t *testing.T) {
 	r := hazardLaneRun()
 	r.Player.Y = 470
-	r.enemyTick(0, 1.4)
-	r.Enemies[0].Windup = 1.4
+	r.enemyTick(0, 1.6)
+	r.Enemies[0].Windup = 1.6
 	r.Enemies[0].AttackName = "Lane Slam"
 	r.Enemies[0].SlamLane = 0
 	for lane := 0; lane < 3; lane++ {
