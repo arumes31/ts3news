@@ -386,3 +386,31 @@ collection; heap analysis started after both capture processes completed.
 Raw reports, heaps and ownership paths remain local under
  test-results/heap-frequency-ack-all-full-20260928 and
  test-results/heap-frequency-ack-endpoints-full-20260928.
+
+## Final profiling assessment (2026-10-01)
+
+Ledger0798, "Profile long campaign sessions for memory growth", is complete for
+its recorded development builds. This closes the profiling deliverable only;
+the session-memory engineering gate and release decision remain under review.
+No threshold or acceptance condition has changed.
+
+The September29 review regenerated the committed heap-frequency aggregate exactly
+from both original raw reports. All12 referenced snapshots exist. Every reviewed
+checkpoint retains only its current expedition ID, and sampled run and attempt
+paths reach roots. All13 heap-summary, retention and frequency-export checks pass,
+including rejection of stale IDs and incomplete comparisons.
+
+Both60-replay captures satisfy the10MiB numeric retained-JS limit, with no runtime
+or audio failures. Attempt history reaches its known bound of three50-entry copies;
+all-snapshot checkpoints54/59/60 contain150 attempt shapes,163 actor shapes, two
+run shapes and no effect shapes. These observations do not prove absence of every
+possible leak. Native growth remains unresolved: endpoint-only private bytes end
+72,077,312 bytes above baseline and fluctuate after the cap. Instrumentation
+comparisons support an inspector/collection contribution but cannot attribute every
+native byte. Detached-node counts alone are not an ownership verdict.
+
+The latest long capture usedb04a41d3 plus its recorded user diff. Subsequent artwork
+loading changes are outside that source scope. Release verification still requires
+affected session checks on the exact built candidate, retaining-path review and
+separate process-memory reporting. Physical-device verification is outstanding.
+The release checklist and engineering memory gate remain open.
