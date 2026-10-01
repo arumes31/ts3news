@@ -51,6 +51,6 @@ func TestRiftBossRetryStorageAndRequestReplay(t *testing.T) {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal(err)
 		}
-		database.Close()
+		_ = database.Close()
 	}
 }

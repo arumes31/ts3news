@@ -19,7 +19,7 @@ func TestRiftPotionInventoryAndSaveShareTransaction(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			now := time.Unix(100, 0)
 			run := rift.NewRunAtLevel("potion", rift.Build{HP: 100}, now, riftMobCatalog(now), 1)
 			run.Epoch = "2"
@@ -83,7 +83,7 @@ func TestRiftPotionInventoryReadFiltersOwnedSupportedItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectQuery("SELECT cons_id, remaining_fights FROM user_consumables").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}).
 		AddRow("small_health_potion", 2).AddRow("rejuvenation_potion", 3).AddRow("strength_elixir", 1).AddRow("corrupted_great_health_potion", 1).AddRow("unknown", 1).AddRow("elixir_of_life", 0))
 	items, err := (&Bot{DB: database}).riftPotions(context.Background(), "owner")
@@ -106,7 +106,7 @@ func TestRiftPotionInventoryReadIsSeparateAndPracticeHasNoRealInventory(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	server := &WebServer{bot: &Bot{DB: database}}
 	mock.ExpectQuery("SELECT cons_id, remaining_fights FROM user_consumables").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"cons_id", "remaining_fights"}))
 	for _, url := range []string{"/api/abyss/rift?inventory=potions", "/api/abyss/rift?inventory=potions&practice=boss"} {

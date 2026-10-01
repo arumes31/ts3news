@@ -649,13 +649,14 @@ func TestRiftLinkedGuardiansSupportEverySubclass(t *testing.T) {
 				ids := run.RoomObjective.Targets
 				for i := range run.Enemies {
 					e := &run.Enemies[i]
-					if e.ID == ids[0] {
+					switch e.ID {
+					case ids[0]:
 						e.X, e.Y = 400, 330
 						e.Knockdown = 100
-					} else if e.ID == ids[1] {
+					case ids[1]:
 						e.X, e.Y = 550, 330
 						e.Knockdown = 100
-					} else {
+					default:
 						e.HP = 0
 					}
 				}

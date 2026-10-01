@@ -27,8 +27,11 @@ func TestShortcutBarrierOpensSavedDirectRoute(t *testing.T) {
 					t.Fatal("intact shortcut crossed")
 				}
 				r.Player.X, r.Player.Y, r.Player.Facing = c.X-25, 410, 1
-				if !r.attackTerrainCover(30) || !r.attackTerrainCover(30) {
+				if !r.attackTerrainCover(30) {
 					t.Fatal("barrier cannot be attacked from shortcut")
+				}
+				if !r.attackTerrainCover(30) {
+					t.Fatal("barrier cannot be destroyed by second attack from shortcut")
 				}
 				raw, err := json.Marshal(r)
 				if err != nil {

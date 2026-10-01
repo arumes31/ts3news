@@ -12,11 +12,17 @@ async function launchDirectChromium({executablePath,outputDirectory}){
  let stderr='';child.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-16384);});
  let cdp;
  try{
-  const active=path.join(profile,'DevToolsActivePort'),deadline=Date.now()+30000;
-  while(!fs.existsSync(active)){if(launchError)throw launchError;if(child.exitCode!==null)throw Error('Isolated Chromium exited during launch');if(Date.now()>deadline)throw Error('Isolated Chromium launch timed out');await delay(100);}
-  const [port,socketPath]=fs.readFileSync(active,'utf8').trim().split(/\r?\n/);
-  if(!/^\d+$/.test(port)||!socketPath?.startsWith('/devtools/browser/'))throw Error('Invalid isolated Chromium endpoint');
-  cdp=await connectCDP('ws://127.0.0.1:'+port+socketPath);
+  const deadline=Date.now()+30000;
+  let wsUrl;
+  while(!wsUrl){
+   if(launchError)throw launchError;
+   if(child.exitCode!==null)throw Error('Isolated Chromium exited during launch');
+   if(Date.now()>deadline)throw Error('Isolated Chromium launch timed out');
+   const match=stderr.match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\/[a-zA-Z0-9-]+)/);
+   if(match)wsUrl=match[1];
+   else await delay(100);
+  }
+  cdp=await connectCDP(wsUrl);
   const version=await cdp.send('Browser.getVersion');
   let closed=false;
   return {cdp,version,profile,args,async close(){

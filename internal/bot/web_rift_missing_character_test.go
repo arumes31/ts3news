@@ -16,7 +16,7 @@ func TestRiftDeletedCharacterStopsMutations(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			mock.ExpectBegin()
 			mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("deleted-owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}))
 			mock.ExpectRollback()
@@ -39,7 +39,7 @@ func TestRiftCharacterDatabaseFailureIsNotDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT client_uid FROM users").WillReturnError(errors.New("private database failure"))
 	mock.ExpectRollback()
@@ -62,7 +62,7 @@ func TestRiftDeletedCharacterLoadAndStart(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			empty := func(query string, columns ...string) {
 				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows(columns))
 			}

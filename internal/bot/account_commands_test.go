@@ -42,7 +42,7 @@ func TestAccountRecoveryCommandVerifiesPrivateRecipient(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 			if tc.update {
 				mock.ExpectExec("UPDATE users SET web_recovery_hash").WithArgs(sqlmock.AnyArg(), "player").WillReturnResult(sqlmock.NewResult(0, 1))
 			}
@@ -50,7 +50,7 @@ func TestAccountRecoveryCommandVerifiesPrivateRecipient(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer func() { _ = listener.Close() }()
 			messages := make(chan []string, 1)
 			go func() {
 				conn, err := listener.Accept()
@@ -58,8 +58,8 @@ func TestAccountRecoveryCommandVerifiesPrivateRecipient(t *testing.T) {
 					messages <- nil
 					return
 				}
-				defer conn.Close()
-				fmt.Fprintln(conn, "error id=0 msg=ok")
+				defer func() { _ = conn.Close() }()
+				_, _ = fmt.Fprintln(conn, "error id=0 msg=ok")
 				scan := bufio.NewScanner(conn)
 				var sent []string
 				lookup := 0
@@ -71,11 +71,11 @@ func TestAccountRecoveryCommandVerifiesPrivateRecipient(t *testing.T) {
 							uid = tc.secondUID
 						}
 						lookup++
-						fmt.Fprintln(conn, "client_unique_identifier="+uid)
+						_, _ = fmt.Fprintln(conn, "client_unique_identifier="+uid)
 					} else if strings.HasPrefix(command, "sendtextmessage ") {
 						sent = append(sent, command)
 					}
-					fmt.Fprintln(conn, "error id=0 msg=ok")
+					_, _ = fmt.Fprintln(conn, "error id=0 msg=ok")
 				}
 				messages <- sent
 			}()
@@ -85,7 +85,7 @@ func TestAccountRecoveryCommandVerifiesPrivateRecipient(t *testing.T) {
 			}
 			s := &Supervisor{bot: &Bot{DB: db, Cfg: &config.Config{WebBaseURL: "https://example.test"}}}
 			s.handleAccountRecoveryCommand(client, "notifytextmessage", map[string]string{"targetmode": "1", "invokeruid": "player", "invokerid": "7"})
-			client.Close()
+			_ = client.Close()
 			sent := <-messages
 			if tc.send {
 				if len(sent) != 1 || !strings.Contains(sent[0], "targetmode=1 target=7") || !strings.Contains(sent[0], "account\\/recover?token=") {

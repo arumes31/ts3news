@@ -38,18 +38,18 @@ func riftBankIntegrationDatabase(t *testing.T) (*sql.DB, string) {
 	}
 	name := fmt.Sprintf("rift_bank_test_%d", time.Now().UnixNano())
 	if _, err = admin.Exec("CREATE DATABASE " + pq.QuoteIdentifier(name) + " TEMPLATE template0"); err != nil {
-		admin.Close()
+		_ = admin.Close()
 		t.Fatal(err)
 	}
 	var database *sql.DB
 	t.Cleanup(func() {
 		if database != nil {
-			database.Close()
+			_ = database.Close()
 		}
 		if _, err := admin.Exec("DROP DATABASE " + pq.QuoteIdentifier(name) + " WITH (FORCE)"); err != nil {
 			t.Error(err)
 		}
-		admin.Close()
+		_ = admin.Close()
 	})
 	parsed.Path = "/" + name
 	query := parsed.Query()

@@ -40,9 +40,15 @@ func TestRiftLeanSnapshotReconstructsExactSavedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	var old, decoded, want map[string]json.RawMessage
-	json.Unmarshal(before, &old)
-	json.Unmarshal(wire, &decoded)
-	json.Unmarshal(full, &want)
+	if err := json.Unmarshal(before, &old); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(wire, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(full, &want); err != nil {
+		t.Fatal(err)
+	}
 	for key := range riftRetainedFields(run) {
 		if _, exists := decoded[key]; exists {
 			t.Fatal("retained field resent", key)

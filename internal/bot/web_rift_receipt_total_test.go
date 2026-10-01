@@ -57,7 +57,7 @@ func TestRiftBankIncrementsIndependentTotalOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	r := riftVitalsFixture()
 	r.Practice = nil
 	r.BankedItems = []string{"Recent sword"}

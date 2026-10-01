@@ -15,7 +15,7 @@ func TestRiftUnownedStartSelectionRejectedBeforeRunTransaction(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 			empty := func(query string, columns ...string) {
 				mock.ExpectQuery(query).WillReturnRows(sqlmock.NewRows(columns))
 			}

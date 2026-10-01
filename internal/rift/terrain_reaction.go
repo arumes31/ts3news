@@ -57,7 +57,7 @@ func terrainReactionLinkClear(arena Arena, from, to Actor) bool {
 		}
 	}
 	for _, c := range arena.Cover {
-		if c.solid() && !(c.Volatile && c.Material == "wood") {
+		if c.solid() && (!c.Volatile || c.Material != "wood") {
 			if _, hit := obstacleImpact(from.X, from.Y, to.X, to.Y, c.Obstacle); hit {
 				return false
 			}

@@ -12,7 +12,7 @@ func TestRiftUltimateOwnershipIncludesInactiveCatalogEntriesAndReportsErrors(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	b := &Bot{DB: db}
 	mock.ExpectQuery("SELECT ultimate_id FROM user_ultimate_skills WHERE client_uid=\\$1 ORDER BY obtained, ultimate_id").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"ultimate_id"}).AddRow("ULT_REVIVAL").AddRow("removed"))
 	names, err := b.riftOwnedUltimates(context.Background(), "owner")

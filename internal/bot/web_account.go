@@ -229,7 +229,7 @@ func (s *WebServer) saveAccountPassword(w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if recovery != "" {
 		err = tx.QueryRowContext(r.Context(), `/* economy:bot.WebServer.saveAccountPassword */ UPDATE users SET web_password_hash=$1, web_recovery_hash=NULL,
  web_recovery_expires=NULL, web_token=NULL, web_token_expires=NULL

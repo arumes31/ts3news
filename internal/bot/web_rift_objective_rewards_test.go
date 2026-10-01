@@ -18,7 +18,7 @@ func TestRiftObjectiveRewardsAtomicAndReplaySafe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			bonusFailure := errors.New("bonus write failed")
 			snapshotFailure := errors.New("snapshot write failed")
 			run := rift.NewRunAtLevel("bonus-run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 1)

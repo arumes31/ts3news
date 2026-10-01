@@ -27,7 +27,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if _, err := rift.AuditHazardSafety(rift.Arena{}, *horizon); err != nil || flags.NArg() != 0 {
-		fmt.Fprintln(diagnostics, "Use -seconds in (0, 3600] and no positional arguments.")
+		_, _ = fmt.Fprintln(diagnostics, "Use -seconds in (0, 3600] and no positional arguments.")
 		return 2
 	}
 	rows := []hazardRoomReport{}
@@ -48,10 +48,10 @@ func execute(args []string, out, diagnostics io.Writer) int {
 	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(rows); err != nil {
-		fmt.Fprintln(diagnostics, err)
+		_, _ = fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	fmt.Fprintf(diagnostics, "%d rooms; %d with unsafe intervals or invalid hazards in %.2f seconds.\n", len(rows), failed, *horizon)
+	_, _ = fmt.Fprintf(diagnostics, "%d rooms; %d with unsafe intervals or invalid hazards in %.2f seconds.\n", len(rows), failed, *horizon)
 	if failed > 0 {
 		return 1
 	}

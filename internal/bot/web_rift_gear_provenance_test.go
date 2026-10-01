@@ -36,7 +36,7 @@ func TestRiftGearProvenanceThroughRewardSaveAndInventory(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer database.Close()
+				defer func() { _ = database.Close() }()
 				run := rift.NewRunAtLevel("provenance", rift.Build{HP: 100}, now, riftMobCatalog(now), level.ID)
 				run.Room = room
 				if len(level.Rooms[room].FragileFloor) > 0 {

@@ -18,7 +18,7 @@ func TestRiftEqualRevisionRequiresWinningRequest(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer database.Close()
+				defer func() { _ = database.Close() }()
 				run := rift.NewRun("run", rift.Build{HP: 200}, time.Now())
 				run.Epoch = "2"
 				run.Revision = 5

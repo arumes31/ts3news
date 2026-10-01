@@ -21,7 +21,7 @@ func TestRiftRepeatedFinishNeverDeliversLootAgain(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					defer db.Close()
+					defer func() { _ = db.Close() }()
 					now := time.Unix(100, 0)
 					run := rift.NewRunAtLevel("finished", rift.Build{HP: 300}, now, riftMobCatalog(now), 100)
 					run.Room = 2

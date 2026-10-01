@@ -41,7 +41,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 || *mission < 1 || *mission > rift.LevelCount || strings.TrimSpace(*seed) == "" || len(*seed) > 128 {
-		fmt.Fprintln(diagnostics, "Use -mission 1..100 and a nonblank -seed of at most 128 bytes; no positional arguments.")
+		_, _ = fmt.Fprintln(diagnostics, "Use -mission 1..100 and a nonblank -seed of at most 128 bytes; no positional arguments.")
 		return 2
 	}
 	run := rift.NewRunAtLevel(*seed, rift.Build{Name: "Preview", HP: 300, Damage: 20}, time.Unix(100, 0).UTC(), content.AbyssMobCatalog(), *mission)
@@ -52,7 +52,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		if room < len(rift.Rooms)-1 {
 			run.Status = "cleared"
 			if !run.NextRoom() {
-				fmt.Fprintln(diagnostics, "could not prepare the next preview tier")
+				_, _ = fmt.Fprintln(diagnostics, "could not prepare the next preview tier")
 				return 1
 			}
 		}
@@ -60,7 +60,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(preview); err != nil {
-		fmt.Fprintf(diagnostics, "write mission preview: %v\n", err)
+		_, _ = fmt.Fprintf(diagnostics, "write mission preview: %v\n", err)
 		return 1
 	}
 	return 0

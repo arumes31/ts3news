@@ -19,7 +19,7 @@ func TestRiftDuplicateAdvanceCannotSkipLaterCheckpoint(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer db.Close()
+				defer func() { _ = db.Close() }()
 				now := time.Unix(100, 0)
 				catalog := riftMobCatalog(now)
 				run := rift.NewRunAtLevel("same-expedition", rift.Build{HP: 300}, now, catalog, 10)

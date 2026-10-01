@@ -38,7 +38,7 @@ func TestRiftPracticeStartWritesOnlyItsOwnAccountDrill(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			key := "rift_practice:owner:" + mode
 			mock.ExpectBegin()
 			mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
@@ -64,7 +64,7 @@ func TestRiftPracticeLoadRejectsCrossModeSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	run, _ := rift.NewPracticeRun("practice", rift.Build{HP: 100}, "combo", time.Unix(100, 0))
 	saved, _ := json.Marshal(run)
 	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_practice:owner:movement").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(saved)))
@@ -99,7 +99,7 @@ func TestRiftPracticeResetIsScopedAndRevisionIdempotent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			run, _ := rift.NewPracticeRun("practice-run", rift.Build{HP: 100}, "combo", time.Unix(100, 0))
 			run.Epoch = "2"
 			run.Revision = 4

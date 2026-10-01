@@ -99,10 +99,12 @@ for(let sample=1;sample<=options.samples;sample++)test(`campaign session memory 
   expect(point.audio.visible).toBe('visible');expect(point.audio.voices).toBe(0);
   if(snapshot){
    point.snapshot=info.outputPath(`heap-${index}.heapsnapshot`);
-   const fd=fs.openSync(point.snapshot,'w');const chunk=event=>fs.writeSync(fd,event.chunk);
+   const fd=fs.openSync(point.snapshot,'w');
+   const chunks=[];
+   const chunk=event=>{chunks.push(event.chunk);fs.writeSync(fd,event.chunk);};
    session.on('HeapProfiler.addHeapSnapshotChunk',chunk);
    try{await session.send('HeapProfiler.takeHeapSnapshot',{reportProgress:false});}finally{session.off('HeapProfiler.addHeapSnapshotChunk',chunk);fs.closeSync(fd);}
-   point.reachable=summarizeHeap(JSON.parse(fs.readFileSync(point.snapshot,'utf8')));
+   point.reachable=summarizeHeap(JSON.parse(chunks.join('')));
   }
   report.checkpoints.push(point);save();console.log(`Memory sample ${sample}, mission ${index}: ${(point.heap.usedSize/1048576).toFixed(2)} MiB`);
  }

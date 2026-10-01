@@ -63,7 +63,7 @@ func riftSnapshotJSON(saved string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(reader, riftDecodedSnapshotLimit+1))
 	if err != nil {
 		return nil, err

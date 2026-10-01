@@ -31,7 +31,7 @@ func useRiftPotion(ctx context.Context, tx *sql.Tx, uid string, run *rift.Run, i
 	if err = run.UseHealingPotion(amount); err != nil {
 		return err
 	}
-	result, err := tx.ExecContext(ctx, "UPDATE user_consumables SET remaining_fights=remaining_fights-1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights>0", uid, id)
+	result, err := tx.ExecContext(ctx, "/* economy:bot.useRiftPotion */ UPDATE user_consumables SET remaining_fights=remaining_fights-1 WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights>0", uid, id)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func useRiftPotion(ctx context.Context, tx *sql.Tx, uid string, run *rift.Run, i
 	if rows != 1 {
 		return errors.New("healing potion is no longer available")
 	}
-	_, err = tx.ExecContext(ctx, "DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0", uid, id)
+	_, err = tx.ExecContext(ctx, "/* economy:bot.useRiftPotion */ DELETE FROM user_consumables WHERE client_uid=$1 AND cons_id=$2 AND remaining_fights<=0", uid, id)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (b *Bot) riftPotions(ctx context.Context, uid string) ([]riftPotionOption, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := []riftPotionOption{}
 	for rows.Next() {
 		var id string

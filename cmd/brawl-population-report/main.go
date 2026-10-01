@@ -97,7 +97,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 || *limit < 1 || *bossLimit < 0 || (*format != "csv" && *format != "json") {
-		fmt.Fprintln(diagnostics, "Use a positive -max-enemies, nonnegative -max-bosses, and -format csv or json; positional arguments are unsupported.")
+		_, _ = fmt.Fprintln(diagnostics, "Use a positive -max-enemies, nonnegative -max-bosses, and -format csv or json; positional arguments are unsupported.")
 		return 2
 	}
 	rows := populationReport(*limit, *bossLimit)
@@ -130,11 +130,11 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		}
 	}
 	if err != nil {
-		fmt.Fprintln(diagnostics, err)
+		_, _ = fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	fmt.Fprintf(diagnostics, "%d rooms; %d exceed the %d-enemy budget. Planned counts include later waves; objective actors are separate.\n", len(rows), violations, *limit)
-	fmt.Fprintf(diagnostics, "%d rooms exceed the %d-boss budget.\n", bossViolations, *bossLimit)
+	_, _ = fmt.Fprintf(diagnostics, "%d rooms; %d exceed the %d-enemy budget. Planned counts include later waves; objective actors are separate.\n", len(rows), violations, *limit)
+	_, _ = fmt.Fprintf(diagnostics, "%d rooms exceed the %d-boss budget.\n", bossViolations, *bossLimit)
 	if violations > 0 || bossViolations > 0 {
 		return 1
 	}

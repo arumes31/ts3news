@@ -93,7 +93,7 @@ func (s *WebServer) finishAccountLogin(w http.ResponseWriter, r *http.Request, u
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var found string
 	if password {
 		err = tx.QueryRowContext(r.Context(), "SELECT client_uid FROM users WHERE client_uid=$1 AND web_password_hash=$2 FOR UPDATE", uid, credential).Scan(&found)
@@ -119,7 +119,7 @@ func (s *WebServer) revokeAccountSession(ctx context.Context, token string) erro
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	// Only migrated cookies equal a TeamSpeak link credential. Revoke that link
 	// too, otherwise the logged-out cookie could be exchanged for a new session.
 	if _, err := tx.ExecContext(ctx, "/* economy:bot.WebServer.revokeAccountSession */ UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE web_token=$1", token); err != nil {

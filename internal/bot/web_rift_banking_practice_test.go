@@ -21,7 +21,7 @@ func TestRiftPracticeBankOnlySavesDemoAndReplaysReceipt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			run, _ := rift.NewPracticeRun("demo", rift.Build{HP: 100}, "banking", time.Unix(100, 0))
 			run.Epoch = "2"
 			run.Revision = 4

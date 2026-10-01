@@ -65,7 +65,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer database.Close()
+			defer func() { _ = database.Close() }()
 			saveFailure := errors.New("disk unavailable")
 			run := rift.NewRun("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0))
 			advance := strings.HasPrefix(scenario, "advance")
@@ -122,7 +122,7 @@ func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
 				mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", request.RequestID, "run", "").WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "ABYSS_TEST", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(30), "owner").WillReturnResult(sqlmock.NewResult(0, 1))
-				var snapshot sqlmock.Argument = sqlmock.AnyArg()
+				snapshot := sqlmock.AnyArg()
 				if advance {
 					snapshot = riftSnapshotCheck(func(saved *rift.Run) bool {
 						h := saved.History[10]
@@ -230,7 +230,7 @@ func TestRiftStartRetainsCampaignProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	old := rift.NewRunAtLevel("old", rift.Build{HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
 	old.Status = "complete"
 	old.Epoch = "2"
@@ -325,7 +325,7 @@ func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	run := rift.NewRun("old-run", rift.Build{HP: 200}, time.Now())
 	run.Epoch = "old"
 	run.Gold = 99

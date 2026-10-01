@@ -23,7 +23,7 @@ func TestRiftPracticeEnemyActionsAreScopedAndReplaySafe(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer database.Close()
+				defer func() { _ = database.Close() }()
 				run, _ := rift.NewPracticeRun("practice", rift.Build{HP: 100}, "skills", time.Unix(100, 0))
 				run.Epoch = "2"
 				run.Revision = 4

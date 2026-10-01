@@ -36,7 +36,9 @@ func TestRiftPublicMetadataConditionalAndPrivateBoundary(t *testing.T) {
 		}
 	}
 	var levels []any
-	json.Unmarshal(body["levels"], &levels)
+	if err := json.Unmarshal(body["levels"], &levels); err != nil {
+		t.Fatal(err)
+	}
 	if len(levels) != 100 {
 		t.Fatal("incomplete campaign")
 	}

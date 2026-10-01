@@ -53,21 +53,21 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(diagnostics, "Positional arguments are unsupported.")
+		_, _ = fmt.Fprintln(diagnostics, "Positional arguments are unsupported.")
 		return 2
 	}
 	rows := report(*seed)
 	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(rows); err != nil {
-		fmt.Fprintln(diagnostics, err)
+		_, _ = fmt.Fprintln(diagnostics, err)
 		return 2
 	}
 	failures := 0
 	for _, row := range rows {
 		failures += len(row.Failures)
 	}
-	fmt.Fprintf(diagnostics, "%d rooms checked; %d unreachable targets/start failures. Grid: 10 units; walking only, intact cover.\n", len(rows), failures)
+	_, _ = fmt.Fprintf(diagnostics, "%d rooms checked; %d unreachable targets/start failures. Grid: 10 units; walking only, intact cover.\n", len(rows), failures)
 	if failures > 0 {
 		return 1
 	}

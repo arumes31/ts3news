@@ -57,7 +57,7 @@ func runChecks(ctx context.Context, dir string, enemies, bosses int, seconds flo
 			return false, err
 		}
 		check := &checks[i]
-		fmt.Fprintln(diagnostics, "Checking:", check.Name)
+		_, _ = fmt.Fprintln(diagnostics, "Checking:", check.Name)
 		file, err := os.Create(filepath.Join(dir, check.Output))
 		if err != nil {
 			return false, err
@@ -72,9 +72,9 @@ func runChecks(ctx context.Context, dir string, enemies, bosses int, seconds flo
 		if runErr != nil {
 			check.Error = runErr.Error()
 			passed = false
-			fmt.Fprintln(diagnostics, "FAILED:", check.Name, runErr)
+			_, _ = fmt.Fprintln(diagnostics, "FAILED:", check.Name, runErr)
 		} else {
-			fmt.Fprintln(diagnostics, "PASS:", check.Name)
+			_, _ = fmt.Fprintln(diagnostics, "PASS:", check.Name)
 		}
 		if err := writeSummary(); err != nil {
 			return false, err
@@ -95,12 +95,12 @@ func execute(ctx context.Context, args []string, diagnostics io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 || *dir == "" || *enemies < 1 || *bosses < 0 || math.IsNaN(*seconds) || math.IsInf(*seconds, 0) || *seconds <= 0 || *seconds > 3600 {
-		fmt.Fprintln(diagnostics, "Invalid options; use -h for help.")
+		_, _ = fmt.Fprintln(diagnostics, "Invalid options; use -h for help.")
 		return 2
 	}
 	module, err := os.ReadFile("go.mod")
 	if err != nil || !strings.HasPrefix(strings.TrimSpace(string(module)), "module ts3news") {
-		fmt.Fprintln(diagnostics, "Run this command from the ts3news repository root.")
+		_, _ = fmt.Fprintln(diagnostics, "Run this command from the ts3news repository root.")
 		return 2
 	}
 	runner := func(args []string, out, stderr io.Writer) error {
@@ -111,10 +111,10 @@ func execute(ctx context.Context, args []string, diagnostics io.Writer) int {
 	}
 	passed, err := runChecks(ctx, *dir, *enemies, *bosses, *seconds, *seed, runner, diagnostics)
 	if err != nil {
-		fmt.Fprintln(diagnostics, err)
+		_, _ = fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	fmt.Fprintln(diagnostics, "Reports:", *dir)
+	_, _ = fmt.Fprintln(diagnostics, "Reports:", *dir)
 	if !passed {
 		return 1
 	}

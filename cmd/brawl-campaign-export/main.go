@@ -30,7 +30,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(diagnostics, "No positional arguments are supported; JSON is written to stdout.")
+		_, _ = fmt.Fprintln(diagnostics, "No positional arguments are supported; JSON is written to stdout.")
 		return 2
 	}
 	report := campaignExport{Schema: 1, Missions: rift.Campaign(), Objectives: map[string]int{}}
@@ -51,7 +51,7 @@ func execute(args []string, out, diagnostics io.Writer) int {
 	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(report); err != nil {
-		fmt.Fprintf(diagnostics, "write campaign export: %v\n", err)
+		_, _ = fmt.Fprintf(diagnostics, "write campaign export: %v\n", err)
 		return 1
 	}
 	return 0

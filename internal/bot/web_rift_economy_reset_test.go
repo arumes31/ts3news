@@ -20,7 +20,7 @@ func TestRiftEconomyResetRejectsActiveActionsAndReplays(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer database.Close()
+				defer func() { _ = database.Close() }()
 				run := rift.NewRun("old-economy-run", rift.Build{HP: 200}, time.Now())
 				run.Epoch = "old"
 				run.Revision = 4

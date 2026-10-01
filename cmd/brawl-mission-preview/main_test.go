@@ -42,8 +42,12 @@ func TestPreviewSeedChangesEncounters(t *testing.T) {
 		t.Fatal(diagnostics.String())
 	}
 	var first, second missionPreview
-	json.Unmarshal(a.Bytes(), &first)
-	json.Unmarshal(b.Bytes(), &second)
+	if err := json.Unmarshal(a.Bytes(), &first); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b.Bytes(), &second); err != nil {
+		t.Fatal(err)
+	}
 	left, _ := json.Marshal(first.Tiers)
 	right, _ := json.Marshal(second.Tiers)
 	if bytes.Equal(left, right) {
