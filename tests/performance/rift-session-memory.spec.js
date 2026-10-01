@@ -14,10 +14,10 @@ for(let sample=1;sample<=options.samples;sample++)test(`campaign session memory 
  const path=require('node:path'),output=info.outputPath('memory-report.json');
  fs.mkdirSync(path.dirname(output),{recursive:true});
  const sourceFile=path.join(path.dirname(path.dirname(output)),'fixture-source.json');
- if(!fs.existsSync(sourceFile)){
+ try{
   const patch=git('diff','HEAD','--binary');
   fs.writeFileSync(sourceFile,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),dirtyFiles:git('status','--short'),patch,capturedAt:new Date().toISOString(),scope:'Checkout captured by first sample immediately after fresh shared fixture startup; no rebuild between samples.'},null,2)+'\n',{flag:'wx'});
- }
+ }catch(e){if(e?.code!=='EEXIST')throw e;}
  const source=JSON.parse(fs.readFileSync(sourceFile,'utf8'));
  const report={startedAt:new Date().toISOString(),mode:options.mode,sample,durationMS,
   server:{command:'go test -tags=e2e ./internal/bot -run TestAbyssE2EServer -count=1 -v -timeout=130m',managedFresh:true,revision:source.revision,trackedDiffSHA256:source.trackedDiffSHA256,dirtyFiles:source.dirtyFiles,sourceCapturedAt:source.capturedAt},

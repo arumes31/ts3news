@@ -1376,7 +1376,7 @@
   }
   function renderFrame(now){
     const frameRate=!snapshot&&display.fps===30?15:display.fps;
-    const region = snapshot && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level?.region : previewLevel?.region;
+    const region = (snapshot && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level?.region : undefined) ?? previewLevel?.region ?? 0;
     const background = region !== undefined ? regionImages.get(region) : snapshot?.room===2 ? images.boss : images.area;
     if (!background || !atlasProgress.ready || document.hidden || !ctx || now-last<1000/frameRate-1) return;
     adaptParticles(last?now-last:0,frameRate);
@@ -1445,7 +1445,7 @@
     const hazardOverlays=[];
     const ringGapOverlays=[];
     const run=snapshot;
-    const arena=run.practice?.arena||run.level?.rooms[run.room];
+    const arena=run.practice?.arena||run.level?.rooms?.[run.room];
     if(!run.practice)rearRegionalBanners(run.level?.region);
     if(arena?.exit){
       const x=arena.exit.x-camera,y=arena.exit.y,open=run.status==='cleared'||run.status==='complete';

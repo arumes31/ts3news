@@ -65,10 +65,10 @@ for(let sample=1;sample<=(smoke?1:3);sample++)test(`restart memory sample ${samp
   const point={cycle:index,at:new Date().toISOString(),heap:await session.send('Runtime.getHeapUsage'),dom:await session.send('Memory.getDOMCounters')};
   if(snapshot){
    point.snapshot=info.outputPath(`heap-${index}.heapsnapshot`);
-   const fd=fs.openSync(point.snapshot,'w');const chunk=event=>fs.writeSync(fd,event.chunk);
+   const chunks=[];const fd=fs.openSync(point.snapshot,'w');const chunk=event=>{chunks.push(event.chunk);fs.writeSync(fd,event.chunk);};
    session.on('HeapProfiler.addHeapSnapshotChunk',chunk);
    try{await session.send('HeapProfiler.takeHeapSnapshot',{reportProgress:false});}finally{session.off('HeapProfiler.addHeapSnapshotChunk',chunk);fs.closeSync(fd);}
-   point.reachable=summarizeHeap(JSON.parse(fs.readFileSync(point.snapshot,'utf8')));
+   point.reachable=summarizeHeap(JSON.parse(chunks.join('')));
   }
   report.checkpoints.push(point);save();console.log(`Memory sample ${sample}, cycle ${index}: ${(point.heap.usedSize/1048576).toFixed(2)} MiB`);
  }

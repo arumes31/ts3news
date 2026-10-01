@@ -9,10 +9,16 @@ function assetManifest(root){
  while(pending.length){
   const file=pending.pop();if(seen.has(file))continue;seen.add(file);
   if(file.split('/').some(part=>!part||part==='.'||part==='..')||file.includes('\\'))throw new Error('Invalid asset path: '+file);
-  const location=path.join(root,file),stat=fs.statSync(location);
-  if(!stat.isFile()||stat.size===0)throw new Error('Empty or non-file asset: '+file);
-  if(!/\.(html|js|css)$/.test(file))continue;
-  const source=fs.readFileSync(location,'utf8');
+  const location=path.join(root,file),fd=fs.openSync(location,'r');
+  let source;
+  try{
+   const stat=fs.fstatSync(fd);
+   if(!stat.isFile()||stat.size===0)throw new Error('Empty or non-file asset: '+file);
+   if(!/\.(html|js|css)$/.test(file))continue;
+   source=fs.readFileSync(fd,'utf8');
+  }finally{
+   fs.closeSync(fd);
+  }
   for(const match of source.matchAll(/\/static\/([A-Za-z0-9][A-Za-z0-9_./-]*\.(?:js|css|png|webp|svg|ttf))\b/g)){
    assets.add('/static/'+match[1]);pending.push(match[1]);
   }

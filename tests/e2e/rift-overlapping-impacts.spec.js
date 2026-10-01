@@ -141,6 +141,7 @@ test.describe('Reduce overlapping identical impact sounds (Proposal 0189)', () =
         counter: 50,
         room: 0,
         status: 'fighting',
+        practice: { mode: 'skills' },
         build: { weapon: 'Iron Broadsword', class: 'vanguard' },
         player: { id: 'player', x: 200, y: 350, hp: 100, max_hp: 100, mana: 50, facing: 1, pose: 'attack', jump: 0 },
         enemies: [

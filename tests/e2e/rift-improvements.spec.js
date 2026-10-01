@@ -33,11 +33,11 @@ test('loot inspection and the bank receipt match confirmed inventory delivery',a
   await page.goto('/abyss/rift?scenario=checkpoint');await page.locator('#rift-auto').uncheck();
   const data=await(await page.request.get('/api/abyss/rift')).json(),gear=data.run.drops[0].gear;
   await expect(page.locator('#rift-loot-count')).toHaveText('1 item pending');
-  await page.locator('#rift-loot details > summary').click();
+  await page.locator('#rift-loot > li > details > summary').click();
   await expect(page.locator('#rift-loot')).toContainText(gear.Name);
   await expect(page.locator('#rift-loot')).toContainText('Maximum durability');
   await expect(page.locator('#rift-loot')).toContainText('Mission 1 · Tier 1');
-  await expect(page.locator('#rift-loot summary')).toHaveAttribute('title','Found: '+gear.found_boss);
+  await expect(page.locator('#rift-loot > li > details > summary')).toHaveAttribute('title','Found: '+gear.found_boss);
   await page.locator('#rift-loot-sort').selectOption('slot');
   await page.locator('#rift-start').click();await expect(page.locator('#rift-checkpoint-total')).toHaveText('30 gold · 1 item ready to bank');await page.locator('#rift-exit').click();
   await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
@@ -222,7 +222,7 @@ test('pause cannot overwrite a terminal result received by a pending step',async
   await page.route('**/api/abyss/rift',async route=>{
     if(route.request().postDataJSON()?.kind==='step'&&intercepted){
       const response=await route.fetch(),data=await response.json();
-      data.run.status='defeated';data.run.player.hp=0;
+      data.run.status='defeated';data.run.player.hp=0;data.hazard_hit_damage=0;
       const notify=intercepted;intercepted=null;
       await new Promise(resolve=>{release=resolve;notify();});
       await route.fulfill({response,json:data});return;

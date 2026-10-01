@@ -12,7 +12,7 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
  const root=path.dirname(info.outputPath('memory-report.json'));fs.mkdirSync(root,{recursive:true});
  const sourcePath=path.join(path.dirname(root),'fixture-source.json');
  const driverFiles=['tests/performance/rift-direct-memory.spec.js','scripts/brawl-direct-page.cjs','scripts/brawl-direct-cdp.cjs','scripts/brawl-direct-chromium.cjs','scripts/brawl-session-navigation.cjs'];
- if(!fs.existsSync(sourcePath)){const patch=git('diff','HEAD','--binary');fs.writeFileSync(sourcePath,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),patch,drivers:driverFiles.map(file=>({file,source:fs.readFileSync(file,'utf8')}))},null,2)+'\n',{flag:'wx'});}
+ try{const patch=git('diff','HEAD','--binary');fs.writeFileSync(sourcePath,JSON.stringify({revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(patch).digest('hex'),patch,drivers:driverFiles.map(file=>({file,source:fs.readFileSync(file,'utf8')}))},null,2)+'\n',{flag:'wx'});}catch(e){if(e?.code!=='EEXIST')throw e;}
  const fixtureSource=JSON.parse(fs.readFileSync(sourcePath,'utf8')),patch=fixtureSource.patch;
  const report={sample:networkInspection?2:1,mode:smoke?'direct browser smoke; not a gate':endpointSnapshots?'direct browser endpoint-snapshot instrumentation diagnostic':'direct browser paired instrumentation diagnostic',heapSnapshotPolicy:endpointSnapshots?'endpoints':'all',networkInspection,startedAt:new Date().toISOString(),server:{revision:fixtureSource.revision,trackedDiffSHA256:fixtureSource.trackedDiffSHA256},checkpoints:[],expeditions:[],errors:[],releaseReady:false};
  report.command='node node_modules/@playwright/test/cli.js test --config=playwright.direct-memory.config.js';
@@ -69,9 +69,9 @@ for(const networkInspection of [false,true])test('direct campaign network inspec
    point.audio=await page.evaluate(()=>({voices:window.RiftAudio.voices,context:window.RiftAudio.context?.state}));expect(point.audio.voices).toBe(0);
    point.final=final;point.snapshotTaken=!endpointSnapshots||mission===0||final;
    if(point.snapshotTaken){
-   point.snapshot=path.join(root,'heap-'+mission+'.heapsnapshot');const fd=fs.openSync(point.snapshot,'w');const off=browser.cdp.on('HeapProfiler.addHeapSnapshotChunk',event=>fs.writeSync(fd,event.chunk),page.sessionId);
+   point.snapshot=path.join(root,'heap-'+mission+'.heapsnapshot');const chunks=[];const fd=fs.openSync(point.snapshot,'w');const off=browser.cdp.on('HeapProfiler.addHeapSnapshotChunk',event=>{chunks.push(event.chunk);fs.writeSync(fd,event.chunk);},page.sessionId);
    try{await page.send('HeapProfiler.takeHeapSnapshot',{reportProgress:false},180000);}finally{off();fs.closeSync(fd);}
-   point.reachable=summarizeHeap(JSON.parse(fs.readFileSync(point.snapshot,'utf8')));
+   point.reachable=summarizeHeap(JSON.parse(chunks.join('')));
    }
    report.checkpoints.push(point);save();console.log('Direct inspector='+networkInspection+' mission='+mission+' heap='+point.heap.usedSize+' networkEvents='+point.networkEvents);
   }
