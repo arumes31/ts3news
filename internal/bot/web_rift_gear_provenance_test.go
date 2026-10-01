@@ -39,6 +39,14 @@ func TestRiftGearProvenanceThroughRewardSaveAndInventory(t *testing.T) {
 				defer database.Close()
 				run := rift.NewRunAtLevel("provenance", rift.Build{HP: 100}, now, riftMobCatalog(now), level.ID)
 				run.Room = room
+				if len(level.Rooms[room].FragileFloor) > 0 {
+					run.RoomObjective = &rift.RoomObjective{Kind: "survive_waves"}
+					for _, box := range level.Rooms[room].FragileFloor {
+						run.RoomObjective.FloorSegments = append(run.RoomObjective.FloorSegments, rift.WaveFloorSegment{Obstacle: box})
+					}
+				} else {
+					run.RoomObjective = nil
+				}
 				run.Epoch = "2"
 				run.Revision = 1
 				run.Drops = []rift.Drop{{ID: "enemy-origin", Mission: level.ID, Tier: room + 1, NeedsGear: true, Collected: true}}

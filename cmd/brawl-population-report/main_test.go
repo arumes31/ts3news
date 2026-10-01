@@ -133,7 +133,8 @@ func TestRewardCeilingsSeparateDropsFromFinalMissionBonus(t *testing.T) {
 	for _, row := range rows {
 		bonus, rarity := int64(0), 3
 		if row.Tier == 3 {
-			bonus = 65
+			// Fourteen offered challenges, including no-potions, at five gold each.
+			bonus = 70
 			rarity = 4
 		}
 		if row.Gold != int64(row.Enemies*15*row.Tier) || row.Gear != row.Enemies || row.Bonus != bonus || row.Rarity != rarity || row.Total != row.Gold+bonus {

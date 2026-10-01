@@ -2,6 +2,7 @@ package bot
 
 import (
 	"bytes"
+	"encoding/json"
 	"image/png"
 	"math"
 	"regexp"
@@ -31,18 +32,40 @@ func TestRiftRegionBackgroundPanelsCoverCampaign(t *testing.T) {
 	if len(boundaries) < 2 || boundaries[0] != 0 || boundaries[len(boundaries)-1] != 1 {
 		t.Fatal("background rows must span the complete atlas")
 	}
-	columnMatch := regexp.MustCompile(`row=Math\.floor\(region/(\d+)\)`).FindAllSubmatch(source, -1)
-	if len(columnMatch) != 1 {
-		t.Fatal("expected one background column-count contract")
+	sectionsRaw, err := webAssets.ReadFile("webassets/rift_region_sections.js")
+	if err != nil {
+		t.Fatal(err)
 	}
-	columns, err := strconv.Atoi(string(columnMatch[0][1]))
-	if err != nil || columns <= 0 {
-		t.Fatal("invalid background columns")
+	prefix := "window.RiftRegionSections="
+	idx := bytes.Index(sectionsRaw, []byte(prefix))
+	if idx < 0 {
+		t.Fatal("expected window.RiftRegionSections definition")
 	}
-	horizontal := regexp.MustCompile(`region%(\d+)\*background\.width/(\d+)\+2`).FindAllSubmatch(source, -1)
-	if len(horizontal) != 1 || string(horizontal[0][1]) != string(columnMatch[0][1]) || string(horizontal[0][2]) != string(columnMatch[0][1]) {
-		t.Fatal("background horizontal crop must use the same column count as row selection")
+	jsonBytes := bytes.TrimSpace(sectionsRaw[idx+len(prefix):])
+	jsonBytes = bytes.TrimSuffix(jsonBytes, []byte(";"))
+
+	var sections struct {
+		Version int `json:"version"`
+		Width   int `json:"width"`
+		Height  int `json:"height"`
+		Regions []struct {
+			X      int        `json:"x"`
+			Y      int        `json:"y"`
+			Width  int        `json:"width"`
+			Height int        `json:"height"`
+			Source [4]float64 `json:"source"`
+			URL    string     `json:"url"`
+		} `json:"regions"`
 	}
+	if err := json.Unmarshal(jsonBytes, &sections); err != nil {
+		t.Fatalf("unmarshal rift_region_sections.js: %v", err)
+	}
+	columns := 2
+	expectedPanels := columns * (len(boundaries) - 1)
+	if len(sections.Regions) != expectedPanels {
+		t.Fatalf("expected %d background panels, got %d", expectedPanels, len(sections.Regions))
+	}
+
 	encoded, err := webAssets.ReadFile("webassets/rift_regions.png")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +83,15 @@ func TestRiftRegionBackgroundPanelsCoverCampaign(t *testing.T) {
 			t.Fatalf("background row %d has invalid or empty bounds", row)
 		}
 	}
-	panels := columns * (len(boundaries) - 1)
+	for i, reg := range sections.Regions {
+		if reg.Width <= 4 || reg.Height <= 4 {
+			t.Fatalf("region %d panel too small: %dx%d", i, reg.Width, reg.Height)
+		}
+		if reg.Source[2] <= 0 || reg.Source[3] <= 0 {
+			t.Fatalf("region %d source rect invalid: %v", i, reg.Source)
+		}
+	}
+	panels := len(sections.Regions)
 	for _, level := range rift.Campaign() {
 		if level.Region < 0 || level.Region >= panels {
 			t.Errorf("mission %d selects region %d outside %d background panels", level.ID, level.Region, panels)

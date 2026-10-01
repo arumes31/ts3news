@@ -19,7 +19,7 @@ func TestRiftObjectivesCompatibleWithEverySelectableSubclass(t *testing.T) {
 		t.Fatal("canonical ultimate missing")
 	}
 	catalog := []content.Mob{{Name: "Priority mage", Type: content.MobElite}, {Name: "Treasure target", Type: content.MobTreasureGoblin}, {Name: "Boss target", Type: content.MobBoss}}
-	passive := map[string]bool{"timed": true, "no_damage": true, "basic_only": true, "hazard_avoidance": true, "treasure_capture": true, "melee_only": true, "ranged_priority": true, "elite_priority": true, "limited_dodge": true, "save_ultimate": true}
+	passive := map[string]bool{"timed": true, "no_damage": true, "basic_only": true, "hazard_avoidance": true, "treasure_capture": true, "melee_only": true, "ranged_priority": true, "elite_priority": true, "limited_dodge": true, "save_ultimate": true, "no_potions": true}
 	for _, class := range content.AbyssClasses() {
 		for _, sub := range class.Subclasses {
 			build := riftBuildFromUser(UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500, STR: 80, INT: 90, DEF: 60}, Skills: content.AbyssClassSkills(sub.ID), Ultimates: []*content.UltimateSkill{&ultimate}}, "Compatibility", 24)
