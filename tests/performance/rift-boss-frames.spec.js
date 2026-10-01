@@ -4,12 +4,14 @@ const {execFileSync}=require('node:child_process');
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:20*1024*1024}).trim();
 const smoke=process.env.BRAWL_FRAME_SMOKE==='1';
 const profiling=process.env.BRAWL_FRAME_PROFILE==='1';
+const crowded=process.env.BRAWL_BOSS_CROWD==='120';
+if(process.env.BRAWL_BOSS_CROWD&&!crowded)throw Error('BRAWL_BOSS_CROWD must be 120 or unset');
 const percentile=(values,p)=>{const sorted=[...values].sort((a,b)=>a-b);return sorted[Math.ceil(sorted.length*p)-1]??null;};
 for(let sample=1;sample<=(smoke||profiling?1:3);sample++)test('crowded boss frame sample '+sample,async({page,context,browser},info)=>{
  const report={sample,startedAt:new Date().toISOString(),smoke,profiling,revision:git('rev-parse','HEAD'),trackedDiffSHA256:crypto.createHash('sha256').update(git('diff','HEAD','--binary')).digest('hex'),dirtyFiles:git('status','--short'),
   host:{platform:os.platform(),release:os.release(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalRAM:os.totalmem(),freeRAM:os.freemem()},browser:browser.version(),
   profile:{viewport:{width:1280,height:900},dpr:1,cpuSlowdown:4,preset:'lowPower',headless:true,physicalMinimumDevice:false},
-  server:'fresh managed go test -tags=e2e fixture; production simulation, in-memory synthetic character',scenario:'/abyss/rift?scenario=visual&seed=boss-frames-v1&level=100&room=2&subclass=bloodblade&riftFrameDebug=1',
+  server:'fresh managed go test -tags=e2e fixture; production simulation, in-memory synthetic character',scenario:'/abyss/rift?scenario=visual&seed=boss-frames-v1&level=100&room=2&subclass=bloodblade&riftFrameDebug=1'+(crowded?'&crowd=120':''),
   thresholds:{intervalP95:50,intervalP99:100,renderP95:16},errors:[],gate:'unmeasured'};
  const output=info.outputPath('frame-report.json');fs.mkdirSync(path.dirname(output),{recursive:true});
  const save=()=>fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
@@ -28,6 +30,8 @@ for(let sample=1;sample<=(smoke||profiling?1:3);sample++)test('crowded boss fram
   await page.locator('#rift-auto').uncheck();await page.locator('.rift-settings > summary').click();await page.locator('#rift-display-preset').selectOption('lowPower');await page.locator('#rift-apply-preset').click();await page.locator('.rift-settings > summary').click();
   await page.evaluate(()=>RiftRenderer.ready);await page.waitForTimeout(5000);
   const initial=await read();expect(initial.level.id).toBe(100);expect(initial.room).toBe(2);expect(initial.enemies.some(e=>e.kind==='boss')).toBe(true);
+  if(crowded)expect(initial.enemies).toHaveLength(120);
+  report.workload=crowded?'live synthetic crowd120 boss stress':'authored mission100 boss';
   report.initial={enemyCount:initial.enemies.length,bosses:initial.enemies.filter(e=>e.kind==='boss').map(e=>e.name),class:initial.build.class,replaySeed:initial.replay_seed};
   report.settings=await page.evaluate(()=>({display:JSON.parse(localStorage.getItem('riftDisplay')),visibility:document.visibilityState}));expect(report.settings.display.fps).toBe(30);
   await page.evaluate(()=>{
@@ -58,7 +62,7 @@ for(let sample=1;sample<=(smoke||profiling?1:3);sample++)test('crowded boss fram
   const c=report.capture;report.durationMS=c.ended-c.started;report.termination=c.status||'sampling deadline';report.summary={frames:c.samples.length,intervalP95:percentile(c.samples.map(s=>s.interval),.95),intervalP99:percentile(c.samples.map(s=>s.interval),.99),renderP95:percentile(c.samples.map(s=>s.render),.95)};
   expect(c.started).not.toBeNull();expect(c.samples.length).toBeGreaterThan(0);expect(c.hidden).toBe(false);expect(c.contextLost).toBe(false);
   const s=report.summary;report.gate=profiling?'unmeasured (profiling instrumentation)':smoke?'unmeasured (smoke only)':report.errors.length||s.intervalP95>50||s.intervalP99>100||s.renderP95>16?'fail':'development profile pass only';
-  report.scope='Completed RAF intervals and synchronous canvas submission, not GPU presentation or physical target hardware. Fixture-selected final tier; no artificial crowd or health inflation.';
+  report.scope='Completed RAF intervals and synchronous canvas submission, not GPU presentation or physical target hardware. '+(crowded?'Synthetic 120-monster population in final-tier arena; normal simulation and keyboard controls, no health inflation.':'Fixture-selected final tier; no artificial crowd or health inflation.');
   console.log(JSON.stringify({sample,durationMS:report.durationMS,final:report.final,peaks:{enemies:c.enemyPeak,projectiles:c.projectilePeak},...s,gate:report.gate}));
  }catch(error){report.gate='invalid capture';report.failure=error.message;throw error;}finally{await controls(new Set());save();}
 });

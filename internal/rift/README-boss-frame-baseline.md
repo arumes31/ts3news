@@ -114,3 +114,40 @@ Collection passed in1.9minutes. Local pixel/eviction and atlas integration evide
 is under atlas-cache-final,atlas-cache-regressions and atlas-cache-bounds-final.
 The exhaustive actor/scene probes now prepare both lazy hero sheets before direct
 render calls; unchanged coverage assertions pass for124monsters/32rigs and300scenes.
+
+## Live synthetic crowded-boss measurement (2026-10-01)
+
+The new BRAWL_BOSS_CROWD=120 harness option resumes the existing120-monster
+fixture in mission100 tier3. Normal keyboard movement, jump, attack and signature
+skills drive production simulation. It begins with14 bosses; this population is
+a synthetic stress workload, not the authored mission's population. Health and
+damage are not inflated. The ordinary authored encounter remains the default.
+
+Three full foreground captures completed at frozen e225c352 plus tracked diff
+4fff54f9f40240bf04422b0eeac46afe258275d117dae20b0012e0973451f8cd.
+The diff includes the measurement option and preserved user Go changes. No runtime
+source changed during collection. The five-second smoke is excluded below.
+
+| Sample | Wall duration | Frames | Interval p95 | Interval p99 | Render p95 | Simulation seconds |
+| --- | --- | --- | --- | --- | --- | --- |
+|1|60.827s|223|600.0ms|1199.9ms|281.3ms|8.0|
+|2|62.612s|198|666.6ms|1299.9ms|362.0ms|7.0|
+|3|60.968s|182|916.6ms|1499.9ms|432.7ms|6.6|
+
+Every sample peaks at120 living enemies and one projectile, remains fighting at
+the deadline and fails all three frame thresholds. Runtime errors, hidden time
+and context loss are zero. Frame timing coverage is validated by the evidence
+exporter; its eight regression tests pass. The simulation advances only6.6-8.0
+seconds during each minute of wall time. This exposes severe live workload stalls
+and limits coverage of later boss phases and projectile-heavy play. Do not describe
+these captures as a minute of simulated combat or physical-device verification.
+
+Ledger0997 (measure frame stability during a crowded boss encounter) is complete
+as a measurement deliverable. The measured failure and broader performance gate
+remain open. This supplements rather than replaces the authored boss baseline.
+The collection process exited successfully in4.4minutes; that is not a gate pass.
+
+[Safe numeric evidence](../../tests/performance/baselines/boss-live-crowd-2026-10-01.json)
+retains source hashes, durations and population/clock counts. Raw reports and the
+source patch remain local under test-results/boss-live-crowd-full-20261001.
+Reproduce with BRAWL_BOSS_CROWD=120 and the existing boss performance config.

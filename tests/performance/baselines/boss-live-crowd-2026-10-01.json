@@ -1,0 +1,95 @@
+{
+  "schema": "brawl-frame-evidence-v1",
+  "workload": "live synthetic crowd120 boss stress",
+  "status": "failed",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "thresholds": {
+    "intervalP95": 50,
+    "intervalP99": 100,
+    "renderP95": 16
+  },
+  "scope": "Three full foreground development captures of synthetic 120-monster population in mission100 final-tier arena using normal simulation and keyboard controls. Not authored population, physical hardware or GPU presentation evidence.",
+  "samples": [
+    {
+      "sample": 1,
+      "source": {
+        "revision": "e225c3524067902fcce5cdd6373094db19017e4a",
+        "trackedDiffSHA256": "4fff54f9f40240bf04422b0eeac46afe258275d117dae20b0012e0973451f8cd",
+        "rendererSHA256": null
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 60826.80000001192,
+      "runtimeErrors": 0,
+      "frames": 223,
+      "intervalP95": 600,
+      "intervalP99": 1199.9000000000015,
+      "renderP95": 281.30000001192093,
+      "outcome": null,
+      "enemyPeak": 120,
+      "projectilePeak": 1
+    },
+    {
+      "sample": 2,
+      "source": {
+        "revision": "e225c3524067902fcce5cdd6373094db19017e4a",
+        "trackedDiffSHA256": "4fff54f9f40240bf04422b0eeac46afe258275d117dae20b0012e0973451f8cd",
+        "rendererSHA256": null
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 62612.10000002384,
+      "runtimeErrors": 0,
+      "frames": 198,
+      "intervalP95": 666.5999999999985,
+      "intervalP99": 1299.9000000000015,
+      "renderP95": 362,
+      "outcome": null,
+      "enemyPeak": 120,
+      "projectilePeak": 1
+    },
+    {
+      "sample": 3,
+      "source": {
+        "revision": "e225c3524067902fcce5cdd6373094db19017e4a",
+        "trackedDiffSHA256": "4fff54f9f40240bf04422b0eeac46afe258275d117dae20b0012e0973451f8cd",
+        "rendererSHA256": null
+      },
+      "status": "threshold_failure",
+      "numericStatus": "threshold_failure",
+      "durationMS": 60968.40000003576,
+      "runtimeErrors": 0,
+      "frames": 182,
+      "intervalP95": 916.6000000000058,
+      "intervalP99": 1499.8999999999942,
+      "renderP95": 432.69999998807907,
+      "outcome": null,
+      "enemyPeak": 120,
+      "projectilePeak": 1
+    }
+  ],
+  "scenarioCounts": [
+    {
+      "sample": 1,
+      "initialEnemies": 120,
+      "initialBosses": 14,
+      "simulationSeconds": 7.999999999999981,
+      "stillFighting": true
+    },
+    {
+      "sample": 2,
+      "initialEnemies": 120,
+      "initialBosses": 14,
+      "simulationSeconds": 6.999999999999985,
+      "stillFighting": true
+    },
+    {
+      "sample": 3,
+      "initialEnemies": 120,
+      "initialBosses": 14,
+      "simulationSeconds": 6.599999999999986,
+      "stillFighting": true
+    }
+  ]
+}

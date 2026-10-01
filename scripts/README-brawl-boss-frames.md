@@ -38,3 +38,13 @@ Run `python scripts/analyze-brawl-cpu-profile.py <path-to-boss.cpuprofile>` to
 produce weighted self/inclusive timings. They describe sampled main-thread time,
 not GPU presentation. Native canvas calls may include queued rasterization work;
 large restore timings do not alone prove that state restoration is the cause.
+
+## Live crowded stress variant
+
+Set BRAWL_BOSS_CROWD=120 to use the existing synthetic120-monster fixture in the
+mission100 final-tier arena. The harness requires120 initial enemies and at least
+one boss, resumes the normal simulation and drives the same keyboard controls.
+This supplements the authored encounter; it does not establish that an authored
+mission spawns120 enemies. Enemy/projectile peaks and early defeat remain visible.
+Remove the variable for the authored mission. Other nonempty values are rejected.
+Use a separate output directory to preserve earlier measurements.
