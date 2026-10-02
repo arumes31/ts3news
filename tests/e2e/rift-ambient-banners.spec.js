@@ -12,10 +12,10 @@ for(const reduced of [false,true])test('rear regional banners stay outside comba
   ctx.fillRect=function(x,y,w,h){if(this.fillStyle==='#091914'&&w===960&&h===540){bannerBrackets=[];bannerVertices=[];}if(this.fillStyle==='#797366'&&w===56&&h===6)bannerBrackets.push({x,y,w,h});return fill.call(this,x,y,w,h);};
   ctx.lineTo=function(x,y){if(colors.includes(this.fillStyle))bannerVertices.push([x,y]);return line.call(this,x,y);};
   const sheet=document.createElement('canvas');sheet.id='banner-sheet';sheet.style.position='relative';sheet.style.zIndex='100000';sheet.style.background='#091914';sheet.width=600;sheet.height=700;document.body.append(sheet);
-  document.querySelector('#rift-overlay').hidden=true;RiftRenderer.snapshot(run,true);
+  document.querySelector('#rift-overlay').hidden=true;await RiftRenderer.prepareRun(run);RiftRenderer.snapshot(run,true);
  },{...data,reduced});
  for(let region=0;region<10;region++){
-  const before=await page.evaluate(region=>{bannerRun.level=structuredClone(bannerLevels[region*10]);RiftRenderer.snapshot(bannerRun,true);return {level:JSON.stringify(bannerRun.level),frame:RiftRenderer.frameCount};},region);
+  const before=await page.evaluate(async region=>{bannerRun.level=structuredClone(bannerLevels[region*10]);await RiftRenderer.prepareRun(bannerRun);RiftRenderer.snapshot(bannerRun,true);return {level:JSON.stringify(bannerRun.level),frame:RiftRenderer.frameCount};},region);
   await expect.poll(()=>page.evaluate(()=>RiftRenderer.frameCount)).toBeGreaterThan(before.frame);
   await expect.poll(()=>page.evaluate(()=>bannerBrackets.length)).toBe(2);
   const geometry=await page.evaluate(()=>({brackets:bannerBrackets,vertices:bannerVertices,level:JSON.stringify(bannerRun.level)}));
@@ -26,13 +26,13 @@ for(const reduced of [false,true])test('rear regional banners stay outside comba
  await page.locator('#banner-sheet').screenshot({path:info.outputPath('regional-banners.png')});
  await page.locator('#rift-canvas').screenshot({path:info.outputPath('rear-banners-scene.png')});
  const frozen=await page.evaluate(()=>JSON.stringify(bannerVertices));await page.waitForTimeout(250);expect(await page.evaluate(()=>JSON.stringify(bannerVertices))).toBe(frozen);
- await page.evaluate(()=>{bannerRun.paused=false;RiftRenderer.snapshot(bannerRun,true);});await page.waitForTimeout(150);
+ await page.evaluate(async ()=>{bannerRun.paused=false;await RiftRenderer.prepareRun(bannerRun);RiftRenderer.snapshot(bannerRun,true);});await page.waitForTimeout(150);
  const moving=await page.evaluate(()=>JSON.stringify(bannerVertices));await page.waitForTimeout(250);
  if(reduced)expect(await page.evaluate(()=>JSON.stringify(bannerVertices))).toBe(moving);else expect(await page.evaluate(()=>JSON.stringify(bannerVertices))).not.toBe(moving);
  await page.evaluate(()=>{RiftDisplay.motionIntensity=0;});await page.waitForTimeout(100);
  const still=await page.evaluate(()=>JSON.stringify(bannerVertices));await page.waitForTimeout(200);expect(await page.evaluate(()=>JSON.stringify(bannerVertices))).toBe(still);
- await page.evaluate(()=>{bannerRun.paused=true;bannerRun.player.x=1500;RiftRenderer.snapshot(bannerRun,true);});
+ await page.evaluate(async ()=>{bannerRun.paused=true;bannerRun.player.x=1500;await RiftRenderer.prepareRun(bannerRun);RiftRenderer.snapshot(bannerRun,true);});
  await expect.poll(()=>page.evaluate(()=>bannerBrackets.length)).toBe(2);expect(await page.evaluate(()=>bannerBrackets.every(b=>b.x+56>=0&&b.x<=960))).toBe(true);
- await page.evaluate(()=>{bannerRun.practice={mode:'movement',arena:{}};RiftRenderer.snapshot(bannerRun,true);});await page.waitForTimeout(100);expect(await page.evaluate(()=>bannerBrackets)).toEqual([]);
+ await page.evaluate(async ()=>{bannerRun.practice={mode:'movement',arena:{}};await RiftRenderer.prepareRun(bannerRun);RiftRenderer.snapshot(bannerRun,true);});await page.waitForTimeout(100);expect(await page.evaluate(()=>bannerBrackets)).toEqual([]);
  expect(errors).toEqual([]);
 });

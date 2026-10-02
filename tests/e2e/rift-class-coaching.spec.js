@@ -15,7 +15,7 @@ test('finisher statistics display and class coaching stays dismissed after reloa
 });
 
 test('real empty and charged finishers update persisted sequence counters',async({page})=>{
-  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   await page.keyboard.press('e');await expect.poll(async()=>(await read()).stats.empty_finishers).toBe(1);
   await page.waitForTimeout(400);await page.keyboard.press('q');await expect.poll(async()=>(await read()).resource).toBe(1);

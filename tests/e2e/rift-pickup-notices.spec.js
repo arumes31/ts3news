@@ -12,7 +12,7 @@ test('gold and gear pickups have separate notices without replay announcements',
 });
 
 test('defeat explains lost floor and bag drops and shows retained rewards',async({page})=>{
- await page.route('**/api/abyss/rift',async route=>{const response=await route.fetch();const data=await response.json();if(data.run){data.run.status='defeated';data.run.player.hp=0;data.run.gold=0;data.run.drops=[];data.run.banked_gold=120;data.run.banked_items=['Saved Blade'];}await route.fulfill({response,json:data});});
+ await page.route('**/api/abyss/rift*',async route=>{const response=await route.fetch();const data=await response.json();if(data.run){data.run.status='defeated';data.run.player.hp=0;data.run.gold=0;data.run.drops=[];data.run.banked_gold=120;data.run.banked_items=['Saved Blade'];data.hazard_hit_damage=0;}await route.fulfill({response,json:data});});
  await page.goto('/abyss/rift?scenario=checkpoint');
  await expect(page.locator('#rift-overlay-copy')).toContainText('collected bag items and uncollected floor drops');await expect(page.locator('#rift-overlay-copy')).toContainText('Kept: 120 gold and 1 banked item');await expect(page.locator('#rift-overlay-copy')).toContainText('equipped gear is safe');
  await expect(page.locator('#rift-receipt-total')).toContainText('120 gold · 1 item safely banked');

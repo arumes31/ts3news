@@ -22,7 +22,7 @@ for(const reduced of [false,true])test((reduced?'reduced motion: ':'')+'bridge r
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
  const recovered=await saved();expect(recovered.level.rooms[0].bridges).toEqual(paused.level.rooms[0].bridges);expect(recovered.player.x).toBe(paused.player.x);expect(recovered.player.y).toBe(paused.player.y);
- await page.locator('#rift-start').click();await hold('d',()=>expect.poll(async()=>(await saved()).player.x).toBeGreaterThan(630));expect(errors).toEqual([]);
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await hold('d',()=>expect.poll(async()=>(await saved()).player.x).toBeGreaterThan(630));expect(errors).toEqual([]);
 });
 
 test('campaign bridge preview explains the walkable deck',async({page})=>{

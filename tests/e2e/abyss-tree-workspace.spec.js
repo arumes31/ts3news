@@ -213,6 +213,9 @@ test.describe('coarse pointer graph input', () => {
     await tapExpandedTarget(page, hit);
     await expect(page.locator('#treeInspectorTitle')).toHaveText(node.name);
     expect(api.writes).toEqual([]);
+    if (await page.locator('#treeInspectorReturn').isVisible()) {
+      await page.locator('#treeInspectorReturn').tap();
+    }
     await page.locator('#treePlanToggle').tap();
     await tapExpandedTarget(page, hit);
     await expect(page.locator('#treePlanPlannedCount')).toHaveText('1');

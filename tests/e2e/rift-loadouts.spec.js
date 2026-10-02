@@ -4,7 +4,7 @@ test('loadout shortcut opens the reference, ignores typing, and confirms combat 
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
   await page.locator('#rift-loadout-name').focus();await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-skill-glossary')).not.toHaveAttribute('open','');
   await page.locator('#rift-canvas').focus();await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-glossary-search')).toBeFocused();
-  await page.locator('#rift-skill-glossary > summary').click();await page.locator('#rift-start').click();
+  await page.locator('#rift-skill-glossary > summary').click();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   await page.keyboard.press('Alt+Shift+KeyL');await expect(page.locator('#rift-glossary-search')).toBeFocused();
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.paused).toBe(true);
   await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
@@ -34,7 +34,7 @@ test('direct slot swaps preserve skills, save their order and lock during expedi
   await page.locator('#rift-loadout-name').fill('Swap test');await page.locator('#rift-save-loadout').click();
   await swap.click();await page.locator('#rift-apply-loadout').click();expect(await values()).toEqual(['bash','spark','guard']);
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');await expect(swap).toBeDisabled();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');await expect(swap).toBeDisabled();
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.build.skills.map(skill=>skill.id)).toEqual(['bash','spark','guard']);
 });
 
@@ -52,7 +52,7 @@ test('preset transfer rejects invalid skills and imports owned slots for review 
   await expect(page.locator('#rift-loadout-review')).toContainText('Iron Guard → Cinder Bolt');
   await page.locator('#rift-apply-loadout').click();expect(await values()).toEqual(preset.skills);
   await page.locator('#rift-export-loadout').click();expect(JSON.parse(await page.locator('#rift-preset-json').inputValue())).toEqual(preset);
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');await expect(page.locator('#rift-import-loadout')).toBeDisabled();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');await expect(page.locator('#rift-import-loadout')).toBeDisabled();
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.build.skills.map(skill=>skill.id)).toEqual(preset.skills);
 });
 
@@ -90,7 +90,7 @@ test('unavailable and duplicate skills cannot apply and active expeditions lock 
   await page.locator('#rift-preset-list').selectOption('missing');await expect(page.locator('#rift-loadout-review')).toContainText('Unavailable skill: removed_skill');await expect(page.locator('#rift-apply-loadout')).toBeDisabled();
   await page.locator('#rift-preset-list').selectOption('duplicate');await expect(page.locator('#rift-apply-loadout')).toBeDisabled();
   await page.locator('#rift-preset-list').selectOption('owned');await expect(page.locator('#rift-apply-loadout')).toBeEnabled();
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await expect(page.locator('#rift-apply-loadout')).toBeDisabled();await expect(page.locator('#rift-save-loadout')).toBeDisabled();
   const before=(await(await page.request.get('/api/abyss/rift')).json()).run.build.skills;
   await page.locator('#rift-apply-loadout').evaluate(button=>button.click());

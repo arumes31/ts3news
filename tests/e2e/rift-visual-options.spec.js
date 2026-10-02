@@ -24,16 +24,16 @@ test('live system reduced motion is followed until explicitly overridden and can
 
 test('hiding hazard labels retains warning outlines and static damage retains its value',async({page})=>{
   await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
   const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
-  await page.evaluate(run=>{
+  await page.evaluate(async run=>{
     run.clock=0;run.paused=false;run.enemies=[];run.projectiles=[];run.drops=[];run.level.rooms[0].hazards=[{kind:'fire',x:300,y:300,w:80,h:50,offset:0,period:5,duration:2}];run.events=[{id:run.counter+1,kind:'hurt',value:37,x:400,y:200}];run.counter++;
     window.RiftDisplay.cameraSmooth=false;window.RiftDisplay.damageMotion=false;window.RiftDisplay.hazardLabels=false;
     const ctx=document.getElementById('rift-canvas').getContext('2d');window.paintCalls=[];
     for(const name of ['fillText','strokeRect']){const original=ctx[name].bind(ctx);ctx[name]=(...args)=>{window.paintCalls.push([name,...args]);if(window.paintCalls.length>500)window.paintCalls.shift();return original(...args);};}
-    window.RiftRenderer.snapshot(run,false);
+    await window.RiftRenderer.prepareRun(run);window.RiftRenderer.snapshot(run,false);
   },run);
   await expect.poll(()=>page.evaluate(()=>window.paintCalls.filter(call=>call[0]==='fillText'&&call[1]==='37').length)).toBeGreaterThan(3);
-  const calls=await page.evaluate(()=>window.paintCalls);expect(calls.some(call=>call[0]==='strokeRect')).toBe(true);expect(calls.some(call=>call[1]==='FIRE')).toBe(false);expect(calls.filter(call=>call[1]==='37').every(call=>call[3]===200)).toBe(true);
-  await page.evaluate(()=>{window.RiftDisplay.hazardLabels=true;window.paintCalls=[];});await expect.poll(()=>page.evaluate(()=>window.paintCalls.some(call=>call[1]==='FIRE'))).toBe(true);
+  const calls=await page.evaluate(()=>window.paintCalls);expect(calls.some(call=>call[0]==='strokeRect')).toBe(true);expect(calls.some(call=>/^FIRE IN /.test(call[1]))).toBe(false);expect(calls.filter(call=>call[1]==='37').every(call=>call[3]===200)).toBe(true);
+  await page.evaluate(()=>{window.RiftDisplay.hazardLabels=true;window.paintCalls=[];});await expect.poll(()=>page.evaluate(()=>window.paintCalls.some(call=>/^FIRE IN /.test(call[1])))).toBe(true);
 });

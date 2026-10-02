@@ -5,7 +5,7 @@ test('cover culling preserves partial edge sprites as the camera moves',async({p
  await page.addInitScript(()=>{
   const sources=new WeakMap(),draw=CanvasRenderingContext2D.prototype.drawImage;
   CanvasRenderingContext2D.prototype.drawImage=function(image,...args){
-   const source=sources.get(image)||(/rift_terrain_cover/.test(image.src||'')?'terrain':/rift_props/.test(image.src||'')?'prop':null);
+   const source=sources.get(image)||(/rift_terrain_cover/.test(image.src||'')?'terrain':/rift_prop(?:s|_[0-9])/.test(image.src||'')?'prop':null);
    if(source){
     if(this.canvas.id==='rift-canvas'){
      if(window.coverOpacity){coverOpacity.push(this.globalAlpha);if(coverOpacity.length>20)coverOpacity.shift();}
@@ -25,7 +25,7 @@ test('cover culling preserves partial edge sprites as the camera moves',async({p
 
  },run);
  for(const camera of [0,640]){
-  await page.evaluate(camera=>{window.coverRun.player.x=camera===0?160:1400;window.RiftRenderer.snapshot(structuredClone(window.coverRun),true);window.coverDraws.clear();},camera);
+  await page.evaluate(async camera=>{window.coverRun.player.x=camera===0?160:1400;await window.RiftRenderer.prepareRun(structuredClone(window.coverRun));window.RiftRenderer.snapshot(structuredClone(window.coverRun),true);window.coverDraws.clear();},camera);
   await expect.poll(()=>page.evaluate(()=>window.coverDraws.size)).toBeGreaterThan(0);
   const expected=[];
   for(const worldX of camera===0?[-20,300,940]:[940,1200,1580]){

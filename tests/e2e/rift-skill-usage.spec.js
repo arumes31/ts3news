@@ -9,7 +9,7 @@ test('protocol accepts skill count maps and rejects malformed per-skill counts',
 });
 
 test('skill usage displays confirmed casts and survives reload',async({page})=>{
-  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   await page.keyboard.press('1');
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   await expect.poll(async()=>(await read()).stats.skill_uses?.guard||0).toBe(1);await page.keyboard.press('Escape');

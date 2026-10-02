@@ -60,6 +60,7 @@ test.describe('Proposal 0157: Accessible summary of the last encounter', () => {
       if (data.run) {
         data.run.status = 'defeated';
         data.run.player.hp = 0;
+        data.hazard_hit_damage = 0;
         data.run.last_encounter = {
           mission: 1,
           mission_name: 'Mossbound Ruins',
@@ -105,6 +106,7 @@ test.describe('Proposal 0157: Accessible summary of the last encounter', () => {
 
   test('result action button jumps to and focuses last encounter summary', async ({page}) => {
     await page.goto('/abyss/rift?scenario=checkpoint');
+    await expect(page.locator('#rift-start')).toBeEnabled();
     await page.evaluate(() => {
       const actions = document.getElementById('rift-result-actions');
       if (actions) actions.hidden = false;

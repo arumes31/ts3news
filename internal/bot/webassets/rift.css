@@ -957,9 +957,11 @@
 }
 .rift-touch-layout-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
 .rift-touch-layout-setting label { display: flex; align-items: center; gap: 6px; }
+/* Checkpoint actions retain their target size when input devices change. */
+#rift-app .rift-room-actions button { min-height: 44px; }
 @media (any-pointer: coarse) {
   #rift-app .rift-touch-layout-setting :is(select, button, input) { min-height: 48px; }
-  #rift-app .rift-touch button { min-width: 56px; min-height: 56px; font-size: 22px; }
+  #rift-app .rift-touch button { min-width: 56px !important; min-height: 56px !important; font-size: 22px; }
 }
 
 /* Short viewports must allow the entire recovery message and action to be reached. */

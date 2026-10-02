@@ -6,9 +6,9 @@ test('pending and failed optional thumbnails never block first play',async({page
  const held=[],errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(()=>{window.optionalPreviewURL=src=>{const url=new URL(src,location.href);url.searchParams.set('optionalPreview','1');return url.href;};});
  await page.route('**/static/rift.js*',async route=>{
-  const response=await route.fetch(),source=await response.text(),anchor="art.style.backgroundImage='url(\"'+root.dataset.regions+'\")'";
+  const response=await route.fetch(),source=await response.text(),anchor="art.dataset.regionArt=window.RiftRegionSections.regions[level.region].url;";
   expect(source.split(anchor)).toHaveLength(2);
-  await route.fulfill({response,body:source.replace(anchor,"art.style.backgroundImage='url(\"'+window.optionalPreviewURL(root.dataset.regions)+'\")'")});
+  await route.fulfill({response,body:source.replace(anchor,"art.dataset.regionArt=window.optionalPreviewURL(window.RiftRegionSections.regions[level.region].url);")});
  });
  await page.route('**/static/rift_bestiary.js*',async route=>{
   const response=await route.fetch(),source=await response.text();
@@ -19,10 +19,13 @@ test('pending and failed optional thumbnails never block first play',async({page
  try{
   await page.goto('/abyss/rift',{waitUntil:'domcontentloaded'});
   await expect(page.locator('#rift-start')).toBeEnabled();
+  await page.locator('#rift-campaign').evaluate(node=>{node.open=true;});
+  await page.locator('#rift-campaign [data-region-art]').first().scrollIntoViewIfNeeded();
   await expect.poll(()=>held.length).toBeGreaterThan(0);
   await expect(page.locator('#rift-monsters article')).toHaveCount(0);
   await page.locator('#rift-monsters').evaluate(node=>{node.closest('details').open=true;});
   await expect.poll(()=>page.locator('#rift-monsters article').count()).toBeGreaterThan(100);
+  await page.locator('#rift-monsters article').first().scrollIntoViewIfNeeded();
   await expect.poll(()=>held.length).toBeGreaterThan(1);
   await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const frame=await page.evaluate(()=>window.RiftRenderer.frameCount);

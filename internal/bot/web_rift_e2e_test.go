@@ -464,7 +464,7 @@ func registerRiftFixture(mux *http.ServeMux, server *WebServer) {
 					e.X, e.Y = 400+float64(n)*180, 330
 					e.HP, e.MaxHP = selectedBuild.Damage*3, selectedBuild.Damage*3
 					e.Armor = 0
-					e.Knockdown = 100
+					e.Speed = 0.0001
 				} else {
 					e.HP = 0
 				}

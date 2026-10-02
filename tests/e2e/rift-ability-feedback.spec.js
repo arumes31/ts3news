@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 test('ability roles and cooldowns have visual and accessible feedback',async({page})=>{
-  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+  await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const guard=page.locator('#rift-skills button').first();
   await page.keyboard.press('1');await expect(guard).toHaveAccessibleName(/Iron Guard · [\d.]+ seconds cooldown/);
   await expect(guard.locator('.rift-cooldown-ring')).toBeVisible();

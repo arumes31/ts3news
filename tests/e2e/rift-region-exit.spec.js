@@ -11,14 +11,14 @@ test('all regional exit markers follow frozen coordinates',async({page},info)=>{
  },data);
  const positions=[];
  for(let region=0;region<10;region++){
-  const exit=await page.evaluate(region=>{exitRun.level=structuredClone(exitLevels[region*10]);const e=exitRun.level.rooms[0].exit;exitRun.player.x=e.x;exitRun.player.y=e.y;exitLabels=[];RiftRenderer.snapshot(exitRun,true);RiftMinimap.update(exitRun);return e;},region);
+  const exit=await page.evaluate(async region=>{exitRun.level=structuredClone(exitLevels[region*10]);const e=exitRun.level.rooms[0].exit;exitRun.player.x=e.x;exitRun.player.y=e.y;exitLabels=[];await RiftRenderer.prepareRun(exitRun);RiftRenderer.snapshot(exitRun,true);RiftMinimap.update(exitRun);return e;},region);
   await expect.poll(()=>page.evaluate(()=>exitLabels.length>0)).toBe(true);positions.push([exit.x,exit.y]);
   await expect(page.locator('#rift-minimap [data-kind=exit]')).toHaveAttribute('x',String(Math.round((exit.x-10)*2)/10));
   await expect(page.locator('#rift-minimap [data-kind=exit]')).toHaveAttribute('width','4');
  }
  expect(new Set(positions.map(JSON.stringify)).size).toBe(10);
- await page.evaluate(()=>{exitRun.status='cleared';exitLabels=[];RiftRenderer.snapshot(exitRun,true);});
+ await page.evaluate(async ()=>{exitRun.status='cleared';exitLabels=[];await RiftRenderer.prepareRun(exitRun);RiftRenderer.snapshot(exitRun,true);});
  await expect.poll(()=>page.evaluate(()=>exitLabels.length>0)).toBe(true);
  await page.waitForTimeout(150);await page.locator('#rift-canvas').screenshot({path:info.outputPath('region-exit.png')});
- await page.evaluate(()=>{delete exitRun.level.rooms[0].exit;exitLabels=[];RiftRenderer.snapshot(exitRun,true);RiftMinimap.update(exitRun);});await page.waitForTimeout(120);expect(await page.evaluate(()=>exitLabels)).toEqual([]);await expect(page.locator('#rift-minimap [data-kind=exit]')).toHaveCount(0);expect(errors).toEqual([]);
+ await page.evaluate(async ()=>{delete exitRun.level.rooms[0].exit;exitLabels=[];await RiftRenderer.prepareRun(exitRun);RiftRenderer.snapshot(exitRun,true);RiftMinimap.update(exitRun);});await page.waitForTimeout(120);expect(await page.evaluate(()=>exitLabels)).toEqual([]);await expect(page.locator('#rift-minimap [data-kind=exit]')).toHaveCount(0);expect(errors).toEqual([]);
 });

@@ -35,7 +35,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
     await page.locator('#rift-directional-threat-captions').check();
 
     // Start expedition and pause to set up simulation
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
 
     // Dispatch simulated events: one off-screen left, one off-screen right, one on-screen
@@ -80,7 +80,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
     await settings.locator('> summary').click();
     await page.locator('#rift-directional-threat-captions').check();
 
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
 
     // Simulate run with enemies off-screen left and right
@@ -120,7 +120,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
     await page.locator('#rift-combat-captions').check();
     await page.locator('#rift-directional-threat-captions').uncheck();
 
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
 
     await page.evaluate(() => {

@@ -936,7 +936,7 @@
   }
   // Capture drawing state now; draw instructions after world sprites and effects.
   function interactionPrompt(text,x,y,backplate=false){
-    if(display.cleanScreenshot||!textInView(text,x))return;
+    if(display.cleanScreenshot||(!backplate&&!textInView(text,x)))return;
     if(!interactionPrompts){ctx.strokeText(text,x,y);ctx.fillText(text,x,y);return;}
     interactionPrompts.push({text,x,y,backplate,transform:ctx.getTransform(),font:ctx.font,align:ctx.textAlign,baseline:ctx.textBaseline,fill:ctx.fillStyle,stroke:ctx.strokeStyle,width:ctx.lineWidth,alpha:ctx.globalAlpha});
   }
@@ -1376,8 +1376,11 @@
   }
   function renderFrame(now){
     const frameRate=!snapshot&&display.fps===30?15:display.fps;
-    const region = (snapshot && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level?.region : undefined) ?? previewLevel?.region ?? 0;
-    const background = region !== undefined ? regionImages.get(region) : snapshot?.room===2 ? images.boss : images.area;
+    const region = snapshot && ['fighting','cleared'].includes(snapshot.status) ? snapshot.level?.region : previewLevel?.region;
+    if (region !== undefined && !regionImages.has(region) && !regionLoads.has(region) && !regionRetries.has(region)) {
+      prepareRegionBackground(region).catch(() => {});
+    }
+    const background = (region !== undefined ? (regionImages.get(region) || regionImages.get(0)) : null) || (snapshot?.room===2 ? images.boss : images.area);
     if (!background || !atlasProgress.ready || document.hidden || !ctx || now-last<1000/frameRate-1) return;
     adaptParticles(last?now-last:0,frameRate);
     renderer.frameCount++;
@@ -2190,7 +2193,7 @@
           const armed=run.status==='fighting'&&c.blast_fuse>0,spent=c.hp<=0&&!armed,index=spent?2:armed||c.hp<=c.max_hp/2?1:0;
           const width=c.w+32,height=width*440/600,x=c.x+c.w/2-camera-width/2,y=c.y+c.h-height;
           const opacity=spent?1:foregroundCoverOpacity(c.x+c.w/2-width/2,y,width,height,c.y+c.h);
-          ctx.save();ctx.globalAlpha=opacity;drawAtlas(images.volatileCover,index*724+64,200,600,440,x,y,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
+          ctx.save();ctx.globalAlpha=opacity;if(images.volatileCover)drawAtlas(images.volatileCover,index*724+64,200,600,440,x,y,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
           if(!display.cleanScreenshot&&!spent){ctx.save();ctx.font='bold '+(10*display.textScale/(armed?terrainViewportScale:1))+'px monospace';ctx.textAlign='center';ctx.fillStyle='#ffd29a';ctx.strokeStyle='#29170c';ctx.lineWidth=3;interactionPrompt(armed?c.blast_fuse.toFixed(1)+'s':'VOLATILE',c.x+c.w/2-camera,y-8,true);ctx.restore();}
           return;
         }
@@ -2200,7 +2203,7 @@
         ctx.fillStyle='#03110a70';ctx.beginPath();ctx.ellipse(c.x+c.w/2-camera,c.y+c.h-2,c.w*.56,7,0,0,Math.PI*2);ctx.fill();
         const opacity=broken?1:foregroundCoverOpacity(c.x-6,c.y+c.h-height,width,height,c.y+c.h);
         ctx.save();ctx.globalAlpha=opacity;
-        ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
+        if(images.terrainCover)ctx.drawImage(images.terrainCover,...frame,c.x-6-camera,c.y+c.h-height,width,height);ctx.restore();fadedCoverFootprint(c,opacity,true);
         if(c.shortcut&&!display.cleanScreenshot){ctx.save();ctx.font='bold '+(10*display.textScale)+'px monospace';ctx.textAlign='center';ctx.fillStyle=broken?'#c4edbd':'#f5e4c3';ctx.strokeStyle='#13261c';ctx.lineWidth=3;interactionPrompt(broken?'SHORTCUT OPEN':'BREAK FOR SHORTCUT',c.x+c.w/2-camera,c.y+c.h+17,true);ctx.restore();}
         if(!display.cleanScreenshot&&!broken){const dx=c.x+c.w/2-run.player.x,dy=c.y+c.h/2-run.player.y,targeted=Math.abs(dx)<150&&Math.abs(dy)<65&&dx*run.player.facing>=-8;if(targeted){ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#f5e4c3';ctx.strokeStyle='#201a14';ctx.lineWidth=3;const label=c.material==='stone'?'STONE · PERMANENT':'WOOD '+Math.ceil(c.hp)+' / '+c.max_hp;interactionPrompt(label,c.x+c.w/2-camera,c.y+c.h-height-13);if(c.material==='wood'){ctx.fillStyle='#30241b';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w,4);ctx.fillStyle='#dca766';ctx.fillRect(c.x-camera,c.y+c.h-height-7,c.w*c.hp/c.max_hp,4);}}}
         return;

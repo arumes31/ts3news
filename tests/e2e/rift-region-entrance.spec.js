@@ -11,11 +11,11 @@ test('all regional entrance markers follow frozen coordinates',async({page},info
  },data);
  const positions=[];
  for(let region=0;region<10;region++){
-  const entry=await page.evaluate(region=>{entryRun.level=structuredClone(entryLevels[region*10]);const e=entryRun.level.rooms[0].entrance;entryRun.player.x=e.x;entryRun.player.y=e.y;entryLabels=[];RiftRenderer.snapshot(entryRun,true);RiftMinimap.update(entryRun);return e;},region);
+  const entry=await page.evaluate(async region=>{entryRun.level=structuredClone(entryLevels[region*10]);const e=entryRun.level.rooms[0].entrance;entryRun.player.x=e.x;entryRun.player.y=e.y;entryLabels=[];await RiftRenderer.prepareRun(entryRun);RiftRenderer.snapshot(entryRun,true);RiftMinimap.update(entryRun);return e;},region);
   await expect.poll(()=>page.evaluate(()=>entryLabels.length>0)).toBe(true);positions.push([entry.x,entry.y]);
   await expect(page.locator('#rift-minimap [data-kind=entry]')).toHaveAttribute('width','4');
  }
  expect(new Set(positions.map(JSON.stringify)).size).toBe(10);
  await page.locator('#rift-canvas').screenshot({path:info.outputPath('region-entry.png')});
- await page.evaluate(()=>{delete entryRun.level.rooms[0].entrance;entryLabels=[];RiftRenderer.snapshot(entryRun,true);RiftMinimap.update(entryRun);});await page.waitForTimeout(120);expect(await page.evaluate(()=>entryLabels)).toEqual([]);await expect(page.locator('#rift-minimap [data-kind=entry]')).toHaveCount(0);expect(errors).toEqual([]);
+ await page.evaluate(async ()=>{delete entryRun.level.rooms[0].entrance;entryLabels=[];await RiftRenderer.prepareRun(entryRun);RiftRenderer.snapshot(entryRun,true);RiftMinimap.update(entryRun);});await page.waitForTimeout(120);expect(await page.evaluate(()=>entryLabels)).toEqual([]);await expect(page.locator('#rift-minimap [data-kind=entry]')).toHaveCount(0);expect(errors).toEqual([]);
 });

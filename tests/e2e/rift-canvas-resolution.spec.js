@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 test('canvas stays bounded through mobile resize, large displays and DPR changes',async({page,context})=>{
- const images=[];page.on('request',request=>{if(request.resourceType()==='image')images.push(request.url());});
+ const images=[];page.on('request',request=>{if(request.resourceType()==='image'&&!/\/rift_region_[1-9]\.png/.test(request.url()))images.push(request.url());});
  await page.goto('/abyss/rift?scenario=checkpoint');
  await expect(page.locator('#rift-start')).toBeEnabled();
  await page.evaluate(async()=>{await window.RiftRenderer.ready;});

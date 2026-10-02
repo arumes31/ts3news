@@ -7,7 +7,7 @@ for(const source of ['keyboard','touch'])test('reconnect clears held '+source+' 
   if(body?.kind==='step'){inputs.push(body.input);if(fail){await route.abort();return;}}
   await route.continue();
  });
- await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();
+ await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
  let cdp;
  if(source==='keyboard'){await page.locator('#rift-canvas').focus();await page.keyboard.down('KeyA');await page.keyboard.down('KeyJ');}
  else{
@@ -19,7 +19,7 @@ for(const source of ['keyboard','touch'])test('reconnect clears held '+source+' 
  if(source==='touch')await expect(page.locator('[data-bind=attack]')).toHaveAttribute('aria-pressed','false');
  // Use a separate mouse pointer to recover while the original finger remains down.
  fail=false;await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Resume drill');
- inputs.length=0;await page.locator('#rift-start').click();
+ inputs.length=0;await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
  await expect.poll(()=>inputs.length).toBeGreaterThanOrEqual(3);
  expect(inputs.every(input=>!input.attack&&!input.guard&&!input.jump&&input.x===0&&input.y===0&&!input.skill)).toBe(true);
  if(source==='keyboard'){await page.keyboard.up('KeyA');await page.keyboard.up('KeyJ');await page.locator('#rift-canvas').focus();await page.keyboard.press('KeyJ');}

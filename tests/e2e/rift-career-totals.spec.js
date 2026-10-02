@@ -4,12 +4,12 @@ const value=(page,label)=>page.locator('#rift-career-statistics dt').filter({has
 test('career rewards include confirmed banking and survive reload and replay',async({page})=>{
  await page.goto('/abyss/rift?scenario=checkpoint&room=final');await page.locator('#rift-auto').uncheck();
  await expect(value(page,'Gold banked')).toHaveText('0');await expect(value(page,'Gear pieces banked')).toHaveText('0');
- await page.locator('#rift-start').click();await page.locator('#rift-next').click();
- await expect(value(page,'Gold banked')).toHaveText('30');await expect(value(page,'Gear pieces banked')).toHaveText('1');
- await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(value(page,'Gold banked')).toHaveText('30');
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.locator('#rift-next').click();
+ await expect(value(page,'Gold banked')).toHaveText('70');await expect(value(page,'Gear pieces banked')).toHaveText('1');
+ await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(value(page,'Gold banked')).toHaveText('70');
  await page.locator('#rift-replay').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
- const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.banked_gold).toBe(0);expect(run.banked_items).toEqual([]);expect(run.past_expeditions.gold).toBe(30);expect(run.past_expeditions.gear).toBe(1);
- await page.locator('.rift-run-statistics > summary').click();await expect(value(page,'Gold banked')).toHaveText('30');await expect(value(page,'Gear pieces banked')).toHaveText('1');
+ const run=(await(await page.request.get('/api/abyss/rift')).json()).run;expect(run.banked_gold).toBe(0);expect(run.banked_items).toEqual([]);expect(run.past_expeditions.gold).toBe(70);expect(run.past_expeditions.gear).toBe(1);
+ await page.locator('.rift-run-statistics > summary').click();await expect(value(page,'Gold banked')).toHaveText('70');await expect(value(page,'Gear pieces banked')).toHaveText('1');
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 

@@ -5,10 +5,12 @@ test('depth order is reused until crossing or stable tie order changes',async({p
  await page.route('**/static/rift_renderer.js*',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.resolve(__dirname,'../../internal/bot/webassets/rift_renderer.js'),'utf8')}));
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();await page.waitForFunction(()=>window.renderProbe);
  const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
- const result=await page.evaluate(run=>{
-  run.id='depth-order';run.paused=true;run.events=[];run.room_objective=null;run.room=0;run.player.y=400;
+ const result=await page.evaluate(async run=>{
+  run.id='depth-order';run.paused=true;run.events=[];run.drops=[];run.room_objective=null;run.room=0;run.player.y=400;
   Object.assign(run.level.rooms[0],{obstacles:[],cover:[],high_cover:[]});
   run.enemies=[350,450].map((y,i)=>({id:'probe'+i,name:'Probe'+i,kind:'goblin',art_key:'monster:probe',x:400,y,hp:50,max_hp:100,facing:1,pose:'idle'}));
+  await RiftRenderer.prepareRun(run);
+  const empty=structuredClone(run);empty.enemies=[];RiftRenderer.snapshot(empty,true);window.renderProbe(performance.now()+500);
   Object.assign(window.RiftDisplay,{enemyNames:'all',fps:60});
   const ctx=document.querySelector('#rift-canvas').getContext('2d'),fill=ctx.fillText,sort=Array.prototype.sort;
   let sorts=0,names=[],now=performance.now()+1000;

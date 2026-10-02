@@ -22,7 +22,7 @@ test('closed bestiary defers cards and repeated opening preserves the live roste
 });
 
 test('unchanged combat identity text does not mutate on every confirmed snapshot',async({page})=>{
-  await page.goto('/abyss/rift');await page.locator('#rift-start').click();
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   let snapshots=0;page.on('response',response=>{if(response.request().postDataJSON()?.kind==='step')snapshots++;});
   await page.evaluate(()=>{window.identityMutations=0;const observer=new MutationObserver(records=>window.identityMutations+=records.length);for(const id of ['rift-name','rift-class','rift-style','rift-room'])observer.observe(document.getElementById(id),{childList:true});});
   await expect.poll(()=>snapshots).toBeGreaterThanOrEqual(5);expect(await page.evaluate(()=>window.identityMutations)).toBe(0);await page.keyboard.press('Escape');

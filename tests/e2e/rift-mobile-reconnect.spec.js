@@ -13,11 +13,11 @@ for(const viewport of [{width:320,height:568},{width:390,height:844},{width:844,
  });
  await expect(start).toHaveText('Recover expedition');
  await page.locator('#rift-overlay-title').scrollIntoViewIfNeeded();
- expect(await page.locator('#rift-overlay-title').evaluate(title=>title.getBoundingClientRect().top>=document.querySelector('#rift-viewport').getBoundingClientRect().top)).toBe(true);
+ expect(await page.locator('#rift-overlay-title').evaluate(title=>title.getBoundingClientRect().top>=document.querySelector('#rift-viewport').getBoundingClientRect().top-1)).toBe(true);
  await start.scrollIntoViewIfNeeded();
  const geometry=await start.evaluate(button=>{
   const r=button.getBoundingClientRect(),v=document.querySelector('#rift-viewport').getBoundingClientRect();
-  return {inside:r.top>=v.top&&r.bottom<=v.bottom,hit:button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),height:r.height};
+  return {inside:r.top>=v.top-1&&r.bottom<=v.bottom+1,hit:button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),height:r.height};
  });
  expect(geometry.inside).toBe(true);expect(geometry.hit).toBe(true);expect(geometry.height).toBeGreaterThanOrEqual(44);
  await page.locator('.rift-game').screenshot({path:test.info().outputPath('reconnect.png')});

@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 test('first clear reports actual records, survives reload and appears on its mission card',async({page})=>{
- await page.goto('/abyss/rift?scenario=checkpoint&room=final&condition=wounded');await page.locator('#rift-auto').uncheck();await expect(page.locator('#rift-clear-result')).toBeHidden();await page.locator('#rift-start').click();await page.locator('#rift-next').click();
+ await page.goto('/abyss/rift?scenario=checkpoint&room=final&condition=wounded');await page.locator('#rift-auto').uncheck();await expect(page.locator('#rift-clear-result')).toBeHidden();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.locator('#rift-next').click();
  const result=page.locator('#rift-clear-result');await expect(result).toContainText('Mission 1 · First clear!');await expect(result).toContainText('finish HP 170.0/340.0');await expect(result).toContainText('fewest damaging hits 0');
  await expect(page.locator('#rift-history-1')).toContainText('Most HP at finish 170.0/340.0');await expect(page.locator('#rift-history-1')).toContainText('Fewest damaging hits 0');
  const saved=await result.textContent();await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(result).toHaveText(saved);

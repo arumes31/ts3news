@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 test('basic combo peak records confirmed attacks and survives reload',async({page})=>{
- await page.goto('/abyss/rift');await page.locator('#rift-start').click();
+ await page.goto('/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
  const peak=page.locator('#rift-statistics dt').filter({hasText:'Highest basic combo strike (of 3)'}).locator('xpath=following-sibling::dd[1]');
  await page.keyboard.down('j');await expect(peak).toHaveText('3');await page.keyboard.up('j');
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');

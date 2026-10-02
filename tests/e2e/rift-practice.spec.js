@@ -3,7 +3,7 @@ for(const mode of ['movement','jump','combo','toxic_tide'])test('play '+mode+' d
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
  const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
- await page.goto('/abyss/rift?practice='+mode);await expect(page.locator('#rift-practice-guide')).toBeVisible();await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+ await page.goto('/abyss/rift?practice='+mode);await expect(page.locator('#rift-practice-guide')).toBeVisible();await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
  const saved=async()=>(await(await page.request.get('/api/abyss/rift?practice='+mode)).json()).run;
  await expect.poll(async()=>(await saved())?.status).toBe('fighting');
  if(mode==='combo')await page.keyboard.down('KeyJ');else{await page.keyboard.down('KeyD');if(mode==='jump'||mode==='toxic_tide')await page.keyboard.down('Space');}

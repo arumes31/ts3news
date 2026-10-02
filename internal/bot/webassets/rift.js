@@ -497,12 +497,12 @@
         if(fullCampaign){
           if(headingEl)headingEl.textContent='Full Campaign Cleared — The Abyss Conquered';
           if(causeEl)causeEl.textContent='All 100 campaign missions cleared across all regions!';
-          if(clearResult){clearResult.textContent='Campaign complete: All 100 missions cleared';clearResult.hidden=false;}
+          if(clearResult&&!run.last_clear){clearResult.textContent='Campaign complete: All 100 missions cleared';clearResult.hidden=false;}
         }else{
           const name=run.level?.name||('Mission '+(run.level?.id||1));
           if(headingEl)headingEl.textContent='Mission '+(run.level?.id||1)+' Cleared: '+name;
           if(causeEl)causeEl.textContent='All 3 encounter tiers secured.';
-          if(clearResult){clearResult.textContent='Mission '+(run.level?.id||1)+' cleared: '+name;clearResult.hidden=false;}
+          if(clearResult&&!run.last_clear){clearResult.textContent='Mission '+(run.level?.id||1)+' cleared: '+name;clearResult.hidden=false;}
         }
         if(banner)banner.hidden=false;
       }else if(run.status==='banked'){

@@ -6,7 +6,7 @@ test('combat buttons suppress double-tap zoom and accidental selection while out
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/abyss/rift?practice=skills&subclass=elementalist');
   await expect(page.locator('#rift-start')).toBeEnabled();
-  await page.locator('#rift-start').tap();
+  await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
 
   // 1. Verify combat buttons have touch-action: manipulation or none (suppressing double-tap zoom)
   const combatButtons = page.locator('#rift-actionbar button, #rift-signatures button, #rift-pause');

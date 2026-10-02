@@ -6,7 +6,7 @@ for(const reduced of [false,true])test('Crossroads hazard groups activate in spa
  const hazards=level.rooms[2].hazards;
  for(let index=0;index<3;index++){
   const clock=1.3+index*hazards[0].period/3;
-  await page.evaluate(({run,level,clock})=>{run.level=level;run.room=2;run.player.x=160;run.clock=clock;run.paused=true;run.status='fighting';run.events=[];run.enemies=[];linkedLabels=[];RiftRenderer.snapshot(run,true);},{run:data.run,level,clock});
+  await page.evaluate(async ({run,level,clock})=>{run.level=level;run.room=2;run.player.x=160;run.clock=clock;run.paused=true;run.status='fighting';run.events=[];run.enemies=[];linkedLabels=[];await RiftRenderer.prepareRun(run);RiftRenderer.snapshot(run,true);},{run:data.run,level,clock});
   await expect.poll(()=>page.evaluate(()=>linkedLabels.filter(l=>l.text.startsWith('JUMP')).map(l=>l.x))).toEqual([hazards[index].x+hazards[index].w/2]);
  }
 });

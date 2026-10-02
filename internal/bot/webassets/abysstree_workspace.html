@@ -77,9 +77,9 @@
 .tree-workspace-other>.tree-inspector,.tree-workspace-other .tree-plan-bar{display:none}
 @media(max-width:1000px){.tree-workspace{grid-template-columns:minmax(0,1fr) 280px;gap:12px}}
 @media(max-width:760px){
- .tree-head{gap:8px}.tree-head h1{font-size:1.4rem}.tree-head-right{gap:6px;font-size:.78rem}
+ .tree-head{gap:8px;margin-bottom:8px}.tree-head h1{font-size:1.4rem}.tree-head-right{gap:6px;font-size:.78rem}
  .tree-head-right>a,.tree-head-right .tree-total{display:none}
- .tree-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tree-tabs .tree-tab{font-size:.75rem;padding:8px 4px;white-space:normal;min-width:0}
+ .tree-tabs{display:flex;overflow-x:auto;margin:8px 0}.tree-tabs .tree-tab{flex:1 0 74px;font-size:.75rem;padding:8px 4px;white-space:normal;min-width:0}
  .tree-tab-full{display:none}.tree-tab-short{display:inline}
  .tree-workspace{grid-template-columns:1fr;gap:12px}.tree-workspace #treeStage{height:52svh;min-height:360px}
  .tree-workspace .tree-inspector{display:none;position:fixed;left:8px;right:8px;bottom:8px;z-index:900;max-height:55svh;padding:10px 14px max(12px,env(safe-area-inset-bottom));gap:8px;border-radius:10px}

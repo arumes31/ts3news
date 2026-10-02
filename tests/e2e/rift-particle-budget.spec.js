@@ -1,8 +1,8 @@
 const {test,expect}=require('@playwright/test');
 async function watchParticles(page){
  const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
- await page.evaluate(run=>{
-  run.level.region=1;run.paused=true;window.RiftRenderer.snapshot(run,true);
+ await page.evaluate(async run=>{
+  run.level.region=1;run.paused=true;await window.RiftRenderer.prepareRun(run);window.RiftRenderer.snapshot(run,true);
   window.particleFrames=[];let count=0,started=false;
   const ctx=document.getElementById('rift-canvas').getContext('2d'),fill=ctx.fillRect.bind(ctx);
   ctx.fillRect=(...args)=>{

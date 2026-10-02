@@ -2,7 +2,7 @@ const {test,expect}=require('@playwright/test');
 test.use({hasTouch:true,isMobile:true});
 for(const viewport of [{width:320,height:568},{width:390,height:844},{width:844,height:390}])for(const action of ['next','exit'])test('checkpoint '+action+' at '+viewport.width+'x'+viewport.height,async({page})=>{
  await page.setViewportSize(viewport);await page.goto('/abyss/rift?scenario=checkpoint&condition=wounded');
- await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').tap();
+ await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
  const panel=page.locator('#rift-room-actions');await expect(panel).toBeVisible();
  const bounds=await panel.evaluate(node=>{const r=node.getBoundingClientRect(),v=document.querySelector('#rift-viewport').getBoundingClientRect();return {left:r.left>=v.left,right:r.right<=v.right,top:r.top>=v.top,bottom:r.bottom<=v.bottom};});
  expect(bounds).toEqual({left:true,right:true,top:true,bottom:true});
@@ -22,7 +22,7 @@ test('touch-only checkpoint banking and receipt flow',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
  await page.locator('#rift-auto').tap();await expect(page.locator('#rift-auto')).not.toBeChecked();
- await page.locator('#rift-start').tap();await expect(page.locator('#rift-room-actions')).toBeVisible();
+ await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();await expect(page.locator('#rift-room-actions')).toBeVisible();
  await expect(page.locator('#rift-checkpoint-total')).toHaveText('30 gold · 1 item ready to bank');
  await page.locator('#rift-exit').tap();await expect(page.locator('#rift-banked')).toHaveText('30 gold · 1 item');
  await page.locator('#rift-receipt > summary').tap();await expect(page.locator('#rift-receipt-list > li')).toHaveCount(1);

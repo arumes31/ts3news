@@ -29,12 +29,13 @@ test.describe('Give touch controls descriptive pressed states (Proposal 0156)', 
   test('pressing touch movement control activates descriptive aria-label, aria-pressed, and visual pressed state', async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 800 });
     // Start game so touch input is active
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await expect(page.locator('#rift-pause')).toBeEnabled();
 
     const leftBtn = page.locator('.rift-touch button[data-move="left"]');
     await expect(leftBtn).toBeVisible();
 
+    await leftBtn.scrollIntoViewIfNeeded();
     const box = await leftBtn.boundingBox();
     expect(box).not.toBeNull();
 
@@ -70,13 +71,14 @@ test.describe('Give touch controls descriptive pressed states (Proposal 0156)', 
   });
 
   test('combat action buttons reflect aria-pressed and data-pressed while held down', async ({ page }) => {
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await expect(page.locator('#rift-pause')).toBeEnabled();
 
     const attackBtn = page.locator('.rift-basics button[data-bind="attack"]');
     await expect(attackBtn).toBeVisible();
     await expect(attackBtn).toHaveAttribute('aria-pressed', 'false');
 
+    await attackBtn.scrollIntoViewIfNeeded();
     const box = await attackBtn.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
@@ -99,7 +101,7 @@ test.describe('Give touch controls descriptive pressed states (Proposal 0156)', 
     await page.locator('#rift-controls-close').click();
 
     // Start expedition
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await expect(page.locator('#rift-pause')).toBeEnabled();
 
     const guardBtn = page.locator('.rift-basics button[data-bind="guard"]');
@@ -120,11 +122,12 @@ test.describe('Give touch controls descriptive pressed states (Proposal 0156)', 
   test('touch controls adapt pressed states in forced-colors mode and respect reduced motion', async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 800 });
     await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
-    await page.locator('#rift-start').click();
+    await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await expect(page.locator('#rift-pause')).toBeEnabled();
 
     const leftBtn = page.locator('.rift-touch button[data-move="left"]');
     await expect(leftBtn).toBeVisible();
+    await leftBtn.scrollIntoViewIfNeeded();
     const box = await leftBtn.boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

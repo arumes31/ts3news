@@ -7,7 +7,8 @@ test('displays dedicated mission-clear, full-campaign completion, and voluntary-
   await expect(page.locator('#rift-result-banner')).toBeVisible();
   await expect(page.locator('#rift-result-heading')).toContainText('Mission 1 Cleared:');
   await expect(page.locator('#rift-result-cause')).toHaveText('All 3 encounter tiers secured.');
-  await expect(page.locator('#rift-clear-result')).toContainText('Mission 1 cleared:');
+  await expect(page.locator('#rift-clear-result')).toContainText('Mission 1 · First clear!');
+  await expect(page.locator('#rift-clear-result')).toContainText('New personal records:');
 
   // 2. Full-campaign completion result heading (0842)
   await page.evaluate(() => {

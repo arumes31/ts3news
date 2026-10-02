@@ -6,7 +6,7 @@ test('bestiary mirrors the live Abyss roster and WASD/Space control combat',asyn
   const catalog=(await(await page.request.get('/api/abyss/rift')).json()).bestiary;
   expect(catalog.length).toBeGreaterThan(110);
   await expect(page.locator('#rift-monster-count')).toHaveText(catalog.length+' monsters');
-  await page.locator('.rift-bestiary summary').click();
+  await page.locator('.rift-bestiary > summary').click();
   await expect(page.locator('#rift-monsters article')).toHaveCount(catalog.length);
   const rows=await page.locator('#rift-monsters article').evaluateAll(nodes=>nodes.map(n=>n.dataset.artKey));
   expect(rows.sort()).toEqual(catalog.map(m=>m.art_key).sort());
@@ -15,7 +15,7 @@ test('bestiary mirrors the live Abyss roster and WASD/Space control combat',asyn
   await page.locator('#rift-monster-search').fill('Chronos');
   await expect(page.locator('#rift-monsters article:visible')).toHaveCount(1);
   await page.screenshot({path:'test-results/rift-bestiary.png',fullPage:true});
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   let run=await read();
   for(const [key,axis,direction] of [['d','x',1],['a','x',-1],['w','y',-1],['s','y',1]]){
@@ -34,6 +34,7 @@ test('bestiary mirrors the live Abyss roster and WASD/Space control combat',asyn
 
 test('empty regular loadout still supports class combat', async ({ page }) => {
   await page.goto('/abyss/rift?subclass=geomancer');
+  await expect(page.locator('#rift-start')).toBeEnabled();
   for(const select of await page.locator('#rift-loadout select').all())await select.selectOption('');
   await page.locator('#rift-start').click();
   await expect(page.locator('#rift-overlay')).toBeHidden();
@@ -50,6 +51,7 @@ test('all Abyss subclasses build and spend their own resource', async ({ page })
   const errors=[]; page.on('pageerror',error=>errors.push(error.message));
   for(const style of ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist']){
     await page.goto('/abyss/rift?subclass='+style);
+    await expect(page.locator('#rift-start')).toBeEnabled();
     await page.locator('#rift-start').click();
     await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.down('q');
@@ -71,7 +73,7 @@ test('clear all three rooms, defeat the catalog boss and bank the expedition', a
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/abyss/rift?subclass=bloodblade');
   await page.locator('#rift-auto').uncheck();
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const held=new Set();
   async function controls(wanted){for(const key of [...held])if(!wanted.has(key)){await page.keyboard.up(key);held.delete(key);}for(const key of wanted)if(!held.has(key)){await page.keyboard.down(key);held.add(key);}}
   const started=Date.now();let complete=false,expectedFightGold=0,expectedItems=0;
@@ -139,7 +141,7 @@ test('checkpoint banks actual catalog loot once and survives reload', async ({ p
   await page.goto('/abyss/rift?scenario=checkpoint');
   await page.locator('#rift-auto').uncheck();
   await expect(page.locator('#rift-start')).toHaveText('Resume expedition');
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   await expect(page.locator('#rift-loot')).not.toContainText('Your next discovery');
   const before = (await (await page.request.get('/api/abyss/rift')).json()).run;
   expect(before.drops[0].gear.ID).toMatch(/^ABYSS_/);
@@ -161,7 +163,7 @@ test('100 missions are selectable and the final region survives reload',async({p
   await expect(page.locator('[data-level]:visible')).toHaveCount(10);
   await page.locator('[data-level="100"]').click();
   await expect(page.locator('#rift-level-description')).toContainText('Obsidian Citadel');
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const before=await(await page.request.get('/api/abyss/rift')).json();
   expect(before.run.level.id).toBe(100);expect(before.run.level.rooms[0].obstacles.length).toBeGreaterThan(2);
   await page.keyboard.press('Escape');
@@ -182,7 +184,7 @@ test('seamless tiers bank once without navigation and pause stops the transition
   expect((await read()).room).toBe(0);
   let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
   const assets=[];page.on('request',request=>{if(request.resourceType()==='image'||/\/rift_creature_[^/]+\.png/.test(request.url()))assets.push(request.url());});
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   await expect.poll(async()=>(await read()).room).toBe(1);
   const next=await read();expect(next.banked_gold).toBe(30);expect(next.banked_items).toHaveLength(1);
   expect(navigations).toBe(0);expect(assets).toEqual([]);
@@ -192,7 +194,7 @@ test('seamless tiers bank once without navigation and pause stops the transition
 
 test('seamless boss clearance starts the next mission and records completion',async({page})=>{
   await page.goto('/abyss/rift?scenario=checkpoint&room=final');
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   await expect.poll(async()=>(await read()).level.id).toBe(2);
   await page.keyboard.press('Escape');
@@ -212,7 +214,10 @@ test('mobile touch controls, silent start and sound preference', async ({ page }
   await expect(page.locator('.rift-touch')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#rift-start').click();
+  await expect(page.locator('#rift-overlay')).toBeHidden();
+  await expect(page.locator('#rift-pause')).toBeEnabled();
   const move = page.getByRole('button',{name:'Move right',exact:true});
+  await move.scrollIntoViewIfNeeded();
   const box = await move.boundingBox();
   const initial = (await (await page.request.get('/api/abyss/rift')).json()).run.player.x;
   await page.mouse.move(box.x+box.width/2,box.y+box.height/2);

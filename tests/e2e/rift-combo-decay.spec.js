@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 test('idle combo expires and the next real attack starts at one',async({page})=>{
- await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();
+ await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
  const current=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
  await page.keyboard.down('j');
  await expect.poll(async()=>(await current()).combo).toBeGreaterThanOrEqual(2);
