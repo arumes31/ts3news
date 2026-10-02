@@ -96,6 +96,7 @@ test.describe('Add an ultimate anticipation pose (Proposal 0206)', () => {
       };
 
       // Feed snapshot and await render frames
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
       await new Promise(resolve => {
         let frames = 0;

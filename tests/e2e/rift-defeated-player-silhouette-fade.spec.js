@@ -84,12 +84,14 @@ test.describe('Add a defeated-player fade that preserves silhouette (Proposal 02
 
       // 1. Normal motion mode: verify silhouette preservation telemetry and rendering
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockDefeatedRun);
       window.RiftRenderer.feed(mockDefeatedRun);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const normalSilhouette = window.RiftRenderer.lastDefeatedPlayerSilhouette;
 
       // 2. Reduced motion mode: verify graceful preserved silhouette
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockDefeatedRun);
       window.RiftRenderer.feed(mockDefeatedRun);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const reducedSilhouette = window.RiftRenderer.lastDefeatedPlayerSilhouette;

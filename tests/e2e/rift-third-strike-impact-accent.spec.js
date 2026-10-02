@@ -45,7 +45,7 @@ test.describe('Add a third-strike impact accent (Proposal 0204)', () => {
     await page.goto('/abyss/rift');
     await expect(page.locator('#rift-start')).toBeEnabled();
 
-    const checkResult = await page.evaluate(() => {
+    const checkResult = await page.evaluate(async () => {
       const canvas = document.getElementById('rift-canvas');
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || !window.RiftRenderer) return null;
@@ -95,6 +95,7 @@ test.describe('Add a third-strike impact accent (Proposal 0204)', () => {
       };
 
       // Feed snapshot with third_strike event
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
 
       // Verify audio cue can play

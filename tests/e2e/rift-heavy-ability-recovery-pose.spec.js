@@ -92,6 +92,7 @@ test.describe('Add a recovery pose after heavy abilities (Proposal 0207)', () =>
 
       // 1. Normal mode: feed mock snapshot with recovery pose and heavy_recovery event
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -106,6 +107,7 @@ test.describe('Add a recovery pose after heavy abilities (Proposal 0207)', () =>
           { id: 2, kind: 'heavy_recovery', x: 410, y: 315, value: 0 }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRun2);
       window.RiftRenderer.feed(mockRun2);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));

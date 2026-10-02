@@ -11,7 +11,12 @@ test.describe('Distinct empty-mana cue with rate limiting (Proposal 0175)', () =
       const audio = window.RiftAudio;
       await audio.setActive(true);
       const before = audio.played;
-      const played = audio.playEmptyMana(0);
+      const clock = performance.now;
+      let played;
+      try {
+        performance.now = () => 0;
+        played = audio.playEmptyMana(0);
+      } finally { performance.now = clock; }
       const after = audio.played;
       return { before, after, played };
     });

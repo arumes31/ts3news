@@ -62,7 +62,7 @@ test.describe('Add a distinct guarded walking pose (Proposal 0202)', () => {
     await page.goto('/abyss/rift');
     await expect(page.locator('#rift-start')).toBeEnabled();
 
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       const canvas = document.getElementById('rift-canvas');
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return false;
@@ -91,6 +91,7 @@ test.describe('Add a distinct guarded walking pose (Proposal 0202)', () => {
       };
 
       if (window.RiftRenderer?.feed) {
+        await window.RiftRenderer.prepareRun(mockRun);
         window.RiftRenderer.feed(mockRun);
       }
 

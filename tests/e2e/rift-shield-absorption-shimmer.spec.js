@@ -96,6 +96,7 @@ test.describe('Add a brief shield-absorption shimmer (Proposal 0208)', () => {
 
       // 1. Normal mode: feed mock snapshot with shield_absorb event
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -110,6 +111,7 @@ test.describe('Add a brief shield-absorption shimmer (Proposal 0208)', () => {
           { id: 2, kind: 'shield_absorb', x: 410, y: 320, value: 20 }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRun2);
       window.RiftRenderer.feed(mockRun2);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));

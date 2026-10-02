@@ -133,6 +133,7 @@ test.describe('Add a boss phase-transition visual (Proposal 0213)', () => {
 
       // 1. Normal motion mode: verify phase transition visual and telemetry
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockBossRun);
       window.RiftRenderer.feed(mockBossRun);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const normalPhaseEvent = window.RiftRenderer.lastBossPhaseEvent;
@@ -153,6 +154,7 @@ test.describe('Add a boss phase-transition visual (Proposal 0213)', () => {
         ]
       };
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockBossPhase3);
       window.RiftRenderer.feed(mockBossPhase3);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const reducedPhaseEvent = window.RiftRenderer.lastBossPhaseEvent;

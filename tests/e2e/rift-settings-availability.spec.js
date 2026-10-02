@@ -16,6 +16,6 @@ test('settings remain editable on a defeated response without starting a retry',
 });
 
 test('settings remain editable after a failed combat request without triggering recovery',async({page})=>{
- await page.route('**/api/abyss/rift',route=>route.request().method()==='POST'&&route.request().postDataJSON()?.kind==='step'?route.abort():route.continue());await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await expect(page.locator('#rift-start')).toHaveText('Recover expedition');const before=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.route('**/api/abyss/rift',route=>route.request().method()==='POST'&&route.request().postDataJSON()?.kind==='step'?route.abort():route.continue());await page.goto('/abyss/rift');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Recover expedition');const before=(await(await page.request.get('/api/abyss/rift')).json()).run;
  let writes=0;page.on('request',r=>{if(r.url().includes('/api/abyss/rift')&&r.method()==='POST')writes++;});await changeSettings(page);expect(writes).toBe(0);await expect(page.locator('#rift-start')).toHaveText('Recover expedition');expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(before);
 });

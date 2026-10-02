@@ -55,7 +55,7 @@ test.describe('Add directional hit-recoil offsets (Proposal 0203)', () => {
     await page.goto('/abyss/rift');
     await expect(page.locator('#rift-start')).toBeEnabled();
 
-    const checkResult = await page.evaluate(() => {
+    const checkResult = await page.evaluate(async () => {
       const canvas = document.getElementById('rift-canvas');
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || !window.RiftRenderer) return null;
@@ -99,12 +99,14 @@ test.describe('Add directional hit-recoil offsets (Proposal 0203)', () => {
       };
 
       // Normal mode: recoil offset applied to renderer.lastPlayerRecoil
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
       window.RiftRenderer.renderActor(mockRun.player);
       const normalRecoil = window.RiftRenderer.lastPlayerRecoil;
 
       // Reduced motion mode: recoil offset should be 0
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
       window.RiftRenderer.renderActor(mockRun.player);
       const reducedRecoil = window.RiftRenderer.lastPlayerRecoil;

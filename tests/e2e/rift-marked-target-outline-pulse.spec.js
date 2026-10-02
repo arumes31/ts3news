@@ -120,6 +120,7 @@ test.describe('Add a marked-target outline pulse (Proposal 0209)', () => {
 
       // 1. Normal mode: feed mock snapshot with marked target and event
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -135,6 +136,7 @@ test.describe('Add a marked-target outline pulse (Proposal 0209)', () => {
           { id: 2, kind: 'mark_target', x: 450, y: 320, value: 0 }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRun2);
       window.RiftRenderer.feed(mockRun2);
 
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));

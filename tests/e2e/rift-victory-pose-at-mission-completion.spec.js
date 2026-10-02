@@ -92,6 +92,7 @@ test.describe('Add a victory pose at mission completion (Proposal 0214)', () => 
 
       // 1. Normal motion mode: verify victory pose telemetry and effect rendering
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockVictoryRun);
       window.RiftRenderer.feed(mockVictoryRun);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const normalPose = window.RiftRenderer.lastVictoryPose;
@@ -99,6 +100,7 @@ test.describe('Add a victory pose at mission completion (Proposal 0214)', () => 
 
       // 2. Reduced motion mode: verify graceful non-animated aura
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockVictoryRun);
       window.RiftRenderer.feed(mockVictoryRun);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const reducedPose = window.RiftRenderer.lastVictoryPose;

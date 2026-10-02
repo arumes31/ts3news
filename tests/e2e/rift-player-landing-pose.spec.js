@@ -51,7 +51,7 @@ test.describe('Add a short player landing pose (Proposal 0201)', () => {
     await page.goto('/abyss/rift');
     await expect(page.locator('#rift-start')).toBeEnabled();
 
-    const rendererResult = await page.evaluate(() => {
+    const rendererResult = await page.evaluate(async () => {
       const canvas = document.getElementById('rift-canvas');
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return false;
@@ -82,6 +82,7 @@ test.describe('Add a short player landing pose (Proposal 0201)', () => {
 
       // Feed snapshot to renderer
       if (window.RiftRenderer?.feed) {
+        await window.RiftRenderer.prepareRun(mockRun);
         window.RiftRenderer.feed(mockRun);
       }
 

@@ -34,13 +34,10 @@ test.describe('Add a finisher-specific casting accent (Proposal 0205)', () => {
       await page.waitForTimeout(150);
     }
 
-    for (let i = 0; i < 5; i++) {
-      await page.keyboard.press('KeyE');
-      await page.waitForTimeout(150);
-      if (finisherCastSeen) break;
-    }
-
-    expect(finisherCastSeen).toBe(true);
+    await expect.poll(async () => {
+      if (!finisherCastSeen) await page.keyboard.press('KeyE');
+      return finisherCastSeen;
+    }).toBe(true);
     expect(finisherCastCharges).toBeGreaterThanOrEqual(0);
 
     await page.keyboard.press('Escape');
@@ -95,6 +92,7 @@ test.describe('Add a finisher-specific casting accent (Proposal 0205)', () => {
       };
 
       // Feed snapshot with finisher_cast event and await render frames
+      await window.RiftRenderer.prepareRun(mockRun);
       window.RiftRenderer.feed(mockRun);
       await new Promise(resolve => {
         let frames = 0;

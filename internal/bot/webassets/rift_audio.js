@@ -177,7 +177,7 @@
     source.onended = () => { if(!sources.delete(source))return;source.disconnect(); filter.disconnect(); gain.disconnect(); stereo.disconnect();panners.delete(stereo); if(audio.context===c)audio.voices=Math.max(0,audio.voices-1); };
     sources.set(source,source.onended);source.start(start); source.stop(start + duration + .02);
   }
-  let lastEmptyMana = 0, lastCooldownRejection = 0;
+  let lastEmptyMana = -Infinity, lastCooldownRejection = -Infinity;
   audio.playEmptyMana = function (pan = 0) {
     const now = performance.now();
     if (now - lastEmptyMana < 500) return false;

@@ -129,12 +129,14 @@ test.describe('Add a separate boss stagger pose (Proposal 0212)', () => {
 
       // 1. Normal mode: verify stagger pose telemetry and rendering
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRunBoss);
       window.RiftRenderer.feed(mockRunBoss);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const normalStagger = window.RiftRenderer.lastBossStagger;
 
       // 2. Reduced motion mode: verify graceful rendering
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockRunBoss);
       window.RiftRenderer.feed(mockRunBoss);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const reducedStagger = window.RiftRenderer.lastBossStagger;

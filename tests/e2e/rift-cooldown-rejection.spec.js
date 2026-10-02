@@ -11,7 +11,12 @@ test.describe('Distinct cooldown-rejection cue with rate limiting (Proposal 0176
       const audio = window.RiftAudio;
       await audio.setActive(true);
       const before = audio.played;
-      const played = audio.playCooldownRejection(0);
+      const clock = performance.now;
+      let played;
+      try {
+        performance.now = () => 0;
+        played = audio.playCooldownRejection(0);
+      } finally { performance.now = clock; }
       const after = audio.played;
       return { before, after, played };
     });

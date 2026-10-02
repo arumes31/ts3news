@@ -91,6 +91,7 @@ test.describe('Add consistent enemy jump shadows (Proposal 0211)', () => {
       };
 
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRunAir);
       window.RiftRenderer.feed(mockRunAir);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const airShadowNormal = window.RiftRenderer.lastEnemyJumpShadow;
@@ -105,12 +106,14 @@ test.describe('Add consistent enemy jump shadows (Proposal 0211)', () => {
           }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRunGround);
       window.RiftRenderer.feed(mockRunGround);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const groundShadowNormal = window.RiftRenderer.lastEnemyJumpShadow;
 
       // 3. Reduced motion mode with jumping enemy
       window.RiftRenderer.reduced = true;
+      await window.RiftRenderer.prepareRun(mockRunAir);
       window.RiftRenderer.feed(mockRunAir);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const airShadowReduced = window.RiftRenderer.lastEnemyJumpShadow;

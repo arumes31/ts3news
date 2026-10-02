@@ -90,6 +90,7 @@ test.describe('Add a thawing visual when a slow ends (Proposal 0210)', () => {
 
       // 1. Slow active: verify frost ground ring telemetry
       window.RiftRenderer.reduced = false;
+      await window.RiftRenderer.prepareRun(mockRunSlowed);
       window.RiftRenderer.feed(mockRunSlowed);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const activeFrost = window.RiftRenderer.lastSlowFrost;
@@ -104,6 +105,7 @@ test.describe('Add a thawing visual when a slow ends (Proposal 0210)', () => {
           { id: 101, kind: 'thaw', x: 320, y: 325, value: 0 }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRunThaw);
       window.RiftRenderer.feed(mockRunThaw);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const normalThaw = window.RiftRenderer.lastThawEffect;
@@ -116,6 +118,7 @@ test.describe('Add a thawing visual when a slow ends (Proposal 0210)', () => {
           { id: 102, kind: 'thaw', x: 330, y: 325, value: 0 }
         ]
       };
+      await window.RiftRenderer.prepareRun(mockRunThawReduced);
       window.RiftRenderer.feed(mockRunThawReduced);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const reducedThaw = window.RiftRenderer.lastThawEffect;
