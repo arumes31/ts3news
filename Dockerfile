@@ -5,7 +5,7 @@
 # 9987, and a small Go bot drives it through the ClientQuery plugin to poke users.
 
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
-FROM golang:1.27.1-trixie@sha256:9baa6b4187bbb98d240372a8a235ac0bb6b5ddd52bba1431dc2f7c0705862728 AS gobuilder
+FROM golang:1.27.1-trixie@sha256:433790e515d27dc6003e847e644cc0af956985cf315c1c58a3b73ee2dd305183 AS gobuilder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
