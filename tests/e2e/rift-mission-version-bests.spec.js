@@ -1,0 +1,10 @@
+const {test,expect}=require('@playwright/test');
+test('campaign uses bests matching the current catalog, preserving lifetime counts',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const data=await(await page.request.get('/api/abyss/rift')).json();expect(data.levels[0].definition).toMatch(/^level-v1:[a-f0-9]{64}$/);
+ const note=page.locator('#rift-levels [data-level="1"] .rift-mission-history');
+ const show=async(mode)=>page.evaluate(({data,mode})=>{const definition=data.levels[0].definition;const best={best_seconds:25,best_finish_hp:50,best_finish_max_hp:100,fewest_hits:2,flawless_tiers:[1]};const entry={attempts:4,completions:3,last_outcome:'completed',completed_by_class:{vanguard:3},best_seconds:1};if(mode==='current')Object.assign(entry,best,{definition});if(mode==='archived')Object.assign(entry,{definition:'level-v1:'+'f'.repeat(64),versions:{[definition]:best}});data.run.mission_history={1:entry};RiftCampaignTools.update(data.run,1);},{data,mode});
+ await show('legacy');await expect(note).toContainText('No compatible best');await expect(note).not.toContainText('Best 1.0s');await expect(note).toContainText('4 recorded attempts');
+ for(const mode of ['current','archived']){await show(mode);await expect(note).toContainText('Best 25.0s');await expect(note).toContainText('Most HP at finish 50.0/100.0');await expect(note).toContainText('Fewest damaging hits 2');await expect(note).toContainText('Flawless tiers 1');await expect(note).toContainText('Vanguard');}
+ const rejected=await page.evaluate(data=>{const invalid=[{definition:'bad'},{versions:{bad:{best_seconds:1}}},{versions:{'':{best_seconds:-1}}},{fewest_hits:-1},{flawless_tiers:[4]}];return invalid.every(entry=>{data.run.mission_history={1:entry};try{RiftProtocol.validate(data,'GET');return false;}catch(_){return true;}});},data);expect(rejected).toBe(true);
+ expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(data.run);
+});

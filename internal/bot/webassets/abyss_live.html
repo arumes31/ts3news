@@ -179,7 +179,8 @@ function renderLiveTargetPicker(state){
   if(select.dataset.options!==signature){select.replaceChildren();options.forEach(function(item){var option=document.createElement('option');option.value=item.id;option.textContent=item.label;option.disabled=!!item.disabled;select.appendChild(option);});select.dataset.options=signature;}
   select.value=liveSelectedTarget||'';select.disabled=state.phase!=='planning'||!!liveActionInFlight;
   var selected=units.find(function(unit){return unit.id===liveSelectedTarget;});
-  var intents=state.enemy_intents||[],intent=selected&&intents.find(function(item){return item.enemy_name===selected.name;});
+  var intents=state.enemy_intents||[],intent=selected&&intents.find(function(item){return item.enemy_id===selected.id;});
+  if(!intent&&selected)intent=intents.find(function(item){return !item.enemy_id&&item.enemy_name===selected.name;});
   if(!intent&&!selected)intent=intents[0];
   document.getElementById('liveSelectedIntent').textContent=intent?'Intent: '+intent.enemy_name+' · '+(intent.ability||intent.kind)+(intent.target?' → '+intent.target:''):'Intent: '+(selected?'not revealed':'choose a target');
 }
@@ -229,7 +230,9 @@ function startLiveCombat(payload, hp, max){
   scheduleAbyssCockpitFocus('liveAction',true);
 }
 
+var liveTransportGeneration=0;
 function connectLiveCombat(){
+  liveTransportGeneration++;
   if(liveCombatSource){liveCombatSource.close();liveCombatSource=null;}
   if(liveCombatPoll){clearTimeout(liveCombatPoll);liveCombatPoll=null;}
   if(liveReconnectTicker){clearInterval(liveReconnectTicker);liveReconnectTicker=null;}
@@ -250,7 +253,10 @@ function connectLiveCombat(){
     source.close();
     if(liveCombatSource!==source||liveCombatSessionID!==sourceSession)return;
     liveCombatSource=null;
-    if(!liveFinishHandled)scheduleLiveReconnect(1000);
+    // Some proxies support HTTP but reject streaming indefinitely. Continue
+    // receiving authoritative snapshots instead of retrying a dead SSE path.
+    // A new fight or page refresh may try streaming again.
+    if(!liveFinishHandled){setLiveConnection('polling','POLLING · STREAM UNAVAILABLE');pollLiveCombat();}
   };
 }
 
@@ -279,13 +285,14 @@ function scheduleLiveReconnect(delay){
 async function pollLiveCombat(){
   if(liveFinishHandled)return;
   var pollSession=liveCombatSessionID;
+  var pollGeneration=liveTransportGeneration;
   try{
     var response=await fetch('/api/abyss/combat/state',{cache:'no-store'});
     var state=await response.json();
-    if(pollSession!==liveCombatSessionID)return;
+    if(pollSession!==liveCombatSessionID||pollGeneration!==liveTransportGeneration||liveFinishHandled)return;
     if(state.ok){setLiveConnection('synced','POLL · SYNCED');renderLiveCombat(state);}
-  }catch(e){if(pollSession===liveCombatSessionID)setLiveConnection('reconnecting','POLL · RETRYING');}
-  if(pollSession===liveCombatSessionID&&!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
+  }catch(e){if(pollSession===liveCombatSessionID&&pollGeneration===liveTransportGeneration&&!liveFinishHandled)setLiveConnection('reconnecting','POLL · RETRYING');}
+  if(pollSession===liveCombatSessionID&&pollGeneration===liveTransportGeneration&&!liveFinishHandled)liveCombatPoll=setTimeout(pollLiveCombat,900);
 }
 
 function livePct(value,maxValue){return maxValue>0?Math.max(0,Math.min(100,Math.round(value*100/maxValue))):0;}
@@ -293,7 +300,7 @@ function liveTargetValid(option,target){
   if(!option)return false;
   if(option.target==='self')return true;
   if(option.target==='ally')return (target||'').indexOf('ally:')===0;
-  if(option.target==='enemy')return (target||'').indexOf('enemy:')===0;
+  if(option.target==='enemy')return !!liveCombatState&&(liveCombatState.enemies||[]).some(function(unit){return unit.id===target&&(unit.hp_hidden||unit.hp>0);});
   return false;
 }
 
@@ -366,6 +373,7 @@ function renderLiveTargets(hostID, combatants, hostile){
     var weaknessMark=hostile?liveWeaknessWindowMark(unit,'combatant'):'';
     var hpBar=hpHidden?'<span class="ab-combatant-hp concealed"><b></b></span>':'<span class="ab-combatant-hp'+(hostile?' execute-track':'')+(dotActive?' dot-active':'')+'"><b style="width:'+livePct(unit.hp,unit.max_hp)+'%"></b></span>';
     var hpText=hpHidden?'HP CONCEALED':fmtNum(unit.hp)+' / '+fmtNum(unit.max_hp)+(unit.max_shield?' · 🛡 '+fmtNum(unit.shield):'')+(executeReady?' · EXECUTE':'');
+    if(hostile&&!hpHidden&&unit.hp<=0){hpBar='';hpText='DEFEATED';}
     button.innerHTML='<span class="ab-combatant-name">'+(unit.revenge?'◎ ':'')+consEsc(unit.name)+(unit.ready?' <i>READY</i>':'')+'</span>'+
       weaknessMark+shieldBar+hpBar+
       '<span class="ab-combatant-stat">'+hpText+(unit.max_mana?' · 🔵 '+fmtNum(unit.mana):'')+'</span>'+
@@ -491,6 +499,7 @@ async function armLiveOption(option){
 async function submitLiveOption(option){
   if(!liveCombatState||liveCombatState.phase!=='planning'||liveActionInFlight)return;
   var target=(option.target==='self'||option.kind==='defend')?'':liveSelectedTarget;
+  if(option.target==='enemy'&&!liveTargetValid(option,target))return;
   var replacing=!!liveCombatState.queued;
   setLiveActionReceipt('SENDING · '+option.name,1600,'submitting');
   var weakpoint=target&&target.indexOf('enemy:')===0?liveSelectedWeakpoint:'';

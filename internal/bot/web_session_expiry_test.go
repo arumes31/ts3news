@@ -20,12 +20,15 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
+	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT client_uid FROM users WHERE web_token=\\$1").
 		WithArgs("secret-token").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player-1"))
-	mock.ExpectExec("UPDATE users SET web_token_expires=\\$1 WHERE web_token=\\$2").
-		WithArgs(sqlmock.AnyArg(), "secret-token").
+	mock.ExpectExec("DELETE FROM web_sessions WHERE token_hash IN").WithArgs("player-1").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO web_sessions").
+		WithArgs(sqlmock.AnyArg(), "player-1", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	server := &WebServer{bot: &Bot{Cfg: &config.Config{WebBaseURL: "https://example.test"}, DB: database}}
 
 	response := httptest.NewRecorder()
@@ -35,8 +38,8 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 		t.Fatalf("cookies = %d, want 2", len(cookies))
 	}
 	auth := cookieByName(t, cookies, sessionCookie)
-	expiry := cookieByName(t, cookies, sessionExpiryCookie)
-	if !auth.HttpOnly || !auth.Secure || auth.Value != "secret-token" {
+	expiry := cookieByName(t, cookies, uiExpiryCookie)
+	if !auth.HttpOnly || !auth.Secure || auth.Value == "secret-token" || len(auth.Value) != 64 {
 		t.Fatalf("authentication cookie = %+v, want secure HttpOnly token", auth)
 	}
 	if expiry.HttpOnly || !expiry.Secure {
@@ -57,6 +60,27 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 	}
 }
 
+func TestPublicExpiryHintCannotAuthenticate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, value string }{
+		{"future timestamp", "9999999999"},
+		{"credential-shaped value", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := &WebServer{}
+			called := false
+			handler := server.authAPI(func(http.ResponseWriter, *http.Request, string) { called = true })
+			request := httptest.NewRequest(http.MethodGet, "/api/abyss/state", nil)
+			request.AddCookie(&http.Cookie{Name: uiExpiryCookie, Value: tc.value})
+			response := httptest.NewRecorder()
+			handler(response, request)
+			if response.Code != http.StatusUnauthorized || called {
+				t.Fatalf("public hint authenticated request: status=%d, handler called=%v", response.Code, called)
+			}
+		})
+	}
+}
+
 func TestLogoutClearsSessionAndExpiryCookies(t *testing.T) {
 	t.Parallel()
 
@@ -64,7 +88,7 @@ func TestLogoutClearsSessionAndExpiryCookies(t *testing.T) {
 	response := httptest.NewRecorder()
 	server.handleLogout(response, httptest.NewRequest(http.MethodPost, "/logout", nil))
 	cookies := response.Result().Cookies()
-	for _, name := range []string{sessionCookie, sessionExpiryCookie} {
+	for _, name := range []string{sessionCookie, uiExpiryCookie} {
 		cookie := cookieByName(t, cookies, name)
 		if cookie.MaxAge != -1 || cookie.Value != "" {
 			t.Errorf("cleared %s cookie = %+v", name, cookie)

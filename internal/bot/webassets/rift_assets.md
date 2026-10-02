@@ -1,0 +1,99 @@
+# Rift Brawl assets and runtime contract
+
+Original artwork generated with the built-in `image_gen` tool. Final PNGs are embedded from this directory; no remote runtime asset service is needed. LF2 is a gameplay reference only; no LF2 assets were copied.
+
+## Animation atlas contract
+
+`rift_heroes_a.png`, `rift_heroes_b.png`, `rift_mobs.png`: 2048 × 768, 16 columns × 6 rows, genuine alpha. Columns: idle A/B (0–1), run (2–5), jump (6), guard (7), windup (8), strike (9), recovery (10), cast (11), hit (12), knockdown (13), defeat (14), victory (15). Facing is mirrored at runtime. Mobs use server attack telegraphs; the third melee strike knocks down non-boss enemies.
+
+Hero A rows: Vanguard, Berserker, Marksman, Beastmaster, Elementalist, Chronomancer. Hero B rows: Oracle, Geomancer, Bloodblade, Voidwalker, Runesmith, Alchemist. Foundation classes use the first corresponding subclass rig without granting locked abilities.
+
+Mob rows: Mossfang goblin, Hollow Archer, Ruinguard, Thornheart, companion wolf, thorn spore. The spore row is prepared art; it is not spawned in Chapter I. Companion visuals use wolves; living Abyss pets determine the bounded Beastmaster bonus.
+
+`rift_effects.png`: 6 × 6 animation cells for slash/impact, fire, ice, ward/heal, void, pickup. Class spell families share these effects, with separate projectile and area behavior. `rift_items.png`: 4 × 4 icon cells. The two area backgrounds cover the three-room Mossbound Ruins chapter; Lantern Court uses the first background with a warmer tint.
+
+## Audio
+
+`rift_audio.js` synthesizes original sound in Web Audio: attack, hit, hurt, guard, jump, footsteps, knockdown, arrow, fire, ice, void, rune, poison, radiant, pack, quake, ultimate, healing, barriers, enemy attacks/deaths, boss roar/slam/death, pickups, checkpoint, victory/defeat, UI and three area ambience arrangements. There are no licensed samples or downloaded audio files. Audio unlocks on user interaction, caps concurrent voices, and suspends on pause/hidden page. Effects/ambience volume and mute persist locally.
+
+## Shared Abyss bestiary
+
+Brawl draws its full roster live from `content.AbyssMobCatalog`, the Abyss boss roster/lore catalog, secret-boss definitions and weekly world-boss names. The shared `abyssBossMob` factory retains the same normal/twin-boss calculations used by Abyss. Each new expedition samples regular monsters without replacement when possible and a boss from the whole boss pool. A frozen ten-enemy plan preserves ongoing fights across reloads and content deployments. No separate maintained monster list or scheduled sync job exists. Coverage tests enumerate every source and prove new catalog entries and stat changes flow through automatically.
+
+The searchable in-game bestiary displays the current roster (124 entries at implementation). Creature anatomy, palettes and eight-frame attack/cast/hit/death art come from Abyss's shared `AbyssCombatArt.actorFrame`; its normalized source rectangle is also available to Canvas consumers. Brawl retains its sixteen-frame goblin, wolf and armored fighter rigs where anatomy matches, and adds movement/knockdown motion for shared creature frames. Shared asset hashes invalidate cached artwork after a content deployment. World bosses reuse matching Abyss creature rigs. The legacy Thornheart sprite remains prepared art but is no longer a fixed encounter.
+
+Stats, type and element are translated into bounded action-mode HP, damage, armor, speed, melee/ranged/boss behavior and elemental shots. Treasure goblins flee; bosses alternate telegraphed area attacks and aimed projectiles. This does not import the entire turn-based spell/status engine, weekly raid health pool or world-boss reward system into Brawl.
+
+Controls: WASD or arrows move; Space jumps (K remains an alternate), J attacks, L guards, Q/E use class abilities, 1–3 use equipped skills, R uses an owned ultimate, Escape pauses.
+
+## Gameplay and persistence
+
+Production entry: `/abyss/rift`, gated by EnableAbyss and existing account authentication. API: `/api/abyss/rift` GET snapshot and JSON POST controls. Shared character stats, equipped gear, unlocked class signatures, equipped regular skills, pets, relic presence and owned ultimate are snapshotted at expedition start. This is action-mode tuning, not a reproduction of every turn-combat status effect. Q builds the existing subclass resource (max 3), E spends it; 1–3 use selected regular skills; R uses an owned ultimate.
+
+Server-owned combat uses elapsed server time capped at 200 ms and 30 Hz substeps. Each input request updates a revisioned JSON snapshot under `app_meta` key `rift_brawl:<uid>`. Updates lock the user row; gear, gold and checkpoint receipt commit in the same transaction. Retries do not grant duplicates. The gold economy epoch invalidates older runs. Never reuse the standard Abyss escrow for these rewards.
+
+The campaign has 100 selectable missions across ten regions, with three combat rooms and a final-room boss in each mission. Ten arena blueprints combine with regional geometry, timed hazard rules, enemy formations and difficulty. `internal/rift/levels.go` owns all definitions; each selected mission's terrain and encounters are frozen in the saved run. All enemies remain drawn from the live shared Abyss catalog. Flood-fill and pursuit tests verify every room's enemy spawns are reachable.
+
+Seamless tiers are on by default: after 1.2 seconds, the browser requests `advance`. The server banks gold and gear, records mission completion, and advances the saved run in the same transaction. Pausing suspends the transition. There is no navigation or image fetch between tiers; all region and monster atlases are preloaded before play. Disable seamless tiers for manual checkpoints. Clearing mission 100 ends the campaign; any mission can be selected for a new expedition. Completion marks survive subsequent expeditions and economy changes, but active rewards still follow the existing economy-epoch checks.
+
+Rewards remain real Abyss catalog equipment (Epic maximum early; Legendary maximum final room), with gold based on the room rather than mission number. Defeat discards only pending finds. Equipped gear is not consumed. Brawl does not grant XP, materials, quests or season progression. Character/equipment changes made in Abyss apply on the next expedition.
+
+`rift_regions.png` is a generated atlas of Mossbound Ruins, Ember Forge, Glacial Crossing, Storm Spires, Venom Mire, Drowned Temple, Bloodrust Barracks, Moonlit Necropolis, Starless Rift and Obsidian Citadel. The exact generation prompt is recorded in `rift_regions_prompt.txt`. The renderer crops the authored panel boundaries and adds collision-footprint cover and telegraphed hazards. Each region has its own ambience tuning.
+
+`rift_props.png` adds eight transparent cover sprites, rendered in depth order with fighters. Its source prompt is `rift_props_prompt.txt`. Regional props include moss ruins, volcanic rune stone, ice, storm pillars, toxic roots, coral altars, rusty battlements and obsidian altars.
+
+The e2e build supplies an isolated sample character and reward store, never a production database. Its optional `?subclass=<id>` resets only the sample run for visual testing. Production never accepts a client-provided subclass or reward.
+
+## Final generation prompts
+
+Validation: browser journeys cover every subclass resource, a complete three-room expedition, exact checkpoint reward replay, empty regular loadouts, keyboard/touch controls, audio activation/muting and pause/reload. The Go suite passed with refreshed golden digests during development; an audit then confirmed those two existing Abyss golden fixtures produce the same changed digests with the original navigation. Their original expectations were restored, so the unrelated baseline mismatches remain visible. No production database was used.
+
+### rift_area.png
+
+Create a production-ready pixel-art background for a browser beat-em-up game named Abyss Rift Brawl. Landscape 1536x1024. Original 1990s 16-bit arcade fantasy art, crisp square pixels, limited nuanced palette. Mossbound Ruins at twilight: ancient broken stone arches and monumental root-covered gate, distant turquoise mist forest, warm amber lanterns. Side-view LF2-style arena with depth: lower 48 percent is a broad FLAT WALKABLE stone courtyard seen slightly from above, open clear fighting space, no obstacles in middle. Architecture and lush hanging moss in upper 52 percent, dark foreground grass only at extreme bottom edge. Moody luminous teal and deep greens, restrained golden highlights, beautiful detailed pixel craftsmanship. No characters, no text, no UI, no borders. Whole image fills canvas.
+
+### rift_boss_area.png
+
+Production pixel-art background for Abyss Rift Brawl browser beat-em-up, matching a 1990s 16-bit fantasy arcade game. Landscape 1536x1024. Heart of the Ruins boss chamber: ancient colossal roots forming an underground cathedral, a ruined stone throne with glowing amber heart in the center rear, emerald luminous moss, hanging roots, broken arches, warm amber lantern light against deep teal darkness. Side-view arena with depth, lower 48 percent a broad FLAT CLEAR WALKABLE stone courtyard floor slightly seen from above. No platforms, obstacles or holes in the fighting floor. Keep architecture in upper half. Stunning crisp detailed pixel clusters, small restrained glowing motes, golden-orange versus moss green palette. No characters, enemies, text, labels, interface or borders. Fill entire canvas. Designed as actual playable stage background.
+
+### rift_heroes_a.png
+
+Production animation sprite sheet for original 16-bit pixel-art fantasy arcade beat-em-up Abyss Rift Brawl. GENUINE TRANSPARENT ALPHA background. Image 2048x768, exactly SIX ROWS by SIXTEEN COLUMNS, each cell 128x128. No grid, labels, text, borders, scenery, or baked checkerboard. Each row one consistent character identity facing RIGHT, feet anchored at y=112 within each cell, character centered at x=64 and all weapons entirely within cell. Compact crisp pixel clusters, readable small fighter proportions, moss green/teal/gold fantasy palette. Columns exactly: 1 idle, 2 idle breathing, 3 run left contact, 4 run left passing, 5 run right contact, 6 run right passing, 7 airborne jump knees tucked, 8 defensive guard, 9 weapon attack windup, 10 extended weapon strike, 11 attack recovery, 12 casting magic with outstretched arm, 13 hit recoil, 14 knocked backward, 15 defeated lying on ground at cell bottom, 16 triumphant victory pose. Consistent scale/position within every row, silhouettes distinct between rows. Genuine different limb positions for every animation frame, no cloned stills. Rows top to bottom: 1 Vanguard silver sword/shield knight with teal cloak; 2 Berserker red-scarf leather-armoured axe fighter; 3 Marksman green-cloaked longbow archer with feather cap; 4 Beastmaster rugged fur-mantled ranger with short spear and wolf emblem; 5 Elementalist blue-robed mage with orange-fire and blue-ice staff; 6 Chronomancer violet-and-gold robed wizard carrying a golden hourglass staff. No companions in these cells.
+
+### rift_heroes_b.png
+
+Production animation sprite sheet for original 16-bit pixel-art fantasy arcade beat-em-up Abyss Rift Brawl. GENUINE TRANSPARENT ALPHA background. Image 2048x768, exactly SIX ROWS by SIXTEEN COLUMNS, each cell 128x128. No grid, labels, text, borders, scenery, or baked checkerboard. Each row one consistent character identity facing RIGHT, feet anchored at y=112 within each cell, character centered at x=64 and all weapons entirely within cell. Compact crisp pixel clusters, readable small fighter proportions, moss green/teal/gold fantasy palette. Columns exactly: 1 idle, 2 idle breathing, 3 run left contact, 4 run left passing, 5 run right contact, 6 run right passing, 7 airborne jump knees tucked, 8 defensive guard, 9 weapon attack windup, 10 extended weapon strike, 11 attack recovery, 12 casting magic with outstretched arm, 13 hit recoil, 14 knocked backward, 15 defeated lying on ground at cell bottom, 16 triumphant victory pose. Consistent scale/position within every row, silhouettes distinct between rows. Genuine different limb positions for every animation frame, no cloned stills. Rows top to bottom: 1 Oracle ivory-and-gold hooded healer carrying radiant crystal staff; 2 Geomancer stocky stone-armoured sage with emerald crystal hammer; 3 Bloodblade crimson-and-black dual-sword assassin; 4 Voidwalker dark-violet hooded spellblade with glowing purple dagger; 5 Runesmith bronze-armoured smith with rune hammer and teal glowing belt; 6 Alchemist green-coated masked inventor with bandolier of orange glass flasks. Warm gold/teal highlights and distinctive original designs.
+
+### rift_mobs.png
+
+Production animation sprite sheet for original 16-bit pixel-art fantasy arcade beat-em-up Abyss Rift Brawl. GENUINE TRANSPARENT ALPHA background. Image 2048x768, exactly SIX ROWS by SIXTEEN COLUMNS, each cell 128x128. No grid, labels, text, borders, scenery, or baked checkerboard. Each row one consistent character identity facing RIGHT, feet anchored at y=112 within each cell, character centered at x=64 and all weapons entirely within cell. Compact crisp pixel clusters, readable small fighter proportions, moss green/teal/gold fantasy palette. Columns exactly: 1 idle, 2 idle breathing, 3 run left contact, 4 run left passing, 5 run right contact, 6 run right passing, 7 airborne jump knees tucked, 8 defensive guard, 9 weapon attack windup, 10 extended weapon strike, 11 attack recovery, 12 casting magic with outstretched arm, 13 hit recoil, 14 knocked backward, 15 defeated lying on ground at cell bottom, 16 triumphant victory pose. Consistent scale/position within every row, silhouettes distinct between rows. Genuine different limb positions for every animation frame, no cloned stills. Rows top to bottom: 1 small moss-green goblin with rusty curved dagger; 2 violet-hooded skeleton archer carrying bow; 3 bulky moss-covered stone armoured knight with sword; 4 ancient antlered tree-root-and-stone golem boss with glowing amber chest core; 5 small friendly grey wolf companion with teal collar (adapt attack to bite, cast to howl); 6 small hostile thorn-spore creature with glowing amber eye and root legs (adapt attack to thorn spit). Boss occupies 90% of cell, other enemies 70%, wolf 65%. Boss column9 raises huge arms, column10 slams ground, column11 recovers bent over. Preserve elegant crisp pixel art without soft painting.
+
+### rift_effects.png
+
+Create a production game spell effects animation atlas with GENUINE TRANSPARENT ALPHA background. Exactly 6 rows x 6 columns identical square cells, image 1536x1536. No grid lines, no borders, no text, no labels, no characters, no checkerboard. Original crisp colorful 16-bit arcade pixel-art. Every effect centered within its cell with generous transparent margins. Each row is one effect advancing over six frames left to right from small start through peak burst to fading particles. Row1 golden-white sword slash crescent sweeping right. Row2 orange red fireball explosion. Row3 cyan blue ice crystal burst. Row4 mint teal magical protective shield ring. Row5 purple violet void magic burst. Row6 warm gold loot sparkle starburst. Strong clean pixel shapes at small screen size, vibrant light centers, controlled glow made of pixel clusters, each frame contained fully in cell, consistent six-by-six arrangement.
+
+### rift_items.png
+
+Create a production pixel-art item icon atlas for Abyss Rift Brawl, an original 16-bit fantasy arcade game. GENUINE TRANSPARENT ALPHA background. Exactly FOUR rows and FOUR columns in a 1024x1024 image, each icon centered in its 256x256 square cell, no grid lines, no text, no labels or borders. Each object occupies only central 65 percent of its cell. Row1: a silver sword with teal hilt, a silver shield with golden trim, a rusted battle axe, a violet recurve bow. Row2: moss-green armoured helmet, moss-green chest armour, leather boots, ornate leather gloves. Row3: glowing golden coin stack, closed wooden treasure chest with golden metalwork, crimson healing potion in glass, blue mana potion in glass. Row4: gold ring with blue gemstone, amber pendant, a teal spellbook with glowing rune, a violet crystal relic. Cohesive crisp chunky pixel clusters, warm highlights and dark defined outlines, readable when reduced to 24px. Same scale and pixel density for all icons, no shadows outside the icons, no baked checkerboard.
+
+
+## Adjacent prompt records
+
+Every Brawl-owned `rift_*.png` now has a matching `.prompt.json` beside it,
+including all20 current backgrounds, fighter/effect/icon atlases and objective
+props. Each record preserves the generation prompt and binds it to the current
+PNG using SHA-256, byte count and dimensions. Existing prompt text files and the
+final prompts above remain available as the original records.
+
+Recovered records identify their source category. Contemporaneous task-note
+line wraps were normalized; their text was not invented from the images. The
+sigil prompt was recovered from the original image-generation call, and the
+archived generated image was verified byte-for-byte against the installed PNG.
+`recordedDate` is the date the sidecar was recovered, not an inferred generation
+date. Historical generation status fields describe their original checkpoint.
+
+Run `node --test scripts/check-brawl-prompts.test.cjs` from the repository root.
+The test discovers all Brawl PNGs, so future additions require an adjacent prompt
+record and replacements require matching hash, size and dimensions. This checks
+record coverage and output integrity, not visual quality or deterministic image
+regeneration. Shared pre-existing Abyss art is outside this Brawl-owned inventory.

@@ -1,0 +1,200 @@
+{
+  "schema": "brawl-heap-frequency-evidence-v1",
+  "status": "paired_review_required",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Sequential all-checkpoint versus endpoint-only heap snapshots with Network disabled. Collection overhead, duration and run order require review; no causal or release claim. Endpoint retaining paths cannot establish an intermediate plateau.",
+  "allMinusEndpointsRendererGrowthBytes": 14331904,
+  "samples": [
+    {
+      "policy": "all",
+      "status": "review_required",
+      "source": {
+        "revision": "b04a41d3c585b9a14cd8fce725df2a7955e08f2b",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b"
+      },
+      "comparison": {
+        "browser": "Chrome/153.0.8010.12",
+        "driverHash": "e2444b286de9d1f9c892a8c4f761475f3fb06a7ff96a92f8beaa8e21d9982bea",
+        "profileHash": "13925ad677750a3ac70d066a5a084e12b8323774a3d9ddd6da086d28e2101134",
+        "settingsHash": "ebb2b78e404655f708b4659870a8aa5d80a07259305e8d41a7c270a1db18cfdc",
+        "graphicsHash": "6ed01360811eda1dae9787d8236dfb410c0a8f906536d9a39571df1933120050"
+      },
+      "measuredDurationMS": 2299372,
+      "completedReplays": 60,
+      "runtimeErrors": 0,
+      "growthBytes": 1124396,
+      "postCapGrowthBytes": 106816,
+      "rendererGrowthBytes": 86409216,
+      "postCapRendererGrowthBytes": 5206016,
+      "snapshotCount": 10,
+      "checkpoints": [
+        {
+          "mission": 0,
+          "elapsedMS": 0,
+          "attemptHistoryCount": 1,
+          "heapBytes": 6307536,
+          "rendererPrivateBytes": 232218624
+        },
+        {
+          "mission": 9,
+          "elapsedMS": 332837,
+          "attemptHistoryCount": 10,
+          "heapBytes": 6900228,
+          "rendererPrivateBytes": 280125440
+        },
+        {
+          "mission": 18,
+          "elapsedMS": 659012,
+          "attemptHistoryCount": 19,
+          "heapBytes": 7067000,
+          "rendererPrivateBytes": 288444416
+        },
+        {
+          "mission": 27,
+          "elapsedMS": 992848,
+          "attemptHistoryCount": 28,
+          "heapBytes": 7137192,
+          "rendererPrivateBytes": 299675648
+        },
+        {
+          "mission": 36,
+          "elapsedMS": 1334394,
+          "attemptHistoryCount": 37,
+          "heapBytes": 7200032,
+          "rendererPrivateBytes": 307118080
+        },
+        {
+          "mission": 45,
+          "elapsedMS": 1656765,
+          "attemptHistoryCount": 46,
+          "heapBytes": 7237904,
+          "rendererPrivateBytes": 306827264
+        },
+        {
+          "mission": 49,
+          "elapsedMS": 1823582,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7325116,
+          "rendererPrivateBytes": 313421824
+        },
+        {
+          "mission": 54,
+          "elapsedMS": 2036674,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7386100,
+          "rendererPrivateBytes": 314982400
+        },
+        {
+          "mission": 59,
+          "elapsedMS": 2243296,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7443308,
+          "rendererPrivateBytes": 327929856
+        },
+        {
+          "mission": 60,
+          "elapsedMS": 2290594,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7431932,
+          "rendererPrivateBytes": 318627840
+        }
+      ]
+    },
+    {
+      "policy": "endpoints",
+      "status": "review_required",
+      "source": {
+        "revision": "b04a41d3c585b9a14cd8fce725df2a7955e08f2b",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b"
+      },
+      "comparison": {
+        "browser": "Chrome/153.0.8010.12",
+        "driverHash": "e2444b286de9d1f9c892a8c4f761475f3fb06a7ff96a92f8beaa8e21d9982bea",
+        "profileHash": "13925ad677750a3ac70d066a5a084e12b8323774a3d9ddd6da086d28e2101134",
+        "settingsHash": "ebb2b78e404655f708b4659870a8aa5d80a07259305e8d41a7c270a1db18cfdc",
+        "graphicsHash": "6ed01360811eda1dae9787d8236dfb410c0a8f906536d9a39571df1933120050"
+      },
+      "measuredDurationMS": 2365223,
+      "completedReplays": 60,
+      "runtimeErrors": 0,
+      "growthBytes": 1069004,
+      "postCapGrowthBytes": 32132,
+      "rendererGrowthBytes": 72077312,
+      "postCapRendererGrowthBytes": 2256896,
+      "snapshotCount": 2,
+      "checkpoints": [
+        {
+          "mission": 0,
+          "elapsedMS": 0,
+          "attemptHistoryCount": 1,
+          "heapBytes": 6344440,
+          "rendererPrivateBytes": 234270720
+        },
+        {
+          "mission": 9,
+          "elapsedMS": 325978,
+          "attemptHistoryCount": 10,
+          "heapBytes": 6923436,
+          "rendererPrivateBytes": 278904832
+        },
+        {
+          "mission": 18,
+          "elapsedMS": 642700,
+          "attemptHistoryCount": 19,
+          "heapBytes": 7049568,
+          "rendererPrivateBytes": 289349632
+        },
+        {
+          "mission": 27,
+          "elapsedMS": 983069,
+          "attemptHistoryCount": 28,
+          "heapBytes": 7109576,
+          "rendererPrivateBytes": 297820160
+        },
+        {
+          "mission": 35,
+          "elapsedMS": 1295924,
+          "attemptHistoryCount": 36,
+          "heapBytes": 7299036,
+          "rendererPrivateBytes": 294686720
+        },
+        {
+          "mission": 44,
+          "elapsedMS": 1633986,
+          "attemptHistoryCount": 45,
+          "heapBytes": 7408104,
+          "rendererPrivateBytes": 308072448
+        },
+        {
+          "mission": 49,
+          "elapsedMS": 1825031,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7381312,
+          "rendererPrivateBytes": 304091136
+        },
+        {
+          "mission": 54,
+          "elapsedMS": 2052852,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7386152,
+          "rendererPrivateBytes": 310038528
+        },
+        {
+          "mission": 59,
+          "elapsedMS": 2310269,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7491656,
+          "rendererPrivateBytes": 308928512
+        },
+        {
+          "mission": 60,
+          "elapsedMS": 2354778,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7413444,
+          "rendererPrivateBytes": 306348032
+        }
+      ]
+    }
+  ]
+}

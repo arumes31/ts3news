@@ -48,8 +48,6 @@ func abyssBossEncounter(depth, mobLevel int, difficulty float64) []content.Mob {
 func abyssBossEncounterAt(depth, mobLevel int, difficulty float64, now time.Time) []content.Mob {
 	names := abyssBossNamesAtDepth(depth)
 	affinity := abyssDailyBossAffinity(now)
-	lvlScale, effectiveDiff := abyssMobScalars(mobLevel, difficulty)
-	bossDef := min(10+mobLevel/2, 90)
 	hpScale, damageScale, rewardXP := 1.0, 1.0, 500
 	if len(names) > 1 {
 		// Two full solo stat blocks would double the difficulty. Twin tyrants each
@@ -58,19 +56,15 @@ func abyssBossEncounterAt(depth, mobLevel int, difficulty float64, now time.Time
 	}
 	mobs := make([]content.Mob, 0, len(names))
 	for _, name := range names {
-		mobs = append(mobs, content.Mob{
-			Name:  name,
-			Type:  content.MobBoss,
-			Level: mobLevel + 1,
-			Stats: content.Stats{
-				HP:  int(1000 * lvlScale * effectiveDiff * hpScale),
-				STR: int(50 * lvlScale * abyssMobDamageMult * effectiveDiff * damageScale),
-				DEF: bossDef,
-				SPD: 105,
-			},
-			RewardXP: rewardXP,
-			Element:  affinity.Element,
-		})
+		mobs = append(mobs, abyssBossMob(name, mobLevel, difficulty, affinity.Element, hpScale, damageScale, rewardXP))
 	}
 	return mobs
+}
+
+// abyssBossMob is shared by Abyss encounters and the Brawl catalog adapter.
+func abyssBossMob(name string, mobLevel int, difficulty float64, element content.Element, hpScale, damageScale float64, rewardXP int) content.Mob {
+	lvlScale, effectiveDiff := abyssMobScalars(mobLevel, difficulty)
+	return content.Mob{Name: name, Type: content.MobBoss, Level: mobLevel + 1, Stats: content.Stats{
+		HP: int(1000 * lvlScale * effectiveDiff * hpScale), STR: int(50 * lvlScale * abyssMobDamageMult * effectiveDiff * damageScale), DEF: min(10+mobLevel/2, 90), SPD: 105,
+	}, RewardXP: rewardXP, Element: element}
 }

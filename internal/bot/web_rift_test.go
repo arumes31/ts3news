@@ -1,0 +1,389 @@
+package bot
+
+import (
+	"context"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"ts3news/internal/content"
+	"ts3news/internal/rift"
+)
+
+type riftSnapshotCheck func(*rift.Run) bool
+
+func (check riftSnapshotCheck) Match(value driver.Value) bool {
+	saved, ok := value.(string)
+	if !ok {
+		return false
+	}
+	var run rift.Run
+	return json.Unmarshal([]byte(saved), &run) == nil && check(&run)
+}
+
+func TestRiftLootCapsMatchMissionPreviews(t *testing.T) {
+	for room, expected := range []content.Rarity{content.RarityEpic, content.RarityEpic, content.RarityLegendary} {
+		if rift.LootRarityCap(room) != expected {
+			t.Fatalf("tier %d cap changed", room+1)
+		}
+		for _, level := range rift.Campaign() {
+			if level.Rooms[room].LootRarityCeiling != expected.String() {
+				t.Fatalf("mission %d tier %d preview mismatch", level.ID, room+1)
+			}
+		}
+		available := false
+		for _, gear := range content.AbyssGearCatalog() {
+			if gear.Rarity == expected {
+				available = true
+			}
+		}
+		if !available {
+			t.Fatalf("tier %d ceiling has no catalog gear", room+1)
+		}
+		for range 100 {
+			gear, err := rollRiftGear(room, time.Unix(100, 0))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gear.Rarity > expected {
+				t.Fatalf("tier %d rolled above ceiling: %v", room+1, gear.Rarity)
+			}
+		}
+	}
+}
+
+func TestRiftBankAtomicAndReplaySafe(t *testing.T) {
+	for _, scenario := range []string{"success", "duplicate", "state failure", "old epoch", "wrong run", "fighting", "advance", "advance duplicate", "advance failure"} {
+		t.Run(scenario, func(t *testing.T) {
+			database, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = database.Close() }()
+			saveFailure := errors.New("disk unavailable")
+			run := rift.NewRun("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0))
+			advance := strings.HasPrefix(scenario, "advance")
+			if advance {
+				run = rift.NewRunAtLevel("run", rift.Build{Name: "Delver", HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
+				run.Room = 2
+				run.Build.Class = "vanguard"
+				run.Stats.Seconds = 20
+				run.Stats.HitsTaken = 2
+				run.Player.HP = 120
+			}
+			// Keep this older receipt test on the legacy, no-bonus offer.
+			if run.Objectives != nil {
+				run.Objectives.RewardPerObjective = 0
+			}
+			run.Status = "cleared"
+			run.Epoch = "2"
+			run.Revision = 4
+			run.Drops = []rift.Drop{{ID: "drop", Gold: 30, Collected: true, Gear: &content.Gear{ID: "ABYSS_TEST", Name: "Test Blade", Rarity: content.RarityRare, MaxDurability: 80}}}
+			request := riftRequest{Kind: "exit", RunID: "run", Revision: 5, RequestID: "checkpoint-request-1"}
+			if advance {
+				request.Kind = "advance"
+			}
+			if scenario == "duplicate" || scenario == "advance duplicate" {
+				request.Revision = 4
+				run.LastRequestID = request.RequestID
+				run.Drops[0].Banked = true
+				run.Status = "banked"
+				run.BankedGold = 30
+				run.BankedAtMS = 100000
+				if advance {
+					run.Status = "cleared"
+					run.FinishCheckpoint("advance", riftMobCatalog(time.Unix(100, 0)))
+				}
+			}
+			if scenario == "old epoch" {
+				run.Epoch = "1"
+			}
+			if scenario == "wrong run" {
+				request.RunID = "someone-else"
+			}
+			if scenario == "fighting" {
+				run.Status = "fighting"
+			}
+			data, err := json.Marshal(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mock.ExpectBegin()
+			mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
+			mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+			mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
+			if scenario == "success" || scenario == "state failure" || scenario == "advance" || scenario == "advance failure" {
+				mock.ExpectExec("SELECT set_config").WithArgs("rift_brawl", request.RequestID, "run", "").WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectExec("INSERT INTO user_inventory").WithArgs("owner", "ABYSS_TEST", 80, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectExec("UPDATE users SET gold").WithArgs(int64(30), "owner").WillReturnResult(sqlmock.NewResult(0, 1))
+				snapshot := sqlmock.AnyArg()
+				if advance {
+					snapshot = riftSnapshotCheck(func(saved *rift.Run) bool {
+						h := saved.History[10]
+						return saved.LastRequestID == request.RequestID && saved.ObjectiveHistory["Wayfarer"]["timed"] == 1 && saved.LastObjectives != nil && saved.LastObjectives.Banked && saved.Revision == 5 && saved.BankedGold == 30 && saved.Level.ID == 11 && h.Completions == 1 && h.BestSeconds == 20 && h.BestFinishHP == 120 && h.FewestHits != nil && *h.FewestHits == 2 && h.CompletedByClass["vanguard"] == 1 && saved.ClearStreak == 1 && saved.LastClear != nil && saved.LastClear.Mission == 10
+					})
+				}
+				write := mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", snapshot)
+				if scenario == "state failure" || scenario == "advance failure" {
+					write.WillReturnError(saveFailure)
+					mock.ExpectRollback()
+				} else {
+					write.WillReturnResult(sqlmock.NewResult(0, 1))
+					mock.ExpectCommit()
+				}
+			} else {
+				mock.ExpectRollback()
+			}
+			out, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", request, rift.Build{}, time.Unix(101, 0))
+			if scenario == "success" || scenario == "duplicate" || scenario == "advance" || scenario == "advance duplicate" {
+				if err != nil || out.BankedGold != 30 {
+					t.Fatalf("bank failed: %v %+v", err, out)
+				}
+				if scenario == "success" || scenario == "advance" {
+					if len(out.BankedLoot) != 1 || out.BankedLoot[0].Name != "Test Blade" || out.BankedLoot[0].Rarity != int(content.RarityRare) {
+						t.Fatalf("receipt rarity missing: %+v", out.BankedLoot)
+					}
+				}
+				wantBankedAt := int64(101000)
+				if scenario == "duplicate" || scenario == "advance duplicate" {
+					wantBankedAt = 100000
+				}
+				if out.BankedAtMS != wantBankedAt {
+					t.Fatalf("bank timestamp changed or missing: %d", out.BankedAtMS)
+				}
+				if advance && (out.ObjectiveHistory["Wayfarer"]["timed"] != 1 || out.LastObjectives == nil || !out.LastObjectives.Banked || out.History[10].Completions != 1 || out.History[10].CompletedByClass["vanguard"] != 1 || out.ClearStreak != 1 || out.History[10].BestSeconds != 20) {
+					t.Fatalf("request replay altered records: %+v", out.History[10])
+				}
+				if advance && (out.Level.ID != 11 || out.Room != 0 || out.Status != "fighting" || len(out.CompletedLevels) != 1 || out.CompletedLevels[0] != 10) {
+					t.Fatalf("advance lost persisted state: %+v", out)
+				}
+			} else if err == nil || out != nil {
+				t.Fatal("invalid or failed settlement returned uncommitted records")
+			}
+			if (scenario == "state failure" || scenario == "advance failure") && !errors.Is(err, saveFailure) {
+				t.Fatalf("record/reward transaction did not reach intended save failure: %v", err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestRiftRejectsUntrustedRequestsBeforeDatabase(t *testing.T) {
+	for _, scenario := range []string{"origin", "cross-site", "content-type", "forged hp", "forged elapsed", "forged record time", "movement", "oversize", "method", "invalid mission", "negative mission"} {
+		t.Run(scenario, func(t *testing.T) {
+			body := `{"kind":"step","request_id":"test-request-123456","input":{"x":0}}`
+			if scenario == "invalid mission" {
+				body = `{"kind":"start","request_id":"test-request-123456","level_id":101}`
+			}
+			if scenario == "negative mission" {
+				body = `{"kind":"start","request_id":"test-request-123456","level_id":-1}`
+			}
+			if scenario == "forged hp" {
+				body = `{"kind":"step","request_id":"test-request-123456","hp":999}`
+			}
+			if scenario == "forged elapsed" {
+				body = `{"kind":"step","request_id":"test-request-123456","input":{"x":0,"dt":1000}}`
+			}
+			if scenario == "forged record time" {
+				body = `{"kind":"step","request_id":"test-request-123456","stats":{"seconds":0.001}}`
+			}
+			if scenario == "movement" {
+				body = `{"kind":"step","request_id":"test-request-123456","input":{"x":999}}`
+			}
+			if scenario == "oversize" {
+				body = strings.Repeat("x", 5000)
+			}
+			method := http.MethodPost
+			if scenario == "method" {
+				method = http.MethodDelete
+			}
+			req := httptest.NewRequest(method, "https://game.test/api/abyss/rift", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			if scenario == "origin" {
+				req.Header.Set("Origin", "https://attacker.test")
+			}
+			if scenario == "cross-site" {
+				req.Header.Set("Sec-Fetch-Site", "cross-site")
+			}
+			if scenario == "content-type" {
+				req.Header.Set("Content-Type", "text/plain")
+			}
+			w := httptest.NewRecorder()
+			(&WebServer{}).handleRiftAPI(w, req, "owner")
+			if w.Code < 400 {
+				t.Fatalf("untrusted request accepted: %d", w.Code)
+			}
+		})
+	}
+}
+
+func TestRiftStartRetainsCampaignProgress(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	old := rift.NewRunAtLevel("old", rift.Build{HP: 200}, time.Unix(100, 0), riftMobCatalog(time.Unix(100, 0)), 10)
+	old.Status = "complete"
+	old.Epoch = "2"
+	old.CompletedLevels = []int{1, 10}
+	old.BankedGold = 300
+	old.BankedItems = []string{"Sword"}
+	old.BankedItemsTotal = 1234
+	old.Stats.Kills = 7
+	old.Stats.Bosses = 1
+	old.Stats.TreasureGoblins = 2
+	fewest := 0
+	old.History[10] = rift.MissionHistory{Attempts: 3, Completions: 2, BestSeconds: 45, LastOutcome: "completed", BestFinishHP: 150, BestFinishMaxHP: 200, FewestHits: &fewest, FlawlessTiers: []int{1, 3}, CompletedByClass: map[string]int{"vanguard": 2}}
+	data, err := json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
+	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
+	mock.ExpectExec("INSERT INTO app_meta").WithArgs("rift_brawl:owner", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	run, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", riftRequest{Kind: "start", RunID: "old", RequestID: "new-mission-request", LevelID: 42}, rift.Build{HP: 200}, time.Unix(101, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Level.ID != 42 || len(run.CompletedLevels) != 2 || run.CompletedLevels[1] != 10 || run.BankedGold != 0 || run.ID == "old" {
+		t.Fatalf("incorrect new expedition: %+v", run)
+	}
+	if got := run.RecordedTotals(); got != (rift.CareerTotals{Enemies: 7, Bosses: 1, TreasureGoblins: 2, Gold: 300, Gear: 1234}) {
+		t.Fatalf("career totals lost: %+v", got)
+	}
+	if run.History[10].Attempts != 3 || run.History[10].BestSeconds != 45 || run.History[42].Attempts != 1 {
+		t.Fatalf("history lost: %+v", run.History)
+	}
+	h := run.History[10]
+	if h.BestFinishHP != 150 || h.BestFinishMaxHP != 200 || h.FewestHits == nil || *h.FewestHits != 0 || len(h.FlawlessTiers) != 2 || h.CompletedByClass["vanguard"] != 2 {
+		t.Fatalf("fresh expedition lost personal records: %+v", h)
+	}
+	// A retry of the same start must return the saved first attempt, without
+	// another write or increment.
+	data, err = json.Marshal(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT client_uid FROM users").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("owner"))
+	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("2"))
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(data)))
+	mock.ExpectRollback()
+	replayed, err := (&Bot{DB: database}).updateRift(context.Background(), "owner", riftRequest{Kind: "start", RunID: "old", RequestID: "new-mission-request", LevelID: 42}, rift.Build{HP: 200}, time.Unix(102, 0))
+	if err != nil || replayed.History[42].Attempts != 1 {
+		t.Fatalf("start replay duplicated history: %v %+v", err, replayed)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRiftUsesCharacterAndOwnedSkills(t *testing.T) {
+	base := UserInCombat{Stats: content.Stats{HP: 300, STR: 50, DEF: 20}, AbyssSubclass: "berserker", Skills: []content.Skill{{ID: "owned", Name: "Owned Strike", Type: content.SkillPhysical, Power: 2, ManaCost: 20}}}
+	build := riftBuildFromUser(base, "Known player", 9)
+	if build.Name != "Known player" || build.Class != "berserker" || len(build.Skills) != 1 || build.Skills[0].ID != "owned" {
+		t.Fatalf("lost character identity: %+v", build)
+	}
+	base.Stats.STR = 500
+	if riftBuildFromUser(base, "Known player", 9).Damage <= build.Damage {
+		t.Fatal("gear stats did not affect action damage")
+	}
+}
+
+func TestRiftLootStaysWithinStageRarity(t *testing.T) {
+	for room := 0; room < 3; room++ {
+		for i := 0; i < 30; i++ {
+			gear, err := rollRiftGear(room, time.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			cap := content.RarityEpic
+			if room == 2 {
+				cap = content.RarityLegendary
+			}
+			if !content.IsAbyssGearID(gear.ID) || gear.Rarity > cap || gear.FoundAt == "" {
+				t.Fatalf("invalid stage loot: %+v", gear)
+			}
+		}
+	}
+}
+
+func TestRiftReadExpiresObsoleteExpedition(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	run := rift.NewRun("old-run", rift.Build{HP: 200}, time.Now())
+	run.Epoch = "old"
+	run.Gold = 99
+	run.BankedGold = 80
+	run.BankedItems = []string{"Sword"}
+	run.BankedItemsTotal = 1234
+	run.Stats.Kills = 5
+	run.PastExpeditions = rift.CareerTotals{Enemies: 10, Gold: 20, Gear: 2}
+	run.CompletedLevels = []int{1}
+	run.History = map[int]rift.MissionHistory{1: {Completions: 1, BestSeconds: 12, BestFinishHP: 150, CompletedByClass: map[string]int{"vanguard": 1}}}
+	encoded, err := json.Marshal(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT value FROM app_meta").WithArgs("rift_brawl:owner").WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(encoded)))
+	mock.ExpectQuery("SELECT COALESCE").WillReturnRows(sqlmock.NewRows([]string{"epoch"}).AddRow("new"))
+	got, err := loadRift(context.Background(), database, "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totals := got.RecordedTotals(); totals != (rift.CareerTotals{Enemies: 15, Gold: 100, Gear: 1236}) {
+		t.Fatalf("economy reset erased career totals: %+v", totals)
+	}
+	if len(got.CompletedLevels) != 1 || got.History[1].BestSeconds != 12 || got.History[1].BestFinishHP != 150 || got.History[1].CompletedByClass["vanguard"] != 1 {
+		t.Fatalf("economy reset erased mission records: %+v", got.History)
+	}
+	if got.Status != "expired" || got.ID != "old-run" || got.Gold != 0 {
+		t.Fatalf("cannot recover expired expedition: %+v", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRiftMapsEveryAbyssSubclass(t *testing.T) {
+	for _, class := range content.AbyssClasses() {
+		for _, sub := range class.Subclasses {
+			t.Run(sub.ID, func(t *testing.T) {
+				u := UserInCombat{AbyssClass: class.ID, AbyssSubclass: sub.ID, Stats: content.Stats{HP: 500, STR: 80, INT: 90, DEF: 60}, Skills: content.AbyssClassSkills(sub.ID)}
+				build := riftBuildFromUser(u, "Delver", 20)
+				if build.Class != sub.ID || build.BaseClass != class.ID || build.Resource != sub.Resource || len(build.Signatures) != 2 || len(build.Skills) != 0 {
+					t.Fatalf("subclass mapping lost: %+v", build)
+				}
+				if build.Signatures[0].Role != "builder" || build.Signatures[1].Role != "finisher" {
+					t.Fatal("signature roles lost")
+				}
+			})
+		}
+	}
+}
+
+func TestRiftPracticeCannotBankEvenWithInjectedDrops(t *testing.T) {
+	run, err := rift.NewPracticeRun("practice", rift.Build{HP: 100}, "movement", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Drops = []rift.Drop{{Gold: 999, Collected: true}}
+	if err := bankRift(context.Background(), nil, "owner", "practice-bank", run); err == nil {
+		t.Fatal("practice rewards accepted")
+	}
+}

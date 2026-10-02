@@ -120,16 +120,7 @@ func abyssSkillPriorityViewForSkills(baseSkills, orderedSkills []content.Skill) 
 }
 
 func abyssSkillPriorityIcon(skill content.Skill) string {
-	switch skill.Type {
-	case content.SkillPhysical:
-		return "⚔"
-	case content.SkillBuff:
-		return "⬆"
-	case content.SkillDebuff:
-		return "⬇"
-	default:
-		return "✦"
-	}
+	return content.SkillIcon(skill.Type)
 }
 
 func firstReadyAffordableSkill(

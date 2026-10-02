@@ -1,0 +1,330 @@
+{{define "rift"}}{{template "head" .}}
+<link rel="stylesheet" href="{{asset "/static/rift.css"}}">
+<div id="rift-app" data-props="{{asset "/static/rift_props.png"}}" data-volatile-cover="{{asset "/static/rift_volatile_cover.png"}}" data-chest="{{asset "/static/rift_loot_chest.png"}}" data-practice="{{.Practice}}" data-regions="{{asset "/static/rift_regions.png"}}" data-area="{{asset "/static/rift_area.png"}}" data-boss="{{asset "/static/rift_boss_area.png"}}" data-heroes-a="{{asset "/static/rift_heroes_a.png"}}" data-heroes-b="{{asset "/static/rift_heroes_b.png"}}" data-mobs="{{asset "/static/rift_mobs.png"}}" data-items="{{asset "/static/rift_items.png"}}" data-platform-surface="{{asset "/static/rift_platform_surface.png"}}" data-terrain-cover="{{asset "/static/rift_terrain_cover.png"}}" data-lantern="{{asset "/static/rift_lantern.png"}}" data-cage="{{asset "/static/rift_cage.png"}}" data-spirit="{{asset "/static/rift_spirit.png"}}" data-generator="{{asset "/static/rift_generator.png"}}" data-relic="{{asset "/static/rift_relic.png"}}" data-totem="{{asset "/static/rift_totem.png"}}" data-sigil="{{asset "/static/rift_sigil.png"}}" data-effects="{{asset "/static/rift_effects.png"}}" {{if .Fixture}}data-fixture="true"{{end}}>
+  <header class="rift-heading"><div><p class="rift-eyebrow">THE ABYSS / SOLO ADVENTURE</p><h1>RIFT <span>BRAWL</span></h1></div><div class="rift-heading-right"><span class="rift-tag">100 MISSIONS · 10 REGIONS</span><a href="/abyss">Return to Abyss ↗</a></div></header>
+  <section id="rift-walkthrough" aria-labelledby="rift-walkthrough-title" hidden><p id="rift-walkthrough-step" class="rift-fine"></p><h2 id="rift-walkthrough-title"></h2><p id="rift-walkthrough-copy" role="status" aria-live="polite"></p><div><button id="rift-walkthrough-back" type="button">Back</button><button id="rift-walkthrough-next" type="button">Next</button><button id="rift-walkthrough-skip" type="button">Skip walkthrough</button></div></section>
+  <details id="rift-field-guide" class="rift-field-guide"><summary>Brawl field guide <span class="rift-fine">Terms, stats &amp; combat basics</span></summary>
+    <h2>Know the battlefield</h2>
+    <dl class="rift-term-list">
+      <dt>Mission</dt><dd>A three-tier route ending in an Abyss boss encounter.</dd>
+      <dt>Tier / room</dt><dd>One battlefield within a mission. Clear its enemies to reach a checkpoint.</dd>
+      <dt>Checkpoint</dt><dd>A cleared room where you can bank rewards and continue or leave.</dd>
+      <dt>Banking</dt><dd>Securing gold and gear in your Abyss account. Unbanked finds are lost on defeat; banked rewards and equipped gear stay safe.</dd>
+      <dt>Telegraph</dt><dd>A warning pose or marked area before an attack. Move clear or time a jump before it lands.</dd>
+      <dt>Cooldown</dt><dd>The wait before an ability can be used again. Having enough mana does not bypass this wait.</dd>
+      <dt>Builder / finisher</dt><dd>Your class abilities: a builder generates class charges, and a finisher spends available charges for a stronger effect. Check your skill reference for the class-specific result.</dd>
+      <dt>Practice</dt><dd>An isolated drill using your Abyss build. It earns no loot or campaign records and keeps a separate save.</dd>
+    </dl>
+    <h3>Your RPG build, tuned for action</h3>
+    <p>Brawl brings your Abyss class, subclass, permanent stats and equipment into real-time combat. Large RPG stat values are compressed into a smaller action-game range, so Brawl HP, damage and armor differ from the numbers on your RPG character sheet. Stronger stats still help, but doubling an RPG stat does not double its Brawl value.</p>
+    <p>The current run keeps the build it started with. Changes to your character, gear or learned skills apply when you start a new expedition.</p>
+    <h3>Armor, guard and barriers</h3>
+    <p><strong>Armor</strong> reduces incoming damage automatically. <strong>Guard</strong> then reduces remaining frontal damage by 82%; turn toward the attacker, because attacks from behind bypass guard. A <strong>barrier</strong> absorbs the damage left after those reductions until its protection runs out. Guarding is not immunity.</p>
+    <p>For example, if 10 damage remains after armor, a successful guard reduces it to 1.8. A barrier can absorb that remainder before it reaches your HP.</p>
+    <h3>Depth and melee range</h3>
+    <p>Moving up or down changes your depth on the battlefield. Jumping changes height instead. For a basic melee strike, face the enemy, close the horizontal gap and line up at roughly the same depth. An enemy just above or below you can look close enough but still be outside the strike's narrow depth range.</p>
+    <p>Try moving up or down to align your fighter's feet with the target, then attack. Spells have their own ranges; use the skill reference for each ability.</p>
+    <h3>Low cover</h3>
+    <p id="rift-low-cover-rule">Low cover blocks walking and basic melee strikes across its footprint. Circle it or jump over it to reach the other side. Friendly and enemy projectiles pass over low cover, so standing behind it does not protect you from ranged attacks. Area attacks use their own marked ranges.</p>
+    <p id="rift-tall-cover-rule">Tall pillars block walking, jumping, melee strikes and projectiles from either side. Circle the pillar to get a clear shot.</p>
+    <section id="rift-legend-guide" class="rift-legend-guide" aria-labelledby="rift-legend-guide-title">
+      <h3 id="rift-legend-guide-title">Color and symbol legends</h3>
+      <p>Rift Brawl uses standardized colors, glyphs, and shapes across combat, the HUD, and menus to provide unambiguous feedback.</p>
+      <div class="rift-legend-grid">
+        <article class="rift-legend-card">
+          <h4>Combat floating text &amp; hits</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #7fd7ff; border-color: #7fd7ff;">🛡️ Cyan</span></dt>
+            <dd><strong>Guarded hit:</strong> Attack blocked or mitigated by 82% via active guard.</dd>
+            <dt><span class="rift-legend-sample" style="color: #fff0bb; border-color: #fff0bb;">Yellow</span></dt>
+            <dd><strong>Damage dealt:</strong> Outgoing attack or spell damage connecting with an enemy.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffb2a0; border-color: #ffb2a0;">Salmon</span></dt>
+            <dd><strong>Damage taken:</strong> Incoming unmitigated strike reducing your health.</dd>
+            <dt><span class="rift-legend-sample" style="color: #a8f0b0; border-color: #a8f0b0;">Green</span></dt>
+            <dd><strong>Healing:</strong> Health restored via ability, passive, or life-drain.</dd>
+            <dt><span class="rift-legend-sample" style="color: #c6a8f8; border-color: #c6a8f8;">Purple</span></dt>
+            <dd><strong>Barrier:</strong> Damage absorbed by your temporary barrier shield.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffe082; border-color: #ffe082;">✓ Gold</span></dt>
+            <dd><strong>Pickup confirmed:</strong> Gold or gear collected from the battlefield.</dd>
+          </dl>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Health thresholds &amp; danger</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #a8e0b0; border-color: #3d784c;">✓ Healthy</span></dt>
+            <dd><strong>Above 50% HP:</strong> Solid green meter; standard combat baseline.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffd782; border-color: #786428;">⚡ Wounded</span></dt>
+            <dd><strong>25%–50% HP:</strong> Amber striped meter; defensive caution recommended.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ff9e9e; border-color: #e05252;">⚠ Critical</span></dt>
+            <dd><strong>Below 25% HP:</strong> Red diagonal-striped meter with dashed border; imminent defeat.</dd>
+          </dl>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Battlefield shapes &amp; hazards</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #ffd066; border-color: #f3bf72;">◆ Diamond / Red</span></dt>
+            <dd><strong>Hostile projectile:</strong> Enemy ranged spell or missile. Evade or jump.</dd>
+            <dt><span class="rift-legend-sample" style="color: #99f6e4; border-color: #2dd4bf;">● Circle / Cyan</span></dt>
+            <dd><strong>Friendly projectile:</strong> Player-cast spell traveling across the arena.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ff8a50; border-color: #ff8a50;">Striped zone</span></dt>
+            <dd><strong>Hazard area:</strong> Ground telegraph damaging or slowing on contact.</dd>
+          </dl>
+          <div id="rift-hazard-legend" role="group" aria-label="Hazard pattern legend">
+            <p>Identify hazards by shape, even without color. Enable Hazard fill patterns in Sound &amp; display to see these fills.</p>
+            <p><strong>Dashed border:</strong> warning countdown. <strong>Solid border:</strong> active danger. <strong>SAFE:</strong> waiting for the next pulse. <strong>OFF:</strong> deactivated.</p>
+            <p><strong>Guard:</strong> floor hazards deal 82% less damage after armor while guarding, regardless of facing. Guard still counts as hazard contact. Jump during a JUMP pulse or leave the zone to avoid contact entirely. MOVE hazards cannot be jumped.</p>
+            <dl aria-label="Hazard names and matching patterns"></dl>
+            <p><strong>Advancing collapse:</strong> guard reduces its damage, but jumping does not evade it. Stay ahead of the moving edge and reach the exit.</p>
+          </div>
+        </article>
+
+        <article class="rift-legend-card">
+          <h4>Navigation, risk &amp; loot</h4>
+          <dl>
+            <dt><span class="rift-legend-sample" style="color: #e4b78b; border-color: #765239;">AT RISK</span></dt>
+            <dd><strong>Unbanked loot:</strong> Gear and gold in the expedition bag, lost on defeat.</dd>
+            <dt><span class="rift-legend-sample" style="color: #ffd38a; border-color: #b9a06a;">★ Star</span></dt>
+            <dd><strong>Favorite mission:</strong> Pinned expedition in campaign picker.</dd>
+            <dt><span class="rift-legend-sample" style="color: #d9ee88; border-color: #d9ee88;">✓ Checkmark</span></dt>
+            <dd><strong>Cleared mission:</strong> Tier or expedition completed and recorded.</dd>
+            <dt><span class="rift-legend-sample" style="color: #f2ddb0; border-color: #f2ddb0;">← / → Arrows</span></dt>
+            <dd><strong>Directional cues:</strong> Spatial audio caption indicating off-screen threat direction.</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+    <section id="rift-accessibility-guide" class="rift-accessibility-guide" aria-labelledby="rift-accessibility-guide-title">
+      <h3 id="rift-accessibility-guide-title">Nonvisual combat support &amp; limits</h3>
+      <p>Rift Brawl is a fast-paced 60fps side-scrolling action brawler. While assistive engineering is built into the HUD, audio system, menus, and controls, real-time spatial combat has inherent nonvisual limitations that players should know.</p>
+      <div class="rift-accessibility-grid">
+        <article class="rift-accessibility-card">
+          <h4>Supported nonvisual &amp; assistive features</h4>
+          <ul>
+            <li><strong>Polite live region alerts:</strong> Room changes, boss attack telegraphs, health danger warnings, and tier transitions are announced to screen readers via <code>#rift-announcer</code>.</li>
+            <li><strong>Accessible encounter summaries:</strong> After every room clear, defeat, or expedition end, a full structured battle breakdown is presented in <code>#rift-last-encounter</code> with keyboard focus shortcuts.</li>
+            <li><strong>Directional audio &amp; threat cues:</strong> Off-screen enemy projectiles and boss attack windups emit stereo-panned sound and optional directional visual captions (← / →).</li>
+            <li><strong>Audio cues &amp; soundscapes:</strong> Distinct cues play for low health, ready ultimate/finisher abilities, guard mitigation, and floor pickups. Channel volumes can be individually customized.</li>
+            <li><strong>Semantic controls &amp; screen reader labels:</strong> Action buttons have clear speech names (Attack, Jump, Guard) isolated from keycap icons (WCAG 2.5.3) and announce keyboard shortcuts.</li>
+          </ul>
+        </article>
+
+        <article class="rift-accessibility-card">
+          <h4>Technical limits of real-time combat</h4>
+          <ul>
+            <li><strong>Continuous spatial positioning:</strong> Rapid sub-second 2D coordinates of multiple moving monsters and projectiles are not streamed as speech or braille to avoid severe audio buffer overflow and cognitive overload.</li>
+            <li><strong>Depth &amp; melee alignment:</strong> Melee combat requires aligning vertical depth (Y axis) within tight pixel tolerances. Without sight, hitting moving agile targets requires area-of-effect spells or directional guessing.</li>
+            <li><strong>Dynamic floor hazards:</strong> Moving hazard zones telegraph visually and through spatial audio, but exact perimeter boundaries lack real-time continuous haptic or screen reader fences.</li>
+            <li><strong>Reaction timing:</strong> High-tier boss counters and parry windows demand 200–400ms reactions to visual flash telegraphs, which live screen reader engines cannot announce with sub-frame latency.</li>
+          </ul>
+        </article>
+
+        <article class="rift-accessibility-card">
+          <h4>Recommended nonvisual strategies</h4>
+          <ul>
+            <li><strong>Frequent tactical pauses:</strong> Press <kbd aria-hidden="true">Esc</kbd> / <strong>Menu</strong> anytime to freeze combat. The pause state maintains audio silence while allowing review of HUD status, controls, and active settings.</li>
+            <li><strong>Defensive positioning &amp; guard:</strong> Directional guard mitigates 82% of frontal incoming damage. Backing into a wall or corner limits flank angles and lets you face outward while holding guard.</li>
+            <li><strong>Area-of-effect &amp; tracking skills:</strong> Equip wide-cone abilities, barriers, and ranged builders that do not require exact pixel-level vertical depth alignment.</li>
+            <li><strong>Dedicated practice drills:</strong> Use isolated practice modes (<a href="/abyss/rift?practice=movement">Movement</a>, <a href="/abyss/rift?practice=jump">Jump</a>, <a href="/abyss/rift?practice=guard">Guard</a>) to learn audio timings and ability ranges with infinite HP and no progression risk.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </details>
+  <nav id="rift-practice-links" aria-label="Practice drills"><a href="/abyss/rift?practice=movement">Movement practice</a> · <a href="/abyss/rift?practice=jump">Jump practice</a> · <a href="/abyss/rift?practice=combo">Combo practice</a> · <a href="/abyss/rift?practice=ranged">Ranged aim practice</a> · <a href="/abyss/rift?practice=guard">Guard practice</a> · <a href="/abyss/rift?practice=perfect_guard">Perfect-guard timing</a> · <a href="/abyss/rift?practice=hazard">Hazard practice</a> · <a href="/abyss/rift?practice=moving_platform">Moving platform challenge</a> · <a href="/abyss/rift?practice=toxic_tide">Toxic Tide challenge</a> · <a href="/abyss/rift?practice=boss">Boss practice</a> · <a href="/abyss/rift?practice=class">Class practice</a> · <a href="/abyss/rift?practice=banking">Checkpoint banking demo</a> · <a href="/abyss/rift?practice=pickup">Loot pickup demo</a> · <a href="/abyss/rift?practice=resource">Resource management</a> · <a href="/abyss/rift?practice=ultimate">Ultimate timing</a> · <a href="/abyss/rift?practice=skills">Skill testing lane</a> · <a href="/abyss/rift?practice=touch">Touch control practice</a></nav>
+  <section id="rift-practice-guide" hidden aria-label="Practice drill"><h2 id="rift-practice-title"></h2><p id="rift-practice-instructions"></p><p id="rift-boss-practice-lesson" hidden></p><details id="rift-boss-jump-example" hidden><summary>See when to jump a boss slam</summary><p>This example uses a 1.15-second ground slam. Jump near the end of its warning so you are airborne at impact. Follow the actual attack countdown: timing varies by boss and phase. Moving outside the marked area also avoids a slam.</p><button id="rift-boss-jump-play" type="button">Play jump example</button> <button id="rift-boss-jump-step" type="button">Next still frame</button> <button id="rift-boss-jump-sound" type="button">Preview slam sound</button><canvas id="rift-boss-jump-canvas" width="480" height="220" role="img" aria-label="Boss slam timing example" hidden></canvas><p id="rift-boss-jump-status" role="status">Play the example or step through four still frames. Playback pauses an active drill.</p></details><div id="rift-boss-practice-options" hidden><label>Boss <select id="rift-practice-boss"></select></label> <label>Starting phase <select id="rift-practice-phase"><option value="1">Phase 1 · 100% health</option><option value="2">Phase 2 · 50% health</option><option value="3">Phase 3 · 25% health</option></select></label> <label><input id="rift-practice-slow" type="checkbox"> Longer warnings (2× windup)</label> <label><input id="rift-practice-enrage" type="checkbox"> Timed challenge: enrage after 30s (+50% boss damage)</label><p>Selection applies when starting or resetting the drill.</p></div><div id="rift-hazard-practice-options" hidden><label>Hazard intensity <select id="rift-hazard-intensity"><option value="gentle">Gentle · 5s cycle · 6 damage</option><option value="standard" selected>Standard · 3.5s cycle · 12 damage</option><option value="intense">Intense · 2.8s cycle · 18 damage</option></select></label><p>Every pulse gives a 1.2-second warning. Damage is before armor and guard. Selection applies when starting or resetting the drill.</p></div><p id="rift-practice-progress" role="status" aria-live="off"></p><span id="rift-practice-announcement" class="rift-visually-hidden" role="status" aria-atomic="true"></span><button id="rift-practice-reset" type="button" disabled>Reset drill</button> <a href="/abyss/rift">Return to campaign</a><div id="rift-practice-enemy-controls" hidden><label for="rift-practice-enemy">Practice enemy</label> <select id="rift-practice-enemy" style="max-width:100%"></select> <button type="button" data-practice-action="practice_spawn" disabled>Spawn selected enemy</button> <button type="button" data-practice-action="practice_clear" disabled>Clear arena</button><p>Spawning replaces the current target. Both controls pause practice and clear projectiles. Selected monsters fight back and can be defeated. Reset restores the immortal training target.</p></div><div id="rift-practice-bank-controls" hidden><p id="rift-practice-bank-receipt" role="status"></p><button type="button" data-practice-action="practice_bank" disabled>Bank practice tokens &amp; finish</button><p>Collected loot remains unbanked until banking succeeds. In campaign, defeat loses unbanked loot. This demonstration never grants real rewards.</p></div><div id="rift-practice-tools"><button type="button" id="rift-practice-freeze" data-practice-action="practice_freeze" aria-pressed="false" disabled>Freeze enemy movement</button><p>Freezing stops enemy movement only. Attacks, warnings and projectiles continue. Runs using freeze have separate local best times.</p><button type="button" data-practice-action="practice_health" disabled>Refill health</button><button type="button" data-practice-action="practice_mana" disabled>Refill mana</button><button type="button" data-practice-action="practice_cooldowns" disabled>Reset skill cooldowns</button><p class="rift-fine">These controls pause the drill and preserve its progress. Resume when ready. Cooldown reset affects learned abilities only.</p><p id="rift-practice-tool-status" role="status"></p></div><p id="rift-pickup-training">The gold circle shows automatic pickup reach during the first five combat seconds. In expeditions, walk close enough to bring floor loot inside the circle. Reset the drill to see it again.</p><p>No loot or campaign records are earned here. Your campaign save is kept separately.</p></section>
+  <details id="rift-campaign" class="rift-campaign" open><summary>Choose your expedition <span id="rift-progress">100 missions · 300 combat rooms</span></summary><div class="rift-campaign-tools"><label for="rift-region">Region <select id="rift-region" aria-label="Campaign region"><option value="all">All regions</option></select></label><label for="rift-auto"><input id="rift-auto" type="checkbox" checked> Seamless tiers · bank & continue automatically</label></div><p id="rift-level-description">Choose any mission. Jump low cover and evade glowing hazard zones.</p><div id="rift-levels" class="rift-levels" aria-label="Campaign missions"></div></details>
+  <div id="rift-campaign-tools-extra" class="rift-campaign-extra">
+    <div class="rift-filter-row"><label for="rift-mission-search">Find a mission <input id="rift-mission-search" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="Name, number or tactic…"></label><label for="rift-completion">Progress <select id="rift-completion"><option value="all">Any progress</option><option value="unfinished">Unfinished</option><option value="complete">Completed</option></select></label><label for="rift-difficulty">Difficulty <select id="rift-difficulty"><option value="all">Any difficulty</option><option>Wayfarer</option><option>Veteran</option><option>Champion</option><option>Mythic</option></select></label><label for="rift-favorites-only"><input id="rift-favorites-only" type="checkbox"> Favorites only</label><label for="rift-challenge-only"><input id="rift-challenge-only" type="checkbox"> Challenge compatible only</label><label for="rift-compact"><input id="rift-compact" type="checkbox"> Compact cards</label></div>
+    <div class="rift-filter-actions"><button id="rift-clear-filters" type="button">Clear filters</button><button id="rift-previous-mission" type="button">← Previous</button><button id="rift-next-mission" type="button">Next →</button><button id="rift-unfinished" type="button">Next unfinished</button><button id="rift-favorite" type="button" aria-pressed="false">☆ Favorite mission</button><button id="rift-show-selected" type="button" hidden>Show selected mission</button><span id="rift-filter-count" role="status" aria-live="polite" aria-atomic="true"></span></div>
+    <p id="rift-regional-milestone" class="rift-fine" role="status"></p><section id="rift-cosmetic-awards" aria-label="Cosmetic awards"><h3>Campaign awards</h3><p class="rift-fine">No gold, gear or combat bonuses. Complete the first region or all 100 missions to earn completion badges. Subclass mastery requires recorded clears of ten distinct missions with that subclass; repeat clears count once.</p><span id="rift-region-badge" class="rift-region-badge" hidden></span> <span id="rift-campaign-badge" class="rift-region-badge" hidden></span><div id="rift-class-badges"></div><div id="rift-perfect-guard-awards"><p id="rift-perfect-guard-progress"></p><div id="rift-perfect-guard-badges"></div><p class="rift-fine">Perfect-guard badges at 10, 100 and 1,000 confirmed campaign guards. Practice and older unrecorded guards do not count. Cosmetic only: no rewards or combat bonuses.</p></div></section>
+    <details id="rift-region-records"><summary>Regional clear-time records</summary><p>Clear all ten missions in a region in order during one expedition. Combat time only; pauses and loading are excluded. Defeat or leaving early breaks the attempt. Older mission records cannot establish a regional time.</p><ul id="rift-region-record-list"></ul></details>
+    <details id="rift-class-mastery"><summary>Class mastery statistics</summary><p class="rift-fine">Recorded Brawl results only. Ten distinct missions with a subclass earn its cosmetic mastery badge; repeat clears count once toward the badge. Older unrecorded clears are unavailable. These statistics grant no XP, stats, gold or gear and do not change Abyss progression.</p><ul id="rift-class-mastery-list"></ul><p id="rift-class-mastery-current" class="rift-fine"></p></details>
+    <details id="rift-attempt-history"><summary>Recent attempts &amp; comparison</summary><p class="rift-fine">Latest 50 recorded attempts, newest first. Combat time excludes pauses and checkpoint waiting. Different outcomes are not comparable clear-time records. Earlier attempts are unavailable.</p><button id="rift-export-records" type="button" disabled>Export records (JSON)</button><span id="rift-export-status" class="rift-fine" role="status"></span>
+    <p id="rift-room-splits" class="rift-fine"></p><p id="rift-attempt-comparison" class="rift-fine"></p><ol id="rift-attempt-list"></ol></details>
+    <p id="rift-filter-empty" hidden>No missions match these filters. Clear filters to explore the campaign.</p><details><summary>Regional progress</summary><p id="rift-region-progress"></p></details>
+  </div>
+  <div class="rift-layout">
+    <section class="rift-game" aria-label="Rift Brawl adventure">
+      <p id="rift-orientation-hint">Play in portrait, or rotate for a wider view. After rotating, press your controls again.</p>
+      <aside id="rift-touch-editor" class="rift-touch-editor" aria-label="Touch control layout editor" hidden>
+        <div class="rift-touch-editor-content">
+          <strong id="rift-touch-editor-title">Touch layout editor</strong>
+          <p>Drag the movement pad or action bar to position them for your thumbs.</p>
+          <div class="rift-touch-editor-actions">
+            <button id="rift-save-touch-layout" type="button">Save layout</button>
+            <button id="rift-cancel-touch-layout" type="button">Cancel</button>
+          </div>
+        </div>
+      </aside>
+      <div class="rift-stage-top"><span id="rift-room">Beyond the lantern</span><div><button id="rift-controls-open" type="button">Controls</button><button id="rift-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-pause" type="button" disabled aria-label="Pause expedition" aria-keyshortcuts="Escape"><span class="rift-action-label">Pause</span> <kbd aria-hidden="true">Esc</kbd></button><button id="rift-screenshot-toggle" type="button" aria-label="Clean screenshot mode (hide HUD)" title="Clean screenshot mode (hide HUD)" aria-keyshortcuts="F4" aria-pressed="false">📷</button><button id="rift-range-toggle" type="button" aria-label="Toggle skill range preview" title="Toggle skill range preview" aria-keyshortcuts="Alt+Shift+R" aria-pressed="false">🎯</button><button id="rift-fullscreen" type="button" aria-label="Fullscreen battlefield" title="Fullscreen battlefield">⛶</button></div></div>
+      <div class="rift-combat-overview"><strong id="rift-objective">Choose an expedition</strong><span id="rift-terrain-hint" hidden></span><span id="rift-enemy-count">No active enemies</span><span id="rift-combat-time">0:00 combat</span><span id="rift-latency" class="rift-latency" role="status" aria-live="off" aria-label="Connection latency: waiting for request" data-state="normal">-- ms</span><span id="rift-catchup" class="rift-catchup" role="status" hidden>⚡ Catching up…</span><span id="rift-saved-at" class="rift-saved-at" role="status" aria-live="off" aria-label="Last confirmed save time">Save: --</span><strong id="rift-paused-badge" hidden>Paused</strong><span id="rift-pending-hud" title="Unbanked drops include items still on the battlefield. Clear the room and bank to keep them.">Unbanked: 0 gold · 0 gear</span></div>
+      <aside id="rift-boss-intro" aria-label="Boss introduction" hidden><div><strong id="rift-boss-intro-name" role="status"></strong><p>Slams: jump or move clear. Volleys: evade or face the shot to guard.</p></div><button id="rift-boss-intro-skip" type="button" aria-describedby="rift-boss-intro-note">Skip intro</button><small id="rift-boss-intro-note">Skipped bosses are remembered on this device. Combat continues normally.</small></aside>
+      <aside id="rift-room-objective" aria-label="Required room objective" hidden><strong id="rift-room-objective-progress" role="status" aria-live="off"></strong><span id="rift-room-objective-announcement" class="rift-visually-hidden" role="status" aria-atomic="true"></span><p id="rift-room-objective-help"></p><p id="rift-room-objective-directions"></p></aside>
+      <section id="rift-minimap" aria-label="Current arena minimap" hidden><svg viewBox="0 0 320 54" role="img" aria-label="Current arena map"></svg><p></p></section>
+      <details id="rift-class-challenges"><summary>Optional class challenge track</summary><label><input id="rift-class-challenges-enabled" type="checkbox"> Track class challenges for this expedition</label><div id="rift-class-challenges-body" hidden><p id="rift-class-challenges-summary"></p><p class="rift-fine">Uses confirmed expedition counters, including progress before you enabled this view. Finisher goals count casts, including misses. New expeditions start fresh; practice does not count. No extra gold, gear, XP or combat bonuses.</p><ol id="rift-class-challenges-list"></ol><a href="/abyss#abyssMyBuild">Manage abilities in Abyss My Build ↗</a></div></details>
+      <details id="rift-class-comparison" hidden><summary>Compare subclasses</summary><p class="rift-fine">Compare Brawl playstyles without changing your build. Unlock and select classes in Abyss My Build; this expedition keeps its saved equipment and abilities.</p><div class="rift-class-comparison-grid"><section><label for="rift-compare-class-left">First subclass</label><select id="rift-compare-class-left"></select><div id="rift-compare-class-card-left"></div></section><section><label for="rift-compare-class-right">Second subclass</label><select id="rift-compare-class-right"></select><div id="rift-compare-class-card-right"></div></section></div><a href="/abyss#abyssMyBuild">Open Abyss My Build ↗</a></details>
+      <aside id="rift-class-primer" aria-label="Class combat primer" hidden><strong></strong><p></p><p id="rift-signature-help" hidden></p><a id="rift-signature-help-link" href="/abyss#abyssMyBuild" hidden>Open Abyss My Build ↗</a></aside>
+      <div class="rift-viewport" id="rift-viewport">
+        <div class="rift-fullscreen-tools" aria-label="Fullscreen controls"><button id="rift-fullscreen-sound" type="button" aria-pressed="false">Sound on</button><button id="rift-fullscreen-exit" type="button" aria-label="Exit fullscreen">Exit ⛶</button></div>
+        <canvas id="rift-canvas" width="960" height="540" tabindex="0" aria-label="Battlefield. Move with WASD or arrow keys. Space jumps, J attacks, L guards. Q and E use class abilities. 1, 2 and 3 use equipped skills. R uses your ultimate. Escape pauses.">Your browser needs Canvas support to play this adventure.</canvas>
+        <div id="rift-transition" class="rift-transition" aria-live="off" hidden>Tier secured · Banking rewards…</div>
+        <div class="rift-vitals" id="rift-vitals" hidden><div class="rift-player-line"><strong id="rift-name">Delver</strong><span id="rift-class"></span><span id="rift-hp-threshold" class="rift-hp-threshold" data-threshold="healthy">✓ Healthy</span><span id="rift-hp-gain" class="rift-transient-counter" hidden aria-hidden="true"></span></div><div class="rift-meter hp" data-threshold="healthy"><span id="rift-hp-fill"></span><b id="rift-hp"></b></div><div class="rift-meter mana"><span id="rift-mana-fill"></span><b id="rift-mana"></b><span id="rift-mana-gain" class="rift-transient-counter" hidden aria-hidden="true"></span></div></div>
+        <div class="rift-boss" id="rift-boss" hidden><div class="rift-boss-header"><strong id="rift-boss-name">ABYSS BOSS</strong><span id="rift-boss-threshold" class="rift-hp-threshold" data-threshold="healthy">✓ Healthy</span></div><div class="rift-meter hp" data-threshold="healthy"><span id="rift-boss-fill"></span></div><span id="rift-boss-phase" class="rift-fine"></span><span id="rift-boss-ward" class="rift-fine" role="status" aria-atomic="true" hidden></span><span id="rift-boss-enrage" class="rift-fine" role="timer" aria-live="off" hidden></span><span id="rift-boss-attack" class="rift-fine" aria-live="off" hidden></span></div>
+        <div class="rift-overlay" id="rift-overlay">
+          <p class="rift-eyebrow" id="rift-overlay-kicker">A NEW WAY INTO THE ABYSS</p>
+          <h2 id="rift-overlay-title">The ruins<br>remember.</h2>
+          <div id="rift-result-banner" class="rift-result-banner" role="status" hidden>
+            <h3 id="rift-result-heading"></h3>
+            <p id="rift-result-cause"></p>
+          </div>
+          <div id="rift-result-rewards" class="rift-result-rewards" hidden>
+            <div class="rift-reward-banked">
+              <strong>Banked rewards</strong>
+              <span id="rift-rewards-banked-val">0 gold · 0 items</span>
+            </div>
+            <div class="rift-reward-lost" id="rift-rewards-lost-group">
+              <strong>Lost pending rewards</strong>
+              <span id="rift-rewards-lost-val">0 gold · 0 items</span>
+            </div>
+          </div>
+          <p id="rift-overlay-copy">Bring your build. Fight through the overgrowth.<br>Return with what you dare to carry.</p>
+          <button class="rift-primary" id="rift-start" disabled>Loading your character…</button>
+          <a id="rift-sign-in" href="/login?next=%2Fabyss%2Frift" hidden>Sign in again</a>
+          <a id="rift-character-return" href="/abyss" hidden>Return to Abyss</a>
+          <span id="rift-atlas-progress" class="rift-atlas-progress" role="status" aria-live="polite" data-loaded="0" data-total="9">Loading critical atlases: 0/9</span>
+          <div id="rift-result-actions" hidden><button id="rift-retry-mission" type="button" hidden>Retry mission</button><button id="rift-retry-boss" type="button" hidden>Retry boss room</button><button id="rift-replay" type="button" hidden>Replay mission</button><button id="rift-result-campaign" type="button">Return to campaign</button><button id="rift-result-build" type="button" hidden>Manage build</button><button id="rift-practice-boss-link" type="button" hidden>Practice the boss</button><button id="rift-result-encounter" type="button">Encounter summary</button><button id="rift-result-region" type="button">View region progress</button><button id="rift-result-skills" type="button">View skill breakdown</button><button id="rift-copy-result-summary" type="button">Copy result summary</button><button id="rift-print-result" type="button">Print result view</button><span id="rift-result-copy-status" role="status" class="rift-fine" hidden></span></div>
+          <span class="rift-overlay-note" id="rift-overlay-note">Your Abyss character · Real loot · Solo stages</span>
+        </div>
+        <div class="rift-room-actions" id="rift-room-actions" hidden><div class="rift-clear-heading"><canvas id="rift-chest-preview" width="64" height="80" aria-hidden="true" hidden></canvas><strong id="rift-clear-label">Area secured</strong></div><span>All drops here will be collected and banked.<br><b id="rift-checkpoint-total"></b><br><span id="rift-checkpoint-bonus"></span><br><span id="rift-recovery-preview"></span></span><div><button id="rift-next" class="rift-primary">Bank & continue →</button><button id="rift-exit">Bank & leave</button></div></div>
+      </div>
+      <div class="rift-controls-band">
+        <div id="rift-actionbar" class="rift-actionbar" tabindex="-1"><div class="rift-basics"><button data-hold="attack" data-bind="attack" aria-label="Attack" aria-keyshortcuts="J"><kbd aria-hidden="true">J</kbd><span class="rift-action-label">Attack</span></button><button data-hold="jump" data-bind="jump" aria-label="Jump" aria-keyshortcuts="Space"><kbd aria-hidden="true">Space</kbd><span class="rift-action-label">Jump</span></button><button data-hold="dodge" data-bind="dodge" aria-label="Dodge" aria-keyshortcuts="C"><kbd aria-hidden="true">C</kbd><span class="rift-action-label">Dodge</span></button><button data-hold="guard" data-bind="guard" aria-label="Guard" aria-keyshortcuts="L"><kbd aria-hidden="true">L</kbd><span class="rift-action-label">Guard</span></button></div><div id="rift-skills" class="rift-skills"></div><span class="rift-move-hint" aria-label="Movement: W A S D"><kbd id="rift-movement-keys" aria-hidden="true">W A S D</kbd> <span class="rift-move-label">move</span></span></div>
+        <details id="rift-potions" class="rift-potions"><summary>Healing potions</summary><label for="rift-potion-select">Owned Abyss potion</label><select id="rift-potion-select" disabled></select><button id="rift-potion-use" type="button" disabled>Use potion</button><button id="rift-potion-refresh" type="button">Refresh inventory</button><p id="rift-potion-status" role="status"></p><p class="rift-fine">Consumes shared Abyss inventory. Base healing values; 8 combat seconds between uses. Healing potions only; corrupted items and tree potency bonuses are not supported here.</p></details>
+        <div class="rift-classbar"><div><strong id="rift-style">Abyss class abilities</strong><span id="rift-resource">Choose your class in Abyss</span><span id="rift-resource-gain" class="rift-transient-counter" hidden aria-hidden="true"></span></div><div id="rift-signatures" class="rift-signatures"></div></div>
+        <div class="rift-touch" aria-label="Touch movement"><button data-move="left" aria-label="Move left" title="Move left">←</button><div><button data-move="up" aria-label="Move up" title="Move up">↑</button><button data-move="down" aria-label="Move down" title="Move down">↓</button></div><button data-move="right" aria-label="Move right" title="Move right">→</button></div>
+        <div class="rift-touch-joystick" id="rift-touch-joystick" aria-label="Virtual joystick" role="region" hidden><div class="rift-joystick-base" id="rift-joystick-base" tabindex="-1"><div class="rift-joystick-stick" id="rift-joystick-stick"></div></div></div>
+      </div>
+      <details id="rift-effect-types"><summary>Class bonuses &amp; temporary effects</summary><h3>Class rules — passive or ability-triggered</h3><p id="rift-class-rules"></p><p class="rift-fine">Class rules belong to this expedition's build. Their conditions depend on health, equipped gear, charges or ability use; they are not countdown buffs.</p><h3>Temporary combat effects</h3><ul id="rift-temporary-effects"></ul><p class="rift-fine">Timers pause with combat. Barrier capacity is consumed by damage; it has no countdown. Healing is an immediate recovery, not a lasting buff.</p></details>
+      <div class="rift-combat-signals"><span id="rift-facing">Facing right →</span><span id="rift-guard-reduction" title="Guard reduces frontal damage after armor. Attacks from behind bypass guard.">Guard inactive</span><span id="rift-guard-stamina" class="rift-guard-stamina" role="status" aria-live="off">Stamina: 100%</span><span id="rift-guard-state" class="rift-visually-hidden" role="status" aria-atomic="true"></span><span id="rift-jump-ready">Jump ready</span><span id="rift-dodge-ready">Dodge ready</span><span id="rift-combo-step">Strike 0/3</span><span id="rift-barrier-state">No barrier</span><span id="rift-slow-state">Normal speed</span><span id="rift-area-effects" role="status" aria-live="off" data-effect-state="none">No active area effects</span><span id="rift-area-announcement" class="rift-visually-hidden" role="status" aria-atomic="true"></span><span id="rift-mark-state">No marked target</span><span id="rift-precision-state" role="status" hidden></span><span id="rift-pack-target" role="status" hidden></span><span id="rift-pet-synergy" hidden></span><span id="rift-elemental-reaction" role="status" hidden></span><span id="rift-oracle-healing" hidden></span><span id="rift-alchemist-sequence" hidden></span><span id="rift-finisher-state">Build charges with Q</span><span id="rift-health-cost" hidden></span><span id="rift-health-cost-warning" hidden></span><span id="rift-charge-benefit"></span><span id="rift-low-resource" hidden></span><span id="rift-berserker-fury" role="status" hidden></span><span id="rift-relic-synergy" role="status" hidden></span><span id="rift-last-charge-spend" role="status" hidden></span><span id="rift-cooldown-receipt" role="status" hidden></span><span id="rift-blood-recovery" role="status" hidden></span><span id="rift-ultimate-state"></span><span id="rift-legendary-drops"></span><span id="rift-offscreen-enemies">No off-screen threats</span><span id="rift-skill-range" role="status">Skill range: None requested</span></div>
+      <section id="rift-defeat-guide" aria-labelledby="rift-defeat-guide-title" hidden><h3 id="rift-defeat-guide-title">Prepare your next attempt</h3><p id="rift-hazard-defeat-hint" hidden></p><p>Your banked rewards and equipped gear remain safe. Unbanked finds were lost.</p><ol><li>Review damage taken, guards and skill use to spot what to change.</li><li>Choose skills before entering again, or select another mission to practice.</li><li>Use Enter a new expedition when ready. A fresh expedition restores health and mana.</li></ol><div><button id="rift-defeat-review" type="button">Review this fight</button><button id="rift-defeat-missions" type="button">Choose mission</button><button id="rift-defeat-dismiss" type="button">Got it</button></div></section>
+      <section id="rift-checkpoint-guide" aria-label="Checkpoint guidance" hidden><p id="rift-checkpoint-guide-copy" role="status"></p><button id="rift-checkpoint-guide-dismiss" type="button">Got it</button></section>
+      <p id="rift-clear-result" class="rift-status" role="status" aria-live="polite" hidden></p>
+      <section id="rift-last-encounter" class="rift-last-encounter" aria-labelledby="rift-last-encounter-title" tabindex="-1">
+        <div class="rift-encounter-header">
+          <h3 id="rift-last-encounter-title">Last encounter summary</h3>
+          <div class="rift-encounter-controls">
+            <button id="rift-toggle-encounter-stats" type="button" aria-expanded="true">Hide details</button>
+            <span id="rift-last-encounter-badge" class="rift-encounter-badge" data-outcome="none">No encounter</span>
+          </div>
+        </div>
+        <p id="rift-last-encounter-empty" class="rift-fine">No encounter completed yet this expedition.</p>
+        <div id="rift-last-encounter-details" hidden>
+          <p id="rift-last-encounter-headline" class="rift-last-encounter-headline" role="status" aria-live="polite"></p>
+          <dl id="rift-last-encounter-stats" class="rift-last-encounter-stats"></dl>
+          <div id="rift-result-monsters" hidden><p>Encountered monsters</p><div id="rift-result-monster-links"></div></div>
+          <button id="rift-result-bestiary" type="button" hidden>Review boss in bestiary</button>
+        </div>
+      </section>
+      <details id="rift-optional-objectives" open><summary>Optional mission objectives</summary><p id="rift-objectives-caption"></p><p id="rift-objective-reward-terms" class="rift-fine"></p><p id="rift-objective-reward-total" class="rift-fine"></p><ul id="rift-objectives-list"></ul><details id="rift-objective-history" hidden><summary>Banked objective completions by difficulty</summary><p class="rift-fine">Each completed mission counts once after checkpoint banking. These are records, not extra loot.</p><ul id="rift-objective-history-list"></ul></details><details id="rift-objectives-last" hidden><summary id="rift-objectives-last-title">Previous mission objectives</summary><ul id="rift-objectives-last-list"></ul></details></details>
+      <details class="rift-run-statistics"><summary>Run statistics</summary><p>Confirmed combat totals. Highest basic combo records the furthest strike reached in the three-strike cycle during this expedition, including attacks that miss. Pauses and checkpoint waiting do not count toward combat time. Paused seconds are recorded separately when play resumes; an ongoing pause is added on resume. Older pauses without a saved start time cannot be reconstructed. Each damaged target counts as one skill hit. Damaging hits taken count attacks or hazards that reduce HP; fully absorbed damage does not count. Healing excludes overhealing and checkpoint recovery. Overlapping shields share absorbed damage in proportion to their remaining strength. A mission clear streak ends on defeat, early exit or abandoning an unfinished mission. Completed expeditions carry the streak into the next one. Older saves may have incomplete combat records.</p><dl id="rift-statistics"></dl><div class="rift-career-records"><h3>Brawl career</h3><p>Recorded totals across expeditions, including this one. Defeat keeps these records; only successfully banked gold and gear count as rewards. Treasure goblins count when defeated. Older expeditions without saved records are not included. Mission completion, personal bests, subclass clears and career totals survive economy resets. A reset expires the current expedition and removes its unbanked loot.</p><dl id="rift-career-statistics"></dl></div></details>
+      <div id="rift-result-hint" class="rift-result-hint" role="status" aria-live="polite" hidden><p id="rift-result-hint-text"></p><button id="rift-dismiss-hint" type="button">Dismiss this hint</button></div>
+      <p id="rift-recent-damage" class="rift-fine">Last 5 combat seconds: 0 damage taken · 0 healing</p>
+      <p id="rift-nearest-drop" class="rift-fine">No uncollected drops</p>
+      <span id="rift-announcer" class="rift-visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
+      <p class="rift-status" id="rift-status" role="status" aria-live="polite">Preparing the expedition…</p>
+    </section>
+    <aside class="rift-sidebar">
+      <section><p class="rift-eyebrow">YOUR EXPEDITION</p><h2 id="rift-region-title">Mossbound Ruins</h2><ol class="rift-route"><li class="current"><span>01</span><div><b class="rift-room-name">Approach</b><small>A new patrol each expedition</small></div></li><li><span>02</span><div><b class="rift-room-name">Inner Court</b><small>Face the Abyss bestiary</small></div></li><li><span>03</span><div><b class="rift-room-name">Guardian's Stand</b><small id="rift-route-boss">Defeat an Abyss boss</small></div></li></ol></section>
+      <section><div class="rift-section-heading"><h3>Expedition bag</h3><span class="rift-at-risk">AT RISK</span></div><p class="rift-gold"><b id="rift-gold">0</b> gold</p>
+        <p id="rift-loot-count" class="rift-fine">0 items pending</p><p id="rift-floor-loot" class="rift-fine"></p>
+        <label class="rift-loot-sort" for="rift-loot-sort">Sort gear <select id="rift-loot-sort"><option value="found">Discovery order</option><option value="rarity">Rarity</option><option value="slot">Equipment slot</option></select></label>
+        <ul id="rift-loot" class="rift-loot"><li class="rift-empty">Your next discovery is out there.</li></ul><p class="rift-fine">Bank after a cleared room. Defeat loses only unbanked finds.</p><div class="rift-banked"><span>Safely banked</span><strong id="rift-banked">0 gold · 0 items</strong></div>
+        <p id="rift-banking-status" class="rift-fine" role="status"></p><details id="rift-receipt" class="rift-receipt" hidden><summary>Banked loot receipt</summary><p id="rift-receipt-total" class="rift-fine"></p><p id="rift-receipt-breakdown" class="rift-fine"></p><p id="rift-banked-at" class="rift-fine"></p><label for="rift-receipt-rarity">Receipt rarity<select id="rift-receipt-rarity"><option value="all">All banked gear</option><option value="rare">Rare or better</option></select></label><p id="rift-receipt-unknown" hidden></p><label for="rift-receipt-search">Find banked gear<input id="rift-receipt-search" type="search" maxlength="100"></label><ul id="rift-receipt-list"></ul><p id="rift-receipt-empty" hidden></p><p id="rift-receipt-limit" hidden></p><button id="rift-copy-receipt" type="button">Copy receipt</button><p id="rift-receipt-copy-status" role="status"></p><a href="/inventory">Open inventory ↗</a></details>
+      </section>
+      <section><h3>Your build</h3><p id="rift-build" class="rift-fine">Connecting to your Abyss character…</p><p id="rift-sequence" class="rift-fine"></p><div id="rift-loadout" class="rift-loadout"></div><details><summary>Equipped gear</summary><ul id="rift-gear" class="rift-fine"></ul></details><a class="rift-build-link" href="/abyss">Manage class & build in Abyss ↗</a><p class="rift-fine">Your selected class, subclass, permanent stats and equipped skills carry over with action-mode tuning. The loadout is fixed for this expedition.</p></section>
+      <details class="rift-settings"><summary>Sound & display</summary><label for="rift-context-hints"><input id="rift-context-hints" type="checkbox" checked> Show contextual coaching hints</label><label for="rift-abbreviate-abilities"><input id="rift-abbreviate-abilities" type="checkbox"> Abbreviate ability names</label><label for="rift-hide-detailed-stats"><input id="rift-hide-detailed-stats" type="checkbox"> Hide detailed statistics by default</label><label for="rift-effects-volume">Effects <input id="rift-effects-volume" type="range" min="0" max="100" value="65"></label><label for="rift-ambience-volume">Area ambience <input id="rift-ambience-volume" type="range" min="0" max="100" value="35"></label><label for="rift-reduced"><input id="rift-reduced" type="checkbox"> Reduced visual effects</label><label for="rift-confirm-boss"><input id="rift-confirm-boss" type="checkbox"> Require confirmation after a boss tier clear</label><label for="rift-pause-boss-room"><input id="rift-pause-boss-room" type="checkbox"> Pause before entering boss rooms</label><label for="rift-pause-new-region"><input id="rift-pause-new-region" type="checkbox"> Pause before entering a new region</label><label for="rift-fullscreen-controls"><input id="rift-fullscreen-controls" type="checkbox"> Show controls before entering fullscreen</label><label for="rift-transition-delay">Automatic transition delay <select id="rift-transition-delay" aria-describedby="rift-transition-delay-note"><option value="1.2">1.2 seconds (default)</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label><p id="rift-transition-delay-note" class="rift-fine">Applies with Seamless tiers enabled. Continue now skips the wait. Changing this setting restarts the current countdown.</p><label for="rift-show-objectives"><input id="rift-show-objectives" type="checkbox" checked> Show optional objectives</label><p class="rift-fine">Hiding the panel does not stop objective tracking or banking.</p><button id="rift-boss-intro-reset" type="button">Show skipped boss introductions again</button><p id="rift-boss-intro-setting-status" role="status"></p><button id="rift-open-controls-reference" type="button">Combat controls reference</button><button id="rift-open-legend-reference" type="button">Color &amp; symbol legend</button><button id="rift-open-accessibility-reference" type="button">Nonvisual combat &amp; accessibility</button><button id="rift-system-motion" type="button">Use system motion setting</button><p class="rift-fine">Sound starts when you enter. Pausing or hiding the game silences it.</p></details>
+    </aside>
+  </div>
+  <details class="rift-bestiary">
+    <summary>Abyss bestiary <span id="rift-monster-count"></span></summary>
+    <p>Every monster comes from the Abyss catalog. Each expedition draws a fresh patrol and boss. Catalog updates apply to your next expedition.</p>
+    <div class="rift-bestiary-filters">
+      <label for="rift-monster-search">Find a monster<input id="rift-monster-search" type="search" placeholder="Name, tier or element…"></label>
+      <label for="rift-monster-family">Creature family<select id="rift-monster-family"><option value="">All families</option></select></label>
+      <label for="rift-monster-tier">Tier<select id="rift-monster-tier"><option value="">All tiers</option></select></label>
+      <label for="rift-monster-element">Element<select id="rift-monster-element"><option value="">All elements</option></select></label>
+      <label for="rift-monster-style">Attack style<select id="rift-monster-style"><option value="">All styles</option></select></label>
+      <label for="rift-monster-bookmarked"><input type="checkbox" id="rift-monster-bookmarked"> Practice bookmarks only</label><label for="rift-monster-seen"><input type="checkbox" id="rift-monster-seen"> Recorded encounters only</label><button type="button" id="rift-monster-clear">Clear filters</button>
+    </div>
+    <p id="rift-monster-matches" role="status" aria-live="polite" aria-atomic="true"></p><p class="rift-fine" id="rift-catalog-help">The roster and encounter pools follow shared Abyss content. Each mission keeps its planned encounters; new missions use the current catalog.</p>
+    <details id="rift-compare"><summary>Compare two creatures</summary><div class="rift-compare-pickers"><label for="rift-compare-left">First creature<select id="rift-compare-left"><option value="">Choose a creature</option></select></label><label for="rift-compare-right">Second creature<select id="rift-compare-right"><option value="">Choose a creature</option></select></label><button id="rift-compare-clear" type="button">Clear comparison</button></div><p id="rift-compare-status" class="rift-fine" role="status">Choose two creatures to compare their base stats.</p><table id="rift-monster-comparison" hidden></table></details>
+    <section id="rift-monster-detail" class="rift-monster-detail" aria-labelledby="rift-monster-title" hidden>
+      <div><h3 id="rift-monster-title" tabindex="-1"></h3><button type="button" id="rift-monster-close">Close monster details</button></div>
+      <button id="rift-monster-bookmark" type="button" aria-pressed="false">Save for practice</button><p id="rift-monster-quick-summary"></p>
+      <span id="rift-monster-preview" class="rift-monster-art" aria-hidden="true"></span>
+      <label for="rift-monster-pose">Preview animation<select id="rift-monster-pose"><option value="idle">Idle</option><option value="run">Run</option><option value="attack">Attack</option><option value="hurt">Hurt</option><option value="defeat">Defeat</option></select></label>
+      <div id="rift-monster-sounds" aria-label="Creature sound previews"></div><p id="rift-monster-sound-status" class="rift-fine" role="status"></p><p class="rift-fine">Preview the shared Brawl combat cues for this creature. Uses your current mute and sound mix settings.</p>
+      <p id="rift-monster-record" class="rift-fine"></p><details id="rift-monster-stat-details"><summary>Full stats and training</summary><dl id="rift-monster-stats"></dl></details><p id="rift-monster-tip"></p>
+      <p class="rift-fine">Base Brawl stats. Mission difficulty and room depth scale these values in combat.</p>
+    </section>
+    <div id="rift-monsters" class="rift-monsters" role="list"></div><p id="rift-monsters-empty" hidden>No matching monsters. Clear filters or try another name.</p>
+  </details>
+  <dialog id="rift-controls-dialog" class="rift-controls-dialog" aria-labelledby="rift-controls-title">
+    <h2 id="rift-controls-title">Your controls</h2><p>Bindings follow physical key positions. Alternate keyboards use the same positions; labels show the key codes. Escape always pauses, or cancels editing. The game stays paused when you close this panel.</p>
+    <label for="rift-key-preset">Keyboard layout <select id="rift-key-preset"><option value="standard">Standard</option><option value="leftHanded">Left-handed actions</option><option value="oneHanded">Compact one-handed</option></select></label><p id="rift-key-preset-description"></p><button id="rift-apply-keys" type="button">Apply layout</button>
+    <div id="rift-key-bindings"></div>
+    <div class="rift-pointer-settings"><label for="rift-mouse-attack">Mouse attack <select id="rift-mouse-attack"><option value="-1">Unbound</option><option value="0">Left button</option><option value="1">Middle button</option><option value="2">Right button</option></select></label><label for="rift-mouse-guard">Mouse guard <select id="rift-mouse-guard"><option value="-1">Unbound</option><option value="0">Left button</option><option value="1">Middle button</option><option value="2">Right button</option></select></label><label for="rift-toggle-guard"><input id="rift-toggle-guard" type="checkbox"> Toggle guard instead of holding</label></div>
+    <p>Mouse actions work on the battlefield. Toggle guard stays on until the next guard press; pausing clears it. Keyboard layouts and key reset keep these preferences.</p><p id="rift-binding-status" role="status" aria-live="polite"></p>
+    <details id="rift-controls-reference" class="rift-controls-reference">
+      <summary>Plain-text controls reference</summary>
+      <div class="rift-controls-reference-body">
+        <p class="rift-fine">Plain-text reference of all active combat bindings, mouse assignments, and keyboard shortcuts.</p>
+        <pre id="rift-controls-reference-text" class="rift-controls-reference-text" tabindex="0" aria-label="Plain-text combat controls reference"></pre>
+        <div class="rift-controls-reference-actions">
+          <button id="rift-copy-controls-reference" type="button">Copy controls reference</button>
+          <span id="rift-copy-controls-status" class="rift-fine" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </details>
+    <div class="rift-controls-footer"><button id="rift-controls-fullscreen" type="button">Enter fullscreen</button><button id="rift-reset-keys" type="button">Reset all keys</button><button id="rift-controls-close" type="button">Close controls</button></div>
+  </dialog>
+</div>
+<script defer src="{{asset "/static/abyss_combat_art.js"}}"></script>
+<script defer src="{{asset "/static/rift_bestiary.js"}}"></script>
+<script defer src="{{asset "/static/rift_audio.js"}}"></script>
+<script defer src="{{asset "/static/rift_audio_settings.js"}}"></script>
+<script defer src="{{asset "/static/rift_display.js"}}"></script>
+<script defer src="{{asset "/static/rift_loot.js"}}"></script>
+<script defer src="{{asset "/static/rift_chest.js"}}"></script>
+<script defer src="{{asset "/static/rift_prop_sections.js"}}"></script>
+<script defer src="{{asset "/static/rift_region_sections.js"}}"></script>
+<script defer src="{{asset "/static/rift_hero_sections.js"}}"></script>
+<script defer src="{{asset "/static/rift_mob_sections.js"}}"></script>
+<script defer src="{{asset "/static/rift_creature_sections.js"}}"></script>
+<script defer src="{{asset "/static/rift_creature_loader.js"}}"></script>
+<script defer src="{{asset "/static/rift_renderer.js"}}"></script>
+<script defer src="{{asset "/static/rift_campaign.js"}}"></script>
+<script defer src="{{asset "/static/rift_mission.js"}}"></script>
+<script defer src="{{asset "/static/rift_loadout.js"}}"></script>
+<script defer src="{{asset "/static/rift_records.js"}}"></script>
+<script defer src="{{asset "/static/rift_minimap.js"}}"></script>
+<script defer src="{{asset "/static/rift_hud.js"}}"></script>
+<script defer src="{{asset "/static/rift_abilities.js"}}"></script>
+<script defer src="{{asset "/static/rift_protocol.js"}}"></script>
+<script defer src="{{asset "/static/rift_controls.js"}}"></script>
+<script defer src="{{asset "/static/rift_walkthrough.js"}}"></script>
+<script defer src="{{asset "/static/rift_gamepad.js"}}"></script>
+<script defer src="{{asset "/static/rift_jump.js"}}"></script>
+<script defer src="{{asset "/static/rift_intents.js"}}"></script>
+<script defer src="{{asset "/static/rift_feedback.js"}}"></script>
+<script defer src="{{asset "/static/rift_haptics.js"}}"></script>
+<script defer src="{{asset "/static/rift_boss_intro.js"}}"></script>
+<script defer src="{{asset "/static/rift_objectives.js"}}"></script>
+<script defer src="{{asset "/static/rift_class_compare.js"}}"></script>
+<script defer src="{{asset "/static/rift_class_challenges.js"}}"></script>
+<script defer src="{{asset "/static/rift_diagnostics.js"}}"></script>
+<script defer src="{{asset "/static/rift_potions.js"}}"></script>
+<script defer src="{{asset "/static/rift.js"}}"></script>
+{{template "foot" .}}{{end}}

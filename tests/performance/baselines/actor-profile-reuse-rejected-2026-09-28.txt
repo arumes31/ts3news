@@ -1,0 +1,23 @@
+const {test,expect}=require('@playwright/test');
+
+test('actor drawing resolves each current monster profile once',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');
+ await expect(page.locator('#rift-start')).toBeEnabled();
+ const data=await(await page.request.get('/api/abyss/rift')).json();
+ const result=await page.evaluate(async roster=>{
+  await RiftRenderer.ready;
+  const original=RiftBestiary.profile,failures=[];let calls=0,draws=0;
+  RiftBestiary.profile=function(unit){calls++;return original(unit);};
+  try{
+   for(const source of roster)for(const pose of ['idle','attack','stagger','defeat']){
+    const unit={...source,id:'profile-probe',x:450,y:410,hp:pose==='defeat'?0:100,max_hp:100,facing:1,pose,pose_time:.2};
+    calls=0;RiftRenderer.renderActor(unit,performance.now());draws++;
+    if(calls!==1)failures.push({pose,calls});
+   }
+  }finally{RiftBestiary.profile=original;}
+  return {draws,failures:failures.slice(0,10)};
+ },data.bestiary);
+ expect(result.draws).toBe(data.bestiary.length*4);
+ expect(result.draws).toBeGreaterThan(0);
+ expect(result.failures).toEqual([]);
+});

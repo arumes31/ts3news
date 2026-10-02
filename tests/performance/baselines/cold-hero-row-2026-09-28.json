@@ -1,0 +1,128 @@
+{
+  "schema": "brawl-cold-hero-row-v1",
+  "status": "threshold_failure",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "revision": "e9cd5e72001a214bf95625d5d762e5c9808333b6",
+  "serverReportedRevision": null,
+  "fixtureBuild": {
+    "revision": "e9cd5e72001a214bf95625d5d762e5c9808333b6",
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+    "provenance": "Isolated fixture compiled by Playwright webServer from frozen workspace; no server revision endpoint assertion."
+  },
+  "browser": "153.0.8010.12",
+  "platform": "win32",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "cpuThrottled": false,
+  "thresholds": {
+    "medianReadyMS": 20000,
+    "eachReadyMS": 25000,
+    "transferBytes": 3000000
+  },
+  "readinessMS": {
+    "min": 133925,
+    "median": 133944.69999998808,
+    "max": 134368.89999999106
+  },
+  "samples": [
+    {
+      "readyMS": 134368.89999999106,
+      "transferBytes": 26564308,
+      "encodedBodyBytes": 26549308,
+      "resourceCount": 50,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": true,
+      "errorCount": 1
+    },
+    {
+      "readyMS": 133925,
+      "transferBytes": 26564308,
+      "encodedBodyBytes": 26549308,
+      "resourceCount": 50,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": true,
+      "errorCount": 1
+    },
+    {
+      "readyMS": 133944.69999998808,
+      "transferBytes": 26564308,
+      "encodedBodyBytes": 26549308,
+      "resourceCount": 50,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": true,
+      "errorCount": 1
+    }
+  ],
+  "largestResourcesFirstSample": [
+    {
+      "path": "/static/rift_regions.png",
+      "bytes": 3222009,
+      "durationMS": 96651.5
+    },
+    {
+      "path": "/static/rift_mobs.png",
+      "bytes": 2782428,
+      "durationMS": 83510.5
+    },
+    {
+      "path": "/static/rift_platform_surface.png",
+      "bytes": 2771164,
+      "durationMS": 106364.09999999404
+    },
+    {
+      "path": "/static/abyss_combat_bosses_v2.png",
+      "bytes": 2680354,
+      "durationMS": 118780.60000000894
+    },
+    {
+      "path": "/static/abyss_combat_creatures_v2.png",
+      "bytes": 2474580,
+      "durationMS": 110107.29999999702
+    },
+    {
+      "path": "/static/abyss_combat_bestiary_v2.png",
+      "bytes": 2445858,
+      "durationMS": 111263.5
+    },
+    {
+      "path": "/static/abyss_combat_roles_v2.png",
+      "bytes": 2217154,
+      "durationMS": 105051.19999998808
+    },
+    {
+      "path": "/static/rift_props.png",
+      "bytes": 1553373,
+      "durationMS": 36009.59999999404
+    },
+    {
+      "path": "/static/rift_terrain_cover.png",
+      "bytes": 1484178,
+      "durationMS": 46117.09999999404
+    },
+    {
+      "path": "/static/rift_items.png",
+      "bytes": 1392338,
+      "durationMS": 41855.20000000298
+    }
+  ]
+}

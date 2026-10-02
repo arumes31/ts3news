@@ -1,0 +1,260 @@
+{
+  "schema": "brawl-input-cadence-experiment-v1",
+  "verdict": "reverted_inconclusive",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "baseline": "input-interior-2026-09-28.json",
+  "hypothesis": "Count request time toward the 85ms loop cadence while retaining serial requests: delay=max(0,85-elapsedLoopMS).",
+  "candidatePatch": "diff --git a/internal/bot/webassets/rift.js b/internal/bot/webassets/rift.js\nindex 053d0b46..054bf28f 100644\n--- a/internal/bot/webassets/rift.js\n+++ b/internal/bot/webassets/rift.js\n@@ -622,6 +622,7 @@\n   }\n   async function loop(){\n     if(!playing)return;\n+    const started=performance.now();\n     audio.tick?.();\n     if(!busy&&!checkpointPending){\n       if(run?.status==='cleared' && $('rift-auto').checked){\n@@ -647,7 +648,8 @@\n         if(remaining===0)await send('advance');\n       }else{countdownAnnounced=-1;const potion=potions?.take();if(potion)potions.finish(await send('potion',potion));else await send('step');}\n     }\n-    if(playing)timer=setTimeout(loop,85);\n+    // Count request time toward the cadence while keeping requests serial.\n+    if(playing)timer=setTimeout(loop,Math.max(0,85-(performance.now()-started)));\n   }\n   let pausePending=null,leavingPage=false;\n   function pause(){",
+  "reason": "Median p95 improved from555.9 to526.9ms (5.2%), but candidate range503.9-567.8ms overlaps baseline552.8-581.2ms. Candidate variation exceeds median gain. Request p95 increased in all samples. No repeatable overall improvement established; all samples fail300ms target.",
+  "correctness": {
+    "loopTests": 8,
+    "potionTests": 4,
+    "browserTests": 16,
+    "acceptedInputs": 180,
+    "unconfirmed": 0,
+    "rejected": 0
+  },
+  "samples": [
+    {
+      "sample": 1,
+      "revision": "5bd4a694ded5e621e6b18fb56f6c4f4531325ee4",
+      "trackedDiffSHA256": "4039c0718f9a8d68ac67f2ec5aba1d98870ff21bda823f2402ed67f1c3dde7cd",
+      "browser": "153.0.8010.12",
+      "host": {
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "platform": "win32"
+      },
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 897.9000000000012,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 526.8999999910593,
+        "max": 545.5999999940395,
+        "queueP95": 271.6000000089407,
+        "requestP95": 249.29999999701977
+      },
+      "errors": 0
+    },
+    {
+      "sample": 2,
+      "revision": "5bd4a694ded5e621e6b18fb56f6c4f4531325ee4",
+      "trackedDiffSHA256": "4039c0718f9a8d68ac67f2ec5aba1d98870ff21bda823f2402ed67f1c3dde7cd",
+      "browser": "153.0.8010.12",
+      "host": {
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "platform": "win32"
+      },
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 805.5450000000009,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 567.7999999970198,
+        "max": 680.2000000029802,
+        "queueP95": 301.20000000298023,
+        "requestP95": 299.5
+      },
+      "errors": 0
+    },
+    {
+      "sample": 3,
+      "revision": "5bd4a694ded5e621e6b18fb56f6c4f4531325ee4",
+      "trackedDiffSHA256": "4039c0718f9a8d68ac67f2ec5aba1d98870ff21bda823f2402ed67f1c3dde7cd",
+      "browser": "153.0.8010.12",
+      "host": {
+        "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+        "logicalCPUs": 16,
+        "totalRAM": 68718370816,
+        "platform": "win32"
+      },
+      "profile": {
+        "width": 1280,
+        "height": 900,
+        "dpr": 1,
+        "cpuSlowdown": 4,
+        "preset": "lowPower",
+        "physicalMinimumDevice": false
+      },
+      "network": {
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "settings": {
+        "version": 1,
+        "optionalCombatText": true,
+        "enemyIntent": false,
+        "shakeIntensity": 0,
+        "personalRecords": true,
+        "damageNumbers": false,
+        "enemyNames": "boss",
+        "healthBars": true,
+        "particles": false,
+        "adaptiveParticles": false,
+        "lootMotion": false,
+        "hazardContrast": false,
+        "hazardPatterns": true,
+        "projectileShapes": true,
+        "textScale": 1,
+        "compactHUD": true,
+        "cameraSmooth": false,
+        "fps": 30,
+        "hazardLabels": true,
+        "damageMotion": false,
+        "lootSparkle": false,
+        "lootBeamIntensity": 0,
+        "particleIntensity": 0,
+        "motionIntensity": 0,
+        "flashIntensity": 0,
+        "effectIntensity": 0.35,
+        "cleanScreenshot": false,
+        "layoutGrid": false,
+        "minimap": true,
+        "enemyIndicators": true,
+        "skillRange": false,
+        "largeActionBar": false
+      },
+      "startPosition": {
+        "x": 886.6200000000011,
+        "y": 410
+      },
+      "health": {
+        "hidden": false,
+        "contextLost": false,
+        "visibility": "visible"
+      },
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 60,
+        "unconfirmed": 0,
+        "rejected": 0,
+        "p95": 503.90000000596046,
+        "max": 656.1000000089407,
+        "queueP95": 249.1000000089407,
+        "requestP95": 259.29999999701977
+      },
+      "errors": 0
+    }
+  ]
+}

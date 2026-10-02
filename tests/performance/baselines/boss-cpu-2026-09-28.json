@@ -1,0 +1,369 @@
+{
+  "source": "boss.cpuprofile",
+  "samples": 14545,
+  "sampledMS": 24326.908,
+  "self": [
+    {
+      "function": "(program)",
+      "url": "",
+      "line": 0,
+      "ms": 9534.088
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 4439.588
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 2271.441
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 1826.099
+    },
+    {
+      "function": "renderFrame",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1097,
+      "ms": 419.99
+    },
+    {
+      "function": "actor",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 675,
+      "ms": 282.512
+    },
+    {
+      "function": "(idle)",
+      "url": "",
+      "line": 0,
+      "ms": 206.281
+    },
+    {
+      "function": "update",
+      "url": "http://127.0.0.1:18098/static/rift_hud.js?v=ee98f8accd5e",
+      "line": 546,
+      "ms": 194.998
+    },
+    {
+      "function": "fetch",
+      "url": "",
+      "line": 0,
+      "ms": 177.502
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1824,
+      "ms": 145.968
+    },
+    {
+      "function": "tone",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 158,
+      "ms": 145.74
+    },
+    {
+      "function": "querySelectorAll",
+      "url": "",
+      "line": 0,
+      "ms": 137.693
+    },
+    {
+      "function": "drawInteractionPrompts",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 663,
+      "ms": 136.404
+    },
+    {
+      "function": "(garbage collector)",
+      "url": "",
+      "line": 0,
+      "ms": 130.936
+    },
+    {
+      "function": "hiss",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 170,
+      "ms": 125.024
+    },
+    {
+      "function": "render",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1089,
+      "ms": 115.354
+    },
+    {
+      "function": "strokeText",
+      "url": "",
+      "line": 0,
+      "ms": 108.675
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1305,
+      "ms": 96.913
+    },
+    {
+      "function": "initContext",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 102,
+      "ms": 86.502
+    },
+    {
+      "function": "strokeText",
+      "url": "",
+      "line": 0,
+      "ms": 86.469
+    },
+    {
+      "function": "update",
+      "url": "http://127.0.0.1:18098/static/rift.js?v=c18883d4ab20",
+      "line": 293,
+      "ms": 85.757
+    },
+    {
+      "function": "measureText",
+      "url": "",
+      "line": 0,
+      "ms": 84.683
+    },
+    {
+      "function": "triggerTransientCounter",
+      "url": "http://127.0.0.1:18098/static/rift_hud.js?v=ee98f8accd5e",
+      "line": 126,
+      "ms": 81.218
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1869,
+      "ms": 73.51
+    },
+    {
+      "function": "drawImage",
+      "url": "",
+      "line": 0,
+      "ms": 72.113
+    },
+    {
+      "function": "catalogActor",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1031,
+      "ms": 68.241
+    },
+    {
+      "function": "append",
+      "url": "",
+      "line": 0,
+      "ms": 62.768
+    },
+    {
+      "function": "drawImage",
+      "url": "",
+      "line": 0,
+      "ms": 57.005
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1415,
+      "ms": 54.166
+    },
+    {
+      "function": "interactionPrompt",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 658,
+      "ms": 54.024
+    }
+  ],
+  "inclusive": [
+    {
+      "function": "(root)",
+      "url": "",
+      "line": 0,
+      "ms": 24326.908
+    },
+    {
+      "function": "render",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1089,
+      "ms": 11624.954
+    },
+    {
+      "function": "renderFrame",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1097,
+      "ms": 11438.842
+    },
+    {
+      "function": "(program)",
+      "url": "",
+      "line": 0,
+      "ms": 9534.088
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1824,
+      "ms": 7363.559
+    },
+    {
+      "function": "actor",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 675,
+      "ms": 7106.515
+    },
+    {
+      "function": "sprite",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 544,
+      "ms": 4479.385
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 4439.588
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1869,
+      "ms": 2542.366
+    },
+    {
+      "function": "fx",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 549,
+      "ms": 2336.074
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 2271.441
+    },
+    {
+      "function": "catalogActor",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1031,
+      "ms": 2082.892
+    },
+    {
+      "function": "send",
+      "url": "http://127.0.0.1:18098/static/rift.js?v=c18883d4ab20",
+      "line": 576,
+      "ms": 1906.163
+    },
+    {
+      "function": "restore",
+      "url": "",
+      "line": 0,
+      "ms": 1826.099
+    },
+    {
+      "function": "update",
+      "url": "http://127.0.0.1:18098/static/rift.js?v=c18883d4ab20",
+      "line": 293,
+      "ms": 1685.27
+    },
+    {
+      "function": "update",
+      "url": "http://127.0.0.1:18098/static/rift_hud.js?v=ee98f8accd5e",
+      "line": 546,
+      "ms": 752.605
+    },
+    {
+      "function": "r.snapshot",
+      "url": "",
+      "line": 22,
+      "ms": 444.555
+    },
+    {
+      "function": "renderer.snapshot",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 474,
+      "ms": 433.765
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 491,
+      "ms": 415.704
+    },
+    {
+      "function": "audio.play",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 238,
+      "ms": 407.407
+    },
+    {
+      "function": "drawInteractionPrompts",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 663,
+      "ms": 359.328
+    },
+    {
+      "function": "playCue",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 337,
+      "ms": 352.433
+    },
+    {
+      "function": "request",
+      "url": "http://127.0.0.1:18098/static/rift.js?v=c18883d4ab20",
+      "line": 178,
+      "ms": 349.566
+    },
+    {
+      "function": "",
+      "url": "http://127.0.0.1:18098/static/rift_renderer.js?v=f5f2f81736f9",
+      "line": 1305,
+      "ms": 265.945
+    },
+    {
+      "function": "(idle)",
+      "url": "",
+      "line": 0,
+      "ms": 206.281
+    },
+    {
+      "function": "fetch",
+      "url": "",
+      "line": 0,
+      "ms": 177.502
+    },
+    {
+      "function": "begin",
+      "url": "http://127.0.0.1:18098/static/rift.js?v=c18883d4ab20",
+      "line": 684,
+      "ms": 172.332
+    },
+    {
+      "function": "t",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 360,
+      "ms": 147.373
+    },
+    {
+      "function": "tone",
+      "url": "http://127.0.0.1:18098/static/rift_audio.js?v=3225299c2fd5",
+      "line": 158,
+      "ms": 145.74
+    },
+    {
+      "function": "querySelectorAll",
+      "url": "",
+      "line": 0,
+      "ms": 137.693
+    }
+  ]
+}

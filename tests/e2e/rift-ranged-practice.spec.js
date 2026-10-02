@@ -1,0 +1,9 @@
+const {test,expect}=require('@playwright/test');
+test('ranged practice completes with equipped projectiles and preserves campaign',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.locator('#rift-practice-links a[href$="practice=ranged"]').click();await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();const read=async()=>(await(await page.request.get('/api/abyss/rift?practice=ranged')).json()).run;
+ const initial=await read(),index=initial.build.skills.findIndex(skill=>skill.reference.target==='projectile');expect(index).toBeGreaterThanOrEqual(0);const skill=initial.build.skills[index];await expect(page.locator('#rift-practice-instructions')).toContainText('Melee attacks and missed shots do not count');
+ for(let hit=1;hit<=3;hit++){await expect.poll(async()=>(await read()).skill_timers[skill.id]||0,{timeout:15000}).toBe(0);await page.keyboard.press('Digit'+(index+1));await expect.poll(async()=>(await read()).practice.ranged_hits||0).toBe(hit);}
+ await expect.poll(async()=>(await read()).practice.completed).toBe(true);await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');await page.reload();await expect(page.locator('#rift-practice-progress')).toHaveText('Drill complete');await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await read()).practice.ranged_hits||0).toBe(0);
+ await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(campaign);
+});

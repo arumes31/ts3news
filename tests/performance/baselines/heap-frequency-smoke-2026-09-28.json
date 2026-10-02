@@ -1,0 +1,67 @@
+{
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "scope": "Collection-method smoke validation only. Harness development between captures changed source hashes; these short runs are not a matched memory-growth comparison.",
+  "samples": [
+    {
+      "policy": "endpoints",
+      "source": {
+        "revision": "e658f69da0ce9e3cac117ad4291dba90f5d86795",
+        "trackedDiffSHA256": "97bd35eca983a9e656a4c78f377f7a60867006efc5ddad5d09f35b65c1e56f43"
+      },
+      "measuredReplays": 2,
+      "measuredDurationMS": 122747,
+      "checkpoints": [
+        {
+          "mission": 0,
+          "snapshotTaken": true,
+          "final": false,
+          "networkEvents": 0
+        },
+        {
+          "mission": 1,
+          "snapshotTaken": false,
+          "final": false,
+          "networkEvents": 0
+        },
+        {
+          "mission": 2,
+          "snapshotTaken": true,
+          "final": true,
+          "networkEvents": 0
+        }
+      ],
+      "runtimeErrors": 0
+    },
+    {
+      "policy": "all",
+      "source": {
+        "revision": "e658f69da0ce9e3cac117ad4291dba90f5d86795",
+        "trackedDiffSHA256": "59c294cf58222cd99228c12dce51a193f125790d8c04a5513fbed0d7219b9976"
+      },
+      "measuredReplays": 2,
+      "measuredDurationMS": 157929,
+      "checkpoints": [
+        {
+          "mission": 0,
+          "snapshotTaken": true,
+          "final": false,
+          "networkEvents": 0
+        },
+        {
+          "mission": 1,
+          "snapshotTaken": true,
+          "final": false,
+          "networkEvents": 0
+        },
+        {
+          "mission": 2,
+          "snapshotTaken": true,
+          "final": true,
+          "networkEvents": 0
+        }
+      ],
+      "runtimeErrors": 0
+    }
+  ]
+}

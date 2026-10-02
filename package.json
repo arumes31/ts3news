@@ -5,6 +5,8 @@
     "test:e2e": "node tests/e2e/run.js"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "acorn": "^8.18.0",
+    "parse5": "^8.0.1"
   }
 }

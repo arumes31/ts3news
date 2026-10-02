@@ -373,18 +373,7 @@ func liveAliveCount(units []abyssLiveCombatantView) int {
 }
 
 func liveElementWeakness(element content.Element) content.Element {
-	switch element {
-	case content.ElementFire:
-		return content.ElementWater
-	case content.ElementWater:
-		return content.ElementEarth
-	case content.ElementEarth:
-		return content.ElementAir
-	case content.ElementAir:
-		return content.ElementFire
-	default:
-		return ""
-	}
+	return content.ElementWeakness(element)
 }
 
 func liveAllyEffects(au *activeUser) []abyssLiveEffect {

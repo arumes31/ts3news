@@ -1,0 +1,12 @@
+const {test,expect}=require('@playwright/test');
+test('optional health confirmation requires a fresh second press and expires safely',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('riftConfirmHealthCost','true'));await page.goto('/abyss/rift?practice=skills&subclass=voidwalker');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+ const read=async()=>(await(await page.request.get('/api/abyss/rift?practice=skills')).json()).run,prompt=page.locator('#rift-health-confirmation');
+ await page.keyboard.press('q');await expect.poll(async()=>(await read()).resource).toBe(1);await expect.poll(async()=>(await read()).player.cooldown).toBe(0);const before=await read();
+ await page.keyboard.down('e');await expect(prompt).toContainText('spends');await page.waitForTimeout(2200);await expect(prompt).toBeHidden();expect((await read()).resource).toBe(1);expect((await read()).player.hp).toBe(before.player.hp);await page.keyboard.up('e');
+ await page.keyboard.press('e');await expect(prompt).toBeVisible();await page.keyboard.press('e');await expect.poll(async()=>(await read()).resource).toBe(0);await expect(prompt).toBeHidden();expect((await read()).player.hp).toBeCloseTo(before.player.hp-before.player.max_hp*.05);
+ await page.keyboard.press('Escape');await page.evaluate(()=>history.replaceState(null,'','/abyss/rift?practice=skills'));await page.reload();await expect(page.locator('#rift-confirm-health-cost')).toBeChecked();
+ await page.evaluate(()=>{const run={id:'test',room:0,level:{id:1},paused:false,resource:1,build:{class:'voidwalker',signatures:[{id:'spend',role:'finisher',name:'Finisher',cost:0}],skills:[]},player:{hp:60,max_hp:100,mana:100,cooldown:0},skill_timers:{}};window.confirmRun=run;RiftIntents.sync(run,true);RiftIntents.press('signature0');window.firstResult=RiftIntents.take(run,()=>false,false);});
+ expect(await page.evaluate(()=>firstResult.skill)).toBe('');await expect(prompt).toBeVisible();
+ await page.evaluate(()=>{confirmRun.room=1;RiftIntents.sync(confirmRun,false);});await expect(prompt).toBeHidden();await page.evaluate(()=>{RiftIntents.press('signature0');window.afterRoom=RiftIntents.take(confirmRun,()=>false,false);});expect(await page.evaluate(()=>afterRoom.skill)).toBe('');await expect(prompt).toBeVisible();await page.evaluate(()=>RiftIntents.reset());await expect(prompt).toBeHidden();
+});

@@ -1,0 +1,9 @@
+const {test,expect}=require('@playwright/test');
+test('damage sources are separate in run and encounter statistics, with explicit legacy remainder',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const {run}=await(await page.request.get('/api/abyss/rift')).json();
+ const show=legacy=>page.evaluate(({run,legacy})=>{run.stats.damage_taken=50;run.stats.hazard_damage_taken=12;run.stats.enemy_damage_taken=28;run.last_encounter={mission:1,mission_name:'Ruins',room:0,room_name:'Gate',outcome:'cleared',seconds:12,player_hp:100,player_max_hp:100,enemies:1,damage_taken:20,hazard_damage_taken:5,enemy_damage_taken:15};if(legacy){delete run.stats.hazard_damage_taken;delete run.stats.enemy_damage_taken;delete run.last_encounter.hazard_damage_taken;delete run.last_encounter.enemy_damage_taken;}RiftHUD.update(run);RiftHUD.updateLastEncounter(run);},{run,legacy});
+ const value=(id,label)=>page.locator(id+' dt').filter({hasText:new RegExp('^'+label+'$')}).locator('xpath=following-sibling::dd[1]');
+ await show(false);await expect(value('#rift-statistics','HP lost to hazards')).toHaveText('12');await expect(value('#rift-statistics','HP lost to enemies')).toHaveText('28');await expect(value('#rift-statistics','Damage without source records')).toHaveText('10');await expect(value('#rift-last-encounter-stats','HP lost to hazards')).toHaveText('5');await expect(value('#rift-last-encounter-stats','HP lost to enemies')).toHaveText('15');
+ await show(true);await expect(value('#rift-statistics','Damage without source records')).toHaveText('50');await expect(value('#rift-last-encounter-stats','Damage without source records')).toHaveText('20');
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

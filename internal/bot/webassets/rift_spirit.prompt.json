@@ -1,0 +1,13 @@
+{
+  "asset": "rift_spirit.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create one original friendly escort spirit sprite for a small 2D side-view dark-fantasy beat-em-up game. A gentle floating hooded spirit wearing pale ivory and mint robes, two small warm amber eyes in a dark face opening, hands holding a tiny warm lantern, wispy tapered robe instead of feet. Faces slightly right. Crisp pixel-art inspired painterly retro fantasy sprite, readable at 60 pixels high. Friendly companion silhouette, no weapon, no horror, no text. Single centered full-body intact sprite with generous transparent padding, genuinely transparent RGBA background, no scenery, floor, shadow or frame. Suitable for subtle floating animation in-game.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1146,
+    1372
+  ],
+  "bytes": 564197,
+  "sha256": "b97a45203d5a5591c9f8299d5c9c9f01c7b94450188e4687103c03b1a1bf92c8"
+}

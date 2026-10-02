@@ -35,7 +35,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Update vulnerable packages inherited from the pinned base as well as new dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6=2.41-12+deb13u4 libc-bin=2.41-12+deb13u4 perl-base=5.40.1-6+deb13u1 \
-    gzip=1.13-1+deb13u1 libpcre2-8-0=10.46-1~deb13u2 \
+    gzip=1.13-1+deb13u1 libpcre2-8-0=10.46-1~deb13u3 \
+    libssl3t64=3.5.7-1~deb13u3 openssl=3.5.7-1~deb13u3 openssl-provider-legacy=3.5.7-1~deb13u3 \
     xvfb dbus dbus-x11 xdotool python3 sqlite3 ca-certificates fonts-dejavu-core procps \
     libxcb1 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 \
     libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-xfixes0 \

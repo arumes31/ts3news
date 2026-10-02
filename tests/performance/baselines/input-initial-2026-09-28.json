@@ -1,0 +1,88 @@
+{
+  "schema": "brawl-input-initial-baseline-v1",
+  "status": "threshold_failure",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Three isolated keyboard input samples from the default practice spawn. One movement per sample had no displacement; raw captures lack coordinates, so cause is not proven by these reports. All attempts are retained. Not full-combat or rapid-input evidence.",
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "thresholds": {
+    "p95": 300,
+    "max": 1000,
+    "minAccepted": 50
+  },
+  "samples": [
+    {
+      "sample": 1,
+      "revision": "e3610ca8fd22e0d3d359a6ea3f9552f35b2c48c9",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 59,
+        "unconfirmed": 0,
+        "rejected": 1,
+        "p95": 552.3000000119209,
+        "max": 580.0999999940395,
+        "queueP95": 324.80000001192093,
+        "requestP95": 239
+      },
+      "errors": 0,
+      "nonexecuted": [
+        {
+          "index": 7,
+          "action": "left"
+        }
+      ]
+    },
+    {
+      "sample": 2,
+      "revision": "e3610ca8fd22e0d3d359a6ea3f9552f35b2c48c9",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 59,
+        "unconfirmed": 0,
+        "rejected": 1,
+        "p95": 578.2999999970198,
+        "max": 662.2000000029802,
+        "queueP95": 339.5,
+        "requestP95": 245.5
+      },
+      "errors": 0,
+      "nonexecuted": [
+        {
+          "index": 7,
+          "action": "left"
+        }
+      ]
+    },
+    {
+      "sample": 3,
+      "revision": "e3610ca8fd22e0d3d359a6ea3f9552f35b2c48c9",
+      "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+      "status": "threshold_failure",
+      "summary": {
+        "count": 60,
+        "accepted": 59,
+        "unconfirmed": 0,
+        "rejected": 1,
+        "p95": 585.9000000059605,
+        "max": 653.8000000119209,
+        "queueP95": 347.5,
+        "requestP95": 253.70000000298023
+      },
+      "errors": 0,
+      "nonexecuted": [
+        {
+          "index": 7,
+          "action": "left"
+        }
+      ]
+    }
+  ]
+}

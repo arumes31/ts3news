@@ -1,0 +1,382 @@
+{
+  "sourceRevision": "504aa37aa116df9f30e57c09206e01cadb978235",
+  "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "durationMS": 61228.60000000894,
+  "summary": {
+    "frames": 557,
+    "intervalP95": 150,
+    "intervalP99": 200,
+    "renderP95": 59.80000001192093
+  },
+  "cpu": {
+    "source": "crowd.cpuprofile",
+    "samples": 36817,
+    "sampledMS": 61181.859,
+    "self": [
+      {
+        "function": "(program)",
+        "line": 0,
+        "ms": 37008.272,
+        "asset": ""
+      },
+      {
+        "function": "actor",
+        "line": 813,
+        "ms": 3715.778,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "drawImage",
+        "line": 0,
+        "ms": 1950.281,
+        "asset": ""
+      },
+      {
+        "function": "renderFrame",
+        "line": 1235,
+        "ms": 1145.823,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "",
+        "line": 2037,
+        "ms": 895.852,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "profile",
+        "line": 5,
+        "ms": 894.56,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "save",
+        "line": 0,
+        "ms": 893.47,
+        "asset": ""
+      },
+      {
+        "function": "profile",
+        "line": 5,
+        "ms": 881.308,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "catalogActor",
+        "line": 1169,
+        "ms": 851.609,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "drawImage",
+        "line": 0,
+        "ms": 840.235,
+        "asset": ""
+      },
+      {
+        "function": "(garbage collector)",
+        "line": 0,
+        "ms": 835.721,
+        "asset": ""
+      },
+      {
+        "function": "actorProfile",
+        "line": 182,
+        "ms": 707.136,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "frame",
+        "line": 6,
+        "ms": 681.997,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "",
+        "line": 1592,
+        "ms": 574.117,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "fill",
+        "line": 0,
+        "ms": 555.798,
+        "asset": ""
+      },
+      {
+        "function": "drawInteractionPrompts",
+        "line": 801,
+        "ms": 526.262,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "fillRect",
+        "line": 0,
+        "ms": 436.397,
+        "asset": ""
+      },
+      {
+        "function": "ellipse",
+        "line": 0,
+        "ms": 412.664,
+        "asset": ""
+      },
+      {
+        "function": "actorProfile",
+        "line": 182,
+        "ms": 360.418,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "translate",
+        "line": 0,
+        "ms": 290.814,
+        "asset": ""
+      },
+      {
+        "function": "",
+        "line": 1816,
+        "ms": 286.084,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "save",
+        "line": 0,
+        "ms": 284.127,
+        "asset": ""
+      },
+      {
+        "function": "render",
+        "line": 1227,
+        "ms": 275.173,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "cachedAtlasFrame",
+        "line": 619,
+        "ms": 259.683,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "fill",
+        "line": 0,
+        "ms": 235.264,
+        "asset": ""
+      },
+      {
+        "function": "actorFrame",
+        "line": 268,
+        "ms": 207.803,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "strokeText",
+        "line": 0,
+        "ms": 194.78,
+        "asset": ""
+      },
+      {
+        "function": "interactionPrompt",
+        "line": 796,
+        "ms": 189.571,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "actorProfile",
+        "line": 182,
+        "ms": 182.307,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "ellipse",
+        "line": 0,
+        "ms": 180.536,
+        "asset": ""
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "line": 0,
+        "ms": 61181.859,
+        "asset": ""
+      },
+      {
+        "function": "(program)",
+        "line": 0,
+        "ms": 37008.272,
+        "asset": ""
+      },
+      {
+        "function": "render",
+        "line": 1227,
+        "ms": 22963.773,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "renderFrame",
+        "line": 1235,
+        "ms": 22541.347,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "",
+        "line": 2037,
+        "ms": 17344.967,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "actor",
+        "line": 813,
+        "ms": 16363.198,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "catalogActor",
+        "line": 1169,
+        "ms": 7935.636,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "drawAtlas",
+        "line": 640,
+        "ms": 2164.069,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "drawImage",
+        "line": 0,
+        "ms": 1950.281,
+        "asset": ""
+      },
+      {
+        "function": "profile",
+        "line": 5,
+        "ms": 1601.696,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "sprite",
+        "line": 673,
+        "ms": 1444.105,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "profile",
+        "line": 5,
+        "ms": 1241.726,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "drawAtlas",
+        "line": 640,
+        "ms": 1140.831,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "frame",
+        "line": 6,
+        "ms": 1072.107,
+        "asset": "rift_bestiary.js"
+      },
+      {
+        "function": "drawInteractionPrompts",
+        "line": 801,
+        "ms": 1064.781,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "",
+        "line": 1592,
+        "ms": 977.449,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "save",
+        "line": 0,
+        "ms": 893.47,
+        "asset": ""
+      },
+      {
+        "function": "",
+        "line": 1816,
+        "ms": 890.873,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "drawImage",
+        "line": 0,
+        "ms": 840.235,
+        "asset": ""
+      },
+      {
+        "function": "(garbage collector)",
+        "line": 0,
+        "ms": 835.721,
+        "asset": ""
+      },
+      {
+        "function": "actorProfile",
+        "line": 182,
+        "ms": 707.136,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "fill",
+        "line": 0,
+        "ms": 555.798,
+        "asset": ""
+      },
+      {
+        "function": "fillRect",
+        "line": 0,
+        "ms": 436.397,
+        "asset": ""
+      },
+      {
+        "function": "ellipse",
+        "line": 0,
+        "ms": 412.664,
+        "asset": ""
+      },
+      {
+        "function": "actorFrame",
+        "line": 268,
+        "ms": 390.11,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "actorProfile",
+        "line": 182,
+        "ms": 360.418,
+        "asset": "abyss_combat_art.js"
+      },
+      {
+        "function": "translate",
+        "line": 0,
+        "ms": 290.814,
+        "asset": ""
+      },
+      {
+        "function": "interactionPrompt",
+        "line": 796,
+        "ms": 286.689,
+        "asset": "rift_renderer.js"
+      },
+      {
+        "function": "save",
+        "line": 0,
+        "ms": 284.127,
+        "asset": ""
+      },
+      {
+        "function": "",
+        "line": 1478,
+        "ms": 263.224,
+        "asset": "rift_renderer.js"
+      }
+    ]
+  }
+}

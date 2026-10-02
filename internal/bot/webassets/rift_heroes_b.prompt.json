@@ -1,0 +1,13 @@
+{
+  "asset": "rift_heroes_b.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Production animation sprite sheet for original 16-bit pixel-art fantasy arcade beat-em-up Abyss Rift Brawl. GENUINE TRANSPARENT ALPHA background. Image 2048x768, exactly SIX ROWS by SIXTEEN COLUMNS, each cell 128x128. No grid, labels, text, borders, scenery, or baked checkerboard. Each row one consistent character identity facing RIGHT, feet anchored at y=112 within each cell, character centered at x=64 and all weapons entirely within cell. Compact crisp pixel clusters, readable small fighter proportions, moss green/teal/gold fantasy palette. Columns exactly: 1 idle, 2 idle breathing, 3 run left contact, 4 run left passing, 5 run right contact, 6 run right passing, 7 airborne jump knees tucked, 8 defensive guard, 9 weapon attack windup, 10 extended weapon strike, 11 attack recovery, 12 casting magic with outstretched arm, 13 hit recoil, 14 knocked backward, 15 defeated lying on ground at cell bottom, 16 triumphant victory pose. Consistent scale/position within every row, silhouettes distinct between rows. Genuine different limb positions for every animation frame, no cloned stills. Rows top to bottom: 1 Oracle ivory-and-gold hooded healer carrying radiant crystal staff; 2 Geomancer stocky stone-armoured sage with emerald crystal hammer; 3 Bloodblade crimson-and-black dual-sword assassin; 4 Voidwalker dark-violet hooded spellblade with glowing purple dagger; 5 Runesmith bronze-armoured smith with rune hammer and teal glowing belt; 6 Alchemist green-coated masked inventor with bandolier of orange glass flasks. Warm gold/teal highlights and distinctive original designs.",
+  "promptRecord": "Preserved final generation prompt in rift_assets.md",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    2048,
+    768
+  ],
+  "bytes": 2608798,
+  "sha256": "f7ff929da32d2b9a48f63038e0790ced35382000e6a24da57d8cfdf0e9933504"
+}

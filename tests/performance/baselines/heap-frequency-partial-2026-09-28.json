@@ -1,0 +1,99 @@
+{
+  "schema": "brawl-heap-frequency-evidence-v1",
+  "status": "failed",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Sequential all-checkpoint versus endpoint-only heap snapshots with Network disabled. Collection overhead, duration and run order require review; no causal or release claim. Endpoint retaining paths cannot establish an intermediate plateau.",
+  "allMinusEndpointsRendererGrowthBytes": null,
+  "samples": [
+    {
+      "policy": "all",
+      "status": "failed",
+      "source": {
+        "revision": "2ff39346f2b5793ff92acc05bc11c87cf8404091",
+        "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b"
+      },
+      "comparison": {
+        "browser": "Chrome/153.0.8010.12",
+        "driverHash": "f53a12dc9edaca4a3fe7a51493778b4125927eac2c027bfbe999b93b0164bf4c",
+        "profileHash": "13925ad677750a3ac70d066a5a084e12b8323774a3d9ddd6da086d28e2101134",
+        "settingsHash": "ebb2b78e404655f708b4659870a8aa5d80a07259305e8d41a7c270a1db18cfdc",
+        "graphicsHash": "6ed01360811eda1dae9787d8236dfb410c0a8f906536d9a39571df1933120050"
+      },
+      "measuredDurationMS": null,
+      "completedReplays": 54,
+      "runtimeErrors": 1,
+      "growthBytes": 962956,
+      "postCapGrowthBytes": null,
+      "rendererGrowthBytes": 97882112,
+      "postCapRendererGrowthBytes": -1007616,
+      "snapshotCount": 9,
+      "checkpoints": [
+        {
+          "mission": 0,
+          "elapsedMS": 0,
+          "attemptHistoryCount": 1,
+          "heapBytes": 6370320,
+          "rendererPrivateBytes": 216551424
+        },
+        {
+          "mission": 5,
+          "elapsedMS": 325179,
+          "attemptHistoryCount": 6,
+          "heapBytes": 6782800,
+          "rendererPrivateBytes": 269307904
+        },
+        {
+          "mission": 11,
+          "elapsedMS": 662929,
+          "attemptHistoryCount": 12,
+          "heapBytes": 7038592,
+          "rendererPrivateBytes": 274055168
+        },
+        {
+          "mission": 18,
+          "elapsedMS": 1000972,
+          "attemptHistoryCount": 19,
+          "heapBytes": 7109020,
+          "rendererPrivateBytes": 280526848
+        },
+        {
+          "mission": 27,
+          "elapsedMS": 1337301,
+          "attemptHistoryCount": 28,
+          "heapBytes": 7185836,
+          "rendererPrivateBytes": 301092864
+        },
+        {
+          "mission": 36,
+          "elapsedMS": 1679810,
+          "attemptHistoryCount": 37,
+          "heapBytes": 7194980,
+          "rendererPrivateBytes": 305868800
+        },
+        {
+          "mission": 45,
+          "elapsedMS": 2003633,
+          "attemptHistoryCount": 46,
+          "heapBytes": 7221576,
+          "rendererPrivateBytes": 311828480
+        },
+        {
+          "mission": 49,
+          "elapsedMS": 2173823,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7292740,
+          "rendererPrivateBytes": 315441152
+        },
+        {
+          "mission": 54,
+          "elapsedMS": 2409321,
+          "attemptHistoryCount": 50,
+          "heapBytes": 7333276,
+          "rendererPrivateBytes": 314433536
+        }
+      ]
+    }
+  ],
+  "interpretation": "Incomplete capture stopped by the direct-driver replay acknowledgement race after checkpoint54. This is a capture failure, not evidence of an application memory leak. Endpoint variant did not start."
+}

@@ -1,0 +1,14 @@
+const {test,expect}=require('@playwright/test');
+test('class mastery distinguishes distinct missions, repeats and current cast statistics',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+ const before=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(()=>{const run={build:{class:'vanguard'},stats:{charged_finishers:3,empty_finishers:1,charges_spent:7},mission_history:{}};for(let i=1;i<=9;i++)run.mission_history[i]={completed_by_class:{vanguard:2}};run.mission_history[1].completed_by_class.oracle=4;window.RiftRecords.update(run);});
+ const rows=page.locator('#rift-class-mastery-list');await expect(rows.locator('[data-class="vanguard"]')).toHaveText('Vanguard (current) · 9 distinct missions · 18 recorded clears · 1 more distinct missions to mastery');await expect(rows.locator('[data-class="oracle"]')).toContainText('1 distinct missions · 4 recorded clears');
+ await expect(page.locator('#rift-class-mastery-current')).toContainText('75% of finisher casts charged');await expect(page.locator('#rift-class-mastery-current')).toContainText('2.3 average charges');
+ await page.evaluate(()=>window.RiftRecords.update({build:{class:'oracle'},stats:{},mission_history:Object.fromEntries(Array.from({length:10},(_,i)=>[i+1,{completed_by_class:{oracle:1}}]))}));
+ await expect(rows.locator('[data-class="oracle"]')).toContainText('Mastery badge earned');await expect(rows.locator('li')).toHaveCount(1);await expect(page.locator('#rift-class-mastery-current')).toContainText('statistics unavailable');
+ await page.evaluate(()=>window.RiftRecords.update({build:{class:'alchemist'},stats:{charged_finishers:0,empty_finishers:0,charges_spent:0},completed_levels:[1,2,3]}));await expect(rows).toContainText('0 distinct missions · 0 recorded clears');await expect(page.locator('#rift-class-mastery-current')).toContainText('No finisher casts yet');await expect(page.locator('#rift-class-mastery')).toContainText('do not change Abyss progression');
+ if(!await page.locator('#rift-campaign').evaluate(node=>node.open))await page.locator('#rift-campaign > summary').click();await page.locator('#rift-class-mastery > summary').click();await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#rift-class-mastery').scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await page.locator('#rift-class-mastery').screenshot({path:'test-results/class-mastery-mobile.png'});
+ expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(before);
+ await page.evaluate(()=>window.RiftRecords.update({practice:{mode:'class'},stats:{}}));await expect(page.locator('#rift-class-mastery')).toBeHidden();
+});

@@ -1,0 +1,233 @@
+{
+  "schema": "brawl-input-phase-smoke-v1",
+  "status": "diagnostic_only",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "revision": "d9d84f896b676d479a1056a151c7e4a91f832bcd",
+  "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+  "browser": "153.0.8010.12",
+  "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+    "logicalCPUs": 16,
+    "totalRAM": 68718370816,
+    "platform": "win32"
+  },
+  "profile": {
+    "width": 1280,
+    "height": 900,
+    "dpr": 1,
+    "cpuSlowdown": 4,
+    "preset": "lowPower",
+    "physicalMinimumDevice": false
+  },
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "summary": {
+    "count": 12,
+    "accepted": 12,
+    "unconfirmed": 0,
+    "rejected": 0,
+    "p95": 534.5999999940395,
+    "max": 534.5999999940395,
+    "queueP95": 305.8999999910593,
+    "requestP95": 232
+  },
+  "scope": "Twelve isolated inputs; identifies investigation direction, not a performance gate or full-combat measurement. Header wait combines network and server work.",
+  "attempts": [
+    {
+      "action": "right",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "right"
+        ],
+        "total": 231.20000000298023,
+        "queue": 16.299999997019768,
+        "request": 202.1000000089407,
+        "headers": 196.80000001192093,
+        "decode": 4.699999988079071,
+        "validation": 0.6000000089406967,
+        "apply": 12.799999997019768
+      }
+    },
+    {
+      "action": "left",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "left"
+        ],
+        "total": 534.5999999940395,
+        "queue": 305.8999999910593,
+        "request": 215,
+        "headers": 205.70000000298023,
+        "decode": 8.900000005960464,
+        "validation": 0.3999999910593033,
+        "apply": 13.700000002980232
+      }
+    },
+    {
+      "action": "down",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "down"
+        ],
+        "total": 476,
+        "queue": 257.80000001192093,
+        "request": 206.29999999701977,
+        "headers": 199.8999999910593,
+        "decode": 5.600000008940697,
+        "validation": 0.7999999970197678,
+        "apply": 11.899999991059303
+      }
+    },
+    {
+      "action": "up",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "up"
+        ],
+        "total": 456.6000000089407,
+        "queue": 226.1000000089407,
+        "request": 211.09999999403954,
+        "headers": 204.5,
+        "decode": 6.399999991059303,
+        "validation": 0.20000000298023224,
+        "apply": 19.400000005960464
+      }
+    },
+    {
+      "action": "jump",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "jump"
+        ],
+        "total": 375.29999999701977,
+        "queue": 129.40000000596046,
+        "request": 232,
+        "headers": 201.19999998807907,
+        "decode": 30.100000008940697,
+        "validation": 0.7000000029802322,
+        "apply": 13.899999991059303
+      }
+    },
+    {
+      "action": "dodge",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "dodge"
+        ],
+        "total": 464.59999999403954,
+        "queue": 236.5,
+        "request": 209.5,
+        "headers": 202.3999999910593,
+        "decode": 6.200000002980232,
+        "validation": 0.9000000059604645,
+        "apply": 18.599999994039536
+      }
+    },
+    {
+      "action": "left",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "left"
+        ],
+        "total": 489.20000000298023,
+        "queue": 273.29999999701977,
+        "request": 202.79999999701977,
+        "headers": 182.90000000596046,
+        "decode": 18.899999991059303,
+        "validation": 1,
+        "apply": 13.100000008940697
+      }
+    },
+    {
+      "action": "right",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "right"
+        ],
+        "total": 511,
+        "queue": 289.19999998807907,
+        "request": 206.70000000298023,
+        "headers": 200.5,
+        "decode": 5.4000000059604645,
+        "validation": 0.7999999970197678,
+        "apply": 15.100000008940697
+      }
+    },
+    {
+      "action": "down",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "down"
+        ],
+        "total": 476.8999999910593,
+        "queue": 263.5,
+        "request": 202.8999999910593,
+        "headers": 196.59999999403954,
+        "decode": 6,
+        "validation": 0.29999999701976776,
+        "apply": 10.5
+      }
+    },
+    {
+      "action": "up",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "up"
+        ],
+        "total": 387.3999999910593,
+        "queue": 170.3999999910593,
+        "request": 202.1000000089407,
+        "headers": 194.70000000298023,
+        "decode": 6.5,
+        "validation": 0.9000000059604645,
+        "apply": 14.899999991059303
+      }
+    },
+    {
+      "action": "jump",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "jump"
+        ],
+        "total": 251.1000000089407,
+        "queue": 22.700000002980232,
+        "request": 210.29999999701977,
+        "headers": 203.1000000089407,
+        "decode": 6.799999997019768,
+        "validation": 0.3999999910593033,
+        "apply": 18.100000008940697
+      }
+    },
+    {
+      "action": "dodge",
+      "accepted": true,
+      "timing": {
+        "actions": [
+          "dodge"
+        ],
+        "total": 444.20000000298023,
+        "queue": 225.79999999701977,
+        "request": 205.90000000596046,
+        "headers": 199.40000000596046,
+        "decode": 5.9000000059604645,
+        "validation": 0.5999999940395355,
+        "apply": 12.5
+      }
+    }
+  ]
+}

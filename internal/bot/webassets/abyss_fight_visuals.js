@@ -32,7 +32,7 @@
   var api = global.AbyssFightVisuals = {model: {preferences: preferences, health: health, impact: impact, position: position, sequence: sequence}};
   if (typeof document === 'undefined') return;
 
-  var host, settings, session = '', lastRound = 0, lastPhase = '', observed = 0, motion;
+  var host, settings, session = '', lastRound = 0, lastPhase = '', observed = 0, motion, structured = false;
   var timers = new Set(), playing = new Set(), atlasLoaded = false;
   var prefs = preferences();
   try { prefs = preferences(JSON.parse(localStorage.getItem('abyssFightVisuals') || '{}')); } catch (_) {}
@@ -122,6 +122,7 @@
   }
   function snapshot(state) {
     init(byID('livePixelStage')); if (!host) return;
+    structured = Array.isArray(state.presentation_events) || state.presentation_cursor != null;
     if (session !== state.session_id) {
       clear(); session = state.session_id; observed = 0; lastRound = Number(state.round) || 0; lastPhase = '';
       byID('liveVisualHistory').replaceChildren(); byID('liveVisualCaption').textContent = 'Ready';
@@ -168,22 +169,40 @@
       bar.setAttribute('role', 'img');
       bar.setAttribute('aria-label', hp.kind === 'concealed' ? 'Health concealed' : 'Health ' + unit.hp + ' / ' + unit.max_hp + ', ' + hp.label);
       if (hp.kind === 'concealed') { bar.classList.add('concealed'); bar.querySelector('em').textContent = '??'; bar.querySelector('i').style.width = '100%'; }
-      if (previous && previous.percent != null && hp.percent != null && previous.percent !== hp.percent && !reduced()) {
+      if (!structured && previous && previous.percent != null && hp.percent != null && previous.percent !== hp.percent && !reduced()) {
         var trail = el('span', null, 'ab-hp-trail' + (hp.percent > previous.percent ? ' heal' : '')); trail.setAttribute('aria-hidden', 'true'); trail.style.width = hp.percent + '%'; bar.prepend(trail);
         move(trail, [{width: previous.percent + '%'}, {width: hp.percent + '%'}], 500); after(function () { trail.remove(); }, 510);
       }
     }
     var shield = Math.max(0, finite(unit.shield, 0)); node.style.setProperty('--fight-shield', String(unit.max_shield > 0 ? clamp(shield / unit.max_shield, 0, 1) : 0));
-    if (node._fightShield > 0 && shield === 0 && !unit.hp_hidden) flourish(node, 'absorb', '#bddcff', 260);
+    if (!structured && node._fightShield > 0 && shield === 0 && !unit.hp_hidden) flourish(node, 'absorb', '#bddcff', 260);
     node._fightShield = shield; node._fightHealth = hp;
+    // Status visibility follows the snapshot, including effects beyond the four tiny chips.
+    var statuses = (unit.effects || []).filter(function (effect) { return !effect.affix; });
+    var active = hp.kind !== 'defeated' ? statuses.map(function (effect) { return String(effect.key || '') + ' ' + String(effect.name || ''); }).join(' ').toLowerCase() : '';
+    var dotHost = node.querySelector('.ab-dot-statuses');
+    if (!dotHost) { dotHost = el('span', null, 'ab-dot-statuses'); node.appendChild(dotHost); }
+    var labels = [];
+    ['poison', 'bleed'].forEach(function (kind) {
+      var present = active.includes(kind), badge = dotHost.querySelector('[data-status="' + kind + '"]');
+      node.classList.toggle('ab-status-' + kind, present);
+      if (!present) { if (badge) badge.remove(); return; }
+      var matching = statuses.filter(function (effect) { return (String(effect.key || '') + ' ' + String(effect.name || '')).toLowerCase().includes(kind); });
+      var rounds = Math.max.apply(null, matching.map(function (effect) { return finite(effect.remaining_rounds, 0); }));
+      var text = (kind === 'poison' ? 'Poison' : 'Bleed') + (matching.length > 1 ? ' ×' + matching.length : '') + (rounds > 0 ? ' · ' + rounds + 'R' : '');
+      if (!badge) { badge = el('span', '', 'ab-dot-badge ' + kind); badge.dataset.status = kind; dotHost.appendChild(badge); }
+      badge.textContent = text; labels.push(text);
+    });
+    dotHost.hidden = !labels.length;
+    if (labels.length) { node.title += ' · ' + labels.join(' · '); node.setAttribute('aria-label', node.getAttribute('aria-label') + ', ' + labels.join(', ')); }
   }
-  function history(event, actors) {
-    var seq = sequence(Number(event.seq)); if (!seq || seq <= observed) return; observed = seq;
+  function history(event, actors, targets) {
+    var seq = sequence(Number(event.seq)); if (!seq || seq < observed) return; observed = seq;
     var source = actors.get(event.actor_id), name = source && source._combatUnit.name || 'Combatant';
     var action = String(event.ability_name || event.kind || 'Action'); byID('liveVisualCaption').textContent = name + ' · ' + action;
     var list = byID('liveVisualHistory');
     if (event.round && event.round !== lastRound) { list.appendChild(el('li', 'Round ' + event.round, 'round')); lastRound = event.round; }
-    var parts = (event.targets || []).slice(0, 24).map(function (target) {
+    var parts = (targets || []).slice(0, 24).map(function (target) {
       var node = actors.get(target.target_id), unit = node && node._combatUnit || {hp_hidden: true}, hidden = health(unit).kind === 'concealed';
       var values = [], who = unit.name || 'Target';
       if (target.damage > 0 || target.damaged) values.push(hidden ? 'hit' : '−' + target.damage + ' HP');
@@ -194,9 +213,12 @@
       return who + (values.length ? ': ' + values.join(', ') : '');
     });
     var summary = name + ' · ' + action + (parts.length ? ' → ' + parts.join('; ') : '');
-    var row = el('li', summary); row.dataset.eventSeq = String(seq); list.appendChild(row);
+    var row = list.querySelector('[data-event-seq="' + seq + '"]');
+    if (!row) { row = el('li', summary); row.dataset.eventSeq = String(seq); list.appendChild(row); }
+    else if (parts.length) row.textContent += (row.dataset.hasResults ? '; ' : ' → ') + parts.join('; ');
+    if (parts.length) row.dataset.hasResults = 'true';
     while (list.children.length > 12) list.firstElementChild.remove();
-    byID('liveAnimationAnnouncement').textContent = summary;
+    byID('liveAnimationAnnouncement').textContent = row.textContent;
   }
   function prepare(event, profile, actor, actors) {
     if (!host) return; history(event, actors);
@@ -207,6 +229,7 @@
     node.classList.add('ab-fight-target'); after(function () { node.classList.remove('ab-fight-target'); }, 260);
     flourish(node, kind, (profile.palette || [])[0]);
     var status = String(target.status || '').toLowerCase();
+    if (event.kind === 'status') status += ' ' + String(event.ability_id || '') + ' ' + String(event.ability_name || '').toLowerCase();
     if (/poison/.test(status)) flourish(node, 'poison'); else if (/bleed/.test(status)) flourish(node, 'bleed'); else if (/stun/.test(status)) flourish(node, 'stun');
     if (target.defeated || node._presentationDefeated) return;
     var sprite = node.querySelector('.ab-actor-sprite'), base = 'scaleX(var(--ab-facing,1)) ';
@@ -220,22 +243,34 @@
     byID('liveVisualPlayback').textContent = text; byID('liveAnimationSkip').disabled = state !== 'playing'; apply();
   }
   function fit() {
-    if (!host || !host.clientHeight) return;
-    host.dataset.visualCompact = String(host.clientHeight < 190);
-    var caption = host.querySelector('.ab-fight-presentation'), depth = host.clientHeight < 190 ? 4 : 16;
+    if (!host) return;
+    var height = host.clientHeight; if (!height) return;
+    var compact = String(height < 190);
+    if (host.dataset.visualCompact !== compact) host.dataset.visualCompact = compact;
+    var caption = host.querySelector('.ab-fight-presentation'), depth = height < 190 ? 4 : 16;
     var top = Math.max(16, caption ? caption.offsetHeight + depth : 16);
-    host.style.paddingTop = top + 'px'; host.style.paddingBottom = '8px';
+    if (host.style.paddingTop !== top + 'px') host.style.paddingTop = top + 'px';
+    if (host.style.paddingBottom !== '8px') host.style.paddingBottom = '8px';
+    // Compact labels and padding can change layout. Measure after applying them,
+    // then read every actor before changing any inherited sprite-size property.
+    height = host.clientHeight;
+    var sizes = [];
     host.querySelectorAll('.ab-pixel-party').forEach(function (party) {
       var units = Array.from(party.querySelectorAll('.ab-pixel-unit:not(.ab-departed)'));
       var rows = Math.max(1, ...units.map(function (unit) { return Number(unit.style.gridRow) || 1; }));
-      var available = Math.max(0, (host.clientHeight - top - 12 - (rows - 1) * 7) / rows);
+      var available = Math.max(0, (height - top - 12 - (rows - 1) * 7) / rows);
       units.forEach(function (unit) {
         var info = unit.querySelector('.ab-combat-unit-info');
         var size = Math.max(16, Math.min(110, available - info.offsetHeight - 6));
-        unit.style.setProperty('--fight-sprite-height', size + 'px');
+        sizes.push({unit: unit, value: size + 'px'});
       });
     });
+    sizes.forEach(function (size) {
+      if (size.unit.style.getPropertyValue('--fight-sprite-height') !== size.value) size.unit.style.setProperty('--fight-sprite-height', size.value);
+    });
   }
+  // Preparation names the action; reveal each authoritative target result at contact.
+  api.contact = function (event, target, actors) { history(event, actors, [target]); };
   api.init = init; api.snapshot = snapshot; api.actor = actor; api.prepare = prepare; api.hit = hit; api.clear = clear; api.playback = playback; api.fit = fit;
   api.linger = function () { return prefs.linger; };
   api.effect = function (node, profile) { node.dataset.element = String(profile.element || 'physical'); };

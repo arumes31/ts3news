@@ -1,0 +1,210 @@
+{
+  "serverReportedRevision": null,
+  "cpuThrottled": false,
+  "thresholds": {
+    "medianReadyMS": 20000,
+    "eachReadyMS": 25000,
+    "transferBytes": 3000000
+  },
+  "schema": "brawl-cold-encounter-art-v1",
+  "revision": "9eec31b64dc76c6c9035595dab79d3e54f425b16",
+  "fixtureBuild": {
+    "revision": "9eec31b64dc76c6c9035595dab79d3e54f425b16",
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+    "provenance": "Isolated fixture compiled by Playwright webServer from frozen workspace; no server revision endpoint assertion."
+  },
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "browser": "153.0.8010.12",
+  "platform": "win32",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "readinessMS": {
+    "min": 14706.59999999404,
+    "median": 14716,
+    "max": 15353.89999999106
+  },
+  "firstFightMS": {
+    "min": 41041.5,
+    "median": 41380.5,
+    "max": 41825.39999999106
+  },
+  "samples": [
+    {
+      "readyMS": 15353.89999999106,
+      "transferBytes": 2766305,
+      "encodedBodyBytes": 2752505,
+      "resourceCount": 45,
+      "atlas": {
+        "loaded": 2,
+        "total": 2,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": false,
+      "errorCount": 0,
+      "firstFight": {
+        "readyMS": 41041.5,
+        "startMS": 15440.09999999404,
+        "afterStartMS": 25601.40000000596,
+        "transferBytes": 7710239,
+        "encodedBodyBytes": 7693439,
+        "resourceCount": 55
+      }
+    },
+    {
+      "readyMS": 14716,
+      "transferBytes": 2766305,
+      "encodedBodyBytes": 2752505,
+      "resourceCount": 45,
+      "atlas": {
+        "loaded": 2,
+        "total": 2,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": false,
+      "errorCount": 0,
+      "firstFight": {
+        "readyMS": 41380.5,
+        "startMS": 14818.70000000298,
+        "afterStartMS": 26561.79999999702,
+        "transferBytes": 7912959,
+        "encodedBodyBytes": 7895559,
+        "resourceCount": 57
+      }
+    },
+    {
+      "readyMS": 14706.59999999404,
+      "transferBytes": 2766305,
+      "encodedBodyBytes": 2752505,
+      "resourceCount": 45,
+      "atlas": {
+        "loaded": 2,
+        "total": 2,
+        "ready": true
+      },
+      "recoveredInitialReadTimeout": false,
+      "errorCount": 0,
+      "firstFight": {
+        "readyMS": 41825.39999999106,
+        "startMS": 14785.199999988079,
+        "afterStartMS": 27040.20000000298,
+        "transferBytes": 7998248,
+        "encodedBodyBytes": 7980848,
+        "resourceCount": 57
+      }
+    }
+  ],
+  "largestIdleResourcesFirstSample": [
+    {
+      "path": "/static/abyss_catalog_icons.js",
+      "bytes": 436627,
+      "durationMS": 4295
+    },
+    {
+      "path": "/static/rift_heroes_a_row0.png",
+      "bytes": 413302,
+      "durationMS": 2273.7999999970198
+    },
+    {
+      "path": "/static/rift_region_0.png",
+      "bytes": 361462,
+      "durationMS": 4508.800000011921
+    },
+    {
+      "path": "/api/abyss/rift/metadata",
+      "bytes": 323427,
+      "durationMS": 4105.899999991059
+    },
+    {
+      "path": "/static/rift_renderer.js",
+      "bytes": 197561,
+      "durationMS": 6606.70000000298
+    },
+    {
+      "path": "/static/rift_prop_0.png",
+      "bytes": 172720,
+      "durationMS": 2604.7999999970198
+    },
+    {
+      "path": "/static/rift.js",
+      "bytes": 133394,
+      "durationMS": 6738.79999999702
+    },
+    {
+      "path": "/static/rift.css",
+      "bytes": 90441,
+      "durationMS": 1743
+    },
+    {
+      "path": "/static/style.css",
+      "bytes": 81356,
+      "durationMS": 1672.5
+    },
+    {
+      "path": "/static/rift_hud.js",
+      "bytes": 75331,
+      "durationMS": 5632.300000011921
+    }
+  ],
+  "largestFirstFightResourcesFirstSample": [
+    {
+      "path": "/static/rift_items.png",
+      "bytes": 1392338,
+      "durationMS": 24786.5
+    },
+    {
+      "path": "/static/rift_effects.png",
+      "bytes": 1332867,
+      "durationMS": 24495.29999999702
+    },
+    {
+      "path": "/static/rift_mobs_row4.png",
+      "bytes": 516716,
+      "durationMS": 19855.69999998808
+    },
+    {
+      "path": "/static/abyss_catalog_icons.js",
+      "bytes": 436627,
+      "durationMS": 4295
+    },
+    {
+      "path": "/static/rift_heroes_a_row0.png",
+      "bytes": 413302,
+      "durationMS": 2273.7999999970198
+    },
+    {
+      "path": "/static/rift_creature_troll.png",
+      "bytes": 390777,
+      "durationMS": 11741.59999999404
+    },
+    {
+      "path": "/static/rift_creature_orc.png",
+      "bytes": 371175,
+      "durationMS": 11246
+    },
+    {
+      "path": "/static/rift_region_0.png",
+      "bytes": 361462,
+      "durationMS": 4508.800000011921
+    },
+    {
+      "path": "/static/rift_creature_kraken.png",
+      "bytes": 345984,
+      "durationMS": 10521.300000011921
+    },
+    {
+      "path": "/static/rift_mobs_row0.png",
+      "bytes": 336870,
+      "durationMS": 15462.09999999404
+    }
+  ],
+  "status": "idle_thresholds_met_first_fight_reported_separately",
+  "firstFightDefinition": "Navigation through successful authoritative fighting-step response, hidden loading overlay and two animation-frame callbacks. Includes completed transfers after Start; not a GPU presentation measurement."
+}

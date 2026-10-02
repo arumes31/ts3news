@@ -6,3 +6,5 @@ cec0723ceb0ac07c78aec5a83fa4a87dc30c7c7d:internal/bot/web_abyss_forge4.go:generi
 12052164acd6a0d8928748515e17148a0977ad38:internal/bot/web_abyss_forge_crafting.go:generic-api-key:644
 # The original explanatory comment repeated the same public constant assignment.
 aed63462dcd06a13ae86b6eaef002a80a72fd783:.gitleaksignore:generic-api-key:1
+# Test fixture verifying that synthetic hex strings cannot authenticate web requests.
+c419d751dc81be796ba9f8198c0aff302da33282:internal/bot/web_session_expiry_test.go:generic-api-key:67

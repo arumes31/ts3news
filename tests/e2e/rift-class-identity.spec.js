@@ -1,0 +1,10 @@
+const {test,expect}=require('@playwright/test');
+for(const subclass of ['vanguard','berserker','marksman','beastmaster','elementalist','chronomancer','oracle','geomancer','bloodblade','voidwalker','runesmith','alchemist'])test(subclass+' displays its Abyss base class beside its subclass',async({page})=>{
+ await page.goto('/abyss/rift?subclass='+subclass+'&scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const data=await(await page.request.get('/api/abyss/rift')).json(),build=data.run.build,label=data.class_names[build.base_class]+' · '+data.class_names[build.class];await expect(page.locator('#rift-style')).toHaveText(label);await expect(page.locator('#rift-class-primer strong')).toHaveText(label+' · Combat primer');
+});
+test('identity handles foundations, older builds and saved expedition class',async({page})=>{
+ await page.goto('/abyss/rift?subclass=vanguard&scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();
+ const labels=await page.evaluate(()=>[RiftRecords.classIdentity({class:'warrior',base_class:'warrior'}),RiftRecords.classIdentity({class:'vanguard'}),RiftRecords.classIdentity({class:'new-style',class_name:'New Style'}),RiftRecords.classIdentity({})]);expect(labels).toEqual(['Warrior','Vanguard','New Style','Adventurer']);
+ await page.route('**/api/abyss/rift',async route=>{const response=await route.fetch(),data=await response.json();data.build={...data.build,class:'alchemist',base_class:'artificer',class_name:'Alchemist'};await route.fulfill({response,json:data});});await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-style')).toHaveText('Warrior · Vanguard');
+ await page.setViewportSize({width:390,height:1200});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#rift-class-primer').scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await page.locator('#rift-class-primer').screenshot({path:'test-results/class-identity-mobile.png'});
+});

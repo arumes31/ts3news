@@ -1,0 +1,219 @@
+{
+  "schema": "brawl-outside-actor-diagnostic-v1",
+  "diagnosticOnly": true,
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Single sequential ten-second outside-actor omission probes with incomplete visuals. Counters reset at capture start and sampled immediately after capture end; not per-frame rates or performance-gate evidence.",
+  "samples": [
+    {
+      "omittedLayer": "control",
+      "counters": {
+        "actorCalls": 13068,
+        "selectedCalls": 0,
+        "omittedCalls": 0
+      },
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "e3b895b2a4be63544f304092977ad1c215bc47f9",
+              "trackedDiffSHA256": "06c9f7a19da62134d5a8e53504585f709baf98f9d0ce01ca7086f7c228999eb6",
+              "rendererSHA256": "716ba0b15180b6598bbccfc70d633554fa861bdec3ed82321f4bef882c2457b2"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10061.300000011921,
+            "runtimeErrors": 0,
+            "frames": 106,
+            "intervalP95": 116.79999999999927,
+            "intervalP99": 133.29999999999927,
+            "renderP95": 47.19999998807907,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "omittedLayer": "paths",
+      "counters": {
+        "actorCalls": 14157,
+        "selectedCalls": 40716,
+        "omittedCalls": 20241
+      },
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "e3b895b2a4be63544f304092977ad1c215bc47f9",
+              "trackedDiffSHA256": "06c9f7a19da62134d5a8e53504585f709baf98f9d0ce01ca7086f7c228999eb6",
+              "rendererSHA256": "a26489dff2e8db9929392f65a5762af9c7dff115e24a28f8e94eb0b45dd05521"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10070.199999988079,
+            "runtimeErrors": 0,
+            "frames": 115,
+            "intervalP95": 116.70000000000073,
+            "intervalP99": 116.70000000000073,
+            "renderP95": 55.30000001192093,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "omittedLayer": "rectangles",
+      "counters": {
+        "actorCalls": 13552,
+        "selectedCalls": 39088,
+        "omittedCalls": 4144
+      },
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "e3b895b2a4be63544f304092977ad1c215bc47f9",
+              "trackedDiffSHA256": "06c9f7a19da62134d5a8e53504585f709baf98f9d0ce01ca7086f7c228999eb6",
+              "rendererSHA256": "0a6015f8bcb072b790558a991d735b1daaaa3e9a4eada188596878ea8f1e95a7"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10103.60000000894,
+            "runtimeErrors": 0,
+            "frames": 110,
+            "intervalP95": 116.70000000000073,
+            "intervalP99": 166.59999999999854,
+            "renderP95": 44.70000000298023,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "omittedLayer": "text",
+      "counters": {
+        "actorCalls": 13189,
+        "selectedCalls": 6104,
+        "omittedCalls": 4360
+      },
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "e3b895b2a4be63544f304092977ad1c215bc47f9",
+              "trackedDiffSHA256": "06c9f7a19da62134d5a8e53504585f709baf98f9d0ce01ca7086f7c228999eb6",
+              "rendererSHA256": "2481553e7da63704185f3e54a965bd41732b3223cf3e74cb2414e465e5170536"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10019.29999999702,
+            "runtimeErrors": 0,
+            "frames": 107,
+            "intervalP95": 116.70000000000073,
+            "intervalP99": 133.39999999999964,
+            "renderP95": 50.5,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "omittedLayer": "images",
+      "counters": {
+        "actorCalls": 12826,
+        "selectedCalls": 13038,
+        "omittedCalls": 212
+      },
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "incomplete",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "e3b895b2a4be63544f304092977ad1c215bc47f9",
+              "trackedDiffSHA256": "06c9f7a19da62134d5a8e53504585f709baf98f9d0ce01ca7086f7c228999eb6",
+              "rendererSHA256": "0ed5450ebb6d2c1b8e096bdc27f02b018bf445d5587a03a1053b5a8499e02fcf"
+            },
+            "status": "diagnostic_only",
+            "numericStatus": "threshold_failure",
+            "durationMS": 10089.20000000298,
+            "runtimeErrors": 0,
+            "frames": 104,
+            "intervalP95": 133.29999999999927,
+            "intervalP99": 150,
+            "renderP95": 52.5,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    }
+  ]
+}

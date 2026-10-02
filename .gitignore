@@ -20,6 +20,7 @@ venv/
 .venv/
 .pytest_cache/
 temp/
+.tmp/
 
 # AI Assistant data & Metadata
 .claude/

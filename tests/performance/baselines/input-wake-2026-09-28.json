@@ -1,0 +1,232 @@
+{
+  "schema": "brawl-input-wake-comparison-v1",
+  "verdict": "kept",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "scope": "Three candidate samples followed by three fresh control samples, 60 isolated keyboard inputs each, warm practice art. No rapid-input, full-combat or physical-device claim.",
+  "revision": "8d8dd05504180e1c47fb7e406079e709df5fd480",
+  "browser": "153.0.8010.12",
+  "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+    "logicalCPUs": 16,
+    "totalRAM": 68718370816,
+    "platform": "win32"
+  },
+  "profile": {
+    "width": 1280,
+    "height": 900,
+    "dpr": 1,
+    "cpuSlowdown": 4,
+    "preset": "lowPower",
+    "physicalMinimumDevice": false
+  },
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "settings": {
+    "version": 1,
+    "optionalCombatText": true,
+    "enemyIntent": false,
+    "shakeIntensity": 0,
+    "personalRecords": true,
+    "damageNumbers": false,
+    "enemyNames": "boss",
+    "healthBars": true,
+    "particles": false,
+    "adaptiveParticles": false,
+    "lootMotion": false,
+    "hazardContrast": false,
+    "hazardPatterns": true,
+    "projectileShapes": true,
+    "textScale": 1,
+    "compactHUD": true,
+    "cameraSmooth": false,
+    "fps": 30,
+    "hazardLabels": true,
+    "damageMotion": false,
+    "lootSparkle": false,
+    "lootBeamIntensity": 0,
+    "particleIntensity": 0,
+    "motionIntensity": 0,
+    "flashIntensity": 0,
+    "effectIntensity": 0.35,
+    "cleanScreenshot": false,
+    "layoutGrid": false,
+    "minimap": true,
+    "enemyIndicators": true,
+    "skillRange": false,
+    "largeActionBar": false
+  },
+  "thresholds": {
+    "p95": 300,
+    "max": 1000,
+    "minAccepted": 50
+  },
+  "comparison": {
+    "controlMedianP95": 543.5,
+    "candidateMedianP95": 477.5,
+    "reductionPercent": 12.143514259429624,
+    "controlMedianQueueP95": 317.5,
+    "candidateMedianQueueP95": 248.9,
+    "accepted": 360,
+    "rejected": 0,
+    "unconfirmed": 0,
+    "browserErrors": 0,
+    "note": "Candidate p95 range473.6-490.4ms is below control518.1-545.4ms. All six samples still fail300ms target."
+  },
+  "correctness": {
+    "unitTests": 11,
+    "browserTests": 17
+  },
+  "candidate": {
+    "trackedDiffSHA256": "fb4d2234b9ddf346aaffcdcfe9723522a72d0d97732cefc83d547cd3505dca56",
+    "fileSHA256": "ddbf8d2ccddee38baadb82c7bd0bfe55d2bbe3041b54ae41a9b15f2db043e735",
+    "samples": [
+      {
+        "sample": 1,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 477.5,
+          "max": 480.8999999910593,
+          "queueP95": 248.90000000596046,
+          "requestP95": 222.8999999910593
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 884.2700000000011,
+          "y": 410
+        }
+      },
+      {
+        "sample": 2,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 490.40000000596046,
+          "max": 524.7000000029802,
+          "queueP95": 263.59999999403954,
+          "requestP95": 227.29999999701977
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 836.5650000000009,
+          "y": 410
+        }
+      },
+      {
+        "sample": 3,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 473.6000000089407,
+          "max": 490.8999999910593,
+          "queueP95": 245.59999999403954,
+          "requestP95": 221.40000000596046
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 654.9100000000001,
+          "y": 410
+        }
+      }
+    ]
+  },
+  "control": {
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+    "samples": [
+      {
+        "sample": 1,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 545.4000000059605,
+          "max": 576,
+          "queueP95": 317.5,
+          "requestP95": 220.20000000298023
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 873.9300000000011,
+          "y": 410
+        }
+      },
+      {
+        "sample": 2,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 543.5,
+          "max": 546,
+          "queueP95": 319,
+          "requestP95": 232.40000000596046
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 760.1900000000007,
+          "y": 410
+        }
+      },
+      {
+        "sample": 3,
+        "status": "threshold_failure",
+        "summary": {
+          "count": 60,
+          "accepted": 60,
+          "unconfirmed": 0,
+          "rejected": 0,
+          "p95": 518.1000000089407,
+          "max": 549.9000000059605,
+          "queueP95": 304.3999999910593,
+          "requestP95": 220.09999999403954
+        },
+        "health": {
+          "hidden": false,
+          "contextLost": false,
+          "visibility": "visible"
+        },
+        "startPosition": {
+          "x": 895.3150000000012,
+          "y": 410
+        }
+      }
+    ]
+  }
+}

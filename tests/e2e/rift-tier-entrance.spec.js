@@ -1,0 +1,7 @@
+const {test,expect}=require('@playwright/test');
+
+for(const mode of ['normal','reduced','off'])test('region-colored tier entrance: '+mode,async({page})=>{
+ await page.emulateMedia({reducedMotion:mode==='reduced'?'reduce':'no-preference'});await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-auto').uncheck();if(mode==='off'){await page.locator('.rift-settings > summary').click();await page.locator('#rift-flash-intensity').selectOption('0');await page.locator('.rift-settings > summary').click();}
+ await page.locator('#rift-start').click();await page.evaluate(()=>{window.entranceBorders=[];const ctx=document.getElementById('rift-canvas').getContext('2d'),stroke=ctx.strokeRect.bind(ctx);ctx.strokeRect=(...args)=>{if(args.join(',')==='6,6,948,528')window.entranceBorders.push({color:ctx.strokeStyle,alpha:ctx.globalAlpha});return stroke(...args);};});await page.locator('#rift-next').click();await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.room).toBe(1);const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ if(mode==='normal'){await expect.poll(()=>page.evaluate(()=>window.entranceBorders.length)).toBeGreaterThan(0);expect((await page.evaluate(()=>window.entranceBorders)).every(p=>p.color===run.level.color&&p.alpha>0&&p.alpha<=1)).toBe(true);}else{await page.waitForTimeout(600);expect(await page.evaluate(()=>window.entranceBorders.length)).toBe(0);}await page.keyboard.press('Escape');
+});

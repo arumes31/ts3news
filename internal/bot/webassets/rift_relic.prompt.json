@@ -1,0 +1,13 @@
+{
+  "asset": "rift_relic.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create one original transparent RGBA sprite for a small 2D dark fantasy side-view beat-em-up game: a portable ancient relic, a glowing amber crystal sphere held within an ornate compact bronze cage with two small curved handles. Clearly readable golden silhouette at 40 pixels, crisp pixel-art inspired painterly fantasy sprite consistent with retro fighter sprites. Front three-quarter view, single centered object, generous transparent padding. Warm gold/amber with tiny teal inlays. No character, no hand, no floor, no shadow, no scenery, no text, no frame. The relic occupies 75 percent of the canvas, similar width and height. Genuinely transparent background. This will be drawn on the ground and carried above a fighter's shoulder.",
+  "promptRecord": "Recovered from contemporaneous generation note; line wraps normalized",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 1472918,
+  "sha256": "d54e63484bb6d589731bf1679b85345164a954804dd02c7638d56cb0da1d4fdd"
+}

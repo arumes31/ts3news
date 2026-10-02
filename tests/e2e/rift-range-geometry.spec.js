@@ -1,0 +1,14 @@
+const {test,expect}=require('@playwright/test');
+test('range geometry follows rectangular area bounds and canonical projectile travel',async({page})=>{
+ await page.goto('/abyss/rift?scenario=spawn-hazards&subclass=elementalist');await expect(page.locator('#rift-start')).toBeEnabled();const saved=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const draw=async(target,facing)=>page.evaluate(async({saved,target,facing})=>{const run=structuredClone(saved);run.player.x=800;run.player.facing=facing;run.paused=true;const skill=target==='area'?{id:'area',name:'Area',reference:{target:'area',horizontal:155,depth:60}}:run.build.signatures.find(s=>s.reference.target==='projectile');RiftRenderer.setRangeSkill(skill);RiftRenderer.snapshot(run,true);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {geometry:RiftRenderer.lastRangePreview,reference:skill.reference};},{saved,target,facing});
+ let result=await draw('area',1);expect(result.geometry).toMatchObject({shape:'rectangle',x:645,width:310,height:120});
+ for(const facing of [-1,1]){result=await draw('projectile',facing);expect(result.reference.travel).toBe(1325);expect(result.geometry.travel).toBe(result.reference.travel);expect(result.geometry.spawnOffset).toBe(result.reference.spawn_offset);expect(result.geometry.worldLeft).toBe(facing<0?0:800);expect(result.geometry.worldRight).toBe(facing<0?800:1600);expect(result.geometry.width).toBeGreaterThan(0);expect(result.geometry.width).toBeLessThanOrEqual(960);}
+ await draw('area',1);require('fs').writeFileSync('test-results/range-rectangle.png',Buffer.from((await page.locator('#rift-canvas').evaluate(canvas=>canvas.toDataURL('image/png'))).split(',')[1],'base64')); expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(saved);
+});
+test('range toggle includes class abilities and restores pinned preview after hover',async({page})=>{
+ await page.goto('/abyss/rift?scenario=spawn-hazards&subclass=elementalist');await expect(page.locator('#rift-start')).toBeEnabled();const saved=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const toggle=page.locator('#rift-range-toggle'),signal=page.locator('#rift-skill-range'),skills=[...saved.build.skills,...saved.build.signatures,...(saved.build.ultimate?[saved.build.ultimate]:[])];
+ for(const skill of skills){await toggle.click();await expect(signal).toContainText('Range: '+skill.name);}
+ await toggle.click();await expect(signal).toHaveText('Skill range: None requested');await toggle.click();await page.locator('#rift-signatures button').first().hover();await expect(signal).toContainText(saved.build.signatures[0].name);await page.locator('#rift-room').hover();await expect(signal).toContainText('Range: '+saved.build.skills[0].name);
+});

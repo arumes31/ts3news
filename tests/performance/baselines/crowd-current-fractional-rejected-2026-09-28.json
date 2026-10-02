@@ -1,0 +1,90 @@
+{
+  "scope": "Instrumented paused crowd120 development profile; not a performance gate or physical target device result.",
+  "revision": "6f9d0620028fbc416294cae51cc17365ee153143",
+  "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+  "host": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Xeon(R) Gold 6126 CPU @ 2.60GHz",
+    "logicalCPUs": 16,
+    "totalRAM": 68718370816,
+    "freeRAM": 49562685440
+  },
+  "browser": "153.0.8010.12",
+  "profile": {
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "dpr": 1,
+    "cpuSlowdown": 4,
+    "preset": "lowPower",
+    "headless": true,
+    "physicalMinimumDevice": false
+  },
+  "durationMS": 61383.5,
+  "summary": {
+    "frames": 488,
+    "intervalP95": 199.89999999999418,
+    "intervalP99": 233.3000000000029,
+    "renderP95": 139.79999999701977
+  },
+  "cache": {
+    "entries": 4,
+    "bytes": 267288,
+    "limitBytes": 8388608,
+    "hits": 14796,
+    "misses": 4
+  },
+  "errors": [],
+  "sampledMS": 61405.67,
+  "topSelf": [
+    {
+      "function": "restore",
+      "ms": 21742.632
+    },
+    {
+      "function": "(program)",
+      "ms": 15543.101
+    },
+    {
+      "function": "actor",
+      "ms": 3943.987
+    },
+    {
+      "function": "drawImage",
+      "ms": 2006.522
+    },
+    {
+      "function": "renderFrame",
+      "ms": 1162.176
+    },
+    {
+      "function": "drawImage",
+      "ms": 971.328
+    },
+    {
+      "function": "",
+      "ms": 894.685
+    },
+    {
+      "function": "profile",
+      "ms": 879.705
+    }
+  ],
+  "finding": "Largest native restore sample belongs directly to the depth-sorted terrain/cover callback, outside actor(). It may include deferred raster work; this is not a GPU cost attribution.",
+  "fractionalCacheExperiment": {
+    "status": "rejected; production fallback restored",
+    "pixelComparisons": 10,
+    "changedCases": [
+      0,
+      1,
+      2,
+      3,
+      6,
+      7
+    ],
+    "reason": "Copying fractional atlas crops into integer-pixel bordered canvases changed output pixels in actor and prop probes.",
+    "performanceClaim": null
+  }
+}

@@ -427,7 +427,7 @@ func (b *Bot) ensureAbyssWeeklyRival(uid string) abyssRivalView {
 
 func abyssWeeklyBossDefinition(now time.Time) (string, string) {
 	week := abyssCurrentWeek(now)
-	names := []string{"Nhal, the Starved Horizon", "Veyra of the Thousand Eyes", "The Iron Leviathan", "Mournroot Prime"}
+	names := abyssWeeklyBossNames()
 	sum := 0
 	for _, char := range week {
 		sum += int(char)

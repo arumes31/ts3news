@@ -1,0 +1,129 @@
+{
+  "schema": "brawl-cold-legacy-area-v1",
+  "status": "threshold_failure",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "revision": "8b38bb63f53e9202b86d23035c35535993637eea",
+  "serverReportedRevision": null,
+  "fixtureBuild": {
+    "revision": "8b38bb63f53e9202b86d23035c35535993637eea",
+    "trackedDiffSHA256": "1c131dbc2231b54da968f996b1063a30e81b3dca27fec709c060cb47aaa42a5b",
+    "provenance": "Isolated fixture compiled by Playwright webServer from frozen workspace; no server revision endpoint assertion."
+  },
+  "browser": "153.0.8010.12",
+  "platform": "win32",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "network": {
+    "latency": 150,
+    "downloadThroughput": 200000,
+    "uploadThroughput": 93750
+  },
+  "cpuThrottled": false,
+  "thresholds": {
+    "medianReadyMS": 20000,
+    "eachReadyMS": 25000,
+    "transferBytes": 3000000
+  },
+  "readinessMS": {
+    "min": 145476,
+    "median": 145528.79999999702,
+    "max": 145909.29999999702
+  },
+  "samples": [
+    {
+      "readyMS": 145909.29999999702,
+      "transferBytes": 28852215,
+      "encodedBodyBytes": 28837515,
+      "resourceCount": 49,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "errorCount": 1,
+      "recoveredInitialReadTimeout": true
+    },
+    {
+      "readyMS": 145528.79999999702,
+      "transferBytes": 28852215,
+      "encodedBodyBytes": 28837515,
+      "resourceCount": 49,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "errorCount": 1,
+      "recoveredInitialReadTimeout": true
+    },
+    {
+      "readyMS": 145476,
+      "transferBytes": 28852215,
+      "encodedBodyBytes": 28837515,
+      "resourceCount": 49,
+      "atlas": {
+        "loaded": 7,
+        "total": 7,
+        "ready": true
+      },
+      "errorCount": 1,
+      "recoveredInitialReadTimeout": true
+    }
+  ],
+  "largestResourcesFirstSample": [
+    {
+      "path": "/static/rift_regions.png",
+      "bytes": 3222009,
+      "durationMS": 96650.5
+    },
+    {
+      "path": "/static/rift_mobs.png",
+      "bytes": 2782428,
+      "durationMS": 83496.20000000298
+    },
+    {
+      "path": "/static/rift_platform_surface.png",
+      "bytes": 2771164,
+      "durationMS": 106621.20000000298
+    },
+    {
+      "path": "/static/rift_heroes_a.png",
+      "bytes": 2704155,
+      "durationMS": 13794.79999999702
+    },
+    {
+      "path": "/static/abyss_combat_bosses_v2.png",
+      "bytes": 2680354,
+      "durationMS": 118912.29999999702
+    },
+    {
+      "path": "/static/abyss_combat_creatures_v2.png",
+      "bytes": 2474580,
+      "durationMS": 110191.5
+    },
+    {
+      "path": "/static/abyss_combat_bestiary_v2.png",
+      "bytes": 2445858,
+      "durationMS": 111475.29999999702
+    },
+    {
+      "path": "/static/abyss_combat_roles_v2.png",
+      "bytes": 2217154,
+      "durationMS": 105050.29999999702
+    },
+    {
+      "path": "/static/rift_props.png",
+      "bytes": 1553373,
+      "durationMS": 36277.70000000298
+    },
+    {
+      "path": "/static/rift_terrain_cover.png",
+      "bytes": 1484178,
+      "durationMS": 46432.70000000298
+    }
+  ],
+  "scope": "Three cold contexts with cache disabled. Each sample recovered one initial API GET timeout. Measures readiness only, not first combat or physical-device support."
+}

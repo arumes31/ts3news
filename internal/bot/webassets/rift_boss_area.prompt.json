@@ -1,0 +1,13 @@
+{
+  "asset": "rift_boss_area.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Production pixel-art background for Abyss Rift Brawl browser beat-em-up, matching a 1990s 16-bit fantasy arcade game. Landscape 1536x1024. Heart of the Ruins boss chamber: ancient colossal roots forming an underground cathedral, a ruined stone throne with glowing amber heart in the center rear, emerald luminous moss, hanging roots, broken arches, warm amber lantern light against deep teal darkness. Side-view arena with depth, lower 48 percent a broad FLAT CLEAR WALKABLE stone courtyard floor slightly seen from above. No platforms, obstacles or holes in the fighting floor. Keep architecture in upper half. Stunning crisp detailed pixel clusters, small restrained glowing motes, golden-orange versus moss green palette. No characters, enemies, text, labels, interface or borders. Fill entire canvas. Designed as actual playable stage background.",
+  "promptRecord": "Preserved final generation prompt in rift_assets.md",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1536,
+    1024
+  ],
+  "bytes": 3339584,
+  "sha256": "80c8e20161053de4257d5814a34bed5a29517e3041e09d79ba55e5e6abe6f162"
+}

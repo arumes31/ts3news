@@ -1,0 +1,122 @@
+{
+  "schema": "brawl-catalog-culling-attempt-v1",
+  "status": "incomplete_capture",
+  "decision": "reverted_unproven",
+  "reason": "Disk exhausted while saving fourth report; remaining samples did not run. No repeatable gain established.",
+  "releaseReady": false,
+  "physicalDeviceVerified": false,
+  "invalidOrMissingReports": 3,
+  "samples": [
+    {
+      "variant": "candidate",
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "failed",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "6feb5f4695723330378f5476d140ff5fdc4953a8",
+              "trackedDiffSHA256": "cd2120715ae001396690ad1fcbfd312b97cef714482db6f738ffaa2791dc69c1",
+              "rendererSHA256": "25ff26829fe5084b3c748119c42ea9c1ae5105b487e5b2d8dd90ed1c08a6a87e"
+            },
+            "status": "threshold_failure",
+            "numericStatus": "threshold_failure",
+            "durationMS": 60090.59999999404,
+            "runtimeErrors": 0,
+            "frames": 558,
+            "intervalP95": 166.6999999999971,
+            "intervalP99": 216.70000000000437,
+            "renderP95": 63.20000000298023,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "variant": "candidate",
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "failed",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 2,
+            "source": {
+              "revision": "6feb5f4695723330378f5476d140ff5fdc4953a8",
+              "trackedDiffSHA256": "cd2120715ae001396690ad1fcbfd312b97cef714482db6f738ffaa2791dc69c1",
+              "rendererSHA256": "25ff26829fe5084b3c748119c42ea9c1ae5105b487e5b2d8dd90ed1c08a6a87e"
+            },
+            "status": "threshold_failure",
+            "numericStatus": "threshold_failure",
+            "durationMS": 60078.60000000894,
+            "runtimeErrors": 0,
+            "frames": 481,
+            "intervalP95": 183.1999999999971,
+            "intervalP99": 216.6999999999971,
+            "renderP95": 72.70000000298023,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    },
+    {
+      "variant": "control",
+      "evidence": {
+        "schema": "brawl-frame-evidence-v1",
+        "workload": "crowd",
+        "status": "failed",
+        "releaseReady": false,
+        "physicalDeviceVerified": false,
+        "thresholds": {
+          "intervalP95": 50,
+          "intervalP99": 100,
+          "renderP95": 16
+        },
+        "scope": "Numeric development-frame evidence only. Scenario execution, candidate server identity and physical hardware require separate verification. Raw timings remain local.",
+        "samples": [
+          {
+            "sample": 1,
+            "source": {
+              "revision": "6feb5f4695723330378f5476d140ff5fdc4953a8",
+              "trackedDiffSHA256": "cd2120715ae001396690ad1fcbfd312b97cef714482db6f738ffaa2791dc69c1",
+              "rendererSHA256": "95b2aded2a36bdab37e0933f538150db3dde55ac716df6efad12c590609ead87"
+            },
+            "status": "threshold_failure",
+            "numericStatus": "threshold_failure",
+            "durationMS": 60110.5,
+            "runtimeErrors": 0,
+            "frames": 507,
+            "intervalP95": 166.70000000000437,
+            "intervalP99": 233.3000000000029,
+            "renderP95": 72,
+            "outcome": null,
+            "enemyPeak": null,
+            "projectilePeak": null
+          }
+        ]
+      }
+    }
+  ]
+}

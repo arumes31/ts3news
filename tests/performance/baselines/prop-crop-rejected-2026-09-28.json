@@ -1,0 +1,26 @@
+{
+  "scope": "Rejected prop-only fractional crop cache; exact pixel comparison failed. No performance claim.",
+  "candidateDiff": "diff --git a/internal/bot/webassets/rift_renderer.js b/internal/bot/webassets/rift_renderer.js\nindex f86915f8..31a227e7 100644\n--- a/internal/bot/webassets/rift_renderer.js\n+++ b/internal/bot/webassets/rift_renderer.js\n@@ -515,8 +515,8 @@\n   renderer.atlasCacheStats=()=>({entries:atlasFrames.size,bytes:atlasFrameBytes,limitBytes:atlasFrameLimit,hits:atlasHits,misses:atlasMisses});\n   function cachedAtlasFrame(img,sx,sy,sw,sh,dw,dh){\n     if(!(dw>0&&dh>0&&dw<=256&&dh<=256&&sw>0&&sh>0&&sx>=0&&sy>=0&&sx+sw<=img.width&&sy+sh<=img.height))return null;\n-    // Fractional shared-atlas crops retain native sampling to avoid edge rounding changes.\n-    if(![sx,sy,sw,sh].every(Number.isInteger))return null;\n+    // Shared monster crops retain native sampling; prop crops are audited separately.\n+    if(img!==images.props&&![sx,sy,sw,sh].every(Number.isInteger))return null;\n     // Copy whole source pixels, including a border, without resampling the atlas.\n     const left=Math.max(0,Math.floor(sx)-1),top=Math.max(0,Math.floor(sy)-1),width=Math.min(img.width,Math.ceil(sx+sw)+1)-left,height=Math.min(img.height,Math.ceil(sy+sh)+1)-top,bytes=width*height*4;\n     if(bytes>atlasFrameLimit/4)return null;\n",
+  "differences": [
+    {
+      "image": "variant-0-6.png",
+      "bounds": [
+        312,
+        144,
+        803,
+        436
+      ],
+      "changedPixels": 6
+    },
+    {
+      "image": "variant-0-7.png",
+      "bounds": [
+        96,
+        139,
+        622,
+        413
+      ],
+      "changedPixels": 11
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "asset": "rift_effects.png",
+  "tool": "image_gen.imagegen (built-in)",
+  "prompt": "Create a production game spell effects animation atlas with GENUINE TRANSPARENT ALPHA background. Exactly 6 rows x 6 columns identical square cells, image 1536x1536. No grid lines, no borders, no text, no labels, no characters, no checkerboard. Original crisp colorful 16-bit arcade pixel-art. Every effect centered within its cell with generous transparent margins. Each row is one effect advancing over six frames left to right from small start through peak burst to fading particles. Row1 golden-white sword slash crescent sweeping right. Row2 orange red fireball explosion. Row3 cyan blue ice crystal burst. Row4 mint teal magical protective shield ring. Row5 purple violet void magic burst. Row6 warm gold loot sparkle starburst. Strong clean pixel shapes at small screen size, vibrant light centers, controlled glow made of pixel clusters, each frame contained fully in cell, consistent six-by-six arrangement.",
+  "promptRecord": "Preserved final generation prompt in rift_assets.md",
+  "recordedDate": "2026-09-28",
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "bytes": 1332867,
+  "sha256": "bc75320baeba6b1df2c8c71b71ff7b61dc13cbe7cc02fbf887a1ae9109cb959a"
+}

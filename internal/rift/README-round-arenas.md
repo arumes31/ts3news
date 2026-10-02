@@ -1,0 +1,41 @@
+# Circular arenas (0416 verified)
+
+RoundArena saves a circular floor as an ellipse in the side-on depth projection.
+Ground movement uses actor clearance and rejects endpoints outside the floor;
+convexity keeps each accepted straight movement segment inside it. Enemy spawn
+placement shares these checks. Geometry survives JSON and is independently copied.
+Focused movement, spawn, save and bridge regression tests pass.
+
+Server/browser validation now rejects invalid dimensions, off-map circles and
+explicit entry/exit anchors outside the usable floor. Recovery and protocol tests
+pass for valid geometry and legacy rooms.
+
+Tier 1 of missions 2, 62 and 82 now uses this geometry. The raised platform and
+central cover remain; two routes above and below the central hazard band connect
+the original regional entrance to an exit inside the circular floor. Both routes
+pass actual movement and hazard-clearance checks. Enemy placement stays inside
+the floor, and curved-edge steering keeps fleeing treasure monsters moving.
+
+The permanent-route audit now uses saved entrances/exits and checks a final short
+segment for anchors that do not lie on its search grid. The lane-slam audit only
+starts actors on walkable ground, as it already excluded positions inside walls.
+The full Rift suite passes, including authored-spawn pursuit, every combat role,
+regional arrival consistency, raised-platform access and hazard-safe routes.
+
+The renderer now masks non-walkable corners and outlines the saved circular floor.
+Minimap and mission-preview ellipses use the same geometry. The preview explains
+that the two routes avoid floor hazards, not enemy attacks. Browser tests are
+prepared in tests/e2e/rift-circular-court.spec.js for keyboard traversal of both
+routes, hazard contact, recovery, desktop/mobile screenshots and route guidance.
+Both browser tests passed; desktop/mobile screenshots were inspected. Keyboard
+traversal of both routes preserved health and hazard-contact counts, and saved
+geometry survived recovery. Results remain local under
+test-results/brawl-potions-arenas-verification.
+
+The keyboard-driven tests/e2e/rift-terrain-campaign-completion.spec.js also
+completed all three tiers of mission 2, including moving beacons and the boss,
+with normal combat and no runtime errors. It changes no actor stats or game
+state outside normal UI controls. A second run asserted three cleared rooms,
+a defeated boss and positive banked gold; it passed. Results are in
+test-results/brawl-terrain-completion-rewards. Banking uses the E2E fixture,
+not a production database. This completes the terrain journey evidence for 0416.

@@ -1,0 +1,6 @@
+const {test,expect}=require('@playwright/test');
+for(const reduced of [false,true])test('player jump shadow '+(reduced?'stays stable with reduced motion':'shrinks at the peak and returns on landing'),async({page})=>{
+ await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ const shadows=await page.evaluate(run=>{const ctx=document.getElementById('rift-canvas').getContext('2d'),ellipse=ctx.ellipse.bind(ctx),shadows=[];ctx.ellipse=(...args)=>{if(ctx.fillStyle.startsWith('rgba(3, 17, 11,'))shadows.push(args.slice(0,4));return ellipse(...args);};for(const jump of [0,.325,0])window.RiftRenderer.renderActor({...run.player,jump,pose:'idle'},performance.now());ctx.ellipse=ellipse;return shadows;},run);
+ expect(shadows).toHaveLength(3);expect(shadows[0]).toEqual(shadows[2]);expect(shadows[1].slice(0,2)).toEqual(shadows[0].slice(0,2));if(reduced)expect(shadows[1]).toEqual(shadows[0]);else{expect(shadows[1][2]).toBeLessThan(shadows[0][2]);expect(shadows[1][3]).toBeLessThan(shadows[0][3]);}expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(run);
+});

@@ -525,38 +525,7 @@ func (b *Bot) consumeCombatConsumable(u *UserInCombat, id string, consumeAll boo
 }
 
 func getElementMult(attacker, defender content.Element) float64 {
-	// Fire > Air > Earth > Water > Fire
-	switch attacker {
-	case content.ElementFire:
-		if defender == content.ElementAir {
-			return 2.0
-		}
-		if defender == content.ElementWater {
-			return 0.5
-		}
-	case content.ElementAir:
-		if defender == content.ElementEarth {
-			return 2.0
-		}
-		if defender == content.ElementFire {
-			return 0.5
-		}
-	case content.ElementEarth:
-		if defender == content.ElementWater {
-			return 2.0
-		}
-		if defender == content.ElementAir {
-			return 0.5
-		}
-	case content.ElementWater:
-		if defender == content.ElementFire {
-			return 2.0
-		}
-		if defender == content.ElementEarth {
-			return 0.5
-		}
-	}
-	return 1.0
+	return content.ElementMultiplier(attacker, defender)
 }
 
 // LootResult is one item/gold grant from a resolved fight, ready to log and

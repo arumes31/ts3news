@@ -1,0 +1,7 @@
+const {test,expect}=require('@playwright/test');
+for(const mode of ['normal','reduced','still','off'])test('pickup trail: '+mode,async({page})=>{
+ const reduced=mode==='reduced';
+ await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});await page.goto('/abyss/rift?scenario=checkpoint');await expect(page.locator('#rift-start')).toBeEnabled();const run=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.evaluate(({run,mode})=>{if(mode==='still')window.RiftDisplay.motionIntensity=0;if(mode==='off')window.RiftDisplay.lootSparkle=false;window.trails=[];const ctx=document.getElementById('rift-canvas').getContext('2d'),curve=ctx.quadraticCurveTo.bind(ctx);ctx.quadraticCurveTo=(...args)=>{if(ctx.strokeStyle==='#ffe9a6')window.trails.push(args);return curve(...args);};run.paused=false;run.counter++;run.events=[{id:run.counter,kind:'pickup',x:run.player.x+80,y:run.player.y,value:10}];window.RiftDisplay.cameraSmooth=false;window.RiftRenderer.snapshot(run,false);},{run,mode});
+ if(mode!=='normal'){await page.waitForTimeout(250);expect(await page.evaluate(()=>window.trails.length)).toBe(0);}else{await expect.poll(()=>page.evaluate(()=>window.trails.length)).toBeGreaterThan(0);const trails=await page.evaluate(()=>window.trails);expect(trails.every(t=>t[2]===run.player.x&&t[3]===run.player.y-18)).toBe(true);}expect((await(await page.request.get('/api/abyss/rift')).json()).run.paused).toBe(run.paused);
+});

@@ -1,0 +1,12 @@
+const {test,expect}=require('@playwright/test');
+test('skill sandbox supports real casts, recovery and reset without campaign changes',async({page})=>{
+ await page.goto('/abyss/rift?scenario=checkpoint&subclass=elementalist');await expect(page.locator('#rift-start')).toBeEnabled();const campaign=(await(await page.request.get('/api/abyss/rift')).json()).run;
+ await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await expect(page.locator('#rift-practice-instructions')).toContainText('immortal target');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await expect(page.locator('#rift-skills')).toBeVisible();await expect(page.locator('#rift-signatures')).toBeVisible();
+ const read=async()=>(await(await page.request.get('/api/abyss/rift?practice=skills')).json()).run;
+ const initial=await read();expect(initial.player.hp).toBe(initial.player.max_hp*.6);const skill=initial.build.skills[0];await page.keyboard.press('1');await expect.poll(async()=>(await read()).stats.skill_uses?.[skill.id]||0).toBe(1);
+ await page.keyboard.press('q');await expect.poll(async()=>(await read()).resource).toBe(1);await expect.poll(async()=>(await read()).player.cooldown).toBe(0);await page.keyboard.press('e');await expect.poll(async()=>(await read()).stats.charged_finishers||0).toBe(1);expect((await read()).status).toBe('fighting');
+ await page.locator('[data-practice-action="practice_mana"]').click();await expect.poll(async()=>(await read()).player.mana).toBe(100);await page.locator('[data-practice-action="practice_cooldowns"]').click();await expect.poll(async()=>(await read()).skill_timers[skill.id]||0).toBe(0);
+ const result=await read();expect(result.enemies[0].hp).toBe(result.enemies[0].max_hp);expect(result.gold).toBe(0);expect(result.drops).toEqual([]);expect((await(await page.request.get('/api/abyss/rift')).json()).run).toEqual(campaign);
+ await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await read()).stats.skill_uses?.[skill.id]||0).toBe(0);await page.reload();await expect(page.locator('#rift-practice-progress')).toContainText('Free practice');
+ await page.setViewportSize({width:390,height:1600});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#rift-practice-guide').scrollIntoViewIfNeeded();await page.evaluate(()=>window.scrollBy(0,-240));await page.locator('#rift-practice-guide').screenshot({path:'test-results/skill-practice-mobile.png'});
+});
