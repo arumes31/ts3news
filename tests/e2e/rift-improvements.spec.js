@@ -321,6 +321,7 @@ test('reduced motion persists and the expanded mobile controls do not overflow',
 
 test('keyboard activation of action buttons performs the labeled action',async({page})=>{
   await page.goto('/abyss/rift');await page.locator('#rift-start').click();
+  await expect(page.locator('#rift-overlay')).toBeHidden();
   const attack=page.locator('[data-hold="attack"]');await attack.focus();await page.keyboard.press('Enter');
   await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.stats.attacks).toBeGreaterThan(0);
   await expect.poll(async()=>(await(await page.request.get('/api/abyss/rift')).json()).run.player.cooldown).toBe(0);
