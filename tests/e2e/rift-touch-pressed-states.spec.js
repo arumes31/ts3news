@@ -49,16 +49,9 @@ test.describe('Give touch controls descriptive pressed states (Proposal 0156)', 
     await expect(leftBtn).toHaveClass(/rift-held/);
     await expect(leftBtn).toHaveAttribute('aria-label', 'Moving left (holding)');
 
-    // Verify visual pressed styling
-    const pressedStyles = await leftBtn.evaluate((el) => {
-      const cs = window.getComputedStyle(el);
-      return {
-        background: cs.backgroundColor,
-        borderColor: cs.borderColor,
-      };
-    });
-    expect(pressedStyles.background).toBe('rgb(52, 82, 60)'); // #34523c
-    expect(pressedStyles.borderColor).toBe('rgb(247, 214, 145)'); // #f7d691
+    // Wait for the button's background transition to reach its pressed color.
+    await expect(leftBtn).toHaveCSS('background-color', 'rgb(52, 82, 60)'); // #34523c
+    await expect(leftBtn).toHaveCSS('border-color', 'rgb(247, 214, 145)'); // #f7d691
 
     // Release pointer (touch release)
     await page.mouse.up();

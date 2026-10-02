@@ -1,11 +1,11 @@
 const {test,expect}=require('@playwright/test');
 
-async function controller(page){
+async function controller(page,url='/abyss/rift'){
   await page.addInitScript(()=>{
     window.testPad={id:'Brawl standard test controller',index:0,mapping:'standard',connected:true,axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,value:0}))};
     Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>window.testPad?[window.testPad]:[]});
   });
-  await page.goto('/abyss/rift');await expect(page.locator('#rift-gamepad-status')).toContainText('Connected:');
+  await page.goto(url);await expect(page.locator('#rift-gamepad-status')).toContainText('Connected:');
   await expect(page.locator('#rift-gamepad-status')).not.toContainText('Release controls');
 }
 async function input(page,buttons=[],axes=[0,0]){await page.evaluate(({buttons,axes})=>{window.testPad.axes=axes;window.testPad.buttons=Array.from({length:17},(_,i)=>({pressed:buttons.includes(i),value:buttons.includes(i)?1:0}));},{buttons,axes});}
@@ -22,8 +22,11 @@ test('controller panel shows live readings and saves independent valid stick set
 });
 
 test('standard controller sends analog movement and all combat bindings to the server',async({page})=>{
-  const steps=[];page.on('request',request=>{if(request.method()==='POST'&&request.url().endsWith('/api/abyss/rift')){const body=request.postDataJSON();if(body.kind==='step')steps.push(body.input);}});
-  await controller(page);await page.locator('#rift-start').click();const run=await read(page),x=run.player.x;
+  const read=async page=>(await(await page.request.get('/api/abyss/rift?practice=skills')).json()).run;
+  const steps=[];page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/abyss/rift'){const body=request.postDataJSON();if(body.kind==='step')steps.push(body.input);}});
+  // The immortal practice target keeps the ultimate from clearing a room and
+  // resetting controller input halfway through the binding checks.
+  await controller(page,'/abyss/rift?practice=skills');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();const run=await read(page),x=run.player.x;
   await input(page,[],[.59,0]);await expect.poll(()=>steps.some(i=>Math.abs(i.x-.5)<.001)).toBe(true);await expect.poll(async()=>(await read(page)).player.x).toBeGreaterThan(x);await input(page);
   async function binding(button,check){steps.length=0;await input(page,[button]);await expect.poll(()=>steps.some(check)).toBe(true);await input(page);await page.waitForTimeout(70);}
   await binding(2,i=>i.attack);await expect.poll(async()=>(await read(page)).stats.attacks).toBeGreaterThan(0);

@@ -21,8 +21,18 @@ for(const reduced of [false,true])test(`recovering floor states and keyboard byp
  expect(await page.evaluate(data=>{const bad=structuredClone(data);bad.run.room_objective.floor_segments[0].x++;try{RiftProtocol.validate(bad,'GET');return false;}catch{return true;}},response)).toBe(true);
  await page.evaluate(()=>{const play=RiftAudio.play;window.floorCues=[];RiftAudio.play=function(kind,...args){const result=play.call(this,kind,...args);if(kind.startsWith('floor_'))floorCues.push({kind,result});return result;};});
  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
- async function move(key,axis,target,greater){await page.keyboard.down(key);try{await expect.poll(async()=>{const value=(await read()).player[axis];return greater?value>target:value<target;},{intervals:[30]}).toBe(true);}finally{await page.keyboard.up(key);}}
- await move('w','y',340,false);await move('d','x',740,true);await move('s','y',390,true);
+ // Confirm each keyboard step so a slow poll cannot leave movement held long
+ // enough to overshoot the narrow lane between the barricade and the gate.
+ async function move(key,axis,target,greater){
+  let value=(await read()).player[axis];
+  while(greater?value<=target:value>=target){
+   const previous=value;await page.keyboard.press(key);
+   await expect.poll(async()=>{value=(await read()).player[axis];return greater?value>previous:value<previous;},{intervals:[30]}).toBe(true);
+  }
+ }
+ // The barricade ends at x=734; clear the player's 10px footprint while
+ // staying left of the enemies at x=780, facing right for the attack.
+ await move('w','y',340,false);await move('d','x',750,true);await move('s','y',390,true);
  await page.keyboard.down('j');try{await expect.poll(async()=>(await read()).room_objective.next_wave_seconds).toBeGreaterThan(0);}finally{await page.keyboard.up('j');}
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
  await expect.poll(()=>page.evaluate(()=>floorCues.filter(c=>c.kind==='floor_restore'&&c.result===true).length)).toBe(2);
