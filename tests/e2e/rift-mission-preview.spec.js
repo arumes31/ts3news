@@ -44,7 +44,7 @@ test('mission links select the route and previews match all three saved terrain 
 
 test('invalid mission links fall back and active expeditions take priority over incoming links',async({page})=>{
   await page.goto('/abyss/rift?mission=999');await expect(page.locator('#rift-mission-link-status')).toContainText('invalid');await expect(page.locator('#rift-start')).toBeEnabled();
-  await page.locator('[data-level="12"]').click();await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.locator('[data-level="12"]').click();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await page.goto('/abyss/rift?mission=65');await expect(page.locator('[data-level="12"]')).toHaveAttribute('aria-current','true');
   await expect(page.locator('#rift-mission-link-status')).toContainText('saved expedition');
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.level.id).toBe(12);

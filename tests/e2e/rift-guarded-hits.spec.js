@@ -56,8 +56,10 @@ test.describe('Make guarded hits distinguishable without audio (Proposal 0150)',
 
     // Start expedition and pause to inject combat simulation
     await page.locator('#rift-start').click();
+    await expect(page.locator('#rift-overlay')).toBeHidden();
     await expect(page.locator('#rift-pause')).toBeEnabled();
     await page.keyboard.press('Escape');
+    await expect(page.locator('#rift-paused-badge')).toBeVisible();
 
     // Trigger a block event in RiftFeedback
     await page.evaluate(() => {
@@ -93,6 +95,7 @@ test.describe('Make guarded hits distinguishable without audio (Proposal 0150)',
 
   test('HUD guard reduction indicator and button reflect recent guarded hits with visual confirmation', async ({ page }) => {
     await page.locator('#rift-start').click();
+    await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
 
     const indicator = page.locator('#rift-guard-reduction');

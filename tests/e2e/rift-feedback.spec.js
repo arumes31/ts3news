@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 
-async function savedRun(page){await page.goto('/abyss/rift');await page.locator('#rift-start').click();await page.keyboard.press('Escape');return (await(await page.request.get('/api/abyss/rift')).json()).run;}
+async function savedRun(page){await page.goto('/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');return (await(await page.request.get('/api/abyss/rift')).json()).run;}
 
 test('readiness cues wait for casting recovery and do not repeat on ordinary attacks or replay',async({page})=>{
   const run=await savedRun(page);

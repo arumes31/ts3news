@@ -2,55 +2,32 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Add a victory pose at mission completion (Proposal 0214)', () => {
   test('mission completion triggers player victory pose and emits victory event', async ({ page }) => {
-    await page.goto('/abyss/rift');
+    await page.goto('/abyss/rift?scenario=victory-final');
     await expect(page.locator('#rift-start')).toBeEnabled();
-
-    let victoryEventSeen = false;
-    let victoryPoseSeen = false;
-    let gameStarted = false;
-
-    // Intercept step snapshots to supply final room clear and observe victory
-    await page.route('**/api/abyss/rift', async route => {
-      const response = await route.fetch();
-      const data = await response.json();
-
-      if (data && data.run && data.run.status === 'fighting') {
-        if (!gameStarted) {
-          gameStarted = true;
-        } else {
-          data.run.room = 3; // final room (Tier 4 boss room)
-          data.run.status = 'cleared';
-          data.run.player.pose = 'victory';
-          data.run.player.pose_time = 4.0;
-          data.run.events = data.run.events || [];
-          data.run.events.push({
-            id: 9988,
-            kind: 'victory',
-            x: data.run.player.x,
-            y: data.run.player.y - 30,
-            value: 0
-          });
-
-          victoryPoseSeen = true;
-          victoryEventSeen = true;
-        }
-      }
-
-      await route.fulfill({ response, json: data });
-    });
-
+    await page.locator('#rift-auto').uncheck();
     await page.locator('#rift-start').click();
     await expect(page.locator('#rift-overlay')).toBeHidden();
+    const victory = page.waitForResponse(async response => {
+      if (!response.url().endsWith('/api/abyss/rift') || response.request().method() !== 'POST') return false;
+      const {run} = await response.json();
+      return run?.events?.some(event => event.kind === 'victory');
+    });
+    await page.keyboard.down('KeyJ');
+    let cleared;
+    try { cleared = (await (await victory).json()).run; }
+    finally { await page.keyboard.up('KeyJ'); }
+    expect(cleared.status).toBe('cleared');
+    expect(cleared.player.pose).toBe('victory');
+    expect(cleared.player.pose_time).toBeGreaterThan(0);
+    const completion = page.waitForResponse(response =>
+      response.url().endsWith('/api/abyss/rift') && response.request().postDataJSON()?.kind === 'next');
+    await page.locator('#rift-next').click();
+    const {run} = await (await completion).json();
+    expect(run.status).toBe('complete');
+    expect(run.player.pose).toBe('victory');
+    expect(run.player.pose_time).toBeGreaterThan(0);
+    await expect(page.locator('#rift-result-heading')).toContainText('Mission 1 Cleared:');
 
-    for (let i = 0; i < 20; i++) {
-      if (victoryPoseSeen && victoryEventSeen) break;
-      await page.waitForTimeout(150);
-    }
-
-    expect(victoryPoseSeen).toBe(true);
-    expect(victoryEventSeen).toBe(true);
-
-    await page.keyboard.press('Escape');
   });
 
   test('renderer handles victory pose aura and victory herald in normal and reduced motion modes', async ({ page }) => {

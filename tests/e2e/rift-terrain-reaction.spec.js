@@ -13,6 +13,7 @@ test('volatile cluster pauses and reloads its warning, then damages once and dro
  // Hide only the pause panel in this additional render inspection; retain the actual UI capture above.
  await page.locator('#rift-viewport').screenshot({path:info.outputPath('intact-world.png'),style:'#rift-overlay { visibility: hidden !important; }'});
  await page.locator('#rift-start').click();
+ await expect(page.locator('#rift-overlay')).toBeHidden();
  await page.keyboard.down('j');
  try{await expect.poll(async()=>(await saved()).level.rooms[0].cover.filter(c=>c.blast_fuse>0).length,{intervals:[20]}).toBe(3);}finally{await page.keyboard.up('j');}
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');

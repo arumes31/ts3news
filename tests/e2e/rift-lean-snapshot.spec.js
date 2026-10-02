@@ -16,5 +16,5 @@ test('wrong lean baseline stops combat and reload recovers',async({page})=>{
  await page.goto('/abyss/rift?scenario=spawn-hazards');await expect(page.locator('#rift-start')).toBeEnabled();let corrupted=false;
  await page.route('**/api/abyss/rift',async route=>{const response=await route.fetch();const data=await response.json();if(!corrupted&&data.snapshot_kind==='lean-v1'){corrupted=true;data.snapshot_base='0'.repeat(64);}await route.fulfill({response,json:data});});
  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay-kicker')).toHaveText('CONNECTION PAUSED');expect(corrupted).toBe(true);
- await page.unroute('**/api/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Resume expedition');await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+ await page.unroute('**/api/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-start')).toHaveText('Resume expedition');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
 });

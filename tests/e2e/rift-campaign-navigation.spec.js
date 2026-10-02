@@ -58,7 +58,7 @@ test('region overview expands the selected region and preserves combined filters
 
 test('active expedition remains visible and its region opens despite a different incoming mission link',async({page})=>{
   await page.goto('/abyss/rift?mission=21');await expect(page.locator('#rift-start')).toBeEnabled();
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await page.goto('/abyss/rift?mission=87');await page.locator('#rift-overview-toggle').click();
   await expect(page.locator('#rift-selected-mission')).toContainText('Active expedition: 21');
   await expect(page.locator('[data-overview-region="2"] details')).toHaveAttribute('open','');
@@ -80,7 +80,7 @@ test('mission keyboard browsing follows filtered cards without changing selectio
   await page.keyboard.press('ArrowDown');await expect(cards.nth(nextRow)).toBeFocused();
   await page.keyboard.press('ArrowUp');await expect(cards.first()).toBeFocused();
   await page.keyboard.press('Enter');await expect(page.locator('#rift-start')).toHaveText('Enter mission 21');
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await expect(page.locator('[data-level="22"]')).toBeDisabled();
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.level.id).toBe(21);
 });

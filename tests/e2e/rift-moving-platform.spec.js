@@ -27,7 +27,7 @@ for(const reduced of [false,true])test(`moving platform keyboard journey reduced
  const recovered=await read();expect(recovered.practice.platform_ride).toBe(250);expect(recovered.practice.arena.platforms).toEqual(paused.practice.arena.platforms);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#rift-viewport').screenshot({path:info.outputPath('ferry-mobile.png'),style:'#rift-overlay{visibility:hidden!important}'});
- await page.locator('#rift-start').click();await page.keyboard.down('d');
+ await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.down('d');
  try{await expect.poll(async()=>(await read()).status,{timeout:15000,intervals:[100]}).toBe('complete');}finally{await page.keyboard.up('d');}
  const complete=await read();expect(complete.gold).toBe(0);expect(complete.banked_gold).toBe(0);expect(complete.completed_levels||[]).toEqual([]);
  await page.locator('#rift-practice-reset').click();await expect.poll(async()=>(await read()).practice.platform_ride||0).toBe(0);

@@ -11,7 +11,7 @@ test('audio mix migrates parent levels, saves independent channels and resets wi
 });
 
 test('audio previews leave a paused expedition paused and return its context to silence',async({page})=>{
-  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await page.locator('.rift-settings > summary').click();await page.locator('[data-audio-preview="voice"]').click();
   await expect(page.locator('#rift-audio-preview-status')).toContainText('Previewing');
   expect((await(await page.request.get('/api/abyss/rift')).json()).run.paused).toBe(true);

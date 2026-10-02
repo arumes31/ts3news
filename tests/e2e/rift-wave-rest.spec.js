@@ -9,7 +9,7 @@ test('rest alcove holds waves through reload and Guard delays departure',async({
  await page.waitForTimeout(3000);expect((await saved()).room_objective.wave).toBe(1);expect((await saved()).room_objective.next_wave_seconds).toBe(2.5);
  await page.locator('#rift-canvas').screenshot({path:info.outputPath('rest-alcove.png')});
  await page.keyboard.press('Escape');await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
- await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();expect((await saved()).room_objective.next_wave_seconds).toBe(2.5);await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').click();
+ await page.evaluate(()=>history.replaceState(null,'','/abyss/rift'));await page.reload();await expect(page.locator('#rift-start')).toBeEnabled();expect((await saved()).room_objective.next_wave_seconds).toBe(2.5);await page.locator('#rift-auto').uncheck();await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
  await page.keyboard.down('KeyL');await page.keyboard.down('KeyD');try{await expect.poll(async()=>(await saved()).player.x,{timeout:12000}).toBeGreaterThan(300);}finally{await page.keyboard.up('KeyD');}
  await expect(page.locator('#rift-room-objective-progress')).toContainText('Reinforcements held');await page.waitForTimeout(3000);expect((await saved()).room_objective.next_wave_seconds).toBe(2.5);
  await page.keyboard.up('KeyL');await expect.poll(async()=>(await saved()).room_objective.wave,{timeout:10000}).toBe(2);expect(errors).toEqual([]);

@@ -99,6 +99,7 @@ test.describe('Avoid pulsing effects when the game is paused (Proposal 0148)',()
   test('data-paused is cleared after expedition ends',async({page})=>{
     const app=page.locator('#rift-app');
     await page.locator('#rift-start').click();
+    await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
     await expect(app).toHaveAttribute('data-paused','');
 

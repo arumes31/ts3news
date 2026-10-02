@@ -343,7 +343,7 @@ test('corrupt audio levels use finite defaults and closed audio can reopen',asyn
   await page.goto('/abyss/rift');
   expect(await page.evaluate(()=>window.RiftAudio.effects)).toBe(.65);
   expect(await page.evaluate(()=>window.RiftAudio.ambience)).toBe(1);
-  await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await page.evaluate(()=>window.RiftAudio.context.close());
   await page.locator('#rift-start').click();
   await expect.poll(()=>page.evaluate(()=>window.RiftAudio.context.state)).toBe('running');
@@ -358,7 +358,7 @@ test('failed artwork can be reloaded from the start panel',async({page})=>{
 });
 
 test('restored browser history reloads the confirmed expedition without autoplay',async({page})=>{
-  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await page.keyboard.press('Escape');
+  await page.goto('/abyss/rift');await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();await page.keyboard.press('Escape');
   await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
   await expect(page.locator('#rift-overlay-title')).toHaveText('Your expedition awaits.');

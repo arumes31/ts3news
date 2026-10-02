@@ -11,13 +11,23 @@ import (
 // Unknown scenarios are left to the existing fixture handlers.
 func riftTerminalFixture(scenario string, build rift.Build) *rift.Run {
 	switch scenario {
-	case "terminal-complete", "terminal-banked", "terminal-defeated", "terminal-expired":
+	case "terminal-complete", "terminal-banked", "terminal-defeated", "terminal-expired", "victory-final":
 	default:
 		return nil
 	}
 	now := time.Now()
 	run := rift.NewRunAtLevel(scenario, build, now, riftMobCatalog(now), 1)
 	run.Epoch = "fixture"
+	if scenario == "victory-final" {
+		// Keep the final blow and its victory event in the production simulation.
+		run.Room = len(run.Level.Rooms) - 1
+		run.Level.Rooms[run.Room].Hazards = nil
+		run.Level.Rooms[run.Room].Obstacles = nil
+		run.RoomObjective = nil
+		run.Enemies = []rift.Actor{{ID: "final-target", Name: "Final guardian", Kind: "goblin", X: run.Player.X + 45, Y: run.Player.Y, HP: 1, MaxHP: 1, Facing: -1, Cooldown: 1000}}
+		run.SetPaused(true, now)
+		return run
+	}
 	run.BankedGold = 50
 	run.BankedAtMS = now.UnixMilli()
 	switch scenario {

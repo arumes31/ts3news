@@ -15,7 +15,8 @@ test('bestiary mirrors the live Abyss roster and WASD/Space control combat',asyn
   await page.locator('#rift-monster-search').fill('Chronos');
   await expect(page.locator('#rift-monsters article:visible')).toHaveCount(1);
   await page.screenshot({path:'test-results/rift-bestiary.png',fullPage:true});
-  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
+  await page.locator('#rift-start').click();
+  await expect(page.locator('#rift-overlay')).toBeHidden();
   const read=async()=>(await(await page.request.get('/api/abyss/rift')).json()).run;
   let run=await read();
   for(const [key,axis,direction] of [['d','x',1],['a','x',-1],['w','y',-1],['s','y',1]]){
@@ -176,7 +177,7 @@ test('100 missions are selectable and the final region survives reload',async({p
 
 test('seamless tiers bank once without navigation and pause stops the transition',async({page})=>{
   await page.goto('/abyss/rift?scenario=checkpoint');
-  await page.locator('#rift-start').click();
+  await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.locator('#rift-overlay-title')).toHaveText('A moment by the lantern.');
   await page.waitForTimeout(1400);
