@@ -6,30 +6,30 @@ test.describe('Add a defeated-player fade that preserves silhouette (Proposal 02
     await expect(page.locator('#rift-start')).toBeEnabled({ timeout: 15000 });
 
     let playerDefeatSeen = false;
-    let gameStarted = false;
+    let allowDefeat = false;
 
-    // Intercept step snapshots to supply player defeat
+    // Keep combat active until its initial UI has been observed, then defeat
+    // the player on a step response. Request timing must not end it early.
     await page.route('**/api/abyss/rift', async route => {
       const response = await route.fetch();
       const data = await response.json();
 
-      if (data && data.run && data.run.status === 'fighting') {
-        if (!gameStarted) {
-          gameStarted = true;
-        } else {
-          data.run.player.hp = 0;
-          data.run.player.pose = 'defeat';
-          data.run.status = 'defeated';
-          data.run.events = data.run.events || [];
-          data.run.events.push({
-            id: 9982,
-            kind: 'defeat',
-            x: data.run.player.x,
-            y: data.run.player.y,
-            value: 0
-          });
-          playerDefeatSeen = true;
-        }
+      if (allowDefeat && route.request().method() === 'POST' &&
+          route.request().postDataJSON().kind === 'step' && data.run?.status === 'fighting') {
+        data.run.player.hp = 0;
+        // The protocol caps the damage allowance at remaining health.
+        data.hazard_hit_damage = 0;
+        data.run.player.pose = 'defeat';
+        data.run.status = 'defeated';
+        data.run.events = data.run.events || [];
+        data.run.events.push({
+          id: 9982,
+          kind: 'defeat',
+          x: data.run.player.x,
+          y: data.run.player.y,
+          value: 0
+        });
+        playerDefeatSeen = true;
       }
 
       await route.fulfill({ response, json: data });
@@ -38,14 +38,13 @@ test.describe('Add a defeated-player fade that preserves silhouette (Proposal 02
     await page.locator('#rift-start').click();
     await expect(page.locator('#rift-overlay')).toBeHidden();
 
-    for (let i = 0; i < 20; i++) {
-      if (playerDefeatSeen) break;
-      await page.waitForTimeout(150);
-    }
-
-    expect(playerDefeatSeen).toBe(true);
-
-    await page.keyboard.press('Escape');
+    allowDefeat = true;
+    await expect.poll(() => playerDefeatSeen).toBe(true);
+    await expect(page.locator('#rift-overlay')).toBeVisible();
+    await expect(page.locator('#rift-result-heading')).toHaveText('Expedition Defeat');
+    await expect.poll(() => page.evaluate(() =>
+      window.RiftRenderer.lastDefeatedPlayerSilhouette?.preserved
+    )).toBe(true);
   });
 
   test('renderer handles defeated player silhouette fade in normal and reduced motion modes', async ({ page }) => {

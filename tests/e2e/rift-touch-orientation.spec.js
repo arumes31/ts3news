@@ -16,7 +16,7 @@ for(const signal of ['screen','legacy','viewport'])test('held attack resets on '
 });
 
 test('same-orientation toolbar-sized resize preserves held input',async({page})=>{
- await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();
+ await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
  const attack=page.locator('[data-bind=attack]');await attack.hover();await page.mouse.down();await expect(attack).toHaveAttribute('aria-pressed','true');
  await page.setViewportSize({width:390,height:760});await expect(attack).toHaveAttribute('aria-pressed','true');await page.mouse.up();
 });
