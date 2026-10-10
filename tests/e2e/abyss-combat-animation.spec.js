@@ -939,6 +939,10 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     const initial = planningState();
     await openCombat(page, initial);
+    // Combat startup reveals the cockpit with a delayed smooth scroll. Wait
+    // for its focus hand-off before starting the effect: visibility alone can
+    // leave the command midpoint outside the viewport during that scroll.
+    await expect(page.locator('#liveActionBar [data-action-key="attack:basic"]')).toBeFocused();
     const requests = [];
     await page.route('**/api/abyss/combat/action', async route => {
       const action = route.request().postDataJSON();
