@@ -48,7 +48,13 @@ func (s *WebServer) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 				s.accountError(w, err)
 				return
 			}
-			data["Error"] = "This TeamSpeak link has expired. Use your password or request a new link from the bot."
+			// Links are single-use. Re-opening one (or the second link in the same
+			// PM) on a device that is already signed in just continues there.
+			if _, ok := s.accountSessionUID(r.Context(), accountCookieValue(r, sessionCookie)); ok {
+				http.Redirect(w, r, data["Next"].(string), http.StatusSeeOther)
+				return
+			}
+			data["Error"] = "This TeamSpeak link has expired or was already used. Use your password or wait for a new link from the bot."
 		}
 		s.renderAccount(w, r, "account-login", data)
 		return

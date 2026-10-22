@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"ts3news/internal/content"
-	"ts3news/internal/games"
 	"ts3news/internal/i18n"
 	"ts3news/internal/leveling"
 )
@@ -841,6 +840,10 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           s.routes(),
 		ReadHeaderTimeout: 10 * time.Second,
+		// No server-wide ReadTimeout/WriteTimeout: they would cut the long-lived
+		// SSE streams. Request bodies get a per-request deadline in guardPortalRequest.
+		IdleTimeout:    120 * time.Second,
+		MaxHeaderBytes: 64 << 10,
 	}
 	s.mu.Lock()
 	s.srv = srv
@@ -855,6 +858,9 @@ func (s *WebServer) Start(ctx context.Context, addr string) error {
 	}()
 
 	log.Printf("Web portal listening on %s", addr)
+	if !s.accountSecure() {
+		log.Printf("WARNING: WEB_BASE_URL is not https://; session cookies, passwords and TeamSpeak login links travel in cleartext. Serve the portal through a TLS reverse proxy.")
+	}
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
@@ -874,8 +880,13 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 
 // ---- Auth ----------------------------------------------------------------
 
-// ensureWebToken returns the user's persistent login token, generating and
-// storing one on first use.
+// webLoginLinkLifetime bounds how long a TeamSpeak login link stays usable. A
+// fresh link is issued every cycle and each link is single-use, so this only
+// caps an unread PM.
+const webLoginLinkLifetime = "24 hours"
+
+// ensureWebToken issues a fresh single-use login token for the per-cycle PM.
+// Issuing a new token revokes the link from the previous PM.
 func (b *Bot) ensureWebToken(uid string) (string, error) {
 	newToken, err := newAccountToken()
 	if err != nil {
@@ -883,8 +894,7 @@ func (b *Bot) ensureWebToken(uid string) (string, error) {
 	}
 	var token string
 	err = b.DB.QueryRow(`/* economy:bot.Bot.ensureWebToken */ UPDATE users SET
- web_token = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires <= NOW() THEN $1 ELSE web_token END,
- web_token_expires = CASE WHEN web_token IS NULL OR web_token = '' OR web_token_expires IS NULL OR web_token_expires <= NOW() THEN NOW() + INTERVAL '90 days' ELSE web_token_expires END
+ web_token = $1, web_token_expires = NOW() + INTERVAL '`+webLoginLinkLifetime+`'
  WHERE client_uid=$2 RETURNING web_token`, newToken, uid).Scan(&token)
 	return token, err
 }
@@ -895,18 +905,15 @@ func (b *Bot) loginURL(token string) string {
 }
 
 // composeLoginPM builds the per-cycle private message containing the user's
-// personal (shortened) web-portal login link. Returns "" on failure so the
-// caller can simply skip it.
+// personal web-portal login link. Returns "" on failure so the caller can
+// simply skip it. The link is a credential, so it is never sent to the
+// third-party URL shortener.
 func (b *Bot) composeLoginPM(uid string) string {
 	token, err := b.ensureWebToken(uid)
 	if err != nil || token == "" {
 		return ""
 	}
-	url := b.loginURL(token)
-	if short, err := games.ShortenURL(url); err == nil && short != "" {
-		url = short
-	}
-	msg := i18n.T("web.login_pm", url)
+	msg := i18n.T("web.login_pm", b.loginURL(token))
 	if b.Cfg.EnableAbyss {
 		var bestDepth int
 		_ = b.DB.QueryRow("SELECT abyss_best_depth FROM users WHERE client_uid=$1", uid).Scan(&bestDepth)
@@ -914,9 +921,6 @@ func (b *Bot) composeLoginPM(uid string) string {
 		// redirect to /abyss, instead of the bare protected route which would just
 		// bounce a signed-out user to /denied.
 		abyssURL := b.loginURL(token) + "&next=%2Fabyss"
-		if short, err := games.ShortenURL(abyssURL); err == nil && short != "" {
-			abyssURL = short
-		}
 		msg += fmt.Sprintf("\n⚔️ [b]The Abyss awaits![/b] Your best: floor %d.\nEnter the depths: %s", bestDepth, abyssURL)
 	}
 	return msg
@@ -941,6 +945,10 @@ func (s *WebServer) auth(h func(http.ResponseWriter, *http.Request, string)) htt
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(accountDestination(r.URL.RequestURI())), http.StatusSeeOther)
 			return
 		}
+		if !s.guardPortalRequest(w, r) {
+			http.Error(w, "same origin required", http.StatusForbidden)
+			return
+		}
 		if _, _, err := s.bot.autoIdentifyItems(r.Context(), uid); err != nil {
 			log.Printf("automatic portal identification failed: %v", err)
 		}
@@ -962,8 +970,56 @@ func (s *WebServer) authAPI(h func(http.ResponseWriter, *http.Request, string)) 
 			writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "unauthenticated"})
 			return
 		}
+		if !s.guardPortalRequest(w, r) {
+			writeJSONStatus(w, http.StatusForbidden, map[string]any{"ok": false, "error": "same origin required"})
+			return
+		}
 		h(w, r, uid)
 	}
+}
+
+// portalBodyLimit caps every authenticated request body. Handlers that need a
+// tighter bound still wrap the body with their own, smaller MaxBytesReader.
+const portalBodyLimit = 64 << 10
+
+// portalBodyReadTimeout bounds how long a client may take to send a request body.
+const portalBodyReadTimeout = 30 * time.Second
+
+// sameOriginRequest reports whether a state-changing request came from this
+// portal. Browsers send Sec-Fetch-Site and Origin on cross-origin fetches and
+// form posts; requests without either (old browsers, scripts) still rely on the
+// SameSite=Lax session cookie.
+func (s *WebServer) sameOriginRequest(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "cross-site", "same-site":
+		return false
+	}
+	if origin := r.Header.Get("Origin"); origin != "" {
+		u, err := url.Parse(origin)
+		if err != nil || !strings.EqualFold(u.Host, r.Host) || (s.accountSecure() && u.Scheme != "https") {
+			return false
+		}
+	}
+	return true
+}
+
+// guardPortalRequest applies the shared CSRF and request-body limits to an
+// authenticated request. Safe methods pass through unchanged. It writes nothing,
+// so each wrapper can answer in its own format.
+func (s *WebServer) guardPortalRequest(w http.ResponseWriter, r *http.Request) bool {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	}
+	if !s.sameOriginRequest(r) {
+		return false
+	}
+	if r.Body != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, portalBodyLimit)
+		// Not every ResponseWriter supports deadlines (e.g. test recorders).
+		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(portalBodyReadTimeout))
+	}
+	return true
 }
 
 func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -972,9 +1028,14 @@ func (s *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *WebServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	accountHeaders(w)
-	if r.Method != http.MethodGet && r.Method != http.MethodPost {
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+	// POST only: a GET logout can be triggered by any cross-site image or link.
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.sameOriginRequest(r) {
+		http.Error(w, "same origin required", http.StatusForbidden)
 		return
 	}
 	if token := accountCookieValue(r, sessionCookie); token != "" {

@@ -451,7 +451,9 @@ func (s *Supervisor) snapshotServerQuery(cfg *config.Config) ([]idely.Client, er
 	}
 	defer func() { _ = conn.Close() }()
 
-	if _, err := conn.Command(fmt.Sprintf("login %s %s", cfg.IdelyQueryUser, cfg.IdelyQueryPass)); err != nil {
+	// ServerQuery on 10011 is plaintext TCP: keep the query login on a trusted
+	// network path. Escape both values so spaces or pipes cannot inject arguments.
+	if _, err := conn.Command(fmt.Sprintf("login %s %s", clientquery.Escape(cfg.IdelyQueryUser), clientquery.Escape(cfg.IdelyQueryPass))); err != nil {
 		return nil, fmt.Errorf("serverquery login: %w", err)
 	}
 

@@ -14,12 +14,13 @@ import (
 	"ts3news/internal/content"
 )
 
-// readJSON decodes a JSON request body, tolerating an empty body.
+// readJSON decodes a JSON request body, tolerating an empty body. The body is
+// capped at portalBodyLimit even when the handler is not behind auth/authAPI.
 func readJSON(r *http.Request, v any) error {
 	if r.Body == nil {
 		return nil
 	}
-	return json.NewDecoder(r.Body).Decode(v)
+	return json.NewDecoder(http.MaxBytesReader(nil, r.Body, portalBodyLimit)).Decode(v)
 }
 
 // ---- Tiers ---------------------------------------------------------------

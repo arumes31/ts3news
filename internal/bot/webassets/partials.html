@@ -40,7 +40,7 @@
     {{if .EnableAbyss}}<span class="pill tokens" id="tokenPill" title="Abyss Tokens">🜲 {{comma .U.AbyssTokens}}</span>{{end}}
     <span class="pill xp" id="xpPill">✨ Lvl {{.U.Level}}</span>
     {{end}}
-    <a class="logout" href="/logout">Logout</a>
+    <form class="logout-form" method="post" action="/logout"><button class="logout" type="submit">Logout</button></form>
   </div>
   {{end}}
 </header>
