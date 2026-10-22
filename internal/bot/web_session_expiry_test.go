@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 	mock.ExpectQuery("SELECT client_uid FROM users WHERE web_token=\\$1").
 		WithArgs("secret-token").
 		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player-1"))
+	mock.ExpectExec(`UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE client_uid=\$1`).WithArgs("player-1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("DELETE FROM web_sessions WHERE token_hash IN").WithArgs("player-1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO web_sessions").
 		WithArgs(sqlmock.AnyArg(), "player-1", sqlmock.AnyArg()).
@@ -54,6 +56,61 @@ func TestLoginSetsPrivateSessionAndPublicExpiryCookies(t *testing.T) {
 	}
 	if location := response.Header().Get("Location"); location != "/abyss" {
 		t.Fatalf("redirect = %q, want /abyss", location)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("database expectations: %v", err)
+	}
+}
+
+func TestUsedLoginLinkContinuesExistingSession(t *testing.T) {
+	t.Parallel()
+
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT client_uid FROM users WHERE web_token=\$1`).
+		WithArgs("used-token").
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}))
+	mock.ExpectRollback()
+	mock.ExpectQuery(`SELECT client_uid FROM web_sessions WHERE token_hash=\$1`).
+		WithArgs(accountDigest("live-session")).
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player-1"))
+	server := &WebServer{bot: &Bot{Cfg: &config.Config{WebBaseURL: "https://example.test"}, DB: database}}
+
+	request := httptest.NewRequest(http.MethodGet, "/login?token=used-token&next=%2Fabyss", nil)
+	request.AddCookie(&http.Cookie{Name: sessionCookie, Value: "live-session"})
+	response := httptest.NewRecorder()
+	server.handleLogin(response, request)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/abyss" {
+		t.Fatalf("status=%d location=%q, want redirect to /abyss", response.Code, response.Header().Get("Location"))
+	}
+	if len(response.Result().Cookies()) != 0 {
+		t.Fatal("used link minted a new session")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("database expectations: %v", err)
+	}
+}
+
+func TestLoginPMNeverShortensCredentialLink(t *testing.T) {
+	t.Setenv("REDRX_API_KEY", "must-not-be-used")
+
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	mock.ExpectQuery(`UPDATE users SET\s+web_token = \$1, web_token_expires = NOW\(\) \+ INTERVAL '24 hours'`).
+		WithArgs(sqlmock.AnyArg(), "player-1").
+		WillReturnRows(sqlmock.NewRows([]string{"web_token"}).AddRow("fresh-token"))
+	bot := &Bot{Cfg: &config.Config{WebBaseURL: "https://example.test"}, DB: database}
+
+	msg := bot.composeLoginPM("player-1")
+	if !strings.Contains(msg, "https://example.test/login?token=fresh-token") {
+		t.Fatalf("login PM = %q, want the first-party login link", msg)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("database expectations: %v", err)
