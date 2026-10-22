@@ -154,9 +154,19 @@ h3 {
   color: var(--xp)
 }
 
+.logout-form {
+  display: inline;
+  margin: 0
+}
+
 .logout {
+  font: inherit;
   font-size: .82rem;
-  color: var(--muted)
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer
 }
 
 .wrap {
