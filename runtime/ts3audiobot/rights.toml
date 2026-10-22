@@ -1,9 +1,17 @@
 # --- Seeded automatically by the ts3audiobot-init container on first run. ---
 # Copied into the ts3audiobot_data volume ONLY when no rights.toml exists yet.
 #
-# This grants all rights to all API callers. It is safe because the TS3AudioBot
-# WebAPI port (58913) is not published to the host or internet in docker-compose.yml
-# and is only accessible from within the internal Docker network.
+# This grants all rights to all API callers, so Idely works without copying an
+# API token by hand. The WebAPI port (58913) is not published to the host, and
+# docker-compose puts ts3audiobot on a dedicated "audiobot" network shared only
+# with ts3-idely, so the internet-facing poke bot cannot reach it.
+#
+# To require authentication instead, get a token with `!api token` (sent to the
+# audio bot in TeamSpeak), set IDELY_API_USER/IDELY_API_TOKEN, and replace the
+# rule below with one limited to that user, for example:
+#   [[rule]]
+#       useruid = [ "<IDELY_API_USER>" ]
+#       "+" = "*"
 
 [[rule]]
     "+" = "*"

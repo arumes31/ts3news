@@ -53,6 +53,7 @@ COPY --from=gobuilder /bot /usr/local/bin/bot
 COPY --from=gobuilder /economy-reset /usr/local/bin/economy-reset
 
 # Baked "golden" client profile: license accepted + ClientQuery plugin installed.
+# It carries no ClientQuery API key or logs; entrypoint.sh writes a per-start key.
 # Keep the tarball at /opt so the entrypoint can re-seed it into a fresh named
 # volume mounted over ~/.ts3client (e.g. the Idely container's idely_profile).
 COPY runtime/ts3profile.tgz /opt/ts3profile.tgz

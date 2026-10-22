@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:15-alpine@sha256:d2c2ced0372e855e4c257a9e9b5725f403847c01cfb64facbf2b21dbdadb2d74
     container_name: ts3-news-db
     restart: unless-stopped
     environment:
@@ -22,7 +22,10 @@ services:
     container_name: ts3-news-bot
     restart: unless-stopped
     ports:
-      - "18081:18081"
+      # Loopback only by default: put a TLS reverse proxy in front of the portal and
+      # point WEB_BASE_URL at its https:// address. Set WEB_PUBLISH_ADDR=0.0.0.0 in
+      # .env only if you really need the plain-HTTP port on every interface.
+      - "${WEB_PUBLISH_ADDR:-127.0.0.1}:18081:18081"
     # Give the Go supervisor time to finish an in-progress poke cycle on SIGTERM
     # (graceful shutdown) before Docker escalates to SIGKILL.
     stop_grace_period: 30s
@@ -40,6 +43,16 @@ services:
       - REDRX_API_KEY=${REDRX_API_KEY}
       - TS3_TARGET_NICK=${TS3_TARGET_NICK}
       - DATABASE_URL=${DATABASE_URL:-postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable}
+    # Defence in depth for the root-run TS3 client: no setuid escalation and only
+    # the file capabilities the entrypoint needs for its profile directory.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
     env_file:
       - config.env
     logging:
@@ -57,6 +70,9 @@ services:
   ts3-idely:
     image: ghcr.io/arumes31/ts3news@${TS3NEWS_IMAGE_DIGEST:?Set TS3NEWS_IMAGE_DIGEST to a verified sha256 digest; see DEPLOYMENT.md}
     container_name: ts3-news-idely
+    networks:
+      - default
+      - audiobot
     restart: unless-stopped
     stop_grace_period: 15s
     depends_on:
@@ -78,6 +94,16 @@ services:
       - IDELY_API_TOKEN=${IDELY_API_TOKEN}
       - IDELY_BOT_UID=${IDELY_BOT_UID}
       - DATABASE_URL=${DATABASE_URL:-postgres://${DB_USER:-ts3bot}:${DB_PASS:-ts3botpass}@db:5432/${DB_NAME:-ts3news}?sslmode=disable}
+    # Defence in depth for the root-run TS3 client: no setuid escalation and only
+    # the file capabilities the entrypoint needs for its profile directory.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
     env_file:
       - config.env
     volumes:
@@ -135,6 +161,11 @@ services:
   ts3audiobot:
     image: ancieque/ts3audiobot:latest@sha256:3da81924dab980b3d2ec702cfa35c4c436dd7b5ba0b9d784d1a680a3b05a1cb1
     container_name: ts3-news-audiobot
+    # Its WebAPI has no authentication (see runtime/ts3audiobot/rights.toml), so
+    # only the Idely container shares a network with it. The poke bot, which
+    # serves the internet-facing portal, cannot reach it.
+    networks:
+      - audiobot
     restart: unless-stopped
     depends_on:
       ts3-idely:
@@ -153,3 +184,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  default:
+  audiobot:
