@@ -1,5 +1,6 @@
 const {test,expect}=require('@playwright/test');
-test.use({hasTouch:true,isMobile:true,viewport:{width:390,height:844}});
+// Match the emulated screen to the portrait viewport, including its orientation.
+test.use({hasTouch:true,isMobile:true,viewport:{width:390,height:844},screen:{width:390,height:844}});
 for(const signal of ['screen','legacy','viewport'])test('held attack resets on '+signal+' orientation change',async({page})=>{
  let input=null,attacks=0;await page.route('**/api/abyss/rift*',async route=>{const body=route.request().postDataJSON();if(body?.kind==='step'){input=body.input;if(input.attack)attacks++;}await route.continue();});
  await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
@@ -16,7 +17,15 @@ for(const signal of ['screen','legacy','viewport'])test('held attack resets on '
 });
 
 test('same-orientation toolbar-sized resize preserves held input',async({page})=>{
+ let input=null;await page.route('**/api/abyss/rift*',async route=>{const body=route.request().postDataJSON();if(body?.kind==='step')input=body.input;await route.continue();});
  await page.goto('/abyss/rift?practice=skills');await expect(page.locator('#rift-start')).toBeEnabled();await page.locator('#rift-start').tap();await expect(page.locator('#rift-overlay')).toBeHidden();
- const attack=page.locator('[data-bind=attack]');await attack.hover();await page.mouse.down();await expect(attack).toHaveAttribute('aria-pressed','true');
- await page.setViewportSize({width:390,height:760});await expect(attack).toHaveAttribute('aria-pressed','true');await page.mouse.up();
+ await expect.poll(()=>page.evaluate(()=>screen.orientation.type)).toBe('portrait-primary');
+ const attack=page.locator('[data-bind=attack]');await attack.hover();await page.mouse.down();
+ try{
+  await expect(attack).toHaveAttribute('aria-pressed','true');await expect.poll(()=>input?.attack).toBe(true);
+  await page.setViewportSize({width:390,height:760});
+  await expect.poll(()=>page.evaluate(()=>screen.orientation.type)).toBe('portrait-primary');
+  await expect(attack).toHaveAttribute('aria-pressed','true');await expect.poll(()=>input?.attack).toBe(true);
+ }finally{await page.mouse.up();}
+ await expect(attack).toHaveAttribute('aria-pressed','false');await expect.poll(()=>input?.attack).toBe(false);
 });
