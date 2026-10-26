@@ -172,7 +172,16 @@ func TestAccountDeviceAndRecoveryIntegration(t *testing.T) {
 	defer host.Close()
 	bot.Cfg.WebBaseURL = host.URL
 	a, b := newAccountTestBrowser(t, host.URL), newAccountTestBrowser(t, host.URL)
-	for _, browser := range []*accountTestBrowser{a, b} {
+	for i, browser := range []*accountTestBrowser{a, b} {
+		if i > 0 {
+			// TeamSpeak links are single-use: a replay on another device fails.
+			if code, body, _ := browser.request("GET", "/login?token=legacy-one", nil); code != 200 || !strings.Contains(body, "already used") {
+				t.Fatalf("TeamSpeak link replayed %d %.200s", code, body)
+			}
+			if _, err := db.Exec("UPDATE users SET web_token='legacy-one', web_token_expires=NOW()+INTERVAL '1 day' WHERE client_uid='player-one'"); err != nil {
+				t.Fatal(err)
+			}
+		}
 		code, body, next := browser.request("GET", "/login?token=legacy-one&next=%2Fsettings", nil)
 		if code != 303 || next != "/settings" {
 			t.Fatalf("TeamSpeak login %d %.200s", code, body)
@@ -241,7 +250,7 @@ func TestAccountDeviceAndRecoveryIntegration(t *testing.T) {
 	if login(a, "my first mobile passphrase") != 303 || login(b, "my first mobile passphrase") != 303 {
 		t.Fatal("mobile login failed")
 	}
-	a.request("GET", "/logout", nil)
+	a.request("POST", "/logout", url.Values{})
 	if code, _, _ := b.request("GET", "/settings", nil); code != 200 {
 		t.Fatal("logout revoked another device")
 	}
@@ -313,6 +322,9 @@ func TestAccountSessionBoundAndLegacyLogoutIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 25 {
+		if _, err := db.Exec("UPDATE users SET web_token='legacy-one' WHERE client_uid='player-one'"); err != nil {
+			t.Fatal(err)
+		}
 		if err := s.finishAccountLogin(httptest.NewRecorder(), httptest.NewRequest("GET", "/login", nil), "", "legacy-one", false); err != nil {
 			t.Fatal(err)
 		}
@@ -320,6 +332,9 @@ func TestAccountSessionBoundAndLegacyLogoutIntegration(t *testing.T) {
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM web_sessions WHERE client_uid='player-one'").Scan(&count); err != nil || count != 20 {
 		t.Fatalf("session bound %d %v", count, err)
+	}
+	if _, err := db.Exec("UPDATE users SET web_token='legacy-one' WHERE client_uid='player-one'"); err != nil {
+		t.Fatal(err)
 	}
 	if err := s.revokeAccountSession(context.Background(), "legacy-one"); err != nil {
 		t.Fatal(err)
