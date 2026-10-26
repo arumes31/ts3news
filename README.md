@@ -113,7 +113,8 @@ The bot is configured via environment variables or a `config.env` file.
 | **Localization** | `LANG` | Language for all bot messages (BCP-47 locale ID, see list below). Falls back to `en_US` if unset or unsupported. | `en_US` |
 | **Web Portal** | `WEB_ENABLE` | Serve the player web portal and PM each user a login link per cycle. | `true` |
 | | `WEB_LISTEN_ADDR` | Address the web server listens on. | `:18081` |
-| | `WEB_BASE_URL` | Public base URL used to build per-user login links. | `http://localhost:18081` |
+| | `WEB_BASE_URL` | Public base URL used to build per-user login links. Use the `https://` URL of a TLS reverse proxy; the bot warns at startup otherwise. | `http://localhost:18081` |
+| | `WEB_PUBLISH_ADDR` | Compose `.env` only: host address the portal port is published on. | `127.0.0.1` |
 | | `ENABLE_ABYSS` | Serve **The Abyss** push-your-luck dungeon (tiers, escrow, insurance, revival, Deep-Delver upgrades, depth leaderboards). | `true` |
 | | `ABYSS_LIVE_ACTIONS_ENABLED` | Emergency kill switch for interactive live combat; disabled users fall back to automatic combat. | `true` |
 | | `ABYSS_SOCIAL_ENABLED` | Emergency kill switch for live party coordination actions. | `true` |
@@ -138,7 +139,7 @@ The bot is configured via environment variables or a `config.env` file.
 | **Sources** | `ENABLE_GAMERPOWER` | Fetch from GamerPower API. | `true` |
 | | `ENABLE_EPIC` | Fetch from Epic Games Store API. | `true` |
 | | `ENABLE_REDDIT` | Fetch from /r/FreeGameFindings RSS. | `true` |
-| | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) link shortening. | *None* |
+| | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) shortening of game links (login links are never shortened). | *None* |
 | **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
 | | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
 
@@ -169,7 +170,9 @@ LANG=de_DE
 
 ## 🌐 Web Portal
 
-Alongside the TeamSpeak bot, the binary serves a token-authenticated **player web portal**. Every cycle each user is PM'd a personal, [redrx.eu](https://redrx.eu/)-shortened **login link** (a persistent unique token per user — keep it private). No passwords; the link logs you in.
+Alongside the TeamSpeak bot, the binary serves a token-authenticated **player web portal**. Every cycle each user is PM'd a personal **login link** (keep it private). Each link is single-use and expires after 24 hours or when the next cycle sends a new one; opening it signs that browser in. Login links are never sent to a URL shortener. Players can also set a password with `!password`.
+
+Compose publishes the portal on `127.0.0.1:18081` only. Put a TLS reverse proxy (Caddy, nginx, Traefik) in front of it and set `WEB_BASE_URL` to the proxy's `https://` URL, so cookies get the `Secure` flag and links, passwords and sessions are encrypted in transit.
 
 | Page | What it does |
 | :--- | :--- |
@@ -203,7 +206,7 @@ image and storage layout.
     ```yaml
     services:
       db:
-        image: postgres:15-alpine
+        image: postgres:15-alpine@sha256:d2c2ced0372e855e4c257a9e9b5725f403847c01cfb64facbf2b21dbdadb2d74
         container_name: ts3-news-db
         restart: unless-stopped
         environment:
@@ -223,7 +226,8 @@ image and storage layout.
         container_name: ts3-news-bot
         restart: unless-stopped
         ports:
-          - "18081:18081"
+          # Loopback only; front it with a TLS reverse proxy.
+          - "127.0.0.1:18081:18081"
         stop_grace_period: 30s
         depends_on:
           db:

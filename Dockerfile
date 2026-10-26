@@ -5,7 +5,7 @@
 # 9987, and a small Go bot drives it through the ClientQuery plugin to poke users.
 
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
-FROM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS gobuilder
+FROM golang:1.27.3-trixie@sha256:604106102d33b1084e37ca08adf98ac0813624ae8595bd0d7f3965ecebded09c AS gobuilder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /economy-reset ./cmd/economy-reset
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS tsclient
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS tsclient
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ARG TS3_VERSION=3.6.2
@@ -30,7 +30,7 @@ RUN curl -fsSL -o /tmp/ts3.run \
  && test -f /opt/ts3/ts3client_linux_amd64
 
 # ---- Stage 3: runtime ----
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 ENV DEBIAN_FRONTEND=noninteractive
 # Update vulnerable packages inherited from the pinned base as well as new dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libglib2.0-0t64 libgl1 libegl1 libpulse0 libasound2t64 libxi6 libxtst6 \
     libxrender1 libxrandr2 libxcomposite1 libxdamage1 libxcursor1 \
     libevent-2.1-7t64=2.1.13-stable-1~deb13u1 libsm6 libice6 libxext6 libharfbuzz0b libpng16-16t64 \
-    libpci3 libxslt1.1 liblcms2-2 libatomic1 \
+    libpci3 libxslt1.1 liblcms2-2 libatomic1 libexpat1=2.9.0-1~deb13u1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=tsclient /opt/ts3 /opt/ts3
@@ -53,6 +53,7 @@ COPY --from=gobuilder /bot /usr/local/bin/bot
 COPY --from=gobuilder /economy-reset /usr/local/bin/economy-reset
 
 # Baked "golden" client profile: license accepted + ClientQuery plugin installed.
+# It carries no ClientQuery API key or logs; entrypoint.sh writes a per-start key.
 # Keep the tarball at /opt so the entrypoint can re-seed it into a fresh named
 # volume mounted over ~/.ts3client (e.g. the Idely container's idely_profile).
 COPY runtime/ts3profile.tgz /opt/ts3profile.tgz

@@ -14,8 +14,8 @@
 #   set_status_description = false
 
 [web]
-# The WebAPI is only reachable inside the Docker network (the ts3audiobot service
-# publishes no ports), so leaving hosts unrestricted is fine here.
+# The WebAPI is only reachable on the dedicated "audiobot" Docker network shared
+# with ts3-idely (the ts3audiobot service publishes no ports).
 hosts = ["*"]
 port = 58913
 

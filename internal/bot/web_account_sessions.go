@@ -67,7 +67,7 @@ func (s *WebServer) createAccountSession(ctx context.Context, tx *sql.Tx, uid st
 	}
 	expires := time.Now().Add(sessionLifetime)
 	// The caller holds the identity row lock. Keep at most 20 device sessions,
-	// including the one about to be created, even when a reusable link is replayed.
+	// including the one about to be created.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM web_sessions WHERE token_hash IN
  (SELECT token_hash FROM web_sessions WHERE client_uid=$1 ORDER BY expires_at DESC, token_hash OFFSET 19)`, uid); err != nil {
 		return "", time.Time{}, err
@@ -102,6 +102,13 @@ func (s *WebServer) finishAccountLogin(w http.ResponseWriter, r *http.Request, u
 	}
 	if err != nil {
 		return err
+	}
+	if !password {
+		// TeamSpeak links are single-use: consume the credential with the session
+		// it mints. The next bot cycle PMs a fresh link.
+		if _, err := tx.ExecContext(r.Context(), "/* economy:bot.WebServer.finishAccountLogin */ UPDATE users SET web_token=NULL, web_token_expires=NULL WHERE client_uid=$1", found); err != nil {
+			return err
+		}
 	}
 	token, expires, err := s.createAccountSession(r.Context(), tx, found)
 	if err != nil {

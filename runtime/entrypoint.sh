@@ -46,6 +46,31 @@ if [ ! -f "$HOME/.ts3client/settings.db" ] && [ -f /opt/ts3profile.tgz ]; then
   tar xzf /opt/ts3profile.tgz -C "$HOME"
 fi
 
+# Give the ClientQuery plugin a per-deployment API key. The baked profile ships
+# without one, so every image would otherwise share the same key. An explicitly
+# configured key (TS3_APIKEY, or IDELY_APIKEY in the Idely container) is written
+# as-is so it keeps matching; otherwise a fresh random key is generated on every
+# start. The bot reads the key back from this file via CLIENTQUERY_INI.
+CQ_INI="$HOME/.ts3client/clientquery.ini"
+if [ "${IDELY_ONLY:-}" = "true" ]; then
+  cq_key="${IDELY_APIKEY:-${TS3_APIKEY:-}}"
+else
+  cq_key="${TS3_APIKEY:-}"
+fi
+if [ -z "$cq_key" ]; then
+  # Same shape as a client-generated key: six dash-separated groups of four.
+  cq_key="$(tr -dc 'A-Z0-9' </dev/urandom | head -c 24 | sed 's/..../&-/g; s/-$//')"
+fi
+mkdir -p "$(dirname "$CQ_INI")"
+if [ -f "$CQ_INI" ] && grep -q '^api_key=' "$CQ_INI"; then
+  awk -v key="$cq_key" '/^api_key=/ { print "api_key=" key; next } { print }' "$CQ_INI" > "$CQ_INI.tmp"
+  mv "$CQ_INI.tmp" "$CQ_INI"
+else
+  printf '[General]\napi_key=%s\nlogging_enabled=false\nopen_remote=false\n' "$cq_key" > "$CQ_INI"
+fi
+chmod 600 "$CQ_INI"
+unset cq_key
+
 # Inject the configured identity into the client profile. When unset, the profile
 # keeps its own identity — fine for the Idely client (IDELY_IDENTITY is optional),
 # but the poke bot should set TS3_IDENTITY to its own (ideally leveled) identity.
