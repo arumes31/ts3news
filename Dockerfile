@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /economy-reset ./cmd/economy-reset
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
-FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS tsclient
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS tsclient
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ARG TS3_VERSION=3.6.2
@@ -30,7 +30,7 @@ RUN curl -fsSL -o /tmp/ts3.run \
  && test -f /opt/ts3/ts3client_linux_amd64
 
 # ---- Stage 3: runtime ----
-FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 ENV DEBIAN_FRONTEND=noninteractive
 # Update vulnerable packages inherited from the pinned base as well as new dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
