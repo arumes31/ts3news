@@ -63,25 +63,75 @@ func sanitizeAbyssSpectatorSnapshot(snapshot abyssLiveSnapshot) abyssLiveSnapsho
 	snapshot.Result = nil
 	snapshot.Social = abyssLiveSocialSnapshot{Members: snapshot.Social.Members}
 
-	ids := make(map[string]string, len(snapshot.Allies)+len(snapshot.Enemies))
+	// Every retained reference is remapped through one table so spectators
+	// see consistent anonymous identifiers. Combatant IDs and entity IDs embed
+	// persistent account UIDs (for example "ally:<uid>" or "pet:<uid>..."),
+	// as do presentation-event actors and targets; anything not explicitly
+	// mapped receives a fresh anonymous identifier rather than passing through.
+	ids := make(map[string]string, 2*(len(snapshot.Allies)+len(snapshot.Enemies)))
+	extra := 0
+	remap := func(id string) string {
+		if id == "" {
+			return ""
+		}
+		if anonymous, ok := ids[id]; ok {
+			return anonymous
+		}
+		extra++
+		anonymous := fmt.Sprintf("entity:%d", extra)
+		ids[id] = anonymous
+		return anonymous
+	}
+	snapshot.Allies = append([]abyssLiveCombatantView(nil), snapshot.Allies...)
 	for i := range snapshot.Allies {
 		anonymous := fmt.Sprintf("ally:%d", i+1)
 		ids[snapshot.Allies[i].ID] = anonymous
+		if entity := snapshot.Allies[i].EntityID; entity != "" {
+			if _, mapped := ids[entity]; !mapped {
+				if strings.HasPrefix(entity, "pet:") {
+					ids[entity] = fmt.Sprintf("pet:%d", i+1)
+				} else {
+					ids[entity] = anonymous
+				}
+			}
+		}
 		snapshot.Allies[i].ID = anonymous
+		snapshot.Allies[i].EntityID = remap(snapshot.Allies[i].EntityID)
 		snapshot.Allies[i].IsSelf = false
 		snapshot.Allies[i].Ready = false
 	}
+	snapshot.Enemies = append([]abyssLiveCombatantView(nil), snapshot.Enemies...)
 	for i := range snapshot.Enemies {
 		anonymous := fmt.Sprintf("enemy:%d", i+1)
 		ids[snapshot.Enemies[i].ID] = anonymous
+		if entity := snapshot.Enemies[i].EntityID; entity != "" {
+			if _, mapped := ids[entity]; !mapped {
+				ids[entity] = anonymous
+			}
+		}
 		snapshot.Enemies[i].ID = anonymous
+		snapshot.Enemies[i].EntityID = remap(snapshot.Enemies[i].EntityID)
 	}
+	snapshot.Initiative = append([]abyssLiveInitiativeEntry(nil), snapshot.Initiative...)
 	for i := range snapshot.Initiative {
-		snapshot.Initiative[i].ID = ids[snapshot.Initiative[i].ID]
+		snapshot.Initiative[i].ID = remap(snapshot.Initiative[i].ID)
 	}
+	snapshot.EnemyIntents = append([]abyssLiveEnemyIntent(nil), snapshot.EnemyIntents...)
 	for i := range snapshot.EnemyIntents {
-		snapshot.EnemyIntents[i].EnemyID = ids[snapshot.EnemyIntents[i].EnemyID]
-		snapshot.EnemyIntents[i].TargetID = ids[snapshot.EnemyIntents[i].TargetID]
+		snapshot.EnemyIntents[i].EnemyID = remap(snapshot.EnemyIntents[i].EnemyID)
+		snapshot.EnemyIntents[i].TargetID = remap(snapshot.EnemyIntents[i].TargetID)
+	}
+	events := make([]abyssLivePresentationEvent, len(snapshot.PresentationEvents))
+	for i, event := range snapshot.PresentationEvents {
+		event.ActorID = remap(event.ActorID)
+		event.Targets = append([]abyssLivePresentationOutcome(nil), event.Targets...)
+		for j := range event.Targets {
+			event.Targets[j].TargetID = remap(event.Targets[j].TargetID)
+		}
+		events[i] = event
+	}
+	if snapshot.PresentationEvents != nil {
+		snapshot.PresentationEvents = events
 	}
 	return snapshot
 }
