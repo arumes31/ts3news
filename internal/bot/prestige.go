@@ -16,12 +16,15 @@ const prestigeStatBonus = 0.15 // +15% permanent stat boost per prestige level
 const PrestigeThreshold = 9999 // Level required to prestige (was 10000)
 
 // doPrestige increments a user's prestige and resets their level/xp to the start,
-// returning the new prestige number.
+// returning the new prestige number. Eligibility is re-verified against the
+// current row in the same statement, so concurrent callers holding the same
+// earlier XP result cannot each grant a prestige for one completed
+// progression: only the first reset matches, later ones return 0.
 func (b *Bot) doPrestige(uid string) int {
 	var p int
 	_ = b.DB.QueryRow(
-		"/* economy:bot.Bot.doPrestige */ UPDATE users SET prestige = prestige + 1, xp = 0, level = 1 WHERE client_uid = $1 RETURNING prestige",
-		uid).Scan(&p)
+		"/* economy:bot.Bot.doPrestige */ UPDATE users SET prestige = prestige + 1, xp = 0, level = 1 WHERE client_uid = $1 AND level >= $2 RETURNING prestige",
+		uid, PrestigeThreshold).Scan(&p)
 	return p
 }
 
@@ -39,11 +42,12 @@ func prestigeFromGroupName(name string) (int, bool) {
 // applyPrestigeGroup grants the user the server group for their current prestige
 // (creating it with a generated prestige icon if needed) and removes any lower
 // prestige groups, deleting them when empty.
-func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, _, nickname string, prestige int) {
+func (b *Bot) applyPrestigeGroup(c *clientquery.Client, clid int, uid, nickname string, prestige int) {
 	if prestige < 1 {
 		return
 	}
-	cldbid, err := c.ClientDBID(clid)
+	// Resolve the database ID only if clid still belongs to uid.
+	cldbid, err := c.ClientDBIDForUID(clid, uid)
 	if err != nil {
 		log.Printf("prestige: cannot resolve cldbid for %s: %v", nickname, err)
 		return

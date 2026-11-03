@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"errors"
 	"log"
 
 	"ts3news/internal/clientquery"
@@ -45,7 +46,13 @@ func (b *Bot) flushAbyssShoutbox(client *clientquery.Client, clients []clientque
 		if !online {
 			continue
 		}
+		// SendChannelMessage refuses delivery unless the bot currently occupies
+		// the sender's channel, so a shout can never land in a channel the
+		// sender is not in. Undelivered shouts stay pending until they expire.
 		if err := client.SendChannelMessage(cid, "[Abyss] "+shout.nick+": "+shout.message); err != nil {
+			if errors.Is(err, clientquery.ErrNotInChannel) {
+				continue
+			}
 			log.Printf("Abyss shoutbox relay failed for message %d: %v", shout.id, err)
 			continue
 		}

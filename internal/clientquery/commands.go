@@ -1,6 +1,7 @@
 package clientquery
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -170,9 +171,25 @@ func (c *Client) SendPrivateMessage(clid int, message string) error {
 	return err
 }
 
+// ErrNotInChannel is returned by SendChannelMessage when the controlled client
+// is not currently in the requested channel.
+var ErrNotInChannel = errors.New("clientquery: client is not in the target channel")
+
 // SendChannelMessage sends a text message to everyone in the target channel.
+//
+// ClientQuery's targetmode=2 always delivers to the controlled client's own
+// current channel and ignores the supplied target, so the message is only sent
+// when whoami confirms the client is in cid. Otherwise ErrNotInChannel is
+// returned and nothing is sent, keeping delivery bound to the intended channel.
 func (c *Client) SendChannelMessage(cid int, message string) error {
-	_, err := c.Command("sendtextmessage targetmode=2 target=" + strconv.Itoa(cid) + " msg=" + Escape(message))
+	info, err := c.WhoAmIInfo()
+	if err != nil {
+		return err
+	}
+	if info.CID != cid {
+		return ErrNotInChannel
+	}
+	_, err = c.Command("sendtextmessage targetmode=2 target=" + strconv.Itoa(cid) + " msg=" + Escape(message))
 	return err
 }
 
@@ -310,6 +327,42 @@ func (c *Client) ClientDBID(clid int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("client_database_id not found for clid=%d", clid)
+}
+
+// ErrIdentityMismatch is returned when a client ID no longer belongs to the
+// expected stable identity (TeamSpeak reuses client IDs after disconnects).
+var ErrIdentityMismatch = errors.New("clientquery: client id belongs to a different identity")
+
+// ClientDBIDForUID resolves the database ID of clid in the same query as its
+// unique identifier and returns it only when that identifier equals uid. Group
+// changes and other identity-bound actions use it so a reassigned client ID can
+// never redirect them to another account.
+func (c *Client) ClientDBIDForUID(clid int, uid string) (int, error) {
+	data, err := c.Command("clientvariable clid=" + strconv.Itoa(clid) + " client_unique_identifier client_database_id")
+	if err != nil {
+		return 0, err
+	}
+	var gotUID string
+	dbid, haveUID, haveDBID := 0, false, false
+	for _, line := range data {
+		for _, f := range strings.Fields(line) {
+			if v, ok := strings.CutPrefix(f, "client_unique_identifier="); ok {
+				gotUID, haveUID = Unescape(v), true
+			} else if v, ok := strings.CutPrefix(f, "client_database_id="); ok {
+				if dbid, err = strconv.Atoi(v); err != nil {
+					return 0, err
+				}
+				haveDBID = true
+			}
+		}
+	}
+	if !haveUID || !haveDBID {
+		return 0, fmt.Errorf("client identity not found for clid=%d", clid)
+	}
+	if gotUID != uid {
+		return 0, ErrIdentityMismatch
+	}
+	return dbid, nil
 }
 
 // ClientUID returns the stable unique identifier (client_unique_identifier) for a

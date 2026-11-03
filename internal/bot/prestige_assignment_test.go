@@ -39,7 +39,7 @@ func TestPrestigeAssignsNewlyCreatedGroupID(t *testing.T) {
 			command := scanner.Text()
 			switch {
 			case strings.HasPrefix(command, "clientvariable "):
-				_, _ = fmt.Fprintln(conn, "client_database_id=77")
+				_, _ = fmt.Fprintln(conn, "client_unique_identifier=uid client_database_id=77")
 			case command == "servergrouplist":
 				if created {
 					_, _ = fmt.Fprintf(conn, "sgid=42 name=%s iconid=1\n", clientquery.Escape(name))

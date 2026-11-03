@@ -17,8 +17,8 @@ func TestDoPrestige(t *testing.T) {
 	b := &Bot{Cfg: &config.Config{}, DB: db}
 	uid := "user1"
 
-	mock.ExpectQuery(`UPDATE users SET prestige = prestige \+ 1, xp = 0, level = 1 WHERE client_uid = \$1 RETURNING prestige`).
-		WithArgs(uid).
+	mock.ExpectQuery(`UPDATE users SET prestige = prestige \+ 1, xp = 0, level = 1 WHERE client_uid = \$1 AND level >= \$2 RETURNING prestige`).
+		WithArgs(uid, PrestigeThreshold).
 		WillReturnRows(sqlmock.NewRows([]string{"prestige"}).AddRow(1))
 
 	newP := b.doPrestige(uid)
