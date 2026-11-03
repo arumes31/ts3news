@@ -142,6 +142,10 @@ type Config struct {
 	IdelyQueryUser string
 	IdelyQueryPass string
 	IdelyQueryPort int
+	// IdelyQueryAllowPlaintext permits the plaintext ServerQuery login to a
+	// host that does not resolve to a loopback or private address. Leave it
+	// off unless the path is protected by an encrypted tunnel (VPN, SSH).
+	IdelyQueryAllowPlaintext bool
 }
 
 // LoadConfig reads bot configuration from the environment (and config.env, if
@@ -268,6 +272,8 @@ func LoadConfig() *Config {
 		IdelyQueryUser: os.Getenv("IDELY_QUERY_USER"),
 		IdelyQueryPass: os.Getenv("IDELY_QUERY_PASS"),
 		IdelyQueryPort: envInt("IDELY_QUERY_PORT", 10011),
+
+		IdelyQueryAllowPlaintext: envBool("IDELY_QUERY_ALLOW_PLAINTEXT", false),
 	}
 }
 

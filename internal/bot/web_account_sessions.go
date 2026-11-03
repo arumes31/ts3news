@@ -98,7 +98,9 @@ func (s *WebServer) finishAccountLogin(w http.ResponseWriter, r *http.Request, u
 	if password {
 		err = tx.QueryRowContext(r.Context(), "SELECT client_uid FROM users WHERE client_uid=$1 AND web_password_hash=$2 FOR UPDATE", uid, credential).Scan(&found)
 	} else {
-		err = tx.QueryRowContext(r.Context(), "SELECT client_uid FROM users WHERE web_token=$1 AND (web_token_expires IS NULL OR web_token_expires > NOW()) FOR UPDATE", credential).Scan(&found)
+		// Every login link must carry a finite, future expiry; legacy links
+		// without one are never exchanged for a session.
+		err = tx.QueryRowContext(r.Context(), "SELECT client_uid FROM users WHERE web_token=$1 AND web_token_expires IS NOT NULL AND web_token_expires > NOW() FOR UPDATE", credential).Scan(&found)
 	}
 	if err != nil {
 		return err
