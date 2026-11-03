@@ -395,86 +395,125 @@ func (b *Bot) awardGearDrop(uid string, g content.Gear) GearDropResult {
 
 // AutoPurchaseUpgrades checks AH for upgrades the user can afford
 func (b *Bot) autoPurchaseUpgrades(uid string, gold int64) string {
-	// Find top 5 affordable upgrades
+	// Find top 5 affordable upgrades. Candidate discovery is advisory: the
+	// purchase transaction locks and rereads the listing before moving value.
 	rows, err := b.DB.Query(`
 		SELECT id, item_type, item_id, item_name, item_data, price, seller_uid 
 		FROM auction_house 
 		WHERE sold_at IS NULL AND buyer_uid IS NULL AND expires_at > NOW() AND price <= $1
+		  AND seller_uid <> $2
 		  AND (item_type <> 'gear' OR LOWER(COALESCE(item_data->>'unidentified','false')) <> 'true')
-		ORDER BY price DESC LIMIT 5`, gold)
+		ORDER BY price DESC LIMIT 5`, gold, uid)
 	if err != nil {
 		return ""
 	}
-	defer func() { _ = rows.Close() }()
-
+	type candidate struct {
+		id   string
+		gear content.Gear
+	}
+	var candidates []candidate
 	for rows.Next() {
 		var ahID, itype, itemID, name, sellerUID string
 		var dataJSON []byte
 		var price int64
-		if err := rows.Scan(&ahID, &itype, &itemID, &name, &dataJSON, &price, &sellerUID); err == nil {
-			if itype == "gear" {
-				var g content.Gear
-				if err := json.Unmarshal(dataJSON, &g); err != nil {
-					log.Printf("Failed to unmarshal AH item: %v", err)
-					continue
-				}
-				if g.Unidentified || g.Attuned {
-					continue
-				}
-				if b.shouldEquip(uid, g) {
-					// Purchase!
-					tx, err := b.DB.Begin()
-					if err != nil {
-						continue
-					}
+		if err := rows.Scan(&ahID, &itype, &itemID, &name, &dataJSON, &price, &sellerUID); err != nil || itype != "gear" {
+			continue
+		}
+		var g content.Gear
+		if err := json.Unmarshal(dataJSON, &g); err != nil {
+			log.Printf("Failed to unmarshal AH item: %v", err)
+			continue
+		}
+		if g.Unidentified || g.Attuned || sellerUID == uid {
+			continue
+		}
+		candidates = append(candidates, candidate{id: ahID, gear: g})
+	}
+	_ = rows.Close()
 
-					// 1. Deduct gold
-					res, err := tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
-					if err != nil {
-						_ = tx.Rollback()
-						continue
-					}
-					rowsAffected, _ := res.RowsAffected()
-					if rowsAffected == 0 {
-						_ = tx.Rollback()
-						continue
-					}
-
-					// 2. Mark sold (ensure it wasn't bought concurrently)
-					res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND sold_at IS NULL AND buyer_uid IS NULL", uid, ahID)
-					if err != nil {
-						_ = tx.Rollback()
-						continue
-					}
-					rowsAffected, _ = res.RowsAffected()
-					if rowsAffected == 0 {
-						_ = tx.Rollback()
-						continue
-					}
-
-					// 3. Give gold to seller
-					_, err = tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", price, sellerUID)
-					if err != nil {
-						_ = tx.Rollback()
-						continue
-					}
-
-					// 4. Equip item
-					err = b.equipGear(tx, uid, g, g.MaxDurability, dataJSON)
-					if err != nil {
-						_ = tx.Rollback()
-						continue
-					}
-
-					if err := tx.Commit(); err != nil {
-						log.Printf("Failed to commit AH purchase: %v", err)
-						_ = tx.Rollback()
-						continue
-					}
-					return i18n.T("ah.purchase", name, FormatGold(price), "")
-				}
-			}
+	for _, c := range candidates {
+		if !b.shouldEquip(uid, c.gear) {
+			continue
+		}
+		if name, price, ok := b.autoPurchaseAuctionListing(uid, c.id); ok {
+			return i18n.T("ah.purchase", name, FormatGold(price), "")
 		}
 	}
 	return ""
+}
+
+// autoPurchaseAuctionListing buys one listing for an automatic upgrade using
+// the same settlement rules as a manual Buy Now: the listing is locked and
+// reread, self-purchases are refused, a reserved bid is refunded, the seller is
+// paid net of the community tax (which funds the Abyss jackpot), and the
+// listing's saved durability is preserved on delivery.
+func (b *Bot) autoPurchaseAuctionListing(uid, ahID string) (string, int64, bool) {
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return "", 0, false
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var itemType, itemID, name, sellerUID string
+	var dataJSON []byte
+	var price, currentBid int64
+	var bidderUID sql.NullString
+	var durability sql.NullInt64
+	err = tx.QueryRow(`SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability, current_bid, bidder_uid
+		FROM auction_house
+		WHERE id=$1 AND sold_at IS NULL AND buyer_uid IS NULL AND expires_at > NOW()
+		FOR UPDATE`, ahID).
+		Scan(&itemType, &itemID, &name, &dataJSON, &price, &sellerUID, &durability, &currentBid, &bidderUID)
+	if err != nil || itemType != "gear" || sellerUID == uid {
+		return "", 0, false
+	}
+	var g content.Gear
+	if err := json.Unmarshal(dataJSON, &g); err != nil || g.ID == "" || g.ID != itemID || g.Unidentified || g.Attuned {
+		return "", 0, false
+	}
+
+	// Automatic Buy Now cancels any reserved bid exactly like the manual path.
+	if bidderUID.Valid && currentBid > 0 {
+		if _, err := tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", currentBid, bidderUID.String); err != nil {
+			return "", 0, false
+		}
+	}
+	res, err := tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1", price, uid)
+	if err != nil {
+		return "", 0, false
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", 0, false
+	}
+	res, err = tx.Exec("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW(), current_bid = 0, bidder_uid = NULL WHERE id = $2 AND sold_at IS NULL AND buyer_uid IS NULL", uid, ahID)
+	if err != nil {
+		return "", 0, false
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", 0, false
+	}
+	salesTax := abyssAuctionSalesTax(price)
+	sellerNet := price - salesTax
+	if _, err := tx.Exec("/* economy:bot.Bot.autoPurchaseUpgrades */ UPDATE users SET gold = gold + $1 WHERE client_uid = $2", sellerNet, sellerUID); err != nil {
+		return "", 0, false
+	}
+	if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'", salesTax); err != nil {
+		return "", 0, false
+	}
+	if _, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount)
+		VALUES ($1,'sale',$2,$3)`, sellerUID, fmt.Sprintf("Sale proceeds: %s sold for %dg · community tax %dg · net %dg.", name, price, salesTax, sellerNet), sellerNet); err != nil {
+		return "", 0, false
+	}
+	dur := g.MaxDurability
+	if durability.Valid {
+		dur = max(0, int(durability.Int64))
+	}
+	if err := b.equipGear(tx, uid, g, dur, dataJSON); err != nil {
+		return "", 0, false
+	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("Failed to commit AH purchase: %v", err)
+		return "", 0, false
+	}
+	return name, price, true
 }

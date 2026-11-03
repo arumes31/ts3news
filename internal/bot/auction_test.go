@@ -153,7 +153,7 @@ func TestAutoPurchaseUpgradesLogsOnlyDecodeFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	mock.ExpectQuery("SELECT id, item_type, item_id, item_name, item_data, price, seller_uid").
-		WithArgs(int64(1_000)).
+		WithArgs(int64(1_000), "buyer").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "item_type", "item_id", "item_name", "item_data", "price", "seller_uid"}).
 			AddRow("bad-json", "gear", "bad", "Broken", []byte(`{`), int64(10), "seller").
 			AddRow("hidden", "gear", "hidden", "Hidden", unidentified, int64(9), "seller").
