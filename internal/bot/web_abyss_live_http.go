@@ -168,8 +168,13 @@ func (s *WebServer) handleAbyssCombatPauseMode(w http.ResponseWriter, r *http.Re
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if err := c.setPauseMode(uid, req.Mode); err != nil {
+	changed, err := c.setPauseMode(uid, req.Mode)
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if !changed {
+		writeJSON(w, c.snapshotFor(uid))
 		return
 	}
 	if err := c.persist(); err != nil {
@@ -195,8 +200,13 @@ func (s *WebServer) handleAbyssCombatPolicy(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	if err := c.setPolicy(uid, policy); err != nil {
+	changed, err := c.setPolicy(uid, policy)
+	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if !changed {
+		writeJSON(w, c.snapshotFor(uid))
 		return
 	}
 	if err := c.persist(); err != nil {

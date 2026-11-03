@@ -1173,7 +1173,9 @@ func (s *WebServer) handleAbyssDismantle(w http.ResponseWriter, r *http.Request,
 		if !ok {
 			continue
 		}
-		if g.Attuned {
+		// Unidentified gear keeps its rarity, name, and yields hidden until
+		// identification commits, so it never appears in a dismantle manifest.
+		if g.Attuned || g.Unidentified {
 			continue
 		}
 		if req.MaxRarity > 0 && int(g.Rarity) > req.MaxRarity {

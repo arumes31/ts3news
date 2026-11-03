@@ -128,7 +128,7 @@ func (s *WebServer) handleAbyssPolish(w http.ResponseWriter, r *http.Request, ui
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if req.Slot != "" {
+	if req.InvID == 0 && req.Slot != "" {
 		if _, err := tx.Exec("UPDATE user_gear SET durability = LEAST(durability + 10, $1) WHERE slot=$2 AND client_uid=$3", g.MaxDurability, req.Slot, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

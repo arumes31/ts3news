@@ -912,6 +912,23 @@ func (s *WebServer) handleAbyssResetTalents(w http.ResponseWriter, r *http.Reque
 	}
 	netRefund := max(int64(0), grossRefund-abyssTalentRespecFee)
 
+	// Deep-Delver ranks supply skill-web points. A reset that shrinks the
+	// point budget below the points already allocated would leave bonuses
+	// active beyond their entitlement, so refuse it until the web is refunded.
+	if bonusAfter := deepDelverPointBonusFromLevels(remainingLevels); bonusAfter < deepDelverPointBonusFromLevels(allLevels) {
+		allocated, allocErr := s.bot.loadTreeAllocatedContext(r.Context(), uid)
+		if allocErr != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		budgetAfter := s.bot.treePointsTotal(uid) - deepDelverPointBonusFromLevels(allLevels) + bonusAfter
+		if spent := s.bot.treeSpentEx(uid, allocated); spent > budgetAfter {
+			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf(
+				"this reset lowers your skill-web budget to %d points but %d are allocated; refund skill-web nodes first", budgetAfter, spent)})
+			return
+		}
+	}
+
 	// Mana-conversion state (converted_hp / converted_mana_reduction) lives in
 	// abyss_upgrades but is not a Deep-Delver talent, so a talent reset must not wipe
 	// it. Rebuild the JSON from just those keys instead of blanking the whole column.

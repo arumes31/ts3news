@@ -68,3 +68,41 @@ func TestConnectionGraceIgnoresPauseAndNormalUpdates(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectionGraceCannotRearmUntilUnprotectedIntervalElapses(t *testing.T) {
+	now := time.Unix(100, 0)
+	r, err := NewPracticeRun("reconnect", Build{HP: 100}, "hazard", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Paused = false
+	at := now.Add(3 * time.Second)
+	r.Step(Input{}, at)
+	if r.SkillTimers["connection_grace"] < .99 {
+		t.Fatal("missing recovery interval")
+	}
+	// Let the protection expire, then immediately produce another gap: the
+	// capped simulation time has not yet covered an unprotected interval.
+	for i := 1; i <= 14; i++ {
+		at = at.Add(100 * time.Millisecond)
+		r.Step(Input{}, at)
+	}
+	if r.SkillTimers["connection_grace"] > 0 {
+		t.Fatal("grace failed to expire")
+	}
+	at = at.Add(3 * time.Second)
+	r.Step(Input{}, at)
+	if r.SkillTimers["connection_grace"] > 0 {
+		t.Fatal("recovery rearmed before an unprotected interval elapsed")
+	}
+	// After enough unprotected simulated time, recovery is available again.
+	for i := 0; i < 40; i++ {
+		at = at.Add(100 * time.Millisecond)
+		r.Step(Input{}, at)
+	}
+	at = at.Add(3 * time.Second)
+	r.Step(Input{}, at)
+	if r.Status == "fighting" && r.Player.HP > 0 && r.SkillTimers["connection_grace"] < .99 {
+		t.Fatal("recovery did not rearm after the unprotected interval")
+	}
+}

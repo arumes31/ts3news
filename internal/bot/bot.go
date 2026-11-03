@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -43,6 +44,8 @@ type levelResult struct {
 	NewLevel int
 	TotalXP  int
 	Awarded  int
+	// Applied is the XP delta actually written after clamping at zero.
+	Applied int
 }
 
 // NewBot opens the database, runs pending migrations, and returns a ready-to-use Bot.
@@ -153,6 +156,11 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 		err := b.DB.QueryRow("SELECT level, prestige, current_hp, regen_stacks, gold, abyss_curse_fights, abyss_best_depth FROM users WHERE client_uid=$1", cl.UID).Scan(&lvl, &prestige, &curHP, &regen, &gold, &curseFights, &bestDepth)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("Failed to scan user combat state for %s: %v", cl.UID, err)
+		}
+		if curHP <= 0 && b.Cfg.EnableAbyss && b.hasActiveAbyssRun(cl.UID) {
+			// A downed active Abyss run must be revived or ended through the
+			// Abyss; ordinary cycle combat may not heal it implicitly.
+			continue
 		}
 		if b.Cfg.EnableAbyss {
 			b.applyAbyssMilestones(c, cl.CLID, cl.UID, cl.Nickname, bestDepth)
@@ -267,8 +275,13 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 			// Auto-prestige at the level cap: reset to level 1, +1 prestige (with a
 			// permanent stat bonus) and grant the prestige rank group. Future leveling
 			// then resumes from level 1 at the new prestige.
+			// doPrestige re-checks eligibility atomically and returns 0 when
+			// another writer already consumed this progression.
+			newP := 0
 			if lr != nil && lr.NewLevel >= PrestigeThreshold {
-				newP := b.doPrestige(user.UID)
+				newP = b.doPrestige(user.UID)
+			}
+			if newP > 0 {
 				notes = append(notes, i18n.T("bot.prestige.announce", newP, int(prestigeStatBonus*100)))
 				if extraPoke != "" {
 					extraPoke += " "
@@ -342,9 +355,7 @@ func (b *Bot) RunCycle(c *clientquery.Client) error {
 
 			// Personal web-portal login link (token-based, shortened).
 			if b.Cfg.WebEnable {
-				if msg := b.composeLoginPM(user.UID); msg != "" {
-					_ = c.SendPrivateMessage(user.CLID, msg)
-				}
+				b.sendLoginPM(c, user.CLID, user.UID)
 			}
 
 			_ = c.SetNickname(b.Cfg.TS3Nickname)
@@ -826,7 +837,7 @@ func (b *Bot) UpdateChannelDescriptions(c *clientquery.Client) error {
 				hpColor = "#ff9800" // Orange
 			}
 
-			sb.WriteString(i18n.T("channel.player_line", u.Nick, prestige, level, float64(gearScore), 0.0, hpColor, actualCurrentHP, stats.HP, FormatGold(gold)) + "\n")
+			sb.WriteString(i18n.T("channel.player_line", sanitizeBBCode(u.Nick), prestige, level, float64(gearScore), 0.0, hpColor, actualCurrentHP, stats.HP, FormatGold(gold)) + "\n")
 			sb.WriteString(i18n.T("channel.stats_line", stats.STR, stats.DEF, stats.SPD, stats.LCK, stats.INT, stats.STA, stats.CRT, stats.DGE) + "\n")
 		}
 		if b.Cfg.EnableAbyss {
@@ -1002,10 +1013,49 @@ type dbOrTx interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
+// sendLoginPM issues a login link for uid and delivers it to clid only while
+// that client ID still belongs to uid. TeamSpeak reuses client IDs, so the
+// live identity is checked before the credential is created and again right
+// before it is sent; any lookup failure or mismatch abandons the delivery.
+func (b *Bot) sendLoginPM(c *clientquery.Client, clid int, uid string) {
+	if current, err := c.ClientUID(clid); err != nil || current != uid {
+		return
+	}
+	msg := b.composeLoginPM(uid)
+	if msg == "" {
+		return
+	}
+	if current, err := c.ClientUID(clid); err != nil || current != uid {
+		return
+	}
+	_ = c.SendPrivateMessage(clid, msg)
+}
+
+// hasActiveAbyssRun reports whether uid currently has an active Abyss run.
+func (b *Bot) hasActiveAbyssRun(uid string) bool {
+	var active bool
+	if err := b.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM abyss_active WHERE client_uid=$1)", uid).Scan(&active); err != nil {
+		// Fail closed: treat an unknown state as active so a lookup error
+		// cannot implicitly revive a downed run.
+		return true
+	}
+	return active
+}
+
 // equipGear equips a gear piece, displacing any previously equipped item in that slot to inventory.
 func (b *Bot) equipGear(db dbOrTx, uid string, g content.Gear, dur int, itemData any) error {
 	if g.Unidentified {
 		return fmt.Errorf("cannot equip unidentified gear")
+	}
+	// 0. Serialize every equipment writer for this account before reading the
+	// slot. Locking the account row (rather than only the gear row) also covers
+	// initially empty slots, so two concurrent replacements cannot both displace
+	// the same equipped item or overwrite each other's incoming piece. Inside a
+	// transaction the lock is held until commit; callers using the pool directly
+	// get statement-level behaviour as before.
+	var forgeUndo sql.NullString
+	if err := db.QueryRow("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&forgeUndo); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("lock equipment owner: %w", err)
 	}
 	// 1. Displace old gear to inventory
 	var oldGID string
@@ -1013,8 +1063,16 @@ func (b *Bot) equipGear(db dbOrTx, uid string, g content.Gear, dur int, itemData
 	var oldItemData sql.NullString
 	err := db.QueryRow("SELECT gear_id, durability, item_data FROM user_gear WHERE client_uid=$1 AND slot=$2", uid, string(g.Slot)).Scan(&oldGID, &oldDur, &oldItemData)
 	if err == nil {
-		// Move it to inventory
-		_, _ = db.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, oldGID, oldDur, oldItemData)
+		// Move it to inventory; a failed displacement must not silently destroy
+		// the previously equipped item when the slot is overwritten below.
+		if _, err := db.Exec("INSERT INTO user_inventory (client_uid, gear_id, durability, item_data) VALUES ($1, $2, $3, $4)", uid, oldGID, oldDur, oldItemData); err != nil {
+			return fmt.Errorf("displace equipped gear: %w", err)
+		}
+		// The slot now gets a different item; forge undo must not restore
+		// the displaced item's saved state onto it.
+		if err := invalidateForgeUndoForSlot(db, uid, string(g.Slot), forgeUndo.String); err != nil {
+			return fmt.Errorf("invalidate forge undo: %w", err)
+		}
 	}
 
 	// 2. Equip the new item directly

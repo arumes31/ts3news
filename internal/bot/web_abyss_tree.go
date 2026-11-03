@@ -176,11 +176,16 @@ func (b *Bot) treePointsTotal(uid string) int {
 // Deep-Delver talent is maxed. Deep-Delver is bought with tokens (a separate currency),
 // so this rewards that long-term investment with extra skill-web points.
 func (b *Bot) deepDelverPointBonus(uid string) int {
+	return deepDelverPointBonusFromLevels(b.loadAbyssTalentLevels(uid))
+}
+
+// deepDelverPointBonusFromLevels computes the Deep-Delver skill-web bonus for
+// a given talent-level map (used to evaluate a reset before it commits).
+func deepDelverPointBonusFromLevels(levels map[string]int) int {
 	maxLevels := len(content.DeepDelverTalents) * content.TalentMaxLevel
 	if maxLevels <= 0 {
 		return 0
 	}
-	levels := b.loadAbyssTalentLevels(uid)
 	spent := 0
 	for _, t := range content.DeepDelverTalents {
 		lv := levels[t.Key]

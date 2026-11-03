@@ -433,29 +433,52 @@ func (c *abyssLiveCombat) spendTimeBank(uid, sessionID string, round int) error 
 	return nil
 }
 
-func (c *abyssLiveCombat) setPauseMode(uid, mode string) error {
+// setPauseMode reports whether the pause triggers changed. Unchanged values
+// and finished combats do not create a new combat version, so repeated
+// preference requests cannot grow the persisted history.
+func (c *abyssLiveCombat) setPauseMode(uid, mode string) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if uid != c.ownerUID {
-		return fmt.Errorf("only the party owner can change pause triggers")
+		return false, fmt.Errorf("only the party owner can change pause triggers")
 	}
-	c.pauseMode = normalizeAbyssPauseMode(mode)
+	if c.terminalLocked() {
+		return false, errAbyssLiveStale
+	}
+	normalized := normalizeAbyssPauseMode(mode)
+	if c.pauseMode == normalized {
+		return false, nil
+	}
+	c.pauseMode = normalized
 	c.version++
-	return nil
+	return true, nil
 }
 
-func (c *abyssLiveCombat) setPolicy(uid string, policy abyssLivePolicy) error {
+// setPolicy reports whether the participant's policy changed; see setPauseMode.
+func (c *abyssLiveCombat) setPolicy(uid string, policy abyssLivePolicy) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.participants[uid] {
-		return errAbyssLiveNotFound
+		return false, errAbyssLiveNotFound
+	}
+	if c.terminalLocked() {
+		return false, errAbyssLiveStale
 	}
 	if c.policies == nil {
 		c.policies = make(map[string]abyssLivePolicy)
 	}
-	c.policies[uid] = normalizeLivePolicy(policy)
+	normalized := normalizeLivePolicy(policy)
+	if current, ok := c.policies[uid]; ok && current == normalized {
+		return false, nil
+	}
+	c.policies[uid] = normalized
 	c.version++
-	return nil
+	return true, nil
+}
+
+// terminalLocked reports whether the combat has finished. Callers hold c.mu.
+func (c *abyssLiveCombat) terminalLocked() bool {
+	return c.phase == "complete" || c.phase == "failed"
 }
 
 func (c *abyssLiveCombat) allReadyLocked() bool {

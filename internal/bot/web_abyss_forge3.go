@@ -672,6 +672,10 @@ func (s *WebServer) handleAbyssPrismaticRune(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, map[string]any{"ok": false, "error": "rune is already prismatic"})
 		return
 	}
+	if g.PrismaticBaked {
+		writeJSON(w, map[string]any{"ok": false, "error": "this item already received its once-per-item prismatic bonus"})
+		return
+	}
 	if !spendMaterials(tx, uid, map[string]int{"prism": 2}) {
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough Eldritch Prisms (need 2)"})
 		return
@@ -681,6 +685,7 @@ func (s *WebServer) handleAbyssPrismaticRune(w http.ResponseWriter, r *http.Requ
 	bestCode, inc := forgePrismaticGain(g.Stats)
 	*gearStatRef(&g.Stats, bestCode) += inc
 	g.Prismatic = true
+	g.PrismaticBaked = true
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}

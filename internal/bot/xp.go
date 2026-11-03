@@ -83,16 +83,19 @@ type UserInCombat struct {
 	// health, cooldowns, pets, loot, or progression.
 	shadow            bool
 	shadowConsumables []content.Consumable
-	shadowEffects     []content.ItemEffect
-	shadowHoldMana    bool
-	shadowPetCommand  abyssPetCommand
-	shadowPetFocus    string
-	shadowRunFlags    map[string]int64
-	shadowLifesteal   int
-	shadowMultiStrike int
-	shadowMindControl int
-	shadowUpInsight   int
-	shadowBackups     []content.Gear
+	// cloneConsumablesLoaded records that an IsClone combatant's consumables
+	// were snapshotted into shadowConsumables for combat-local spending.
+	cloneConsumablesLoaded bool
+	shadowEffects          []content.ItemEffect
+	shadowHoldMana         bool
+	shadowPetCommand       abyssPetCommand
+	shadowPetFocus         string
+	shadowRunFlags         map[string]int64
+	shadowLifesteal        int
+	shadowMultiStrike      int
+	shadowMindControl      int
+	shadowUpInsight        int
+	shadowBackups          []content.Gear
 	// treeBonus carries the Abyss skill-web bonus into combat. Only buildAbyssUser
 	// populates it; regular channel fights leave it zero so the Abyss tree never
 	// leaks into non-Abyss combat (and treeBonusFor's DB cost stays off that path).
@@ -490,6 +493,16 @@ func (b *Bot) combatConsumables(u *UserInCombat) []content.Consumable {
 	if u == nil {
 		return []content.Consumable{}
 	}
+	if u.IsClone {
+		// Co-op helper clones keep the source account's UID but must never
+		// spend that player's real inventory. Snapshot it once and consume
+		// the local copy for the rest of the fight.
+		if !u.cloneConsumablesLoaded {
+			u.shadowConsumables = append([]content.Consumable(nil), b.getConsumables(u.UID)...)
+			u.cloneConsumablesLoaded = true
+		}
+		return u.shadowConsumables
+	}
 	return b.getConsumables(u.UID)
 }
 
@@ -497,7 +510,12 @@ func (b *Bot) consumeCombatConsumable(u *UserInCombat, id string, consumeAll boo
 	if u == nil {
 		return
 	}
-	if !u.shadow {
+	if u.IsClone && !u.shadow && !u.cloneConsumablesLoaded {
+		// Make sure a clone's first consumption also works on its local
+		// snapshot rather than falling through to persistent deletion.
+		_ = b.combatConsumables(u)
+	}
+	if !u.shadow && !u.IsClone {
 		query := "/* economy:bot.Bot.consumeCombatConsumable */ DELETE FROM user_consumables WHERE ctid IN (SELECT ctid FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 LIMIT 1)"
 		if consumeAll {
 			query = "/* economy:bot.Bot.consumeCombatConsumable */ DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2"
@@ -2291,7 +2309,10 @@ func (b *Bot) userTurn(activeUsers []activeUser, mobs *[]*content.Mob, zone cont
 					abyssMindControlCapture(&candidate)
 					result := abyssPetCaptureRecruited
 					var err error
-					if !u.shadow {
+					// Shadow projections and co-op helper clones keep captures
+					// combat-local: a host must not change another player's
+					// persistent stable or pending-capture slot.
+					if !u.shadow && !u.IsClone {
 						result, err = b.persistAbyssPetCapture(u.UID, &candidate, captureLimit)
 					}
 					switch {
@@ -2835,10 +2856,9 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 					penalty = 10
 				}
 
+				// The jackpot is funded from the deduction actually applied,
+				// in the same transaction as the XP write (see below).
 				finalXP -= penalty
-
-				// Increase jackpot by 1% of lost XP value
-				b.incrementJackpot("global", int64(penalty))
 
 				logs = append(logs, deathPenaltyLine(u.Nickname, penalty))
 			}
@@ -2869,18 +2889,14 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 				goldDrop += int(float64(baseGold) * (0.8 + rand.Float64()*0.4) * inflationMult)
 			}
 
-			// First Win of the Day Bonus
-			if !u.IsClone {
-				var lastWin sql.NullTime
-				_ = b.DB.QueryRow("SELECT last_win FROM users WHERE client_uid=$1", u.UID).Scan(&lastWin)
-
-				if !lastWin.Valid || lastWin.Time.Before(time.Now().Add(-24*time.Hour)) {
-					// 5x Gold and XP multiplier for First Win
-					goldDrop *= 5
-					finalXP *= 5
-					logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
-					_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET last_win=NOW() WHERE client_uid=$1", u.UID)
-				}
+			// First Win of the Day Bonus. Eligibility is determined and
+			// consumed by one conditional UPDATE, so overlapping settlements
+			// for the same account cannot both claim the multiplier.
+			if !u.IsClone && b.claimFirstWin(u.UID) {
+				// 5x Gold and XP multiplier for First Win
+				goldDrop *= 5
+				finalXP *= 5
+				logs = append(logs, "🌟 FIRST WIN OF THE DAY! (5x Gold & XP)")
 			}
 
 			// VIP Gold Bonus
@@ -2898,7 +2914,11 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 				_, _ = b.DB.Exec("UPDATE user_ultimate_skills SET current_cooldown = $3 WHERE client_uid = $1 AND ultimate_id = $2", u.UID, us.ID, us.CurrentCooldown)
 			}
 
-			_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET current_hp = $2, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
+			// A downed active Abyss run is represented by nonpositive shared HP.
+			// Ordinary combat must never implicitly revive it: keep the stored
+			// HP when the run is downed and only revival or run termination may
+			// clear that state.
+			_, _ = b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET current_hp = CASE WHEN users.current_hp <= 0 AND EXISTS (SELECT 1 FROM abyss_active a WHERE a.client_uid = users.client_uid) THEN users.current_hp ELSE $2 END, regen_stacks = $3, gold = users.gold + $4 WHERE client_uid = $1", u.UID, u.CurrentHP, u.RegenStacks, int64(goldDrop))
 
 			// Skill web: Alchemist's Ritual — a lucky fight burns no
 			// consumable charges.
@@ -2936,7 +2956,9 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 				finalXP = int(float64(finalXP) * mult)
 			}
 		}
-		if finalXP != 0 && !u.IsClone {
+		if finalXP < 0 && !u.IsClone {
+			_ = b.applyDeathPenalty(u.UID, finalXP)
+		} else if finalXP != 0 && !u.IsClone {
 			_, _ = b.awardXP(u.UID, "", finalXP)
 		}
 	}
@@ -2944,12 +2966,12 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 	if victory {
 		logs = append(logs, i18n.T("bot.combat.victory", len(initialMobs), zone.Name))
 
-		// 1% chance for global jackpot on victory
-		// #nosec G404
-		if rand.Float64() < 0.01 {
+		// 1% chance for global jackpot on victory. The draw uses server-private
+		// randomness, never the replayable combat stream whose seed is visible
+		// in live snapshots, so combat choices cannot steer the jackpot.
+		if serverPrivateFloat64() < 0.01 {
 			// Find a winner among participants
-			// #nosec G404
-			winner := users[rand.IntN(len(users))]
+			winner := users[serverPrivateIntN(len(users))]
 			jackpot := b.claimJackpot(winner.UID, "global")
 			if jackpot > 0 {
 				logs = append(logs, "🔥 GLOBAL JACKPOT WIN! "+winner.Nickname+" won "+FormatGold(jackpot)+"!")
@@ -3411,7 +3433,10 @@ func (b *Bot) activeLootMult(uid string, today time.Time) (float64, content.Stat
 				stats = stats.Add(t.Stats)
 			}
 		} else if title.Valid {
-			_, _ = b.DB.Exec("/* economy:bot.Bot.activeLootMult */ UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1", uid)
+			// Clear only the expired title that was inspected: a replacement
+			// granted after the read has a future expiry (or another name)
+			// and must survive this cleanup.
+			_, _ = b.DB.Exec("/* economy:bot.Bot.activeLootMult */ UPDATE users SET title=NULL, title_mult=NULL, title_expires=NULL WHERE client_uid=$1 AND title=$2 AND (title_expires IS NULL OR title_expires <= NOW())", uid, title.String)
 		}
 	}
 	var aMult sql.NullFloat64
@@ -4110,10 +4135,39 @@ func (b *Bot) shouldEquip(uid string, newGear content.Gear) bool {
 }
 
 func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	lr, err := awardXPTx(tx, uid, nickname, awarded)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return lr, nil
+}
+
+// awardXPTx applies an XP delta to the locked current account state. Every XP
+// writer goes through the users row lock, so concurrent awards, penalties,
+// decay and prestige resets serialize instead of overwriting each other with
+// absolute values computed from stale reads. levelResult.Applied reports the
+// delta actually written after clamping at zero.
+func awardXPTx(tx *sql.Tx, uid, nickname string, awarded int) (*levelResult, error) {
+	if nickname != "" {
+		if _, err := tx.Exec(`/* economy:bot.Bot.awardXP */ INSERT INTO users (client_uid, nickname, xp, level, last_seen) VALUES ($1, $2, 0, 1, NOW()) ON CONFLICT (client_uid) DO UPDATE SET nickname = $2, last_seen = NOW()`, uid, nickname); err != nil {
+			return nil, err
+		}
+	}
 	var curXP, curLevel int
-	err := b.DB.QueryRow("SELECT xp, level FROM users WHERE client_uid = $1", uid).Scan(&curXP, &curLevel)
-	if err == sql.ErrNoRows {
-		curXP, curLevel = 0, 1
+	err := tx.QueryRow("SELECT xp, level FROM users WHERE client_uid = $1 FOR UPDATE", uid).Scan(&curXP, &curLevel)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Without a nickname there is no row to update; report the would-be
+		// result like before without inventing an account.
+		total := max(awarded, 0)
+		return &levelResult{OldLevel: 1, NewLevel: leveling.LevelForXP(total), TotalXP: total, Awarded: awarded, Applied: total}, nil
 	} else if err != nil {
 		return nil, err
 	}
@@ -4122,13 +4176,10 @@ func (b *Bot) awardXP(uid, nickname string, awarded int) (*levelResult, error) {
 		total = 0
 	}
 	newLevel := leveling.LevelForXP(total)
-
-	if nickname != "" {
-		_, err = b.DB.Exec(`/* economy:bot.Bot.awardXP */ INSERT INTO users (client_uid, nickname, xp, level, last_seen) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (client_uid) DO UPDATE SET xp = $3, level = $4, nickname = $2, last_seen = NOW()`, uid, nickname, total, newLevel)
-	} else {
-		_, err = b.DB.Exec(`/* economy:bot.Bot.awardXP */ UPDATE users SET xp = $2, level = $3, last_seen = NOW() WHERE client_uid = $1`, uid, total, newLevel)
+	if _, err := tx.Exec(`/* economy:bot.Bot.awardXP */ UPDATE users SET xp = $2, level = $3, last_seen = NOW() WHERE client_uid = $1`, uid, total, newLevel); err != nil {
+		return nil, err
 	}
-	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded}, err
+	return &levelResult{OldLevel: curLevel, NewLevel: newLevel, TotalXP: total, Awarded: awarded, Applied: total - curXP}, nil
 }
 
 func (b *Bot) slothDecay(_ *clientquery.Client, today time.Time) {
@@ -4150,13 +4201,67 @@ func (b *Bot) slothDecay(_ *clientquery.Client, today time.Time) {
 	}
 	_ = rows.Close()
 	for _, d := range batch {
-		newXP := int(float64(d.xp) * (1.0 - slothDailyDecay))
-		if newXP < 0 {
-			newXP = 0
-		}
-		newLevel := leveling.LevelForXP(newXP)
-		_, _ = b.DB.Exec("/* economy:bot.Bot.slothDecay */ UPDATE users SET xp=$2, level=$3 WHERE client_uid=$1", d.uid, newXP, newLevel)
+		b.applySlothDecay(d.uid, cutoff)
 	}
+}
+
+// applySlothDecay recomputes decay from the locked current XP so a concurrent
+// award or prestige reset committed after the candidate scan is not
+// overwritten with a stale absolute value. Players seen since the scan are
+// skipped.
+func (b *Bot) applySlothDecay(uid string, cutoff time.Time) {
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	var xp int
+	if err := tx.QueryRow("SELECT xp FROM users WHERE client_uid=$1 AND last_seen < $2 FOR UPDATE", uid, cutoff).Scan(&xp); err != nil {
+		return
+	}
+	newXP := int(float64(xp) * (1.0 - slothDailyDecay))
+	if newXP < 0 {
+		newXP = 0
+	}
+	newLevel := leveling.LevelForXP(newXP)
+	if _, err := tx.Exec("/* economy:bot.Bot.slothDecay */ UPDATE users SET xp=$2, level=$3 WHERE client_uid=$1", uid, newXP, newLevel); err != nil {
+		return
+	}
+	_ = tx.Commit()
+}
+
+// claimFirstWin atomically consumes the first-win-of-the-day entitlement and
+// reports whether this caller claimed it.
+func (b *Bot) claimFirstWin(uid string) bool {
+	res, err := b.DB.Exec("/* economy:bot.Bot.distributeRewards */ UPDATE users SET last_win=NOW() WHERE client_uid=$1 AND (last_win IS NULL OR last_win < NOW() - INTERVAL '24 hours')", uid)
+	if err != nil {
+		return false
+	}
+	n, err := res.RowsAffected()
+	return err == nil && n == 1
+}
+
+// applyDeathPenalty deducts a death penalty (delta < 0) from the locked
+// current XP and funds the global jackpot from the deduction actually applied,
+// committing both together.
+func (b *Bot) applyDeathPenalty(uid string, delta int) error {
+	tx, err := b.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	lr, err := awardXPTx(tx, uid, "", delta)
+	if err != nil {
+		return err
+	}
+	if deducted := -lr.Applied; deducted > 0 {
+		if inc := int64(float64(deducted) * jackpotRate); inc > 0 {
+			if _, err := tx.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key=$2", inc, "global"); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit()
 }
 
 func sameDay(a, b time.Time) bool {

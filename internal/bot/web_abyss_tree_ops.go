@@ -44,8 +44,85 @@ type abyssTreeOpsMetrics struct {
 	mu          sync.Mutex
 	sectors     map[int]int64
 	nodeKinds   map[string]int64
-	idempotency sync.Map
-	locks       sync.Map
+	idempotency abyssTreeIdempotencyCache
+	locks       [abyssTreeIdempotencyLockStripes]sync.Mutex
+}
+
+// Idempotency replay storage is shared process memory, so it is bounded by
+// entry count (globally and per player) and by response size, and expired
+// entries are swept on every insert. Per-key serialization uses a fixed set
+// of striped mutexes instead of a mutex per caller-chosen key.
+const (
+	abyssTreeIdempotencyLockStripes = 64
+	abyssTreeIdempotencyMaxEntries  = 2048
+	abyssTreeIdempotencyMaxPerUser  = 32
+	abyssTreeIdempotencyMaxBody     = 64 << 10
+	abyssTreeIdempotencyTTL         = 15 * time.Minute
+)
+
+type abyssTreeIdempotencyEntry struct {
+	uid      string
+	response abyssTreeCachedResponse
+}
+
+type abyssTreeIdempotencyCache struct {
+	mu      sync.Mutex
+	entries map[string]abyssTreeIdempotencyEntry
+	perUser map[string]int
+}
+
+func (c *abyssTreeIdempotencyCache) load(key string, now time.Time) (abyssTreeCachedResponse, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[key]
+	if !ok {
+		return abyssTreeCachedResponse{}, false
+	}
+	if !now.Before(entry.response.ExpiresAt) {
+		c.deleteLocked(key, entry)
+		return abyssTreeCachedResponse{}, false
+	}
+	return entry.response, true
+}
+
+func (c *abyssTreeIdempotencyCache) store(key, uid string, response abyssTreeCachedResponse, now time.Time) bool {
+	if len(response.Body) > abyssTreeIdempotencyMaxBody {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = map[string]abyssTreeIdempotencyEntry{}
+		c.perUser = map[string]int{}
+	}
+	for k, entry := range c.entries {
+		if !now.Before(entry.response.ExpiresAt) {
+			c.deleteLocked(k, entry)
+		}
+	}
+	if old, ok := c.entries[key]; ok {
+		c.deleteLocked(key, old)
+	}
+	if len(c.entries) >= abyssTreeIdempotencyMaxEntries || c.perUser[uid] >= abyssTreeIdempotencyMaxPerUser {
+		return false
+	}
+	c.entries[key] = abyssTreeIdempotencyEntry{uid: uid, response: response}
+	c.perUser[uid]++
+	return true
+}
+
+func (c *abyssTreeIdempotencyCache) deleteLocked(key string, entry abyssTreeIdempotencyEntry) {
+	delete(c.entries, key)
+	if c.perUser[entry.uid] <= 1 {
+		delete(c.perUser, entry.uid)
+	} else {
+		c.perUser[entry.uid]--
+	}
+}
+
+func (m *abyssTreeOpsMetrics) idempotencyLock(key string) *sync.Mutex {
+	sum := sha256.Sum256([]byte(key))
+	return &m.locks[int(sum[0])%abyssTreeIdempotencyLockStripes]
 }
 
 type abyssTreeCachedResponse struct {
@@ -163,37 +240,33 @@ func (s *WebServer) idempotentAbyssTreeMutation(next abyssTreeHandler) abyssTree
 		r.Body = io.NopCloser(bytes.NewReader(payload))
 		requestHash := sha256.Sum256(payload)
 		cacheKey := uid + "\x00" + r.URL.Path + "\x00" + key
-		lockValue, _ := s.abyssTreeOps.locks.LoadOrStore(cacheKey, &sync.Mutex{})
-		lock := lockValue.(*sync.Mutex)
+		lock := s.abyssTreeOps.idempotencyLock(cacheKey)
 		lock.Lock()
 		defer lock.Unlock()
 
-		if value, ok := s.abyssTreeOps.idempotency.Load(cacheKey); ok {
-			cached := value.(abyssTreeCachedResponse)
-			if time.Now().Before(cached.ExpiresAt) {
-				if cached.RequestHash != requestHash {
-					writeJSON(w, map[string]any{"ok": false, "error": "idempotency key was already used with another payload"})
-					return
-				}
-				for header, values := range cached.Header {
-					w.Header()[header] = append([]string(nil), values...)
-				}
-				w.Header().Set("X-Idempotent-Replay", "true")
-				w.WriteHeader(cached.Status)
-				_, _ = w.Write(cached.Body)
+		if cached, ok := s.abyssTreeOps.idempotency.load(cacheKey, time.Now()); ok {
+			if cached.RequestHash != requestHash {
+				writeJSON(w, map[string]any{"ok": false, "error": "idempotency key was already used with another payload"})
 				return
 			}
-			s.abyssTreeOps.idempotency.Delete(cacheKey)
+			for header, values := range cached.Header {
+				w.Header()[header] = append([]string(nil), values...)
+			}
+			w.Header().Set("X-Idempotent-Replay", "true")
+			w.WriteHeader(cached.Status)
+			_, _ = w.Write(cached.Body)
+			return
 		}
 
 		response := newAbyssTreeBufferedResponse()
 		next(response, r, uid)
-		if response.successfulJSON() {
-			s.abyssTreeOps.idempotency.Store(cacheKey, abyssTreeCachedResponse{
+		if response.successfulJSON() && response.body.Len() <= abyssTreeIdempotencyMaxBody {
+			now := time.Now()
+			s.abyssTreeOps.idempotency.store(cacheKey, uid, abyssTreeCachedResponse{
 				RequestHash: requestHash, Status: max(response.status, http.StatusOK),
 				Header: response.header.Clone(), Body: append([]byte(nil), response.body.Bytes()...),
-				ExpiresAt: time.Now().Add(15 * time.Minute),
-			})
+				ExpiresAt: now.Add(abyssTreeIdempotencyTTL),
+			}, now)
 		}
 		writeAbyssTreeBufferedResponse(w, response)
 	}

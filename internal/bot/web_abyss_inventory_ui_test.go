@@ -265,6 +265,9 @@ func TestConsumeAndEquipAbyssEscrowGearIsAtomic(t *testing.T) {
 	mock.ExpectExec("DELETE FROM abyss_escrow_loot").
 		WithArgs(int64(31), "player").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(`SELECT forge_undo FROM users WHERE client_uid=\$1 FOR UPDATE`).
+		WithArgs("player").
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("player"))
 	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_gear").
 		WithArgs("player", string(content.SlotMainHand)).
 		WillReturnError(sql.ErrNoRows)

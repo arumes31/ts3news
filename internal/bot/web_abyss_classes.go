@@ -174,6 +174,14 @@ func (s *WebServer) handleAbyssClasses(w http.ResponseWriter, r *http.Request, u
 		http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	if r.Method == http.MethodPost {
+		// A party enrollment made by another player does not restrict this
+		// account's class changes: changing class leaves that party.
+		if _, err := s.leaveAbyssPartyAsMember(r.Context(), uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "Could not leave the shared run party. Retry."})
+			return
+		}
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	if r.Method == http.MethodPost {

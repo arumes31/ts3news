@@ -414,7 +414,10 @@ func (s *WebServer) handleAbyssTokenBundle(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	if !day.Valid || day.Time.UTC().Format("2006-01-02") != time.Now().UTC().Format("2006-01-02") {
+	// Compare and persist the same explicit UTC calendar day; the database
+	// session's CURRENT_DATE may follow a different time zone.
+	purchaseDay := time.Now().UTC().Format("2006-01-02")
+	if !day.Valid || day.Time.UTC().Format("2006-01-02") != purchaseDay {
 		bought = 0
 	}
 	var cost int64
@@ -430,7 +433,7 @@ func (s *WebServer) handleAbyssTokenBundle(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, map[string]any{"ok": false, "error": "not enough gold"})
 		return
 	}
-	if _, err := tx.Exec(`UPDATE abyss_economy_profiles SET token_bundle_date=CURRENT_DATE,token_bundle_count=$2 WHERE client_uid=$1`, uid, bought+req.Count); err != nil {
+	if _, err := tx.Exec(`UPDATE abyss_economy_profiles SET token_bundle_date=$3::date,token_bundle_count=$2 WHERE client_uid=$1`, uid, bought+req.Count, purchaseDay); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

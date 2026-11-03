@@ -557,10 +557,10 @@ func TestAbyssLivePauseConfiguration(t *testing.T) {
 		}
 	}
 	combat := &abyssLiveCombat{ownerUID: "owner"}
-	if err := combat.setPauseMode("member", "fast"); err == nil {
+	if _, err := combat.setPauseMode("member", "fast"); err == nil {
 		t.Fatal("non-owner changed shared pause triggers")
 	}
-	if err := combat.setPauseMode("owner", "bosses"); err != nil {
+	if _, err := combat.setPauseMode("owner", "bosses"); err != nil {
 		t.Fatalf("owner set pause mode: %v", err)
 	}
 	if combat.pauseMode != "bosses" {

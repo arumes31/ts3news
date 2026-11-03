@@ -172,7 +172,7 @@ func TestStartAbyssLiveCombatKeepsRegistryOnTransactionFailure(t *testing.T) {
 	defer func() { _ = db.Close() }()
 
 	server := &WebServer{bot: &Bot{DB: db}}
-	oldCombat := &abyssLiveCombat{id: "old-session"}
+	oldCombat := &abyssLiveCombat{id: "old-session", phase: "complete"}
 	server.liveCombats.Store("old-session", oldCombat)
 	server.liveCombatByUID.Store("user", "old-session")
 
@@ -297,6 +297,47 @@ func TestPersistedAbyssLiveSnapshotDoesNotRestoreNonPositiveDepth(t *testing.T) 
 
 	if _, found := server.persistedAbyssLiveSnapshot("user"); !found {
 		t.Fatal("persistedAbyssLiveSnapshot() did not return the persisted snapshot")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet database expectations: %v", err)
+	}
+}
+
+func TestStartAbyssLiveCombatRejectsParticipantStillInActiveCombat(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New(): %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	server := &WebServer{bot: &Bot{DB: db}}
+	running := &abyssLiveCombat{id: "running-session", phase: "planning"}
+	server.liveCombats.Store("running-session", running)
+	server.liveCombatByUID.Store("helper", "running-session")
+
+	provenance, err := json.Marshal(abyssRunProvenance{
+		Version: abyssRunProvenanceVersion,
+		Seed:    [2]uint64{11, 22},
+		Choices: []abyssRunChoice{},
+		Floors:  []abyssRunFloorRecord{},
+	})
+	if err != nil {
+		t.Fatalf("marshal provenance: %v", err)
+	}
+	mock.ExpectQuery(`SELECT value FROM app_meta WHERE key=\$1`).
+		WithArgs(abyssRunProvenanceKey("owner")).
+		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(string(provenance)))
+	mock.ExpectQuery(`SELECT COALESCE\(coop_uid, ''\) FROM abyss_active`).
+		WithArgs("owner").
+		WillReturnRows(sqlmock.NewRows([]string{"coop_uid"}).AddRow("helper"))
+
+	if _, err := server.startAbyssLiveCombat("owner", abyssRun{Depth: 7}, 8, abyssTier{}, "", ""); !errors.Is(err, errAbyssParticipantInCombat) {
+		t.Fatalf("startAbyssLiveCombat() error = %v, want errAbyssParticipantInCombat", err)
+	}
+	if got, ok := server.liveCombats.Load("running-session"); !ok || got != running {
+		t.Fatal("running combat was removed from the registry")
+	}
+	if got, ok := server.liveCombatByUID.Load("helper"); !ok || got != "running-session" {
+		t.Fatal("helper's active-combat guard was reassigned")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet database expectations: %v", err)

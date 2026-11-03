@@ -95,6 +95,9 @@ func TestShopBuyResponseReportsAutoEquip(t *testing.T) {
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear").
 		WithArgs("delver", item.Slot).
 		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(`SELECT forge_undo FROM users WHERE client_uid=\$1 FOR UPDATE`).
+		WithArgs("delver").
+		WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("delver"))
 	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_gear").
 		WithArgs("delver", item.Slot).
 		WillReturnError(sql.ErrNoRows)

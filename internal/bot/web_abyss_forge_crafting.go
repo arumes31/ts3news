@@ -299,6 +299,12 @@ func (s *WebServer) handleAbyssFusePreview(w http.ResponseWriter, r *http.Reques
 			writeJSON(w, map[string]any{"ok": false, "error": g.Name + " is attuned to you and cannot be fused"})
 			return
 		}
+		// Unidentified ingredients keep their names, stats, and rarity hidden;
+		// they must be identified before a fusion can be previewed or run.
+		if g.Unidentified {
+			writeJSON(w, map[string]any{"ok": false, "error": "identify every ingredient before fusing"})
+			return
+		}
 		if i == 0 {
 			slot = g.Slot
 		} else if g.Slot != slot {
@@ -423,6 +429,12 @@ func (s *WebServer) handleAbyssCelestialFuseBoosted(w http.ResponseWriter, r *ht
 		}
 		if g.Attuned {
 			writeJSON(w, map[string]any{"ok": false, "error": g.Name + " is attuned to you and cannot be fused"})
+			return
+		}
+		// Unidentified ingredients keep their names, stats, and rarity hidden;
+		// they must be identified before a fusion can be previewed or run.
+		if g.Unidentified {
+			writeJSON(w, map[string]any{"ok": false, "error": "identify every ingredient before fusing"})
 			return
 		}
 		if i == 0 {
