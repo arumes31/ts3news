@@ -46,14 +46,6 @@ func (b *Bot) getJackpot(game string) int64 {
 	return amt
 }
 
-func (b *Bot) incrementJackpot(game string, bet int64) {
-	inc := int64(float64(bet) * jackpotRate)
-	if inc <= 0 {
-		return
-	}
-	_, _ = b.DB.Exec("UPDATE arcade_jackpots SET amount = amount + $1, updated_at = NOW() WHERE game_key=$2", inc, game)
-}
-
 func (b *Bot) claimJackpot(uid string, game string) int64 {
 	tx, err := b.DB.Begin()
 	if err != nil {

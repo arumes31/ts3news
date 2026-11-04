@@ -463,7 +463,7 @@ func serverQueryHostIsPrivate(host string) bool {
 		ips = resolved
 	}
 	for _, ip := range ips {
-		if !(ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()) {
+		if !ip.IsLoopback() && !ip.IsPrivate() && !ip.IsLinkLocalUnicast() {
 			return false
 		}
 	}
