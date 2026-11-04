@@ -562,9 +562,13 @@ func TestInventoryEquipRejectsUnidentifiedGear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_inventory").
+	// The item is consumed inside the equip transaction; rejecting it rolls
+	// the deletion back.
+	mock.ExpectBegin()
+	mock.ExpectQuery(`DELETE FROM user_inventory WHERE id=\$1 AND client_uid=\$2 RETURNING gear_id, durability, item_data`).
 		WithArgs(int64(17), "delver").
 		WillReturnRows(sqlmock.NewRows([]string{"gear_id", "durability", "item_data"}).AddRow(gear.ID, 80, string(payload)))
+	mock.ExpectRollback()
 
 	server := &WebServer{bot: &Bot{DB: database}}
 	request := httptest.NewRequest(http.MethodPost, "/api/inventory/equip", strings.NewReader(`{"inv_id":17}`))

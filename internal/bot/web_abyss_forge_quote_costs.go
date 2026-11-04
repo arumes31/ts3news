@@ -321,7 +321,7 @@ func (s *WebServer) forgeDismantleQuoteRecovery(
 			continue
 		}
 		item, ok := s.bot.makeGear(gearID, itemData)
-		if !ok || item.Attuned || maximumRarity > 0 && int(item.Rarity) > maximumRarity {
+		if !ok || item.Attuned || item.Unidentified || maximumRarity > 0 && int(item.Rarity) > maximumRarity {
 			continue
 		}
 		yield := abyssDismantleTokens(item.Rarity)

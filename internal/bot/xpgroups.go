@@ -211,7 +211,9 @@ func (b *Bot) applyLevelGroup(c *clientquery.Client, clid int, uid, nickname str
 		return
 	}
 
-	cldbid, err := c.ClientDBID(clid)
+	// Bind the recipient to the UID whose progression authorized this change;
+	// the snapshot's client ID may have been reassigned since.
+	cldbid, err := c.ClientDBIDForUID(clid, uid)
 	if err != nil {
 		log.Printf("xpgroups: cannot resolve cldbid for %s: %v", nickname, err)
 		return

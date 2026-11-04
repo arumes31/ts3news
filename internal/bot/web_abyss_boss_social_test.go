@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -321,5 +322,38 @@ func TestAbyssSpectatorSnapshotRedactsPrivateCombatState(t *testing.T) {
 	}
 	if public.Social.PreferredRole != "" || public.Social.Signals != nil || len(public.Social.Members) != 1 {
 		t.Fatalf("social state was not reduced to public presence: %#v", public.Social)
+	}
+}
+
+func TestAbyssSpectatorSnapshotRemapsEntityAndPresentationIDs(t *testing.T) {
+	t.Parallel()
+	snapshot := abyssLiveSnapshot{
+		Allies: []abyssLiveCombatantView{
+			{ID: "ally:private-uid", EntityID: "ally:private-uid", Name: "Ada"},
+			{ID: "pet:private-uid:1", EntityID: "pet:private-uid#1", Name: "Wolf"},
+		},
+		Enemies: []abyssLiveCombatantView{{ID: "enemy:0", EntityID: "enemy#3", Name: "Watcher"}},
+		PresentationEvents: []abyssLivePresentationEvent{{
+			ActorID: "ally:private-uid",
+			Targets: []abyssLivePresentationOutcome{{TargetID: "enemy#3"}, {TargetID: "pet:private-uid#1"}, {TargetID: "ally:other-secret"}},
+		}},
+	}
+	original := snapshot.PresentationEvents[0].Targets[0].TargetID
+	public := sanitizeAbyssSpectatorSnapshot(snapshot)
+	raw, err := json.Marshal(public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "private-uid") || strings.Contains(string(raw), "other-secret") {
+		t.Fatalf("spectator snapshot leaked an account identifier: %s", raw)
+	}
+	if public.Allies[0].EntityID != public.Allies[0].ID || public.PresentationEvents[0].ActorID != public.Allies[0].ID {
+		t.Fatalf("ally references were not remapped consistently: %#v", public)
+	}
+	if public.PresentationEvents[0].Targets[0].TargetID != public.Enemies[0].ID {
+		t.Fatalf("enemy entity reference = %q, want %q", public.PresentationEvents[0].Targets[0].TargetID, public.Enemies[0].ID)
+	}
+	if snapshot.PresentationEvents[0].Targets[0].TargetID != original {
+		t.Fatal("sanitizer mutated the owner's presentation events")
 	}
 }

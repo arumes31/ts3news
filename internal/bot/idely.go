@@ -2,8 +2,10 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -442,9 +444,41 @@ func parseClientActivity(line string) (clid int, isTalkStart bool, ok bool) {
 	return 0, false, false
 }
 
+var errServerQueryPlaintextRefused = errors.New("serverquery: refusing plaintext login to a public address; use a private network path or set IDELY_QUERY_ALLOW_PLAINTEXT=true behind an encrypted tunnel")
+
+// serverQueryHostIsPrivate reports whether every address host resolves to is
+// loopback, private (RFC 1918 / ULA) or link-local.
+func serverQueryHostIsPrivate(host string) bool {
+	if host == "" {
+		return false
+	}
+	var ips []net.IP
+	if ip := net.ParseIP(host); ip != nil {
+		ips = []net.IP{ip}
+	} else {
+		resolved, err := net.LookupIP(host)
+		if err != nil || len(resolved) == 0 {
+			return false
+		}
+		ips = resolved
+	}
+	for _, ip := range ips {
+		if !ip.IsLoopback() && !ip.IsPrivate() && !ip.IsLinkLocalUnicast() {
+			return false
+		}
+	}
+	return true
+}
+
 // snapshotServerQuery queries client states directly from ServerQuery.
 func (s *Supervisor) snapshotServerQuery(cfg *config.Config) ([]idely.Client, error) {
-	addr := fmt.Sprintf("%s:%d", cfg.TS3Host, cfg.IdelyQueryPort)
+	// ServerQuery has no transport encryption, so the reusable query
+	// credentials are only sent to loopback/private addresses unless the
+	// operator confirms an encrypted tunnel protects the path.
+	if !cfg.IdelyQueryAllowPlaintext && !serverQueryHostIsPrivate(cfg.TS3Host) {
+		return nil, errServerQueryPlaintextRefused
+	}
+	addr := net.JoinHostPort(cfg.TS3Host, strconv.Itoa(cfg.IdelyQueryPort))
 	conn, err := clientquery.Dial(addr, 5*time.Second)
 	if err != nil {
 		return nil, err

@@ -366,6 +366,14 @@ type Gear struct {
 	// Prismatic marks an item whose etched rune was elevated at the forge,
 	// baking +5% into its highest combat stat (once per item).
 	Prismatic bool `json:"prismatic,omitempty"`
+	// PrismaticBaked is the lifetime record that the prismatic stat bonus was
+	// granted. Unlike Prismatic it survives rune scraping, so the once-per-item
+	// limit cannot be reset by scraping and re-etching.
+	PrismaticBaked bool `json:"prismatic_baked,omitempty"`
+	// AwakenOptions holds a pending guided-awaken roll. It lives on the item
+	// itself so the roll follows the item through inventory and equipment
+	// moves and cannot be refreshed by changing the item's location.
+	AwakenOptions []string `json:"awaken_options,omitempty"`
 
 	// Reinforced is the forge reinforce level (armor/jewelry only, cap 10); each
 	// level bakes +2% DEF (min +1). Sharpened is the weapon equivalent, baking

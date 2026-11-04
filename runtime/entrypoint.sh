@@ -26,7 +26,10 @@ if [ -f /app/config.env ]; then
     [[ "$key" =~ ^[[:space:]]*#.*$ || -z "$key" ]] && continue
     key=$(echo "$key" | xargs)
     value=$(echo "$value" | sed "s/^[[:space:]]*[\"']//;s/[\"'][[:space:]]*$//" | xargs)
-    if [ -n "$key" ] && [ -z "${!key}" ]; then
+    # Only import names that are absent from the environment. An explicitly
+    # empty variable (e.g. ABYSS_OPS_TOKEN= to disable ops access) must win
+    # over a retained file value, matching the Go loader's os.LookupEnv rule.
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ -z "${!key+x}" ]; then
       export "$key=$value"
     fi
   done < <(sed 's/\r$//' /app/config.env)
@@ -79,6 +82,9 @@ if [ -n "${TS3_IDENTITY:-}" ]; then
   python3 /opt/inject_identity.py "$TS3_IDENTITY" /root/.ts3client/settings.db || echo "[entrypoint] WARNING: identity injection failed"
 else
   echo "[entrypoint] TS3_IDENTITY not set; using the profile's own identity."
+  echo "[entrypoint] WARNING: a freshly seeded profile carries the identity bundled in the image, which every"
+  echo "[entrypoint] WARNING: image recipient shares. Set TS3_IDENTITY to a unique identity and"
+  echo "[entrypoint] WARNING: revoke server permissions granted to the bundled one."
 fi
 
 # Virtual display + dbus session (shared across all cycles).

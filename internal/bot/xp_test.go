@@ -90,16 +90,21 @@ func TestAwardXP(t *testing.T) {
 	uid := "user1"
 	nickname := "Hero"
 
-	// Existing user
-	mock.ExpectQuery(`SELECT xp, level FROM users`).
+	// Existing user: the delta is applied to the locked current row.
+	mock.ExpectBegin()
+	mock.ExpectExec(`INSERT INTO users`).
+		WithArgs(uid, nickname).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`SELECT xp, level FROM users WHERE client_uid = \$1 FOR UPDATE`).
 		WithArgs(uid).
 		WillReturnRows(sqlmock.NewRows([]string{"xp", "level"}).AddRow(100, 5))
-	mock.ExpectExec(`INSERT INTO users`).
-		WithArgs(uid, nickname, 150, 8). // 100 + 50 = 150 XP which is level 8
+	mock.ExpectExec(`UPDATE users SET xp = \$2, level = \$3`).
+		WithArgs(uid, 150, 8). // 100 + 50 = 150 XP which is level 8
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
 	lr, err := b.awardXP(uid, nickname, 50)
-	if err != nil || lr.NewLevel != 8 || lr.TotalXP != 150 {
+	if err != nil || lr.NewLevel != 8 || lr.TotalXP != 150 || lr.Applied != 50 {
 		t.Errorf("awardXP failed: %v, %+v", err, lr)
 	}
 
@@ -209,7 +214,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WithArgs("user1").
 			WillReturnRows(sqlmock.NewRows([]string{"vip_points"}).AddRow(0))
 		// Update persistent state
-		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
+		mock.ExpectExec(`UPDATE users SET current_hp = CASE WHEN users.current_hp <= 0 AND EXISTS \(SELECT 1 FROM abyss_active a WHERE a.client_uid = users.client_uid\) THEN users.current_hp ELSE \$2 END, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// Consumables update
 		mock.ExpectExec(`UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = \$1`).
@@ -294,7 +299,7 @@ func TestResolveChannelCombat_Comprehensive(t *testing.T) {
 			WithArgs("user2").
 			WillReturnRows(sqlmock.NewRows([]string{"xp"}).AddRow(1000))
 		// Update persistent state
-		mock.ExpectExec(`UPDATE users SET current_hp = \$2, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
+		mock.ExpectExec(`UPDATE users SET current_hp = CASE WHEN users.current_hp <= 0 AND EXISTS \(SELECT 1 FROM abyss_active a WHERE a.client_uid = users.client_uid\) THEN users.current_hp ELSE \$2 END, regen_stacks = \$3, gold = users.gold \+ \$4 WHERE client_uid = \$1`).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// Consumables update
 		mock.ExpectExec(`UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = \$1`).

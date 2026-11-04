@@ -28,6 +28,19 @@ func (defaultCombatRandomSource) IntN(n int) int {
 	return rand.IntN(n)
 }
 
+// serverPrivateFloat64 and serverPrivateIntN draw from the process-wide,
+// OS-seeded generator. Use them for shared economic awards (such as jackpots)
+// that must stay independent of the replayable, client-visible combat stream.
+func serverPrivateFloat64() float64 {
+	// #nosec G404 -- independent of the disclosed combat seed; not a credential.
+	return rand.Float64()
+}
+
+func serverPrivateIntN(n int) int {
+	// #nosec G404 -- independent of the disclosed combat seed; not a credential.
+	return rand.IntN(n)
+}
+
 func (c *abyssLiveCombat) Float64() float64 {
 	c.rngMu.Lock()
 	defer c.rngMu.Unlock()

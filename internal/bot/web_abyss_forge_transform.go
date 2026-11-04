@@ -58,7 +58,10 @@ func (s *WebServer) handleAbyssScrapeRune(w http.ResponseWriter, r *http.Request
 	g.Element = ""
 	prismaticNote := ""
 	if g.Prismatic {
+		// Keep the lifetime marker: the baked bonus stays, so the item can
+		// never be enhanced again after re-etching.
 		g.Prismatic = false
+		g.PrismaticBaked = true
 		prismaticNote = " The prismatic +5% stays baked into the stats."
 	}
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
@@ -574,15 +577,12 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	key := forge4ItemKey(req.InvID, req.Slot)
+	// The pending roll is stored on the item instance, not under its current
+	// inventory ID or slot, so moving the item never yields a fresh roll.
 	pendingKey := forge4GuidedAwakenKey(uid, key)
-	var pending forge4GuidedAwakenPending
-	var raw string
-	if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", pendingKey).Scan(&raw); err == nil {
-		_ = json.Unmarshal([]byte(raw), &pending)
-	}
-	if len(pending.Options) == 3 && pending.ItemKey == key {
+	if len(g.AwakenOptions) == 3 {
 		if req.Choice == nil {
-			writeJSON(w, map[string]any{"ok": true, "options": pending.Options, "item": key, "msg": "Pick one of your rolled Specials (choice 0-2) — 6 Umbral Cores on commit."})
+			writeJSON(w, map[string]any{"ok": true, "options": g.AwakenOptions, "item": key, "msg": "Pick one of your rolled Specials (choice 0-2) — 6 Umbral Cores on commit."})
 			return
 		}
 	} else {
@@ -590,10 +590,21 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, map[string]any{"ok": false, "error": "no pending roll for this item — call without choice first"})
 			return
 		}
-		pending = forge4GuidedAwakenPending{ItemKey: key, Options: forge4GuidedAwakenOptions()}
-		buf, _ := json.Marshal(pending)
-		if _, err := tx.Exec(`INSERT INTO app_meta (key, value) VALUES ($1, $2)
-		                      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, pendingKey, string(buf)); err != nil {
+		// Honour a roll stored by an older build under the location key once,
+		// then keep it on the item.
+		options := forge4GuidedAwakenOptions()
+		var legacy forge4GuidedAwakenPending
+		var raw string
+		if err := tx.QueryRow("SELECT value FROM app_meta WHERE key=$1", pendingKey).Scan(&raw); err == nil {
+			if json.Unmarshal([]byte(raw), &legacy) == nil && len(legacy.Options) == 3 && legacy.ItemKey == key {
+				options = legacy.Options
+			}
+		}
+		g.AwakenOptions = options
+		if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
+			return
+		}
+		if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", pendingKey); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
@@ -601,7 +612,7 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
 		}
-		writeJSON(w, map[string]any{"ok": true, "options": pending.Options, "item": key,
+		writeJSON(w, map[string]any{"ok": true, "options": g.AwakenOptions, "item": key,
 			"msg": "🔮 The forge reveals three dormant powers. Commit with choice 0-2 (6 Umbral Cores) — the roll is locked in until then."})
 		return
 	}
@@ -616,14 +627,11 @@ func (s *WebServer) handleAbyssGuidedAwaken(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "guided awaken")
-	pick := content.ItemEffect(pending.Options[choice])
+	pick := content.ItemEffect(g.AwakenOptions[choice])
 	g.Special = pick
 	g.Awakened = true
+	g.AwakenOptions = nil
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
-		return
-	}
-	if _, err := tx.Exec("DELETE FROM app_meta WHERE key=$1", pendingKey); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if !s.finishForge(w, tx, uid, "guided awaken", fmt.Sprintf("%s → %s", g.Name, pick), "6🟣") {

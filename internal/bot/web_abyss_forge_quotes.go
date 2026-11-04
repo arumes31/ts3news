@@ -372,9 +372,23 @@ func forgeQuoteOutcome(operation string, gear *content.Gear, chance float64) aby
 	return result
 }
 
+// redactUnidentifiedIdentifyQuote conceals an unidentified target's protected
+// attributes in every quote, whatever operation was requested, so no quoted
+// operation can reveal what identification would.
 func redactUnidentifiedIdentifyQuote(operation string, gear *content.Gear, quote *abyssForgeQuote) {
-	if operation != "identify" || gear == nil || !gear.Unidentified || quote == nil {
+	if gear == nil || !gear.Unidentified || quote == nil {
 		return
+	}
+	if operation != "identify" {
+		// Rarity-scaled prices and recovery yields would reveal the hidden
+		// rarity, so non-identification quotes conceal them as well.
+		quote.Warnings = append(quote.Warnings, "Identify this item before forging it.")
+		quote.Cost = abyssForgeQuoteCost{}
+		quote.CostMinimum = abyssForgeQuoteCost{}
+		quote.CostMaximum = abyssForgeQuoteCost{}
+		quote.BalanceAfter = quote.BalanceBefore
+		quote.Recovery = map[string]int{}
+		quote.CostExplanation = "Costs are shown after identification."
 	}
 	quote.Current = nil
 	quote.CurrentCR = nil

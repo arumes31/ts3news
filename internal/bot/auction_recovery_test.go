@@ -81,7 +81,7 @@ func TestAutoPurchaseUpgradesExcludesCompletedSales(t *testing.T) {
 	// A vendor sale or a sale whose buyer was deleted has no buyer UID but
 	// must remain sold even if its expiry is in the future.
 	mock.ExpectQuery(`SELECT id, item_type, item_id, item_name, item_data, price, seller_uid\s+FROM auction_house\s+WHERE sold_at IS NULL AND buyer_uid IS NULL AND expires_at > NOW\(\)`).
-		WithArgs(int64(100)).
+		WithArgs(int64(100), "buyer").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "item_type", "item_id", "item_name", "item_data", "price", "seller_uid"}))
 	if got := (&Bot{DB: database}).autoPurchaseUpgrades("buyer", 100); got != "" {
 		t.Fatalf("purchase = %q, want none", got)
@@ -104,18 +104,17 @@ func TestAutoPurchaseUpgradesRollsBackWhenListingWasSold(t *testing.T) {
 		t.Fatal(err)
 	}
 	mock.ExpectQuery("SELECT id, item_type, item_id, item_name, item_data, price, seller_uid").
-		WithArgs(int64(100)).
+		WithArgs(int64(100), "buyer").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "item_type", "item_id", "item_name", "item_data", "price", "seller_uid"}).
 			AddRow("listing", "gear", gear.ID, gear.Name, payload, int64(50), "seller"))
 	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear").
 		WithArgs("buyer", string(content.SlotHead)).WillReturnError(sql.ErrNoRows)
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1")).
-		WithArgs(int64(50), "buyer").WillReturnResult(sqlmock.NewResult(0, 1))
-	// House cleanup can complete after discovery and before the claim. A NULL
-	// buyer alone cannot establish whether the listing is still available.
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW() WHERE id = $2 AND sold_at IS NULL AND buyer_uid IS NULL")).
-		WithArgs("buyer", "listing").WillReturnResult(sqlmock.NewResult(0, 0))
+	// House cleanup can complete after discovery and before the claim. The
+	// purchase rereads the listing under a row lock and moves no gold when it
+	// is no longer available.
+	mock.ExpectQuery(`SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability, current_bid, bidder_uid\s+FROM auction_house\s+WHERE id=\$1 AND sold_at IS NULL AND buyer_uid IS NULL AND expires_at > NOW\(\)\s+FOR UPDATE`).
+		WithArgs("listing").WillReturnError(sql.ErrNoRows)
 	mock.ExpectRollback()
 
 	if got := (&Bot{DB: database}).autoPurchaseUpgrades("buyer", 100); got != "" {
@@ -348,6 +347,61 @@ func TestLegacyAuctionRecoveryOnlyAcceptsUnidentifiedGear(t *testing.T) {
 	err = (&Bot{DB: database}).recoverLegacyUnidentifiedAuctionListing("listing-5")
 	if err == nil || !strings.Contains(err.Error(), "not unidentified") {
 		t.Fatalf("recover listing error = %v, want non-unidentified rejection", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAutoPurchaseUpgradesSettlesLikeBuyNow(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+
+	gear := content.Gear{ID: "upgrade", Name: "Upgrade", Slot: content.SlotHead, Stats: content.Stats{STR: 50}, MaxDurability: 100}
+	payload, err := json.Marshal(gear)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("SELECT id, item_type, item_id, item_name, item_data, price, seller_uid").
+		WithArgs(int64(100), "buyer").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "item_type", "item_id", "item_name", "item_data", "price", "seller_uid"}).
+			AddRow("listing", "gear", gear.ID, gear.Name, payload, int64(50), "seller"))
+	mock.ExpectQuery("SELECT gear_id, item_data FROM user_gear").
+		WithArgs("buyer", string(content.SlotHead)).WillReturnError(sql.ErrNoRows)
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT item_type, item_id, item_name, item_data, price, seller_uid, durability, current_bid, bidder_uid").
+		WithArgs("listing").
+		WillReturnRows(sqlmock.NewRows([]string{"item_type", "item_id", "item_name", "item_data", "price", "seller_uid", "durability", "current_bid", "bidder_uid"}).
+			AddRow("gear", gear.ID, gear.Name, payload, int64(50), "seller", int64(12), int64(30), "bidder"))
+	// The displaced bid reservation is refunded.
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold = gold + $1 WHERE client_uid = $2")).
+		WithArgs(int64(30), "bidder").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold = gold - $1 WHERE client_uid = $2 AND gold >= $1")).
+		WithArgs(int64(50), "buyer").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE auction_house SET buyer_uid = $1, sold_at = NOW(), current_bid = 0, bidder_uid = NULL WHERE id = $2 AND sold_at IS NULL AND buyer_uid IS NULL")).
+		WithArgs("buyer", "listing").WillReturnResult(sqlmock.NewResult(0, 1))
+	// The seller receives the price net of the 5% community tax (ceil(2.5)=3g),
+	// and the tax funds the Abyss jackpot.
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE users SET gold = gold + $1 WHERE client_uid = $2")).
+		WithArgs(int64(47), "seller").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE arcade_jackpots SET amount=amount+$1,updated_at=NOW() WHERE game_key='abyss'")).
+		WithArgs(int64(3)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO abyss_economy_events").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT forge_undo FROM users WHERE client_uid=$1 FOR UPDATE")).
+		WithArgs("buyer").WillReturnRows(sqlmock.NewRows([]string{"client_uid"}).AddRow("buyer"))
+	mock.ExpectQuery("SELECT gear_id, durability, item_data FROM user_gear").
+		WithArgs("buyer", string(content.SlotHead)).WillReturnError(sql.ErrNoRows)
+	// The listing's saved durability is preserved, not reset to maximum.
+	mock.ExpectExec("INSERT INTO user_gear").
+		WithArgs("buyer", string(content.SlotHead), gear.ID, 12, payload).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	if got := (&Bot{DB: database}).autoPurchaseUpgrades("buyer", 100); got == "" {
+		t.Fatal("expected an automatic purchase")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

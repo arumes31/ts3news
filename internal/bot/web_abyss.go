@@ -1157,6 +1157,10 @@ func (b *Bot) fightAbyssFloorMode(
 		}
 	}
 	for i := range combatUsers {
+		// Clone helpers neither receive nor spend their source account's cheers.
+		if combatUsers[i].IsClone {
+			continue
+		}
 		if b.applyAbyssCheer(&combatUsers[i]) {
 			logs = append(logs, fmt.Sprintf("[color=#41c97a]🎉 Daily cheer empowers %s with +5%% combat stats.[/color]", combatUsers[i].Nickname))
 		}
@@ -1210,8 +1214,17 @@ func (b *Bot) fightAbyssFloorMode(
 	classCtx, classCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	resLogs = append(resLogs, b.awardAbyssClassCredits(classCtx, combatUsers, uid, classSeed, depth, victory)...)
 	classCancel()
-	b.routeAbyssPartyLoot(uid, partyUIDs, partyLootStarts, abyssPartyLootRuleFromID(flags["party_loot_rule"]), isBossFloor)
+	// Bound routing to the escrow rows created during this fight window.
+	partyLootEnds := make(map[string]int64, len(combatUsers))
 	for i := range combatUsers {
+		partyLootEnds[combatUsers[i].UID] = b.abyssEscrowHighWater(combatUsers[i].UID)
+	}
+	b.routeAbyssPartyLoot(uid, partyUIDs, partyLootStarts, partyLootEnds, abyssPartyLootRuleFromID(flags["party_loot_rule"]), isBossFloor)
+	for i := range combatUsers {
+		// Helper clones never spend their source account's daily cheers.
+		if combatUsers[i].IsClone {
+			continue
+		}
 		b.consumeAbyssCheer(combatUsers[i].UID)
 	}
 	b.updateAbyssNemesis(uid, mobPtrs, victory)
@@ -1937,6 +1950,12 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	// Starting one's own descent leaves any party another player enrolled
+	// this account in; that enrollment cannot block the player's own runs.
+	if _, err := s.leaveAbyssPartyAsMember(r.Context(), uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "could not leave the shared run party; retry"})
+		return
+	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
 	var partyOwner string
@@ -2215,7 +2234,18 @@ func (s *WebServer) handleAbyssEnter(w http.ResponseWriter, r *http.Request, uid
 		var on bool
 		_ = s.bot.DB.QueryRow("SELECT abyss_auto_repair FROM users WHERE client_uid=$1", uid).Scan(&on)
 		if on {
-			if cost := s.bot.abyssRepairAllCost(uid); cost > 0 {
+			// Price and repair the same equipment set: lock the account row
+			// shared with equipment writers, then quote inside this tx.
+			cost := int64(0)
+			s.bot.ensureGearMaxDurability(uid)
+			if err := lockAccountForEquipment(tx, uid); err != nil {
+				writeJSON(w, map[string]any{"ok": false, "error": "db"})
+				return
+			}
+			if quote, err := abyssRepairAllQuoteTx(s.bot, tx, uid); err == nil {
+				cost = quote.Cost
+			}
+			if cost > 0 {
 				covered := s.bot.abyssRepairSubscriptionActive(uid, time.Now())
 				charge := abyssRepairSubscriptionCharge(cost, covered)
 				canRepair := covered
@@ -3407,7 +3437,11 @@ func (s *WebServer) commitFloor(w http.ResponseWriter, uid string, run abyssRun,
 		combat, err := s.startAbyssLiveCombat(uid, run, newDepth, tier, modifier, focus)
 		if err != nil {
 			_, _ = s.bot.DB.Exec("UPDATE abyss_active SET depth=$1, modifier='', event_state=NULL, last_action_at=NOW() WHERE client_uid=$2", run.Depth, uid)
-			writeJSON(w, map[string]any{"ok": false, "error": "could not start live combat"})
+			msg := "could not start live combat"
+			if errors.Is(err, errAbyssParticipantInCombat) {
+				msg = "a party member is still finishing another combat; try again shortly"
+			}
+			writeJSON(w, map[string]any{"ok": false, "error": msg})
 			return
 		}
 		s.bot.recordAbyssRunChoice(uid, newDepth, "resolved_floor", floorType)
@@ -4513,6 +4547,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
+	// Record every committed bank payout, including continuing modes (partial
+	// bank, armored transport), atomically with the payout, as the last write before commit. The bank-free-day
+	// tax rebate checks this marker. Stored as seen so it is not a notice.
+	if err := recordAbyssBankPayout(tx, uid, payout, continuing); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
@@ -4716,6 +4757,8 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 	stats := s.bot.abyssCombatStats(uid)
 	momentumBefore := s.bot.loadAbyssRun(uid).Momentum
 
+	// Validate every effect's policy before anything is consumed or granted.
+	repairAmt := 0
 	switch c.Type {
 	case content.ConsumableHealing:
 		// A lobby heal must not bypass the downed revive flow: while downed the only
@@ -4724,24 +4767,15 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			writeJSON(w, map[string]any{"ok": false, "error": "cannot heal while downed — revive or concede"})
 			return
 		}
-		// Heal player
-		healAmt := int(float64(stats.HP) * c.EffectValue)
-		if healAmt < 50 {
-			healAmt = 50
-		}
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = LEAST(current_hp + $1, $2) WHERE client_uid = $3", healAmt, stats.HP, uid)
 	case content.ConsumableRepair:
-		repairAmt := 30
+		repairAmt = 30
 		if req.ConsID == "repair_kit_ii" {
 			repairAmt = 50
 		}
 		if req.ConsID == "master_repair_kit" {
 			repairAmt = 150
 		}
-		// Repair gear
 		s.bot.ensureGearMaxDurability(uid)
-		_, _ = s.bot.DB.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, "+gearMaxDurExpr+") WHERE client_uid = $2", repairAmt, uid)
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
 	case content.ConsumableBuff:
 		// Buffs elixirs: manual use sets them to active (3 remaining fights).
 		// Do NOT fall through to the shared delete — buffs stay owned while active.
@@ -4775,21 +4809,72 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 			writeJSON(w, map[string]any{"ok": false, "error": "you are not downed"})
 			return
 		}
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid)
+		// Hardcore runs forbid every form of revival, matching handleAbyssRevive
+		// and the revival-item purchase guard.
+		if abyssHardcoreRun(s.bot.loadRunFlags(uid)) {
+			writeJSON(w, map[string]any{"ok": false, "error": "hardcore runs do not allow revival"})
+			return
+		}
 	default:
 		writeJSON(w, map[string]any{"ok": false, "error": "consumable type cannot be used manually"})
 		return
 	}
-	if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid)
-	}
 
-	// Consume 1 stacked item: decrement remaining_fights and only delete the row
-	// when the last one is used, so stacked grants from grantConsumable aren't all
-	// wiped by a single use.
-	res, _ := s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 1", uid, req.ConsID)
+	// Debit one stacked item and grant its effect in the same transaction. The
+	// debit locks the consumable row, so a concurrent trade reservation or other
+	// consumer either waits or makes this debit fail; the effect is granted only
+	// when an item was actually consumed.
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	// Decrement remaining_fights and only delete the row when the last one is
+	// used, so stacked grants from grantConsumable aren't all wiped by one use.
+	res, err := tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = remaining_fights - 1 WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 1", uid, req.ConsID)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		res, err = tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ DELETE FROM user_consumables WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 0", uid, req.ConsID)
+		if err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			writeJSON(w, map[string]any{"ok": false, "error": "you do not own this consumable"})
+			return
+		}
+	}
+	switch c.Type {
+	case content.ConsumableHealing:
+		healAmt := int(float64(stats.HP) * c.EffectValue)
+		if healAmt < 50 {
+			healAmt = 50
+		}
+		_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = LEAST(current_hp + $1, $2) WHERE client_uid = $3", healAmt, stats.HP, uid)
+	case content.ConsumableRepair:
+		if _, err = tx.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, "+gearMaxDurExpr+") WHERE client_uid = $2", repairAmt, uid); err == nil {
+			_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET artifact_durability = LEAST(artifact_durability + 15, 30) WHERE client_uid = $1 AND artifact_durability > 0", uid)
+		}
+	case content.ConsumableRevive:
+		_, err = tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = $1 WHERE client_uid = $2", stats.HP, uid)
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
+		if _, err := tx.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE users SET current_hp = GREATEST(0, current_hp - $1) WHERE client_uid = $2", backlash, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
 	}
 	s.bot.abyssSpendLoadout(uid, req.ConsID)
 	_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = 0 WHERE client_uid=$1", uid) // #7 momentum breaks on consumable use
@@ -6406,38 +6491,56 @@ func (s *WebServer) handleAbyssCoopLeave(w http.ResponseWriter, r *http.Request,
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	var ownerUID string
-	if s.bot.DB.QueryRow("SELECT owner_uid FROM abyss_party_members WHERE member_uid=$1", uid).Scan(&ownerUID) != nil {
+	left, err := s.leaveAbyssPartyAsMember(r.Context(), uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if !left {
 		writeJSON(w, map[string]any{"ok": false, "error": "you are not in a shared run party"})
 		return
 	}
+	writeJSON(w, map[string]any{"ok": true, "msg": "You left the shared run party."})
+}
+
+var errAbyssPartyChanged = errors.New("party membership changed; refresh and retry")
+
+// leaveAbyssPartyAsMember removes uid from the shared run party it was
+// enrolled in, if any, and reports whether it left one. Enrollment is
+// initiated by the party owner without the member's acceptance, so it must
+// never restrict the member's own account: the member's own descent and class
+// changes call this to drop the membership instead of being blocked by it.
+// It must be called without holding uid's Abyss lock (it takes the owner's).
+func (s *WebServer) leaveAbyssPartyAsMember(ctx context.Context, uid string) (bool, error) {
+	var ownerUID string
+	if err := s.bot.DB.QueryRowContext(ctx, "SELECT owner_uid FROM abyss_party_members WHERE member_uid=$1", uid).Scan(&ownerUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, errors.New("db")
+	}
 	unlock := s.lockAbyss(ownerUID)
 	defer unlock()
-	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	tx, err := s.bot.DB.BeginTx(ctx, nil)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
+		return false, errors.New("db")
 	}
 	defer func() { _ = tx.Rollback() }()
 	result, err := tx.Exec("DELETE FROM abyss_party_members WHERE owner_uid=$1 AND member_uid=$2", ownerUID, uid)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
+		return false, errors.New("db")
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "party membership changed; refresh and retry"})
-		return
+		return false, errAbyssPartyChanged
 	}
 	if _, err := tx.Exec(`UPDATE abyss_active SET coop_uid=(SELECT member_uid FROM abyss_party_members
 		WHERE owner_uid=$1 ORDER BY joined_at LIMIT 1),last_action_at=NOW() WHERE client_uid=$1`, ownerUID); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
+		return false, errors.New("db")
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
+		return false, errors.New("db")
 	}
-	writeJSON(w, map[string]any{"ok": true, "msg": "You left the shared run party."})
+	return true, nil
 }
 
 func (s *WebServer) handleAbyssPrestige(w http.ResponseWriter, r *http.Request, uid string) {

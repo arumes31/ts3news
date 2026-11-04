@@ -519,13 +519,28 @@ type forgeUndoSnapshot struct {
 	InvID2    int64  `json:"inv_id2,omitempty"`
 	Slot2     string `json:"slot2,omitempty"`
 	ItemData2 string `json:"item_data2,omitempty"`
+	// Reclaim lists material outputs the action paid out (for example gem
+	// extraction shards). Undo debits them atomically before restoring the
+	// item, and refuses when they can no longer be reclaimed.
+	Reclaim map[string]int `json:"reclaim,omitempty"`
+}
+
+// targetsSlot reports whether the snapshot restores an equipped slot.
+func (snap forgeUndoSnapshot) targetsSlot(slot string) bool {
+	return (snap.InvID == 0 && snap.Slot == slot) || (snap.ItemData2 != "" && snap.InvID2 == 0 && snap.Slot2 == slot)
 }
 
 // snapshotForgeUndo runs inside the caller's forge transaction so the snapshot
 // only persists if the action it belongs to actually commits, and always
 // overwrites so the stored undo reflects the latest action.
 func (b *Bot) snapshotForgeUndo(tx *sql.Tx, uid string, invID int64, slot, itemData, action string) {
-	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action})
+	b.snapshotForgeUndoWithReclaim(tx, uid, invID, slot, itemData, action, nil)
+}
+
+// snapshotForgeUndoWithReclaim also records the material payout the action
+// grants, so an undo reverses the conversion instead of keeping both sides.
+func (b *Bot) snapshotForgeUndoWithReclaim(tx *sql.Tx, uid string, invID int64, slot, itemData, action string, reclaim map[string]int) {
+	snap, _ := json.Marshal(forgeUndoSnapshot{InvID: invID, Slot: slot, ItemData: itemData, Action: action, Reclaim: reclaim})
 	if err := b.storeForgeUndoSnapshot(tx, uid, string(snap)); err != nil {
 		// Callers perform more transactional work immediately after taking the
 		// snapshot. Rolling back here makes that work fail closed instead of ever
@@ -542,6 +557,38 @@ func (b *Bot) snapshotForgeUndoPair(tx *sql.Tx, uid string, invID int64, slot, i
 	if err := b.storeForgeUndoSnapshot(tx, uid, string(snap)); err != nil {
 		_ = tx.Rollback()
 	}
+}
+
+// invalidateForgeUndoForSlot drops undo snapshots that would restore the
+// equipped slot after its occupant was replaced. Snapshots identify equipped
+// items only by slot, so once another item occupies it the snapshot could copy
+// the original item's saved state onto the replacement.
+func invalidateForgeUndoForSlot(db dbOrTx, uid, slot, currentSnapshot string) error {
+	var snap forgeUndoSnapshot
+	currentInvalid := currentSnapshot != "" && json.Unmarshal([]byte(currentSnapshot), &snap) == nil && snap.targetsSlot(slot)
+	var previous string
+	if err := db.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&previous); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	var prev forgeUndoSnapshot
+	previousValid := previous != "" && json.Unmarshal([]byte(previous), &prev) == nil && !prev.targetsSlot(slot)
+	if previous != "" && (!previousValid || currentInvalid) {
+		// Drop an invalidated previous snapshot, or one being promoted below.
+		if _, err := db.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous"); err != nil {
+			return err
+		}
+	}
+	if currentInvalid {
+		// Promote a still-valid previous snapshot so it stays reachable.
+		promoted := ""
+		if previousValid {
+			promoted = previous
+		}
+		if _, err := db.Exec("/* economy:bot.invalidateForgeUndoForSlot */ UPDATE users SET forge_undo=NULLIF($2, '') WHERE client_uid=$1", uid, promoted); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // storeForgeUndoSnapshot keeps the previous snapshot only for owners of the
@@ -658,6 +705,10 @@ func (s *WebServer) handleAbyssForgeUndo(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
+	if len(snap.Reclaim) > 0 && !spendMaterials(tx, uid, snap.Reclaim) {
+		writeJSON(w, map[string]any{"ok": false, "error": "the materials this action produced have been spent; it can no longer be undone"})
+		return
+	}
 	if !writeGearItemData(w, tx, uid, snap.InvID, snap.Slot, snap.ItemData) {
 		return
 	}
@@ -729,6 +780,12 @@ func loadForgeItem(tx *sql.Tx, b *Bot, uid string, invID int64, slot string) (co
 	var gearID string
 	var itemData sql.NullString
 	var err error
+	// A request must name exactly one target. Accepting both selectors would
+	// let one operation load and price an inventory item while side effects
+	// keyed by slot (such as equipped-durability repair) hit another item.
+	if invID > 0 && slot != "" {
+		return content.Gear{}, "", false
+	}
 	if invID > 0 {
 		err = tx.QueryRow("SELECT gear_id, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2 FOR UPDATE", invID, uid).Scan(&gearID, &itemData)
 	} else if slot != "" {
@@ -1053,7 +1110,7 @@ func (s *WebServer) handleAbyssExtractGem(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown gem type"})
 		return
 	}
-	s.bot.snapshotForgeUndo(tx, uid, req.InvID, req.Slot, rawData, "gem extraction")
+	s.bot.snapshotForgeUndoWithReclaim(tx, uid, req.InvID, req.Slot, rawData, "gem extraction", map[string]int{"shard": 2 * tier})
 	// Remove the gem's full contribution: tier I=1×, II=2×, III=4× base.
 	totalMult := []float64{0, 1, 2, 4}[tier]
 	g.Stats = g.Stats.Add(baseStats.Scaled(-totalMult))
@@ -1526,6 +1583,13 @@ func (b *Bot) abyssRepairAllCost(uid string) int64 {
 	return quote.Cost
 }
 
+// lockAccountForEquipment takes the per-account row lock shared with
+// equipGear for the rest of the transaction.
+func lockAccountForEquipment(tx *sql.Tx, uid string) error {
+	var locked string
+	return tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&locked)
+}
+
 func abyssRepairAllQuoteTx(b *Bot, tx *sql.Tx, uid string) (abyssRepairQuote, error) {
 	var runDepth int
 	_ = tx.QueryRow("SELECT depth FROM abyss_active WHERE client_uid=$1", uid).Scan(&runDepth)
@@ -1585,6 +1649,12 @@ func (s *WebServer) handleAbyssRepairAll(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Hold the account row lock that every equipment writer (equipGear) takes,
+	// so the priced equipment set cannot change before the repair applies.
+	if err := lockAccountForEquipment(tx, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
 	quote, err := abyssRepairAllQuoteTx(s.bot, tx, uid)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})

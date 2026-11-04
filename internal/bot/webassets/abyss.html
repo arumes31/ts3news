@@ -2790,7 +2790,9 @@ function decorateLogLine(d, txt){
   // UI-1: the zone line carries the biome prefix ("Mossbound …").
   if(txt.indexOf('📍')===0) setBiomeChip(txt.slice(1).split('[Diff')[0].trim());
   // UI-6: multi-wave pip row.
-  var wm=/WAVE (\d+) of (\d+)/i.exec(txt);
+  // Only the server-authored wave header (which starts the line) counts;
+  // "WAVE x of y" text inside a player nickname elsewhere in a line is ignored.
+  var wm=/^\s*\u2694\uFE0F?\s*(?:\[b\])?\s*WAVE (\d{1,2}) of (\d{1,2})\b/i.exec(txt);
   if(wm) updateWavePips(parseInt(wm[1],10), parseInt(wm[2],10));
   // UI-20: enrage → red breathing glow on the stage until the next floor.
   if(/ENRAGED/.test(txt)) setStageEnraged(true);
@@ -2863,9 +2865,12 @@ function firstStrike(side){
 }
 
 // UI-6: wave pips above the stage for multi-wave floors.
+// Encounters have at most three waves; allow a small margin but never let
+// display text choose an unbounded allocation count.
+var MAX_WAVE_PIPS=10;
 function updateWavePips(cur, tot){
   var el=document.getElementById('wavePips'); if(!el) return;
-  if(!tot || tot<2){ el.innerHTML=''; return; }
+  if(!Number.isInteger(tot) || !Number.isInteger(cur) || tot<2 || tot>MAX_WAVE_PIPS || cur<1 || cur>tot){ el.innerHTML=''; return; }
   var html='';
   for(var i=1;i<=tot;i++) html+='<span class="ab-pip'+(i<cur?' done':(i===cur?' cur':''))+'"></span>';
   el.innerHTML=html+'<span class="ab-pip-label">Wave '+cur+'/'+tot+'</span>';

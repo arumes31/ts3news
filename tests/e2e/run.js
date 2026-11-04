@@ -4,9 +4,14 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 
+// Build and run the fixture from a freshly created, owner-only directory so no
+// other local account can pre-create or swap the executable between the build
+// and spawn steps. mkdtemp creates the directory exclusively with mode 0700.
+const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ts3news-abyss-e2e-'));
+fs.chmodSync(fixtureDir, 0o700);
 const fixtureBinary = path.join(
-  os.tmpdir(),
-  `ts3news-abyss-e2e-${process.pid}${process.platform === 'win32' ? '.exe' : ''}`,
+  fixtureDir,
+  `abyss-e2e-fixture${process.platform === 'win32' ? '.exe' : ''}`,
 );
 
 function command(name, args, options = {}) {
@@ -90,7 +95,7 @@ async function main() {
     });
   } finally {
     await stopFixture(fixture);
-    fs.rmSync(fixtureBinary, { force: true });
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
   }
 }
 

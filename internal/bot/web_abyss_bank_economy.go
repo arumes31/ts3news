@@ -95,6 +95,19 @@ func (s *WebServer) handleAbyssEconomyLoan(w http.ResponseWriter, r *http.Reques
 		"gold": s.bot.abyssGold(uid), "msg": fmt.Sprintf("Cache loan paid %dg now; %dg fee is due at the next bank.", amount, fee)})
 }
 
+// recordAbyssBankPayout writes a bank marker in the payout transaction.
+func recordAbyssBankPayout(tx *sql.Tx, uid string, payout int64, continuing bool) error {
+	mode := "final"
+	if continuing {
+		mode = "continuing"
+	}
+	// clock_timestamp() records when the marker is written rather than the
+	// transaction start, so the UTC day reflects the payout itself.
+	_, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount,seen,created_at)
+		VALUES ($1,'bank_payout',$2,$3,TRUE,clock_timestamp())`, uid, fmt.Sprintf("Abyss bank payout (%s): %dg.", mode, payout), payout)
+	return err
+}
+
 func recordAbyssTax(tx *sql.Tx, uid string, tax int64) error {
 	if tax <= 0 {
 		return nil
@@ -136,9 +149,14 @@ func (s *WebServer) handleAbyssTaxRebate(w http.ResponseWriter, r *http.Request,
 	}
 	unlock := s.lockAbyss(uid)
 	defer unlock()
+	// A bank-free day means no committed bank payout of any mode since the
+	// start of the current UTC day: completed victorious runs and the bank
+	// payout markers written by every bank (including continuing modes).
 	var bankedToday bool
 	if err := s.bot.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_runs
-		WHERE client_uid=$1 AND victory=TRUE AND created_at>=CURRENT_DATE)`, uid).Scan(&bankedToday); err != nil {
+		WHERE client_uid=$1 AND victory=TRUE AND created_at>=(date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))
+		OR EXISTS(SELECT 1 FROM abyss_economy_events
+		WHERE client_uid=$1 AND kind='bank_payout' AND created_at>=(date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))`, uid).Scan(&bankedToday); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}

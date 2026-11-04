@@ -47,6 +47,13 @@ func (s *WebServer) beginForgeTx(w http.ResponseWriter, uid string, invID int64,
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return nil, content.Gear{}, "", false
 	}
+	// Forge operations never act on unidentified gear: their prices and
+	// results depend on hidden attributes, which quotes conceal.
+	if g.Unidentified {
+		_ = tx.Rollback()
+		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before forging it"})
+		return nil, content.Gear{}, "", false
+	}
 	return tx, g, rawData, true
 }
 
@@ -128,7 +135,7 @@ func (s *WebServer) handleAbyssPolish(w http.ResponseWriter, r *http.Request, ui
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if req.Slot != "" {
+	if req.InvID == 0 && req.Slot != "" {
 		if _, err := tx.Exec("UPDATE user_gear SET durability = LEAST(durability + 10, $1) WHERE slot=$2 AND client_uid=$3", g.MaxDurability, req.Slot, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return

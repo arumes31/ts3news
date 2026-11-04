@@ -820,11 +820,20 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 		return
 	}
 
-	// Look up the inventory item.
+	tx, err := s.bot.DB.Begin()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Consume the inventory instance inside the equip transaction and use the
+	// row that was actually removed. A request that loses a race with another
+	// consumer of the same item finds no row and must not equip stale data.
 	var gid string
 	var dur int
 	var itemData sql.NullString
-	if err := s.bot.DB.QueryRow("SELECT gear_id, durability, item_data FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
+	if err := tx.QueryRow("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2 RETURNING gear_id, durability, item_data", req.InvID, uid).Scan(&gid, &dur, &itemData); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return
 	}
@@ -835,19 +844,6 @@ func (s *WebServer) handleEquipAPI(w http.ResponseWriter, r *http.Request, uid s
 	}
 	if g.Unidentified {
 		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before equipping it"})
-		return
-	}
-
-	tx, err := s.bot.DB.Begin()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "tx"})
-		return
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Remove from inventory.
-	if _, err := tx.Exec("DELETE FROM user_inventory WHERE id=$1 AND client_uid=$2", req.InvID, uid); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "remove"})
 		return
 	}
 

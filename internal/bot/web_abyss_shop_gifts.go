@@ -2,7 +2,9 @@ package bot
 
 import (
 	cryptorand "crypto/rand"
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -60,8 +62,8 @@ func (s *WebServer) handleAbyssGiftCreate(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "shop price changed; refresh and review the new total", "current_cost": tokenCost})
 		return
 	}
-	var recipientUID string
-	if err := s.bot.DB.QueryRow(`SELECT client_uid FROM users WHERE client_uid=$1 OR LOWER(nickname)=LOWER($1) LIMIT 1`, strings.TrimSpace(req.Recipient)).Scan(&recipientUID); err != nil || recipientUID == uid {
+	recipientUID, err := s.bot.resolveGiftRecipient(strings.TrimSpace(req.Recipient))
+	if err != nil || recipientUID == uid {
 		writeJSON(w, map[string]any{"ok": false, "error": "recipient not found or invalid"})
 		return
 	}
@@ -149,4 +151,41 @@ func (s *WebServer) handleAbyssGiftRedeem(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, map[string]any{"ok": true, "consumables": s.bot.getConsumables(uid),
 		"msg": fmt.Sprintf("Gift redeemed: %d × %s.", quantity, consID)})
+}
+
+// resolveGiftRecipient binds a gift to a stable account. An exact UID always
+// wins; a nickname is used only when no UID matches and only when it is
+// unambiguous, so a colliding mutable nickname cannot shadow a UID.
+func (b *Bot) resolveGiftRecipient(recipient string) (string, error) {
+	if recipient == "" {
+		return "", sql.ErrNoRows
+	}
+	var uid string
+	err := b.DB.QueryRow(`SELECT client_uid FROM users WHERE client_uid=$1`, recipient).Scan(&uid)
+	if err == nil {
+		return uid, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	rows, err := b.DB.Query(`SELECT client_uid FROM users WHERE LOWER(nickname)=LOWER($1) LIMIT 2`, recipient)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = rows.Close() }()
+	var matches []string
+	for rows.Next() {
+		var candidate string
+		if err := rows.Scan(&candidate); err != nil {
+			return "", err
+		}
+		matches = append(matches, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if len(matches) != 1 {
+		return "", sql.ErrNoRows
+	}
+	return matches[0], nil
 }

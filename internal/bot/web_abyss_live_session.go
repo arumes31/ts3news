@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -42,6 +43,14 @@ func (s *WebServer) loadAbyssTactic(uid string) string {
 	return normalizeAbyssTactic(tactic)
 }
 
+// Live-combat history budgets (events retained per session).
+const (
+	abyssLiveHistorySoftLimit = 256
+	abyssLiveHistoryHardLimit = 1024
+)
+
+var errAbyssParticipantInCombat = errors.New("a participant is still in an active combat")
+
 func (s *WebServer) startAbyssLiveCombat(
 	uid string,
 	run abyssRun,
@@ -67,6 +76,15 @@ func (s *WebServer) startAbyssLiveCombat(
 	).Scan(&coopUID)
 	if coopUID != "" {
 		participants[coopUID] = true
+	}
+	// A participant whose previous combat is still running cannot be enrolled
+	// in a new one: replacing its registry entry would remove the active-
+	// combat guard that other actions (such as banking) rely on while that
+	// worker continues.
+	for memberUID := range participants {
+		if existing, ok := s.liveCombatForUID(memberUID); ok && existing.isActive() {
+			return nil, errAbyssParticipantInCombat
+		}
 	}
 
 	c := &abyssLiveCombat{
@@ -160,7 +178,11 @@ func (s *WebServer) startAbyssLiveCombat(
 		if old, ok := s.liveCombatByUID.Load(memberUID); ok {
 			oldID, isString := old.(string)
 			if isString {
-				s.liveCombats.Delete(oldID)
+				// Keep a still-running combat registered until its worker
+				// finishes; only finished combats are retired here.
+				if value, found := s.liveCombats.Load(oldID); !found || !value.(*abyssLiveCombat).isActive() {
+					s.liveCombats.Delete(oldID)
+				}
 			}
 			s.liveCombatByUID.Delete(memberUID)
 		}
@@ -419,13 +441,24 @@ func (c *abyssLiveCombat) capturePersistence() (
 
 	nextHistory := append([]abyssLiveEvent{}, c.history...)
 	if len(nextHistory) == 0 || nextHistory[len(nextHistory)-1].ID < c.version {
-		nextHistory = append(nextHistory, abyssLiveEvent{
+		event := abyssLiveEvent{
 			ID:        c.version,
 			At:        time.Now().UTC(),
 			Round:     c.round,
 			Phase:     c.phase,
 			Snapshots: snapshots,
-		})
+		}
+		last := len(nextHistory) - 1
+		// Bound retained history: past the soft budget, consecutive versions
+		// within the same round and phase (preference or social updates)
+		// replace the previous snapshot instead of appending, and at the hard
+		// budget the newest snapshot always replaces the last one.
+		if last >= 0 && (len(nextHistory) >= abyssLiveHistoryHardLimit ||
+			(len(nextHistory) >= abyssLiveHistorySoftLimit && nextHistory[last].Round == event.Round && nextHistory[last].Phase == event.Phase)) {
+			nextHistory[last] = event
+		} else {
+			nextHistory = append(nextHistory, event)
+		}
 	}
 	ownerSnapshot, ok := snapshots[c.ownerUID]
 	if !ok {
@@ -446,6 +479,15 @@ func (c *abyssLiveCombat) setTactic(uid, tactic string) error {
 	if !c.participants[uid] {
 		c.mu.Unlock()
 		return errAbyssLiveNotFound
+	}
+	// Finished combats reject changes; unchanged tactics create no version.
+	if c.terminalLocked() {
+		c.mu.Unlock()
+		return errAbyssLiveStale
+	}
+	if c.tactics[uid] == tactic {
+		c.mu.Unlock()
+		return nil
 	}
 	c.tactics[uid] = tactic
 	c.version++

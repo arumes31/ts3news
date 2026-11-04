@@ -194,6 +194,20 @@ func (s *WebServer) handleAbyssTemperGuard(w http.ResponseWriter, r *http.Reques
 
 // ---- Forge queue (AB-103) ---------------------------------------------------------
 
+// queueWithinLimits enforces a forge-queue step's operation cap and the
+// queue's aggregate gold cap, writing the error response when exceeded.
+func queueWithinLimits(w http.ResponseWriter, i int, action string, stepGold, totalGold int64, operationCaps map[string]int64, goldCap int64) bool {
+	if cap := operationCaps[action]; cap > 0 && stepGold > cap {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d (%s) exceeds its %dg spending limit", i+1, action, cap)})
+		return false
+	}
+	if goldCap > 0 && totalGold > goldCap {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queue exceeds its %dg spending cap", goldCap)})
+		return false
+	}
+	return true
+}
+
 // handleAbyssForgeQueue executes up to 3 forge actions on ONE item with a single
 // confirm. All steps are simulated first, then charged and saved atomically; any
 // failing step aborts the whole queue (nothing is charged or changed).
@@ -330,6 +344,12 @@ queueLoop:
 				return
 			}
 			totalGold += s.forge4GoldCost(uid, int64(400*(g.Temper+1)), g.Rarity)
+			// Enforce spending limits before the random outcome is chosen, so
+			// a failure (which may exit the queue early) is bound by exactly
+			// the same limits as a success.
+			if !queueWithinLimits(w, i, action, totalGold-goldBefore, totalGold, req.OperationCaps, req.GoldCap) {
+				return
+			}
 			temperUsed = true
 			if rand.Float64() < temperChance(g.Temper, failStacks) { // #nosec G404 -- non-cryptographic forge roll
 				g.Temper++
@@ -347,14 +367,15 @@ queueLoop:
 			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d: unknown action %q (polish, reinforce, sharpen, masterwork, temper)", i+1, action)})
 			return
 		}
-		if cap := req.OperationCaps[action]; cap > 0 && totalGold-goldBefore > cap {
-			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("step %d (%s) exceeds its %dg spending limit", i+1, action, cap)})
+		if !queueWithinLimits(w, i, action, totalGold-goldBefore, totalGold, req.OperationCaps, req.GoldCap) {
 			return
 		}
-		if req.GoldCap > 0 && totalGold > req.GoldCap {
-			writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queue exceeds its %dg spending cap", req.GoldCap)})
-			return
-		}
+	}
+	// Final aggregate check on every path (including early failure exits)
+	// before anything is debited or persisted.
+	if req.GoldCap > 0 && totalGold > req.GoldCap {
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("queue exceeds its %dg spending cap", req.GoldCap)})
+		return
 	}
 	if req.DryRun {
 		writeJSON(w, map[string]any{"ok": true, "dry_run": true, "steps": steps, "spent": totalGold,
@@ -373,7 +394,7 @@ queueLoop:
 	if !saveForgeItem(w, tx, uid, req.InvID, req.Slot, g) {
 		return
 	}
-	if req.Slot != "" && polishes > 0 {
+	if req.InvID == 0 && req.Slot != "" && polishes > 0 {
 		if _, err := tx.Exec("UPDATE user_gear SET durability = LEAST(durability + $1, $2) WHERE slot=$3 AND client_uid=$4", 10*polishes, g.MaxDurability, req.Slot, uid); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
 			return
