@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -103,7 +104,23 @@ func (c *abyssTreeIdempotencyCache) store(key, uid string, response abyssTreeCac
 	if old, ok := c.entries[key]; ok {
 		c.deleteLocked(key, old)
 	}
-	if len(c.entries) >= abyssTreeIdempotencyMaxEntries || c.perUser[uid] >= abyssTreeIdempotencyMaxPerUser {
+	// At the per-player budget, evict that player's oldest entry so the
+	// newest request (the one most likely to be retried) stays protected.
+	if c.perUser[uid] >= abyssTreeIdempotencyMaxPerUser {
+		oldestKey := ""
+		var oldest abyssTreeIdempotencyEntry
+		for k, entry := range c.entries {
+			if entry.uid == uid && (oldestKey == "" || entry.response.ExpiresAt.Before(oldest.response.ExpiresAt)) {
+				oldestKey, oldest = k, entry
+			}
+		}
+		if oldestKey != "" {
+			c.deleteLocked(oldestKey, oldest)
+		}
+	}
+	// The global budget is never met by evicting other players' entries.
+	if len(c.entries) >= abyssTreeIdempotencyMaxEntries {
+		log.Printf("abyss tree: idempotency cache full (%d entries); replay protection unavailable for this request", len(c.entries))
 		return false
 	}
 	c.entries[key] = abyssTreeIdempotencyEntry{uid: uid, response: response}

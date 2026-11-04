@@ -101,8 +101,10 @@ func recordAbyssBankPayout(tx *sql.Tx, uid string, payout int64, continuing bool
 	if continuing {
 		mode = "continuing"
 	}
-	_, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount,seen)
-		VALUES ($1,'bank_payout',$2,$3,TRUE)`, uid, fmt.Sprintf("Abyss bank payout (%s): %dg.", mode, payout), payout)
+	// clock_timestamp() records when the marker is written rather than the
+	// transaction start, so the UTC day reflects the payout itself.
+	_, err := tx.Exec(`INSERT INTO abyss_economy_events (client_uid,kind,message,amount,seen,created_at)
+		VALUES ($1,'bank_payout',$2,$3,TRUE,clock_timestamp())`, uid, fmt.Sprintf("Abyss bank payout (%s): %dg.", mode, payout), payout)
 	return err
 }
 

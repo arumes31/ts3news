@@ -565,21 +565,26 @@ func (b *Bot) snapshotForgeUndoPair(tx *sql.Tx, uid string, invID int64, slot, i
 // the original item's saved state onto the replacement.
 func invalidateForgeUndoForSlot(db dbOrTx, uid, slot, currentSnapshot string) error {
 	var snap forgeUndoSnapshot
-	if currentSnapshot != "" && json.Unmarshal([]byte(currentSnapshot), &snap) == nil && snap.targetsSlot(slot) {
-		if _, err := db.Exec("/* economy:bot.invalidateForgeUndoForSlot */ UPDATE users SET forge_undo=NULL WHERE client_uid=$1", uid); err != nil {
-			return err
-		}
-	}
+	currentInvalid := currentSnapshot != "" && json.Unmarshal([]byte(currentSnapshot), &snap) == nil && snap.targetsSlot(slot)
 	var previous string
-	if err := db.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&previous); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
+	if err := db.QueryRow("SELECT value FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous").Scan(&previous); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 	var prev forgeUndoSnapshot
-	if json.Unmarshal([]byte(previous), &prev) == nil && prev.targetsSlot(slot) {
+	previousValid := previous != "" && json.Unmarshal([]byte(previous), &prev) == nil && !prev.targetsSlot(slot)
+	if previous != "" && (!previousValid || currentInvalid) {
+		// Drop an invalidated previous snapshot, or one being promoted below.
 		if _, err := db.Exec("DELETE FROM app_meta WHERE key=$1", forge4Undo2Key(uid)+"_previous"); err != nil {
+			return err
+		}
+	}
+	if currentInvalid {
+		// Promote a still-valid previous snapshot so it stays reachable.
+		promoted := ""
+		if previousValid {
+			promoted = previous
+		}
+		if _, err := db.Exec("/* economy:bot.invalidateForgeUndoForSlot */ UPDATE users SET forge_undo=NULLIF($2, '') WHERE client_uid=$1", uid, promoted); err != nil {
 			return err
 		}
 	}

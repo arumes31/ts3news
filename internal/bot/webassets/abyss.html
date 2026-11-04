@@ -2792,7 +2792,7 @@ function decorateLogLine(d, txt){
   // UI-6: multi-wave pip row.
   // Only the server-authored wave header (which starts the line) counts;
   // "WAVE x of y" text inside a player nickname elsewhere in a line is ignored.
-  var wm=/^\W*(?:\[b\])?\s*WAVE (\d{1,2}) of (\d{1,2})/i.exec(txt);
+  var wm=/^\s*\u2694\uFE0F?\s*(?:\[b\])?\s*WAVE (\d{1,2}) of (\d{1,2})\b/i.exec(txt);
   if(wm) updateWavePips(parseInt(wm[1],10), parseInt(wm[2],10));
   // UI-20: enrage → red breathing glow on the stage until the next floor.
   if(/ENRAGED/.test(txt)) setStageEnraged(true);

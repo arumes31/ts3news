@@ -480,8 +480,12 @@ func (c *abyssLiveCombat) setTactic(uid, tactic string) error {
 		c.mu.Unlock()
 		return errAbyssLiveNotFound
 	}
-	// Unchanged tactics and finished combats create no new combat version.
-	if c.terminalLocked() || c.tactics[uid] == tactic {
+	// Finished combats reject changes; unchanged tactics create no version.
+	if c.terminalLocked() {
+		c.mu.Unlock()
+		return errAbyssLiveStale
+	}
+	if c.tactics[uid] == tactic {
 		c.mu.Unlock()
 		return nil
 	}

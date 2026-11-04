@@ -2969,9 +2969,15 @@ func (b *Bot) distributeRewards(users []UserInCombat, aus []activeUser, victory 
 		// 1% chance for global jackpot on victory. The draw uses server-private
 		// randomness, never the replayable combat stream whose seed is visible
 		// in live snapshots, so combat choices cannot steer the jackpot.
-		if serverPrivateFloat64() < 0.01 {
-			// Find a winner among participants
-			winner := users[serverPrivateIntN(len(users))]
+		// Only real participants can win; clones keep their source UID.
+		eligible := make([]*UserInCombat, 0, len(users))
+		for i := range users {
+			if !users[i].IsClone {
+				eligible = append(eligible, &users[i])
+			}
+		}
+		if len(eligible) > 0 && serverPrivateFloat64() < 0.01 {
+			winner := eligible[serverPrivateIntN(len(eligible))]
 			jackpot := b.claimJackpot(winner.UID, "global")
 			if jackpot > 0 {
 				logs = append(logs, "🔥 GLOBAL JACKPOT WIN! "+winner.Nickname+" won "+FormatGold(jackpot)+"!")

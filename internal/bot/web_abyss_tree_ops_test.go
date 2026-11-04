@@ -194,8 +194,13 @@ func TestAbyssTreeIdempotencyCacheIsBounded(t *testing.T) {
 			t.Fatalf("entry %d rejected below the per-player budget", i)
 		}
 	}
-	if cache.store("user\x00overflow", "user", response, now) {
-		t.Fatal("per-player idempotency budget was not enforced")
+	newer := response
+	newer.ExpiresAt = now.Add(2 * time.Minute)
+	if !cache.store("user\x00overflow", "user", newer, now) {
+		t.Fatal("newest entry was rejected instead of evicting the player's oldest")
+	}
+	if cache.perUser["user"] != abyssTreeIdempotencyMaxPerUser {
+		t.Fatalf("per-player entries = %d, want %d", cache.perUser["user"], abyssTreeIdempotencyMaxPerUser)
 	}
 	if !cache.store("other\x00k", "other", response, now) {
 		t.Fatal("another player's entry was rejected")
@@ -204,12 +209,12 @@ func TestAbyssTreeIdempotencyCacheIsBounded(t *testing.T) {
 	if cache.store("other\x00large", "other", large, now) {
 		t.Fatal("oversized response was cached")
 	}
-	// Expired entries are swept on insert, freeing the player's budget.
-	later := now.Add(2 * time.Minute)
+	// Expired entries are swept on insert.
+	later := now.Add(3 * time.Minute)
 	if !cache.store("user\x00fresh", "user", response, later) {
 		t.Fatal("expired entries were not reclaimed")
 	}
-	if _, ok := cache.load("user\x00k0", later); ok {
+	if _, ok := cache.load("user\x00k5", later); ok {
 		t.Fatal("expired entry is still served")
 	}
 	if got := len(cache.entries); got != 1 {

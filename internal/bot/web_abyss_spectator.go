@@ -68,49 +68,64 @@ func sanitizeAbyssSpectatorSnapshot(snapshot abyssLiveSnapshot) abyssLiveSnapsho
 	// persistent account UIDs (for example "ally:<uid>" or "pet:<uid>..."),
 	// as do presentation-event actors and targets; anything not explicitly
 	// mapped receives a fresh anonymous identifier rather than passing through.
-	ids := make(map[string]string, 2*(len(snapshot.Allies)+len(snapshot.Enemies)))
-	extra := 0
-	remap := func(id string) string {
+	// Combatant IDs and presentation entity IDs are separate namespaces
+	// ("enemy:0" can be a combatant ID while "enemy:1" is another mob's
+	// entity ID), so each has its own table; lookups fall back to the other
+	// namespace and finally to a fresh anonymous identifier.
+	ids := make(map[string]string, len(snapshot.Allies)+len(snapshot.Enemies))
+	entities := make(map[string]string, len(snapshot.Allies)+len(snapshot.Enemies))
+	unknown := map[string]string{}
+	fresh := func(id string) string {
+		if anonymous, ok := unknown[id]; ok {
+			return anonymous
+		}
+		anonymous := fmt.Sprintf("entity:%d", len(unknown)+1)
+		unknown[id] = anonymous
+		return anonymous
+	}
+	lookup := func(id string, primary, secondary map[string]string) string {
 		if id == "" {
 			return ""
 		}
-		if anonymous, ok := ids[id]; ok {
+		if anonymous, ok := primary[id]; ok {
 			return anonymous
 		}
-		extra++
-		anonymous := fmt.Sprintf("entity:%d", extra)
-		ids[id] = anonymous
-		return anonymous
+		if anonymous, ok := secondary[id]; ok {
+			return anonymous
+		}
+		return fresh(id)
 	}
+	remap := func(id string) string { return lookup(id, ids, entities) }
+	remapEntity := func(id string) string { return lookup(id, entities, ids) }
 	snapshot.Allies = append([]abyssLiveCombatantView(nil), snapshot.Allies...)
 	for i := range snapshot.Allies {
 		anonymous := fmt.Sprintf("ally:%d", i+1)
 		ids[snapshot.Allies[i].ID] = anonymous
 		if entity := snapshot.Allies[i].EntityID; entity != "" {
-			if _, mapped := ids[entity]; !mapped {
-				if strings.HasPrefix(entity, "pet:") {
-					ids[entity] = fmt.Sprintf("pet:%d", i+1)
-				} else {
-					ids[entity] = anonymous
-				}
+			if strings.HasPrefix(entity, "pet:") {
+				entities[entity] = fmt.Sprintf("pet:%d", i+1)
+			} else {
+				entities[entity] = anonymous
 			}
 		}
-		snapshot.Allies[i].ID = anonymous
-		snapshot.Allies[i].EntityID = remap(snapshot.Allies[i].EntityID)
-		snapshot.Allies[i].IsSelf = false
-		snapshot.Allies[i].Ready = false
 	}
 	snapshot.Enemies = append([]abyssLiveCombatantView(nil), snapshot.Enemies...)
 	for i := range snapshot.Enemies {
 		anonymous := fmt.Sprintf("enemy:%d", i+1)
 		ids[snapshot.Enemies[i].ID] = anonymous
 		if entity := snapshot.Enemies[i].EntityID; entity != "" {
-			if _, mapped := ids[entity]; !mapped {
-				ids[entity] = anonymous
-			}
+			entities[entity] = anonymous
 		}
-		snapshot.Enemies[i].ID = anonymous
-		snapshot.Enemies[i].EntityID = remap(snapshot.Enemies[i].EntityID)
+	}
+	for i := range snapshot.Allies {
+		snapshot.Allies[i].ID = ids[snapshot.Allies[i].ID]
+		snapshot.Allies[i].EntityID = remapEntity(snapshot.Allies[i].EntityID)
+		snapshot.Allies[i].IsSelf = false
+		snapshot.Allies[i].Ready = false
+	}
+	for i := range snapshot.Enemies {
+		snapshot.Enemies[i].ID = ids[snapshot.Enemies[i].ID]
+		snapshot.Enemies[i].EntityID = remapEntity(snapshot.Enemies[i].EntityID)
 	}
 	snapshot.Initiative = append([]abyssLiveInitiativeEntry(nil), snapshot.Initiative...)
 	for i := range snapshot.Initiative {
@@ -123,10 +138,10 @@ func sanitizeAbyssSpectatorSnapshot(snapshot abyssLiveSnapshot) abyssLiveSnapsho
 	}
 	events := make([]abyssLivePresentationEvent, len(snapshot.PresentationEvents))
 	for i, event := range snapshot.PresentationEvents {
-		event.ActorID = remap(event.ActorID)
+		event.ActorID = remapEntity(event.ActorID)
 		event.Targets = append([]abyssLivePresentationOutcome(nil), event.Targets...)
 		for j := range event.Targets {
-			event.Targets[j].TargetID = remap(event.Targets[j].TargetID)
+			event.Targets[j].TargetID = remapEntity(event.Targets[j].TargetID)
 		}
 		events[i] = event
 	}

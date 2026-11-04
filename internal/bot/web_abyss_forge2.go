@@ -47,6 +47,13 @@ func (s *WebServer) beginForgeTx(w http.ResponseWriter, uid string, invID int64,
 		writeJSON(w, map[string]any{"ok": false, "error": "item not found"})
 		return nil, content.Gear{}, "", false
 	}
+	// Forge operations never act on unidentified gear: their prices and
+	// results depend on hidden attributes, which quotes conceal.
+	if g.Unidentified {
+		_ = tx.Rollback()
+		writeJSON(w, map[string]any{"ok": false, "error": "identify the item before forging it"})
+		return nil, content.Gear{}, "", false
+	}
 	return tx, g, rawData, true
 }
 

@@ -1157,6 +1157,10 @@ func (b *Bot) fightAbyssFloorMode(
 		}
 	}
 	for i := range combatUsers {
+		// Clone helpers neither receive nor spend their source account's cheers.
+		if combatUsers[i].IsClone {
+			continue
+		}
 		if b.applyAbyssCheer(&combatUsers[i]) {
 			logs = append(logs, fmt.Sprintf("[color=#41c97a]🎉 Daily cheer empowers %s with +5%% combat stats.[/color]", combatUsers[i].Nickname))
 		}
@@ -4370,13 +4374,6 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	// Record every committed bank payout, including continuing modes (partial
-	// bank, armored transport), atomically with the payout. The bank-free-day
-	// tax rebate checks this marker. Stored as seen so it is not a notice.
-	if err := recordAbyssBankPayout(tx, uid, payout, continuing); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "db"})
-		return
-	}
 	if contractForfeit > 0 {
 		if _, err := tx.Exec("UPDATE arcade_jackpots SET amount=LEAST(9223372036854775807::numeric,amount::numeric+$1)::bigint, updated_at=NOW() WHERE game_key='abyss'", contractForfeit); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": "db"})
@@ -4547,6 +4544,13 @@ func (s *WebServer) handleAbyssBank(w http.ResponseWriter, r *http.Request, uid 
 		}
 	}
 	if err := recordAbyssTax(tx, uid, capTax); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	// Record every committed bank payout, including continuing modes (partial
+	// bank, armored transport), atomically with the payout, as the last write before commit. The bank-free-day
+	// tax rebate checks this marker. Stored as seen so it is not a notice.
+	if err := recordAbyssBankPayout(tx, uid, payout, continuing); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
