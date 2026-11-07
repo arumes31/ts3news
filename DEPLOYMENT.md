@@ -113,7 +113,7 @@ installation, configure `config.env`, set the verified digest in `.env`, then ru
 Do not combine the GHCR file with the source-build Compose file: use the explicit
 `-f docker-compose.ghcr.yml` commands to avoid inheriting `build:` or local override
 settings. The default `docker-compose.yml` remains the source-build option.
-The image uses Go 1.27.1 and Debian 13 (trixie), with UPX packing removed so image
+The image uses Go 1.27.3 and Debian 13 (trixie), with UPX packing removed so image
 scanners can inventory Go modules. It introduces no application-schema migration,
 and retains the existing PostgreSQL 15 container and storage layout.
 
@@ -144,7 +144,7 @@ References: [GitHub artifact attestations](https://docs.github.com/en/actions/ho
 
 ## Dependency refresh (September 2026)
 
-- Go 1.27.1, Node 26.8.1, Playwright 1.63.0, Pillow 12.3.0, and `x/image` 0.45.0.
+- Go 1.27.3, Node 26.8.1, Playwright 1.64.1, Pillow 13.0.0, and `x/image` 0.47.0.
 - Debian 13 (trixie) image bases are pinned by digest. PostgreSQL remains unchanged
   at `postgres:15-alpine`, mounted at `/var/lib/postgresql/data`.
 - BusyBox is pinned to the latest tagged release, 1.38.0; upstream labels this

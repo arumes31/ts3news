@@ -135,13 +135,11 @@ The bot is configured via environment variables or a `config.env` file.
 | | `ENABLE_XP_MODIFIERS` | Enable streaks, crits, and gear multipliers. | `true` |
 | | `XP_SERVER_GROUPS` | Auto-create TS3 server groups for rank tiers. | `false` |
 | | `CHEAPER_MORE_XP` | Invert XP scaling (cheaper games give more). | `false` |
-| | `RESEND_AFTER_DAYS` | Allow re-sending a game after N days. | `60` |
 | **Sources** | `ENABLE_GAMERPOWER` | Fetch from GamerPower API. | `true` |
 | | `ENABLE_EPIC` | Fetch from Epic Games Store API. | `true` |
 | | `ENABLE_REDDIT` | Fetch from /r/FreeGameFindings RSS. | `true` |
 | | `REDRX_API_KEY` | API Key for [redrx.eu](https://redrx.eu/) shortening of game links (login links are never shortened). | *None* |
 | **Database** | `DATABASE_URL` | PostgreSQL connection string. | *None* |
-| | `DEAD_USER_DAYS` | Purge users inactive for N days. | `180` |
 
 ---
 
