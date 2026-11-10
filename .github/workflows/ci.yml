@@ -3,20 +3,18 @@ name: CI
 on:
   push:
     branches: [ main, v2_test ]
-    # Docs-only changes cannot affect the build; embedded webassets/*.md and
-    # docs/plans/*.md are read by tests, so only root and README files are ignored.
-    paths-ignore:
-      - '*.md'
-      - '**/README*.md'
-      - 'LICENSE'
-      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main, v2_test ]
-    paths-ignore:
-      - '*.md'
-      - '**/README*.md'
-      - 'LICENSE'
-      - '.github/ISSUE_TEMPLATE/**'
+    # PRs only: a skipped main push could leave `latest` unpromoted. Embedded
+    # webassets/*.md and docs/plans/*.md are read by tests, so they still run CI.
+    # Docs-only PRs still get the secret scan via security.yml.
+    paths:
+      - '**'
+      - '!*.md'
+      - '!**/README*.md'
+      - 'internal/bot/webassets/**'
+      - '!LICENSE'
+      - '!.github/ISSUE_TEMPLATE/**'
 
 # Only the main-branch publisher can write packages or request signing tokens.
 permissions:
