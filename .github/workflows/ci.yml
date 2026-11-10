@@ -3,8 +3,20 @@ name: CI
 on:
   push:
     branches: [ main, v2_test ]
+    # Docs-only changes cannot affect the build; embedded webassets/*.md and
+    # docs/plans/*.md are read by tests, so only root and README files are ignored.
+    paths-ignore:
+      - '*.md'
+      - '**/README*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main, v2_test ]
+    paths-ignore:
+      - '*.md'
+      - '**/README*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
 
 # Only the main-branch publisher can write packages or request signing tokens.
 permissions:
@@ -314,6 +326,12 @@ jobs:
 
       - name: Install browser test dependencies
         run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
