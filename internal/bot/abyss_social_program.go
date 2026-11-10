@@ -20,6 +20,9 @@ const (
 	abyssRaidMaxMembers        = 5
 	abyssPartyMaxMembers       = 3
 	abyssSocialMessageMaxRunes = 240
+	// abyssPartyInviteTTLInterval bounds how long a pending co-op invite can
+	// be accepted (a PostgreSQL interval literal).
+	abyssPartyInviteTTLInterval = "30 minutes"
 )
 
 func abyssSocialCode(prefix string) (string, error) {

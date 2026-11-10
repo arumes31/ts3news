@@ -66,7 +66,7 @@ func (b *Bot) flushAbyssShoutbox(client *clientquery.Client, clients []clientque
 		// SendChannelMessage refuses delivery unless the bot currently occupies
 		// the sender's channel, so a shout can never land in a channel the
 		// sender is not in. Undelivered shouts stay pending until they expire.
-		if err := client.SendChannelMessage(cid, "[Abyss] "+shout.nick+": "+shout.message); err != nil {
+		if err := client.SendChannelMessage(cid, abyssShoutboxRelayLine(shout.nick, shout.message)); err != nil {
 			if errors.Is(err, clientquery.ErrNotInChannel) {
 				continue
 			}
@@ -75,4 +75,12 @@ func (b *Bot) flushAbyssShoutbox(client *clientquery.Client, clients []clientque
 		}
 		_, _ = b.DB.Exec("UPDATE abyss_shoutbox_messages SET relayed_at=NOW() WHERE message_id=$1 AND relayed_at IS NULL", shout.id)
 	}
+}
+
+// abyssShoutboxRelayLine formats a relayed shout. Both the nickname and the
+// message are player-controlled, and TeamSpeak renders BBCode in channel
+// messages, so their markup is neutralized before the bot posts them under
+// its own identity.
+func abyssShoutboxRelayLine(nick, message string) string {
+	return "[Abyss] " + sanitizeBBCode(nick) + ": " + sanitizeBBCode(message)
 }

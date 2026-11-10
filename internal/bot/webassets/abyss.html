@@ -4438,9 +4438,9 @@ async function abyssInviteCoop(){
     abToast(d.error || 'Failed to invite ally', false);
     return;
   }
-  document.getElementById('coopStatus').textContent = 'Party size '+Number(d.party_size||2)+' / 3';
+  document.getElementById('coopStatus').textContent = 'Invite pending · party size '+Number(d.party_size||1)+' / 3';
   document.getElementById('coopSelect').value = '';
-  abToast('Ally joined your persistent run party.', true);
+  abToast(d.msg || 'Invite sent. Your ally joins once they accept.', true);
 }
 
 async function shareLastAbyssReplay(){

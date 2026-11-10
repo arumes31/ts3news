@@ -111,20 +111,38 @@ func (s *WebServer) handleAbyssFriendCheer(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, map[string]any{"ok": true, "msg": "Daily cheer sent: +5% stats for 3 fights."})
 }
 
+// handleAbyssMentor manages mentorship. A mentor (best depth >= 25) offers
+// mentorship to a new delver (best depth <= 10); the offer stays pending until
+// the mentee accepts it with their own session. The mentee can decline a
+// pending offer or dissolve an accepted bond at any time.
 func (s *WebServer) handleAbyssMentor(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
+		Action    string `json:"action"`
 		MenteeUID string `json:"mentee_uid"`
+		MentorUID string `json:"mentor_uid"`
 	}
 	if readJSON(r, &req) != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
 		return
 	}
-	req.MenteeUID = strings.TrimSpace(req.MenteeUID)
-	if req.MenteeUID == "" || req.MenteeUID == uid {
+	switch strings.TrimSpace(req.Action) {
+	case "", "offer":
+		s.abyssMentorOffer(w, r, uid, strings.TrimSpace(req.MenteeUID))
+	case "accept":
+		s.abyssMentorAccept(w, r, uid, strings.TrimSpace(req.MentorUID))
+	case "decline", "leave":
+		s.abyssMentorDecline(w, r, uid, strings.TrimSpace(req.MentorUID))
+	default:
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown mentorship action"})
+	}
+}
+
+func (s *WebServer) abyssMentorOffer(w http.ResponseWriter, r *http.Request, uid, menteeUID string) {
+	if menteeUID == "" || menteeUID == uid {
 		writeJSON(w, map[string]any{"ok": false, "error": "choose a new delver"})
 		return
 	}
@@ -139,18 +157,86 @@ func (s *WebServer) handleAbyssMentor(w http.ResponseWriter, r *http.Request, ui
 		writeJSON(w, map[string]any{"ok": false, "error": "mentors must have reached depth 25"})
 		return
 	}
-	if err := tx.QueryRowContext(r.Context(), "SELECT abyss_best_depth FROM users WHERE client_uid=$1 FOR UPDATE", req.MenteeUID).Scan(&menteeDepth); err != nil || menteeDepth > 10 {
+	if err := tx.QueryRowContext(r.Context(), "SELECT abyss_best_depth FROM users WHERE client_uid=$1 FOR UPDATE", menteeUID).Scan(&menteeDepth); err != nil || menteeDepth > 10 {
 		writeJSON(w, map[string]any{"ok": false, "error": "mentees must be at depth 10 or below"})
 		return
 	}
+	var hasMentor bool
+	if err := tx.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM abyss_mentor_pairs
+		WHERE mentee_uid=$1 AND accepted_at IS NOT NULL)`, menteeUID).Scan(&hasMentor); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if hasMentor {
+		writeJSON(w, map[string]any{"ok": false, "error": "that delver already has a mentor"})
+		return
+	}
+	// The offer is only a pending row; it grants nothing and occupies no
+	// mentee slot until the mentee accepts it.
 	result, err := tx.ExecContext(r.Context(), `INSERT INTO abyss_mentor_pairs (mentor_uid,mentee_uid)
-		VALUES ($1,$2) ON CONFLICT (mentee_uid) DO NOTHING`, uid, req.MenteeUID)
+		VALUES ($1,$2) ON CONFLICT (mentor_uid,mentee_uid) DO NOTHING`, uid, menteeUID)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "that delver already has a mentor"})
+		writeJSON(w, map[string]any{"ok": false, "error": "you already offered to mentor that delver"})
+		return
+	}
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO abyss_social_notifications (client_uid,kind,message)
+		VALUES ($1,'mentor_offer','A veteran delver offered to mentor you. Accept or decline it in the Fellowship tools.')`, menteeUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": "Mentorship offered. The bond forms once the delver accepts."})
+}
+
+// abyssMentorAccept lets the session user, as mentee, accept a pending offer.
+func (s *WebServer) abyssMentorAccept(w http.ResponseWriter, r *http.Request, uid, mentorUID string) {
+	if mentorUID == "" || mentorUID == uid {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose a mentorship offer"})
+		return
+	}
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	// Lock the mentee so concurrent accepts serialize before the slot check.
+	var menteeDepth int
+	if err := tx.QueryRowContext(r.Context(), "SELECT abyss_best_depth FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&menteeDepth); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	var hasMentor bool
+	if err := tx.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM abyss_mentor_pairs
+		WHERE mentee_uid=$1 AND accepted_at IS NOT NULL)`, uid).Scan(&hasMentor); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if hasMentor {
+		writeJSON(w, map[string]any{"ok": false, "error": "you already have a mentor"})
+		return
+	}
+	result, err := tx.ExecContext(r.Context(), `UPDATE abyss_mentor_pairs SET accepted_at=NOW()
+		WHERE mentor_uid=$1 AND mentee_uid=$2 AND accepted_at IS NULL AND completed_at IS NULL`, mentorUID, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "that mentorship offer is no longer available"})
+		return
+	}
+	// The mentee has chosen; withdraw every other pending offer.
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM abyss_mentor_pairs
+		WHERE mentee_uid=$1 AND accepted_at IS NULL`, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	if err := tx.Commit(); err != nil {
@@ -158,6 +244,26 @@ func (s *WebServer) handleAbyssMentor(w http.ResponseWriter, r *http.Request, ui
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "msg": "Mentor bond formed. Shared clears grant both delvers bonus tokens."})
+}
+
+// abyssMentorDecline lets the session user, as mentee, decline a pending offer
+// or dissolve an accepted bond.
+func (s *WebServer) abyssMentorDecline(w http.ResponseWriter, r *http.Request, uid, mentorUID string) {
+	if mentorUID == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose a mentorship"})
+		return
+	}
+	result, err := s.bot.DB.ExecContext(r.Context(), `DELETE FROM abyss_mentor_pairs
+		WHERE mentor_uid=$1 AND mentee_uid=$2`, mentorUID, uid)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "no such mentorship"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "msg": "Mentorship removed."})
 }
 
 func (s *WebServer) handleAbyssReferral(w http.ResponseWriter, r *http.Request, uid string) {
