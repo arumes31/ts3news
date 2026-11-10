@@ -663,6 +663,7 @@ func (s *WebServer) routes() *http.ServeMux {
 		mux.HandleFunc("/api/abyss/event/deferred", s.authAPI(s.handleAbyssDeferredEventClaim))
 		mux.HandleFunc("/api/abyss/coop/list", s.authAPI(s.handleAbyssCoopList))
 		mux.HandleFunc("/api/abyss/coop/invite", s.authAPI(s.handleAbyssCoopInvite))
+		mux.HandleFunc("/api/abyss/coop/respond", s.authAPI(s.handleAbyssCoopRespond))
 		mux.HandleFunc("/api/abyss/coop/leave", s.authAPI(s.handleAbyssCoopLeave))
 		mux.HandleFunc("/api/abyss/prestige", s.authAPI(s.handleAbyssPrestige))
 		mux.HandleFunc("/api/abyss/bounty/claim", s.authAPI(s.handleAbyssBountyClaim))

@@ -1258,7 +1258,7 @@ func (b *Bot) fightAbyssFloorMode(
 			notice := fmt.Sprintf("Your assist secured a floor clear with %s. Reliability: %d assist(s).", u.Nickname, assists)
 			_, _ = b.DB.Exec("INSERT INTO abyss_social_notifications (client_uid,kind,message) VALUES ($1,'helper_kill',$2)", partyUID, notice)
 			var mentorPair bool
-			_ = b.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_mentor_pairs WHERE completed_at IS NULL AND
+			_ = b.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_mentor_pairs WHERE completed_at IS NULL AND accepted_at IS NOT NULL AND
 			((mentor_uid=$1 AND mentee_uid=$2) OR (mentor_uid=$2 AND mentee_uid=$1)))`, uid, partyUID).Scan(&mentorPair)
 			if mentorPair {
 				b.grantAbyssTokens(uid, abyssMentorRewardTokens)
@@ -4713,6 +4713,15 @@ func abyssMilestoneLine(depth int) string {
 
 func bbWrapMuted(s string) string { return "[color=#8a93a8][i]" + s + "[/i][/color]" }
 
+const (
+	abyssAffixSuppressorID = "abyss_affix_suppressor"
+	abyssManualBuffFights  = 3
+	// abyssManualBuffQuery activates a buff for at most abyssManualBuffFights
+	// fights. LEAST keeps it monotonic: re-using a buff can only shorten,
+	// never extend, the remaining fights it was bought or granted with.
+	abyssManualBuffQuery = "/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = LEAST(remaining_fights, $3) WHERE client_uid = $1 AND cons_id = $2 AND remaining_fights > 0"
+)
+
 // handleAbyssUseConsumable handles manually drinking a potion or using a repair kit in the lobby.
 func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
@@ -4777,9 +4786,17 @@ func (s *WebServer) handleAbyssUseConsumable(w http.ResponseWriter, r *http.Requ
 		}
 		s.bot.ensureGearMaxDurability(uid)
 	case content.ConsumableBuff:
-		// Buffs elixirs: manual use sets them to active (3 remaining fights).
+		// The Affix Suppressor is typed as a buff but is spent only at run
+		// entry (handleAbyssEnter); it has no manual effect.
+		if req.ConsID == abyssAffixSuppressorID {
+			writeJSON(w, map[string]any{"ok": false, "error": "the Affix Suppressor is consumed automatically when you enter the Abyss"})
+			return
+		}
+		// Buff elixirs apply while their row has fights remaining. Manual use
+		// caps the active window at abyssManualBuffFights but never raises the
+		// counter: an absolute write would refill a nearly-spent buff forever.
 		// Do NOT fall through to the shared delete — buffs stay owned while active.
-		_, _ = s.bot.DB.Exec("/* economy:bot.WebServer.handleAbyssUseConsumable */ UPDATE user_consumables SET remaining_fights = 3 WHERE client_uid = $1 AND cons_id = $2", uid, req.ConsID)
+		_, _ = s.bot.DB.Exec(abyssManualBuffQuery, uid, req.ConsID, abyssManualBuffFights)
 		s.bot.abyssSpendLoadout(uid, req.ConsID)
 		_, _ = s.bot.DB.Exec("UPDATE abyss_active SET momentum = 0 WHERE client_uid=$1", uid) // #7 momentum breaks on consumable use
 		if backlash := corruptedConsumableBacklash(req.ConsID, stats.HP); backlash > 0 {
@@ -6405,6 +6422,10 @@ func (s *WebServer) handleAbyssCoopList(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, map[string]any{"ok": true, "helpers": helpers})
 }
 
+// handleAbyssCoopInvite lets a run owner invite another delver into the
+// shared run party. The invite is only pending: the invited account joins the
+// party (and its live combat, rewards and clone participation) only once it
+// accepts the invite itself through handleAbyssCoopRespond.
 func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request, uid string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -6420,6 +6441,7 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		CoopUID string `json:"coop_uid"`
 	}
 	_ = readJSON(r, &req)
+	req.CoopUID = strings.TrimSpace(req.CoopUID)
 
 	run := s.bot.loadAbyssRun(uid)
 	if !run.Active {
@@ -6427,7 +6449,7 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		return
 	}
 	// Reject self-targeting.
-	if req.CoopUID == uid {
+	if req.CoopUID == "" || req.CoopUID == uid {
 		writeJSON(w, map[string]any{"ok": false, "error": "cannot invite yourself as a co-op helper"})
 		return
 	}
@@ -6439,51 +6461,131 @@ func (s *WebServer) handleAbyssCoopInvite(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"ok": false, "error": "helper not found"})
 		return
 	}
-	var helperBusy bool
-	_ = s.bot.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_active WHERE client_uid=$1)
-		OR EXISTS(SELECT 1 FROM abyss_party_members WHERE owner_uid=$1)`, req.CoopUID).Scan(&helperBusy)
-	if helperBusy {
-		writeJSON(w, map[string]any{"ok": false, "error": "helper is already leading a descent"})
+	var members int
+	if err := s.bot.DB.QueryRow("SELECT COUNT(*) FROM abyss_party_members WHERE owner_uid=$1", uid).Scan(&members); err != nil || members >= abyssPartyMaxMembers-1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "party is full"})
 		return
 	}
-
 	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	// Serialize helper enrollment with class changes, which lock this same user.
-	var helper string
-	if err := tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", req.CoopUID).Scan(&helper); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "Could not lock helper. Retry."})
+	if _, err := tx.Exec(`INSERT INTO abyss_party_invites (owner_uid,member_uid) VALUES ($1,$2)
+		ON CONFLICT (owner_uid,member_uid) DO UPDATE SET created_at=NOW()`, uid, req.CoopUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	var active bool
-	if err := tx.QueryRow("SELECT TRUE FROM abyss_active WHERE client_uid=$1 FOR UPDATE", uid).Scan(&active); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "not in a run"})
+	if _, err := tx.Exec(`INSERT INTO abyss_social_notifications (client_uid,kind,message)
+		VALUES ($1,'coop_invite','A delver invited you to their shared run party. Accept or decline it in the Fellowship commons.')`, req.CoopUID); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
-	}
-	var members int
-	if err := tx.QueryRow("SELECT COUNT(*) FROM abyss_party_members WHERE owner_uid=$1", uid).Scan(&members); err != nil || members >= abyssPartyMaxMembers-1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "party is full"})
-		return
-	}
-	if _, err := tx.Exec(`INSERT INTO abyss_party_members (owner_uid,member_uid) VALUES ($1,$2)`, uid, req.CoopUID); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": "helper already belongs to a run party"})
-		return
-	}
-	if members == 0 {
-		if _, err := tx.Exec("UPDATE abyss_active SET coop_uid=$1,last_action_at=NOW() WHERE client_uid=$2", req.CoopUID, uid); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "db"})
-			return
-		}
 	}
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "db"})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "party_size": members + 2})
+	writeJSON(w, map[string]any{"ok": true, "pending": true, "party_size": members + 1, "msg": "Invite sent. Your ally joins once they accept."})
+}
+
+// handleAbyssCoopRespond lets the session user accept or decline a pending
+// co-op invite addressed to them. Only acceptance enrolls the account.
+func (s *WebServer) handleAbyssCoopRespond(w http.ResponseWriter, r *http.Request, uid string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		OwnerUID string `json:"owner_uid"`
+		Accept   bool   `json:"accept"`
+	}
+	if readJSON(r, &req) != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "bad request"})
+		return
+	}
+	req.OwnerUID = strings.TrimSpace(req.OwnerUID)
+	if req.OwnerUID == "" || req.OwnerUID == uid {
+		writeJSON(w, map[string]any{"ok": false, "error": "choose an invite"})
+		return
+	}
+	if !req.Accept {
+		if _, err := s.bot.DB.ExecContext(r.Context(), "DELETE FROM abyss_party_invites WHERE owner_uid=$1 AND member_uid=$2", req.OwnerUID, uid); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "msg": "Invite declined."})
+		return
+	}
+	// Serialize with the owner's own run actions, like leaving the party.
+	unlock := s.lockAbyss(req.OwnerUID)
+	defer unlock()
+	if combat, ok := s.liveCombatForUID(req.OwnerUID); ok && combat.isActive() {
+		writeJSON(w, map[string]any{"ok": false, "error": "the host is mid-fight; accept again once the fight ends"})
+		return
+	}
+	if combat, ok := s.liveCombatForUID(uid); ok && combat.isActive() {
+		writeJSON(w, map[string]any{"ok": false, "error": "finish the active combat first"})
+		return
+	}
+	tx, err := s.bot.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	// Lock the member, serializing enrollment with its class changes and runs.
+	var member string
+	if err := tx.QueryRow("SELECT client_uid FROM users WHERE client_uid=$1 FOR UPDATE", uid).Scan(&member); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	var startedAt time.Time
+	if err := tx.QueryRow("SELECT started_at FROM abyss_active WHERE client_uid=$1 FOR UPDATE", req.OwnerUID).Scan(&startedAt); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "that run has ended"})
+		return
+	}
+	result, err := tx.Exec(`DELETE FROM abyss_party_invites WHERE owner_uid=$1 AND member_uid=$2
+		AND created_at>NOW()-$3::interval AND created_at>=$4`, req.OwnerUID, uid, abyssPartyInviteTTLInterval, startedAt)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "that invite has expired"})
+		return
+	}
+	var busy bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM abyss_active WHERE client_uid=$1)
+		OR EXISTS(SELECT 1 FROM abyss_party_members WHERE owner_uid=$1 OR member_uid=$1)`, uid).Scan(&busy); err != nil || busy {
+		writeJSON(w, map[string]any{"ok": false, "error": "leave your current run or party before joining another"})
+		return
+	}
+	var members int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM abyss_party_members WHERE owner_uid=$1", req.OwnerUID).Scan(&members); err != nil || members >= abyssPartyMaxMembers-1 {
+		writeJSON(w, map[string]any{"ok": false, "error": "party is full"})
+		return
+	}
+	if _, err := tx.Exec(`INSERT INTO abyss_party_members (owner_uid,member_uid) VALUES ($1,$2)`, req.OwnerUID, uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "you already belong to a run party"})
+		return
+	}
+	if members == 0 {
+		if _, err := tx.Exec("UPDATE abyss_active SET coop_uid=$1,last_action_at=NOW() WHERE client_uid=$2", uid, req.OwnerUID); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "db"})
+			return
+		}
+	}
+	// Joining one party withdraws the member's other pending invites.
+	if _, err := tx.Exec("DELETE FROM abyss_party_invites WHERE member_uid=$1", uid); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "db"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "party_size": members + 2, "msg": "You joined the shared run party."})
 }
 
 func (s *WebServer) handleAbyssCoopLeave(w http.ResponseWriter, r *http.Request, uid string) {
@@ -6506,9 +6608,8 @@ func (s *WebServer) handleAbyssCoopLeave(w http.ResponseWriter, r *http.Request,
 var errAbyssPartyChanged = errors.New("party membership changed; refresh and retry")
 
 // leaveAbyssPartyAsMember removes uid from the shared run party it was
-// enrolled in, if any, and reports whether it left one. Enrollment is
-// initiated by the party owner without the member's acceptance, so it must
-// never restrict the member's own account: the member's own descent and class
+// enrolled in, if any, and reports whether it left one. Membership must never
+// restrict the member's own account: the member's own descent and class
 // changes call this to drop the membership instead of being blocked by it.
 // It must be called without holding uid's Abyss lock (it takes the owner's).
 func (s *WebServer) leaveAbyssPartyAsMember(ctx context.Context, uid string) (bool, error) {

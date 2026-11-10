@@ -78,6 +78,13 @@ type abyssProgramRankView struct {
 	Value int
 }
 
+// abyssProgramInviteView is a pending co-op or mentorship invitation the
+// viewer can accept or decline.
+type abyssProgramInviteView struct {
+	UID  string
+	Nick string
+}
+
 type abyssSocialProgramView struct {
 	Friends          []abyssProgramFriendView
 	Messages         []abyssProgramMessageView
@@ -93,6 +100,9 @@ type abyssSocialProgramView struct {
 	Activity         []abyssProgramMessageView
 	ReferralCode     string
 	MentorStatus     string
+	MentorUID        string
+	MentorInvites    []abyssProgramInviteView
+	PartyInvites     []abyssProgramInviteView
 	DailyFloors      int64
 	DailyGoal        int
 	DailyGoalPercent int
@@ -290,11 +300,37 @@ func (b *Bot) abyssSocialProgram(uid string) abyssSocialProgramView {
 	var mentor, mentee sql.NullString
 	_ = b.DB.QueryRow(`SELECT MAX(CASE WHEN mentor_uid=$1 THEN mentee_uid END),
 		MAX(CASE WHEN mentee_uid=$1 THEN mentor_uid END) FROM abyss_mentor_pairs
-		WHERE (mentor_uid=$1 OR mentee_uid=$1) AND completed_at IS NULL`, uid).Scan(&mentee, &mentor)
+		WHERE (mentor_uid=$1 OR mentee_uid=$1) AND completed_at IS NULL AND accepted_at IS NOT NULL`, uid).Scan(&mentee, &mentor)
 	if mentee.Valid {
 		view.MentorStatus = fmt.Sprintf("Mentoring %s", mentee.String)
 	} else if mentor.Valid {
 		view.MentorStatus = fmt.Sprintf("Mentored by %s", mentor.String)
+		view.MentorUID = mentor.String
 	}
+	view.MentorInvites = b.abyssProgramInvites(`SELECT p.mentor_uid,COALESCE(NULLIF(u.nickname,''),'Adventurer')
+		FROM abyss_mentor_pairs p JOIN users u ON u.client_uid=p.mentor_uid
+		WHERE p.mentee_uid=$1 AND p.accepted_at IS NULL AND p.completed_at IS NULL
+		ORDER BY p.created_at DESC LIMIT 5`, uid)
+	view.PartyInvites = b.abyssProgramInvites(`SELECT i.owner_uid,COALESCE(NULLIF(u.nickname,''),'Adventurer')
+		FROM abyss_party_invites i JOIN users u ON u.client_uid=i.owner_uid
+		JOIN abyss_active a ON a.client_uid=i.owner_uid
+		WHERE i.member_uid=$1 AND i.created_at>NOW()-$2::interval AND i.created_at>=a.started_at
+		ORDER BY i.created_at DESC LIMIT 5`, uid, abyssPartyInviteTTLInterval)
 	return view
+}
+
+func (b *Bot) abyssProgramInvites(query string, args ...any) []abyssProgramInviteView {
+	rows, err := b.DB.Query(query, args...)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	var out []abyssProgramInviteView
+	for rows.Next() {
+		var invite abyssProgramInviteView
+		if rows.Scan(&invite.UID, &invite.Nick) == nil {
+			out = append(out, invite)
+		}
+	}
+	return out
 }
