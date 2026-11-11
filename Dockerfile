@@ -5,7 +5,7 @@
 # 9987, and a small Go bot drives it through the ClientQuery plugin to poke users.
 
 # ---- Stage 1: build the Go bot (pure Go, no cgo) ----
-FROM golang:1.27.3-trixie@sha256:604106102d33b1084e37ca08adf98ac0813624ae8595bd0d7f3965ecebded09c AS gobuilder
+FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c059853646677112d9 AS gobuilder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /bot ./cmd/bot
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o /economy-reset ./cmd/economy-reset
 
 # ---- Stage 2: download + extract the official TeamSpeak 3 client ----
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS tsclient
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS tsclient
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ARG TS3_VERSION=3.6.2
@@ -30,12 +30,13 @@ RUN curl -fsSL -o /tmp/ts3.run \
  && test -f /opt/ts3/ts3client_linux_amd64
 
 # ---- Stage 3: runtime ----
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 ENV DEBIAN_FRONTEND=noninteractive
 # Update vulnerable packages inherited from the pinned base as well as new dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6=2.41-12+deb13u4 libc-bin=2.41-12+deb13u4 perl-base=5.40.1-6+deb13u1 \
     gzip=1.13-1+deb13u1 libpcre2-8-0=10.46-1~deb13u3 \
+    zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 apt=3.0.4 libapt-pkg7.0=3.0.4 \
     libssl3t64=3.5.7-1~deb13u3 openssl=3.5.7-1~deb13u3 openssl-provider-legacy=3.5.7-1~deb13u3 \
     xvfb dbus dbus-x11 xdotool python3 sqlite3 ca-certificates fonts-dejavu-core procps \
     libxcb1 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 \
