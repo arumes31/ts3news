@@ -37,6 +37,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
     // Start expedition and pause to set up simulation
     await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
+    await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
 
     // Dispatch simulated events: one off-screen left, one off-screen right, one on-screen
     // Player is at x: 350, so cam is 0, screen spans [0, 960].
@@ -82,6 +83,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
 
     await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
+    await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
 
     // Simulate run with enemies off-screen left and right
     await page.evaluate(() => {
@@ -122,6 +124,7 @@ test.describe('Optional directional captions for off-screen threats (Proposal 01
 
     await page.locator('#rift-start').click();await expect(page.locator('#rift-overlay')).toBeHidden();
     await page.keyboard.press('Escape');
+    await expect(page.locator('#rift-paused-badge')).toHaveText('Paused');
 
     await page.evaluate(() => {
       const run = {
