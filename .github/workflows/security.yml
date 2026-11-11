@@ -2,6 +2,13 @@ name: Security
 
 on:
   workflow_call:
+  # Docs-only PRs skip CI (and its call to this workflow); scan them for secrets here.
+  pull_request:
+    paths:
+      - '*.md'
+      - '**/README*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
   schedule:
     - cron: '23 6 * * 1' # Mondays, UTC; default branch only.
@@ -16,6 +23,8 @@ concurrency:
 jobs:
   govulncheck:
     name: Go Vulnerability Check
+    # Skip only for this workflow's own docs-only PR trigger (callers share event_name).
+    if: github.workflow != 'Security' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -51,6 +60,8 @@ jobs:
 
   dependencies:
     name: Source Dependency Scan
+    # Skip only for this workflow's own docs-only PR trigger (callers share event_name).
+    if: github.workflow != 'Security' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -90,6 +101,8 @@ jobs:
 
   codeql:
     name: CodeQL (${{ matrix.language }})
+    # Skip only for this workflow's own docs-only PR trigger (callers share event_name).
+    if: github.workflow != 'Security' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
