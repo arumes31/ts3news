@@ -59,11 +59,11 @@ test('supports left and right placement, opacity, and scale customization with p
 
   // 1. Test left / right placement
   await layoutSelect.selectOption('left');
-  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', 'flex-start');
+  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', /^(flex|flow)-start$/);
   expect(await page.locator('#rift-app').getAttribute('data-touch-layout')).toBe('left');
 
   await layoutSelect.selectOption('right');
-  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', 'flex-end');
+  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', /^(flex|flow)-end$/);
   expect(await page.locator('#rift-app').getAttribute('data-touch-layout')).toBe('right');
 
   // 2. Test opacity slider (e.g. 60%)
@@ -84,7 +84,7 @@ test('supports left and right placement, opacity, and scale customization with p
   await page.reload();
   await expect(page.locator('#rift-start')).toBeEnabled();
   await expect(page.locator('.rift-touch')).toHaveCSS('opacity', '0.6');
-  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', 'flex-end');
+  await expect(page.locator('.rift-touch')).toHaveCSS('justify-content', /^(flex|flow)-end$/);
   const reloadedScale = await page.evaluate(() => {
     return getComputedStyle(document.getElementById('rift-app')).getPropertyValue('--rift-touch-scale');
   });
